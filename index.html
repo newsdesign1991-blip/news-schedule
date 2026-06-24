@@ -3197,27 +3197,35 @@ async function analyzeScheduleImage() {
 반드시 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
 {"year":2026,"month":6,"unknownNames":[],"schedule":[{"date":"2026-06-01","entries":[{"name":"홍길동","workType":"정근"}]}]}`;
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [
-          { inline_data: { mime_type: _imgMediaType, data: _imgBase64 } },
-          { text: prompt }
-        ]}],
-        generationConfig: { temperature: 0, maxOutputTokens: 8192 }
-      })
+    const MODELS = ['gemini-2.0-flash','gemini-1.5-flash','gemini-1.5-pro','gemini-pro-vision'];
+    const body = JSON.stringify({
+      contents: [{ parts: [
+        { inline_data: { mime_type: _imgMediaType, data: _imgBase64 } },
+        { text: prompt }
+      ]}],
+      generationConfig: { temperature: 0, maxOutputTokens: 8192 }
     });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.statusText); }
-    const resp = await res.json();
-    const rawText = resp.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    let rawText = '', lastErr = '';
+    for (const model of MODELS) {
+      btn.textContent = `⏳ 시도 중 (${model})...`;
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body
+        });
+        const resp = await res.json();
+        if (!res.ok) { lastErr = resp.error?.message || res.statusText; continue; }
+        rawText = resp.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (rawText) break;
+      } catch(e) { lastErr = e.message; }
+    }
+    if (!rawText) throw new Error('모든 모델 시도 실패. 마지막 오류: ' + lastErr);
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('JSON 파싱 실패: ' + rawText.substring(0, 200));
     _imgParsedData = JSON.parse(jsonMatch[0]);
     _renderImgResult(_imgParsedData);
   } catch(e) {
     toast('분석 실패: ' + e.message, 'error');
-    document.getElementById('img-result-content').innerHTML = `<div style="color:#d65a52;font-size:12px;">오류: ${e.message}</div>`;
+    document.getElementById('img-result-content').innerHTML = `<div style="color:#d65a52;font-size:12px;line-height:1.6;">오류: ${e.message}<br><br>💡 <b>이미지 대신 엑셀 파일 탭을 이용하면 API 키 없이 바로 가져올 수 있습니다.</b></div>`;
     document.getElementById('img-result-area').style.display = 'block';
   } finally {
     btn.textContent = '🔍 AI 분석하기'; btn.disabled = false;
