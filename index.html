@@ -293,12 +293,13 @@ tr.staff-row-clickable:hover td { background:var(--surface2); cursor:pointer; }
   .header-right { margin-left: auto; gap: 6px; }
   .date-badge { display: none; }
   .admin-link { padding: 4px 8px; font-size: 11px; }
-  /* 모바일 테이블 - 가로 스크롤, 이름 열 가독성 유지 */
-  .excel-wrap { border-radius: 8px; }
-  .excel-table thead th.name-th { font-size: 11px; padding: 5px 4px; min-width: 22px; }
-  .excel-table tbody td { font-size: 11px; height: 26px; }
-  .excel-table thead th.date-th, .excel-table tbody td.date-td { width: 40px; min-width: 40px; font-size: 11px; }
-  .excel-table thead th.dow-th, .excel-table tbody td.dow-td { width: 28px; min-width: 28px; font-size: 11px; }
+  /* 모바일 테이블 - 가로 스크롤 */
+  .excel-wrap { border-radius: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .excel-table { width: auto; min-width: max-content; table-layout: auto; }
+  .excel-table thead th.name-th { font-size: 12px; padding: 5px 5px; min-width: 24px; }
+  .excel-table tbody td { font-size: 12px; height: 28px; }
+  .excel-table thead th.date-th, .excel-table tbody td.date-td { width: 42px; min-width: 42px; font-size: 12px; }
+  .excel-table thead th.dow-th, .excel-table tbody td.dow-td { width: 30px; min-width: 30px; font-size: 12px; }
   .mobile-table-tip { display: flex !important; }
 }
 #admin-mode-bar { display:none; position:fixed; top:0; left:0; right:0; z-index:2000; background:#d65a52; color:#fff; font-size:12px; font-weight:700; text-align:center; padding:5px 12px; letter-spacing:0.04em; }
