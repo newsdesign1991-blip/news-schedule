@@ -307,6 +307,7 @@ tr.staff-row-clickable:hover td { background:var(--surface2); cursor:pointer; }
 #admin-mode-bar button:hover { background:rgba(255,255,255,0.35); }
 body.admin-mode-active { padding-top: 30px; }
 </style>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -958,34 +959,55 @@ body.admin-mode-active { padding-top: 30px; }
 
 <!-- 이미지 분석 모달 -->
 <div class="modal-overlay" id="img-import-modal" style="display:none;" onclick="if(event.target===this)closeImageImport()">
-  <div class="modal" style="max-width:520px;max-height:90vh;display:flex;flex-direction:column;">
+  <div class="modal" style="max-width:540px;max-height:90vh;display:flex;flex-direction:column;">
     <div class="modal-header">
-      <h3>🖼 근무표 이미지 분석</h3>
+      <h3 id="img-modal-title">📊 근무표 가져오기</h3>
       <button class="modal-close" onclick="closeImageImport()">✕</button>
     </div>
+    <!-- 탭 -->
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px;">
+      <button id="img-tab-excel" onclick="switchImportTab('excel')" style="flex:1;padding:8px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid #6366f1;margin-bottom:-2px;background:transparent;color:#6366f1;cursor:pointer;">📊 엑셀 파일</button>
+      <button id="img-tab-image" onclick="switchImportTab('image')" style="flex:1;padding:8px;font-size:13px;font-weight:600;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:transparent;color:var(--muted);cursor:pointer;">🖼 이미지 분석 (AI)</button>
+    </div>
     <div style="flex:1;overflow-y:auto;padding:4px 0;">
-      <!-- API 키 -->
-      <div class="form-group">
-        <label class="form-label">Google Gemini API Key <span style="font-size:10px;color:var(--muted);">(최초 1회 입력, 로컬 저장 / 무료)</span></label>
-        <input type="password" class="form-input" id="img-api-key" placeholder="sk-ant-...">
-      </div>
-      <!-- 이미지 업로드 -->
-      <div class="form-group">
-        <label class="form-label">근무표 이미지</label>
-        <div id="img-drop-zone" style="border:2px dashed var(--border);border-radius:10px;padding:30px;text-align:center;cursor:pointer;transition:border-color 0.15s;" onclick="document.getElementById('img-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='#6366f1'" ondragleave="this.style.borderColor=''" ondrop="handleImgDrop(event)">
-          <div id="img-drop-label" style="color:var(--muted);font-size:13px;">클릭하거나 이미지를 드래그하여 올려주세요<br><span style="font-size:11px;">PNG, JPG, WEBP 지원</span></div>
-          <img id="img-preview" style="display:none;max-width:100%;max-height:180px;border-radius:6px;margin-top:10px;">
+      <!-- 엑셀 탭 -->
+      <div id="img-section-excel">
+        <div class="form-group">
+          <label class="form-label">엑셀 파일 (.xlsx, .xls)</label>
+          <div id="xl-drop-zone" style="border:2px dashed var(--border);border-radius:10px;padding:30px;text-align:center;cursor:pointer;transition:border-color 0.15s;" onclick="document.getElementById('xl-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='#6366f1'" ondragleave="this.style.borderColor=''" ondrop="handleXlDrop(event)">
+            <div id="xl-drop-label" style="color:var(--muted);font-size:13px;">클릭하거나 엑셀 파일을 드래그하여 올려주세요<br><span style="font-size:11px;">.xlsx / .xls 지원</span></div>
+            <div id="xl-file-name" style="display:none;font-size:13px;font-weight:600;color:var(--text);margin-top:8px;"></div>
+          </div>
+          <input type="file" id="xl-file-input" accept=".xlsx,.xls" style="display:none" onchange="handleXlFile(this)">
         </div>
-        <input type="file" id="img-file-input" accept="image/*" style="display:none" onchange="handleImgFile(this)">
+        <div style="font-size:11px;color:var(--muted);background:var(--surface2);border-radius:8px;padding:8px 10px;line-height:1.6;">
+          💡 엑셀 파일 구조: 1행=제목(연도/월 포함), 2~3행=이름 헤더, 이후=날짜별 근무 데이터
+        </div>
       </div>
-      <!-- 분석 결과 -->
-      <div id="img-result-area" style="display:none;">
+      <!-- 이미지 탭 -->
+      <div id="img-section-image" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Google Gemini API Key <span style="font-size:10px;color:var(--muted);">(최초 1회 입력, 로컬 저장 / 무료)</span></label>
+          <input type="password" class="form-input" id="img-api-key" placeholder="AIza...">
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">발급: <b>aistudio.google.com</b> → Get API key → Create API key</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">근무표 이미지</label>
+          <div id="img-drop-zone" style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:border-color 0.15s;" onclick="document.getElementById('img-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='#6366f1'" ondragleave="this.style.borderColor=''" ondrop="handleImgDrop(event)">
+            <div id="img-drop-label" style="color:var(--muted);font-size:13px;">클릭하거나 이미지를 드래그<br><span style="font-size:11px;">PNG, JPG, WEBP 지원</span></div>
+            <img id="img-preview" style="display:none;max-width:100%;max-height:160px;border-radius:6px;margin-top:8px;">
+          </div>
+          <input type="file" id="img-file-input" accept="image/*" style="display:none" onchange="handleImgFile(this)">
+        </div>
+      </div>
+      <!-- 결과 공통 -->
+      <div id="img-result-area" style="display:none;margin-top:10px;">
         <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">분석 결과</div>
         <div id="img-result-content"></div>
       </div>
     </div>
     <div style="padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-primary" style="width:auto;" onclick="analyzeScheduleImage()" id="img-analyze-btn">🔍 분석하기</button>
+      <button class="btn btn-primary" style="width:auto;" onclick="runImport()" id="img-analyze-btn">📊 파싱하기</button>
       <button class="btn btn-sm btn-outline" onclick="closeImageImport()">닫기</button>
       <button id="img-apply-btn" class="btn btn-sm" style="display:none;background:#059669;color:#fff;border:none;" onclick="applyImageSchedule()">✅ 근무표에 적용</button>
     </div>
@@ -2987,9 +3009,25 @@ function deleteEvent(dateStr, idx) {
   }
 }
 
-// ===== 이미지 분석 =====
+// ===== 이미지/엑셀 가져오기 =====
 let _imgBase64 = null, _imgMediaType = 'image/jpeg', _imgParsedData = null, _unknownNames = [];
+let _xlArrayBuffer = null, _currentImportTab = 'excel';
 
+function switchImportTab(tab) {
+  _currentImportTab = tab;
+  document.getElementById('img-section-excel').style.display = tab==='excel' ? '' : 'none';
+  document.getElementById('img-section-image').style.display = tab==='image' ? '' : 'none';
+  document.getElementById('img-tab-excel').style.cssText = tab==='excel'
+    ? 'flex:1;padding:8px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid #6366f1;margin-bottom:-2px;background:transparent;color:#6366f1;cursor:pointer;'
+    : 'flex:1;padding:8px;font-size:13px;font-weight:600;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:transparent;color:var(--muted);cursor:pointer;';
+  document.getElementById('img-tab-image').style.cssText = tab==='image'
+    ? 'flex:1;padding:8px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid #6366f1;margin-bottom:-2px;background:transparent;color:#6366f1;cursor:pointer;'
+    : 'flex:1;padding:8px;font-size:13px;font-weight:600;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:transparent;color:var(--muted);cursor:pointer;';
+  const btn = document.getElementById('img-analyze-btn');
+  btn.textContent = tab==='excel' ? '📊 파싱하기' : '🔍 AI 분석하기';
+  document.getElementById('img-result-area').style.display = 'none';
+  document.getElementById('img-apply-btn').style.display = 'none';
+}
 function openImageImport() {
   const stored = localStorage.getItem('nd_gemini_key');
   if (stored) document.getElementById('img-api-key').value = stored;
@@ -2997,14 +3035,122 @@ function openImageImport() {
   document.getElementById('img-apply-btn').style.display = 'none';
   document.getElementById('img-import-modal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
-  _imgBase64 = null; _imgParsedData = null;
-  document.getElementById('img-preview').style.display = 'none';
-  document.getElementById('img-drop-label').style.display = '';
+  _imgBase64 = null; _imgParsedData = null; _xlArrayBuffer = null;
+  switchImportTab('excel');
 }
 function closeImageImport() {
   document.getElementById('img-import-modal').style.display = 'none';
   document.body.style.overflow = '';
 }
+function runImport() {
+  if (_currentImportTab === 'excel') parseExcelSchedule();
+  else analyzeScheduleImage();
+}
+// ---- 엑셀 파일 처리 ----
+function handleXlFile(input) {
+  const file = input.files[0]; if (!file) return;
+  document.getElementById('xl-file-name').textContent = '📄 ' + file.name;
+  document.getElementById('xl-file-name').style.display = 'block';
+  document.getElementById('xl-drop-label').style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = e => { _xlArrayBuffer = e.target.result; };
+  reader.readAsArrayBuffer(file);
+}
+function handleXlDrop(e) {
+  e.preventDefault();
+  document.getElementById('xl-drop-zone').style.borderColor = '';
+  const file = e.dataTransfer.files[0]; if (!file) return;
+  const dt = new DataTransfer(); dt.items.add(file);
+  document.getElementById('xl-file-input').files = dt.files;
+  handleXlFile(document.getElementById('xl-file-input'));
+}
+function parseExcelSchedule() {
+  if (!_xlArrayBuffer) { toast('엑셀 파일을 먼저 올려주세요','error'); return; }
+  try {
+    const wb = XLSX.read(_xlArrayBuffer, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+    // 연도/월 추출: 첫 행에서 "YYYY년 M월" 또는 "YYYY년MM월" 검색
+    let year = new Date().getFullYear(), month = new Date().getMonth()+1;
+    for (let r=0; r<Math.min(5,rows.length); r++) {
+      const line = rows[r].join(' ');
+      const m = line.match(/(\d{4})[년\s]*\s*(\d{1,2})[월]/);
+      if (m) { year=parseInt(m[1]); month=parseInt(m[2]); break; }
+    }
+
+    // 이름 헤더 행 찾기: 날짜 열(A) 다음에 직원 이름들이 나오는 첫 행
+    // 날짜 데이터 행은 A열이 "숫자/숫자" 또는 날짜 형식
+    const staffNames = new Set((data.staff||[]).map(s=>s.name));
+    let nameRowIdx = -1;
+    let nameColStart = 2; // 기본값: C열(index 2)부터 이름
+    for (let r=0; r<Math.min(10,rows.length); r++) {
+      const row = rows[r];
+      let matchCount = 0;
+      for (let c=1; c<row.length; c++) {
+        const v = String(row[c]).trim();
+        if (staffNames.has(v)) matchCount++;
+      }
+      if (matchCount >= 3) { // 3명 이상 직원 이름이 있으면 이름 행으로 판정
+        nameRowIdx = r;
+        // 이름 시작 열 찾기 (날짜/요일 열 건너뜀)
+        for (let c=0; c<row.length; c++) {
+          if (staffNames.has(String(row[c]).trim())) { nameColStart=c; break; }
+        }
+        break;
+      }
+    }
+    if (nameRowIdx === -1) { toast('직원 이름 헤더 행을 찾을 수 없습니다.\n엑셀 파일에 직원 이름이 포함되어 있는지 확인하세요.','error'); return; }
+
+    // 이름 → 열 인덱스 매핑
+    const nameRow = rows[nameRowIdx];
+    const colMap = []; // [{name, colIdx}]
+    for (let c=nameColStart; c<nameRow.length; c++) {
+      const v = String(nameRow[c]).trim();
+      if (v) colMap.push({name:v, colIdx:c});
+    }
+
+    // 날짜 데이터 행 파싱
+    const unknown = new Set();
+    const knownStaffByName = {};
+    (data.staff||[]).forEach(s=>{ knownStaffByName[s.name]=s; });
+    colMap.forEach(({name})=>{ if(!knownStaffByName[name]) unknown.add(name); });
+
+    const schedule = [];
+    for (let r=nameRowIdx+1; r<rows.length; r++) {
+      const row = rows[r];
+      const dateCell = String(row[0]).trim();
+      if (!dateCell) continue;
+      // 날짜 파싱: "6/1", "6월1일", 또는 Excel 날짜 숫자
+      let dayNum = null, monNum = month;
+      const slash = dateCell.match(/^(\d{1,2})[\/.](\d{1,2})$/);
+      const kor   = dateCell.match(/(\d{1,2})월(\d{1,2})일?/);
+      if (slash) { monNum=parseInt(slash[1]); dayNum=parseInt(slash[2]); }
+      else if (kor) { monNum=parseInt(kor[1]); dayNum=parseInt(kor[2]); }
+      else if (/^\d+$/.test(dateCell)) {
+        // Excel 날짜 시리얼
+        const jsDate = new Date(Math.round((parseInt(dateCell)-25569)*86400*1000));
+        monNum=jsDate.getUTCMonth()+1; dayNum=jsDate.getUTCDate();
+      }
+      if (!dayNum) continue;
+      const dateStr = `${year}-${String(monNum).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+      const entries = [];
+      colMap.forEach(({name, colIdx})=>{
+        const val = String(row[colIdx]||'').trim();
+        if (val && val !== '-' && val !== '0') {
+          entries.push({name, workType: val});
+        }
+      });
+      if (entries.length) schedule.push({date:dateStr, entries});
+    }
+    if (!schedule.length) { toast('파싱된 근무 데이터가 없습니다. 엑셀 구조를 확인해주세요.','error'); return; }
+    _imgParsedData = {year, month, unknownNames:[...unknown], schedule};
+    _renderImgResult(_imgParsedData);
+  } catch(err) {
+    toast('엑셀 파싱 오류: '+err.message, 'error');
+  }
+}
+// ---- 이미지(AI) 처리 ----
 function handleImgFile(input) {
   const file = input.files[0]; if (!file) return;
   _imgMediaType = file.type || 'image/jpeg';
@@ -3049,38 +3195,22 @@ async function analyzeScheduleImage() {
 - 등록된 직원 목록에 없는 이름은 unknownNames 배열에 추가
 
 반드시 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
-{
-  "year": 2026,
-  "month": 6,
-  "unknownNames": [],
-  "schedule": [
-    {
-      "date": "2026-06-01",
-      "entries": [
-        {"name": "홍길동", "workType": "정근"},
-        {"name": "김철수", "workType": "신휴가"}
-      ]
-    }
-  ]
-}`;
+{"year":2026,"month":6,"unknownNames":[],"schedule":[{"date":"2026-06-01","entries":[{"name":"홍길동","workType":"정근"}]}]}`;
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: _imgMediaType, data: _imgBase64 } },
-            { text: prompt }
-          ]
-        }],
+        contents: [{ parts: [
+          { inline_data: { mime_type: _imgMediaType, data: _imgBase64 } },
+          { text: prompt }
+        ]}],
         generationConfig: { temperature: 0, maxOutputTokens: 8192 }
       })
     });
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.statusText); }
     const resp = await res.json();
     const rawText = resp.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    // JSON 추출
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('JSON 파싱 실패: ' + rawText.substring(0, 200));
     _imgParsedData = JSON.parse(jsonMatch[0]);
@@ -3090,7 +3220,7 @@ async function analyzeScheduleImage() {
     document.getElementById('img-result-content').innerHTML = `<div style="color:#d65a52;font-size:12px;">오류: ${e.message}</div>`;
     document.getElementById('img-result-area').style.display = 'block';
   } finally {
-    btn.textContent = '🔍 분석하기'; btn.disabled = false;
+    btn.textContent = '🔍 AI 분석하기'; btn.disabled = false;
   }
 }
 function _renderImgResult(parsed) {
