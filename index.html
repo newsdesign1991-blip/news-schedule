@@ -300,6 +300,7 @@ tr.staff-row-clickable:hover td { background:var(--surface2); cursor:pointer; }
 .excel-table thead th.dept-group.jogeun { background:#eef1f9; color:#5d6fb0; border-color:#c5cce8; }
 @media (max-width: 1000px) { .home-row.cols-3 { grid-template-columns: 1fr 1fr; } .home-row.cols-3 > :last-child { grid-column: 1/-1; } .staff-split { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { main { padding: 10px 12px; } .home-row.cols-3, .home-row.cols-2 { grid-template-columns: 1fr; } .summary-row { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) { .stats-grid { grid-template-columns: 1fr !important; } }
 @media (max-width: 600px) {
   header { height: auto; padding: 6px 10px; gap: 0; flex-wrap: wrap; }
   .logo { font-size: 14px; padding: 4px 0; flex-shrink: 0; }
@@ -588,7 +589,7 @@ body.admin-mode-active { padding-top: 30px; }
     </div>
     <div class="admin-tabs">
       <button class="admin-tab active" onclick="showAdminTab('staff')">직원 관리</button>
-      <button class="admin-tab" onclick="showAdminTab('leave')">휴가 관리</button>
+      <button class="admin-tab" onclick="showAdminTab('leave')">근무 통계</button>
       <button class="admin-tab" onclick="showAdminTab('edit')">일정 편집</button>
       <button class="admin-tab" onclick="showAdminTab('settings')">설정</button>
     </div>
@@ -690,35 +691,14 @@ body.admin-mode-active { padding-top: 30px; }
       </div>
     </div>
 
-    <!-- LEAVE MANAGEMENT -->
+    <!-- WORK STATS -->
     <div class="admin-panel" id="panel-leave">
-      <div class="gen-box">
-        <h3>휴가 등록</h3>
-        <div class="gen-row">
-          <div class="form-group">
-            <label class="form-label">직원 선택</label>
-            <select class="form-select" id="leave-staff-sel"></select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">시작일</label>
-            <input type="date" class="form-input" id="leave-start">
-          </div>
-          <div class="form-group">
-            <label class="form-label">종료일</label>
-            <input type="date" class="form-input" id="leave-end">
-          </div>
-        </div>
-        <button class="btn btn-primary" style="width:auto;" onclick="addLeave()">휴가 등록</button>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+        <h3 style="margin:0;font-size:15px;font-weight:700;">근무 통계</h3>
+        <select id="stats-year" onchange="renderWorkStats()" style="padding:5px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);cursor:pointer;"></select>
+        <button class="btn btn-sm btn-outline" onclick="renderWorkStats()">새로고침</button>
       </div>
-      <div class="gen-box">
-        <h3>직원별 휴가 현황</h3>
-        <div style="margin-bottom:10px;">
-          <select class="form-select" style="width:auto;" id="leave-view-staff" onchange="renderLeaveList()">
-            <option value="">-- 직원 선택 --</option>
-          </select>
-        </div>
-        <div id="leave-list-area" style="min-height:40px;"></div>
-      </div>
+      <div id="work-stats-area"></div>
     </div>
 
     <!-- SCHEDULE GEN -->
@@ -1568,6 +1548,7 @@ function renderTable() {
   cgCols.forEach(()=>{ cg+='<col>'; });
   cg+='<col style="width:32px">';
   cg+='<col style="width:40px">';
+  cg+='<col style="width:130px">';
   document.getElementById('excel-colgroup').innerHTML=cg;
 
   // thead row 1 — dept groups
@@ -1583,6 +1564,7 @@ function renderTable() {
   if(sportsStaff.length) thead+=`<th class="dept-group sports" colspan="${sportsStaff.length}">SPORTS</th>`;
   thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:#e3eef2;color:#437d93;">CG</th>`;
   thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:#f4f7fc;color:#436bb5;">당일</th>`;
+  thead+=`<th rowspan="2" style="font-size:10px;font-weight:800;background:#f5f0ff;color:#7c5cbf;padding:4px 6px;white-space:nowrap;">비고</th>`;
   thead+='</tr>';
   // thead row 2 — names (조근/VW합/CG합/당일 은 rowspan=2이므로 생략)
   thead+='<tr>';
@@ -1634,6 +1616,13 @@ function renderTable() {
     // VW staff cells
     vwCols.forEach(s=>{
       let bg='',color='',fw='500',text='';
+      const _custom=entry?.customCells?.[s.id];
+      if(_custom?.text){
+        bg=_custom.bg||'#fffde7';color=_custom.color||'#333';fw='700';text=_custom.text;workCount[s.id]++;
+        const st=`background:${bg};color:${color};font-weight:${fw};`;
+        const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
+        tbody+=`<td ${cl}>${text}</td>`; return;
+      }
       const onLeave=isOnLeave(s.id,dateStr);
       const hasNewLeave=(data.newLeaves?.[dateStr]||[]).includes(s.id);
       if(s.id===danjikExitId){
@@ -1677,6 +1666,13 @@ function renderTable() {
     // 조근 dept staff cells
     jogeunCols.forEach(s=>{
       let bg='',color='',fw='500',text='';
+      const _custom=entry?.customCells?.[s.id];
+      if(_custom?.text){
+        bg=_custom.bg||'#fffde7';color=_custom.color||'#333';fw='700';text=_custom.text;workCount[s.id]++;
+        const st=`background:${bg};color:${color};font-weight:${fw};`;
+        const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
+        tbody+=`<td ${cl}>${text}</td>`; return;
+      }
       const onLeave=isOnLeave(s.id,dateStr);
       const hasNewLeave=(data.newLeaves?.[dateStr]||[]).includes(s.id);
       if(isWeekend){
@@ -1703,6 +1699,13 @@ function renderTable() {
     // CG+ staff cells
     cgCols.forEach(s=>{
       let bg='',color='',fw='500',text='';
+      const _custom=entry?.customCells?.[s.id];
+      if(_custom?.text){
+        bg=_custom.bg||'#fffde7';color=_custom.color||'#333';fw='700';text=_custom.text;workCount[s.id]++;
+        const st=`background:${bg};color:${color};font-weight:${fw};`;
+        const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
+        tbody+=`<td ${cl}>${text}</td>`; return;
+      }
       const onLeave=isOnLeave(s.id,dateStr);
       const hasNewLeave=(data.newLeaves?.[dateStr]||[]).includes(s.id);
       if(s.id===danjikExitId){
@@ -1762,6 +1765,41 @@ function renderTable() {
     // 당일근무 합계 cell
     tbody+=`<td style="text-align:center;font-size:11px;font-weight:700;color:${dailyCnt?'#5d6fb0':'#cbd5e1'};">${dailyCnt||'-'}</td>`;
 
+    // 비고 cell — 동일인이 2개 이상 역할(8진/뉴.오/VW대/CG대/일근)일 때만 표시
+    const _personRoles={};
+    const _addRole=(id,note,color,bg)=>{
+      if(!_personRoles[id])_personRoles[id]=[];
+      _personRoles[id].push({note,color,bg});
+    };
+    if(entry){
+      const jin8=entry.weekend8jin||entry.weekday8jin;
+      if(jin8) _addRole(jin8,'8진','#d65a52','#fce8e8');
+      if(entry.newsOh) _addRole(entry.newsOh,'뉴.오','#9c6b4a','#f5e2cc');
+      if(ilgeunId) _addRole(ilgeunId,'일근','#8c6a3f','#f3e3b0');
+      (entry.vw?.workers||[]).forEach(id=>{
+        const sx=staffById(id); if(!sx)return;
+        const dx=(sx.dept||'').toUpperCase();
+        if(dx!=='VW'&&dx!=='조근') _addRole(id,'VW대','#565ba4','#dfe4f2');
+      });
+      (entry.cg?.workers||[]).forEach(id=>{
+        const sx=staffById(id); if(!sx)return;
+        const dx=(sx.dept||'').toUpperCase();
+        if(!['CG','XR','PROJECT','SPORTS','조근'].includes(dx)) _addRole(id,'CG대','#437d93','#d4e8ee');
+      });
+    }
+    // 우선순위: 일근>뉴.오>8진>VW대>CG대 — 첫번째는 셀에, 나머지는 비고에
+    const _roleOrder=['일근','뉴.오','8진','VW대','CG대'];
+    const bigoItems=[];
+    Object.entries(_personRoles).forEach(([id,roles])=>{
+      if(roles.length<2)return; // 1개뿐이면 비고 불필요
+      const sx=staffById(id); if(!sx)return;
+      const sorted=roles.slice().sort((a,b)=>_roleOrder.indexOf(a.note)-_roleOrder.indexOf(b.note));
+      // 첫번째(primary)는 이미 셀에 표시됨 — 나머지만 비고에
+      sorted.slice(1).forEach(r=>bigoItems.push({name:sx.name,...r}));
+    });
+    const bigoHtml=bigoItems.map(b=>`<span style="display:inline-block;font-size:10px;padding:1px 5px;border-radius:4px;background:${b.bg};color:${b.color};font-weight:700;white-space:nowrap;margin:1px;">${b.name}: ${b.note}</span>`).join('');
+    tbody+=`<td style="padding:3px 6px;white-space:normal;text-align:left;">${bigoHtml||'<span style="color:#cbd5e1;font-size:10px;">-</span>'}</td>`;
+
     tbody+='</tr>';
   }
 
@@ -1785,7 +1823,7 @@ function renderTable() {
     const over=cnt>weekdaysInMonth;
     tbody+=`<td style="text-align:center;font-size:11px;font-weight:700;color:${over?'#d65a52':cnt?'#475569':'#cbd5e1'};">${cnt||'-'}</td>`;
   });
-  tbody+=`<td></td><td></td>`; // CG합, 당일
+  tbody+=`<td></td><td></td><td></td>`; // CG합, 당일, 비고
   tbody+='</tr>';
 
   document.getElementById('excel-tbody').innerHTML=tbody;
@@ -4084,47 +4122,115 @@ function staffDrop(event, targetId) {
   renderStaffTable();
 }
 
-// ===== LEAVE MANAGEMENT =====
-function renderLeaveStaffDropdowns() {
-  const active=data.staff.filter(s=>s.active!==false);
-  const opts=active.map(s=>`<option value="${s.id}">${s.name} (${s.dept})</option>`).join('');
-  const emptyOpt='<option value="">-- 직원 선택 --</option>';
-  document.getElementById('leave-staff-sel').innerHTML=opts;
-  document.getElementById('leave-view-staff').innerHTML=emptyOpt+opts;
-}
-function addLeave() {
-  const staffId=document.getElementById('leave-staff-sel').value;
-  const start=document.getElementById('leave-start').value;
-  const end=document.getElementById('leave-end').value;
-  if (!staffId||!start||!end) { toast('직원과 날짜를 선택하세요.','error'); return; }
-  if (!data.leaves[staffId]) data.leaves[staffId]=[];
-  const startD=new Date(start); const endD=new Date(end);
-  if (endD<startD) { toast('종료일이 시작일보다 앞입니다.','error'); return; }
-  let added=0;
-  for (let d=new Date(startD);d<=endD;d.setDate(d.getDate()+1)) {
-    const ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
-    if (!data.leaves[staffId].includes(ds)) { data.leaves[staffId].push(ds); added++; }
+// ===== WORK STATS =====
+function renderWorkStats() {
+  const now = new Date();
+  const yearEl = document.getElementById('stats-year');
+  // 연도 선택 옵션 초기화 (처음 1회)
+  if (yearEl && !yearEl.options.length) {
+    const curY = now.getFullYear();
+    for (let y = curY + 1; y >= curY - 3; y--) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y + '년';
+      if (y === curY) opt.selected = true;
+      yearEl.appendChild(opt);
+    }
   }
-  data.leaves[staffId].sort();
-  saveData(data);
-  toast(`${added}일 휴가 등록됨`,'success');
-  renderLeaveList();
-}
-function removeLeave(staffId, dateStr) {
-  if (!data.leaves[staffId]) return;
-  data.leaves[staffId]=data.leaves[staffId].filter(d=>d!==dateStr);
-  saveData(data); renderLeaveList();
-}
-function renderLeaveList() {
-  const staffId=document.getElementById('leave-view-staff').value;
-  const el=document.getElementById('leave-list-area');
-  if (!staffId) { el.innerHTML='<div style="color:var(--muted);font-size:12px;">직원을 선택하세요.</div>'; return; }
-  const leaves=data.leaves[staffId]||[];
-  if (!leaves.length) { el.innerHTML='<div style="color:var(--muted);font-size:12px;">등록된 휴가 없음</div>'; return; }
-  el.innerHTML=leaves.map(d=>{
-    const {y,m,day}={y:d.slice(0,4),m:d.slice(5,7),day:d.slice(8,10)};
-    return `<span class="leave-tag">${m}/${day}<button onclick="removeLeave('${staffId}','${d}')" title="삭제">×</button></span>`;
-  }).join('');
+  const year = parseInt(yearEl?.value) || now.getFullYear();
+  const active = data.staff.filter(s => s.active !== false);
+  // 직원 (조근부서 제외, 고정 순서)
+  const employees = active.filter(s => s.dept !== '조근');
+  // 조근부서 프리랜서/파견 (직접 조근 근무자)
+  const jogeunFL = active.filter(s => s.dept === '조근');
+
+  // 카운트 배열 초기화 { id: [jan..dec] }
+  const satC = {}, jsubC = {}, ilgeunC = {};
+  employees.forEach(s => { satC[s.id]=Array(12).fill(0); jsubC[s.id]=Array(12).fill(0); ilgeunC[s.id]=Array(12).fill(0); });
+  const jflC = {};
+  jogeunFL.forEach(s => { jflC[s.id]=Array(12).fill(0); });
+
+  // 연간 스케줄 집계
+  for (let m = 1; m <= 12; m++) {
+    const days = new Date(year, m, 0).getDate();
+    for (let d = 1; d <= days; d++) {
+      const dt = new Date(year, m-1, d);
+      const dow = dt.getDay();
+      const ds = toDateStr(year, m, d);
+      const en = data.schedule[ds];
+      if (!en) continue;
+      const mi = m - 1;
+      // 토요 숙직근무 (토요일 satMorning)
+      if (dow === 6 && en.satMorning && satC[en.satMorning]) satC[en.satMorning][mi]++;
+      // 일근 근무 (일요일 ilgeun)
+      if (en.ilgeun && ilgeunC[en.ilgeun]) ilgeunC[en.ilgeun][mi]++;
+      // 조근 근무 (직원 대체: jogeunSubs의 value = 대체자 id)
+      Object.values(en.jogeunSubs || {}).forEach(subId => { if (jsubC[subId]) jsubC[subId][mi]++; });
+      // 프리랜서/파견 조근 (평일 중 대체 안된 경우)
+      if (dow >= 1 && dow <= 5) {
+        const subKeys = new Set(Object.keys(en.jogeunSubs || {}));
+        jogeunFL.forEach(s => {
+          if (!subKeys.has(s.id) && !isOnLeave(s.id, ds) && !(data.newLeaves?.[ds]||[]).includes(s.id)) {
+            jflC[s.id][mi]++;
+          }
+        });
+      }
+    }
+  }
+
+  function buildStatTable(title, staffList, countMap, accentBg, accentColor, note) {
+    if (!staffList.length) return '';
+    const mHd = Array.from({length:12},(_,i)=>`<th style="min-width:40px;padding:4px 2px;font-size:11px;font-weight:700;text-align:center;">${i+1}월</th>`).join('');
+    const rows = staffList.map(s => {
+      const cnt = countMap[s.id] || Array(12).fill(0);
+      const total = cnt.reduce((a,b)=>a+b,0);
+      const cells = cnt.map(c => c > 0
+        ? `<td style="text-align:center;background:${accentBg};color:${accentColor};font-weight:700;font-size:11px;border-radius:3px;">${c}회</td>`
+        : `<td style="text-align:center;color:#d0d5de;font-size:11px;">-</td>`
+      ).join('');
+      const emp = s.employmentType === 'freelancer' ? '<span style="font-size:9px;background:#f0f0f0;color:#888;border-radius:3px;padding:0 3px;margin-left:2px;">FL</span>' : '';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:5px 8px;font-size:12px;font-weight:600;white-space:nowrap;">${s.name}${emp}</td>
+        ${cells}
+        <td style="text-align:center;font-size:11px;font-weight:800;color:${total?accentColor:'#d0d5de'};">${total||'-'}</td>
+      </tr>`;
+    }).join('');
+    return `<div style="margin-bottom:28px;">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;padding-bottom:7px;border-bottom:2px solid ${accentBg};">
+        <span style="font-size:13px;font-weight:800;color:var(--text);">${title}</span>
+        ${note?`<span style="font-size:11px;color:var(--muted);">${note}</span>`:''}
+      </div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+        <table style="border-collapse:collapse;min-width:560px;width:100%;">
+          <thead><tr style="background:var(--surface2);">
+            <th style="padding:5px 8px;font-size:11px;font-weight:700;text-align:left;min-width:64px;white-space:nowrap;">이름</th>
+            ${mHd}
+            <th style="padding:4px 6px;font-size:11px;font-weight:700;text-align:center;background:${accentBg};color:${accentColor};">합계</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  // 2컬럼 레이아웃
+  const t1 = buildStatTable('토요 숙직근무', employees, satC, '#dfe4f2', '#565ba4', '토요일 satMorning 배정 기준');
+  const t2 = buildStatTable('조근 근무', employees, jsubC, '#e1f1ed', '#45847a', '조근 대체 출근 기준');
+  const t3 = buildStatTable('일근 근무', employees, ilgeunC, '#f3e3b0', '#8c6a3f', '일요일 ilgeun 배정 기준');
+  const t4 = jogeunFL.length ? buildStatTable('프리랜서·파견 조근근무', jogeunFL, jflC, '#fce8e8', '#c06b66', '평일 실제 조근 근무일 기준') : '';
+
+  const hasData = Object.keys(data.schedule||{}).some(ds => ds.startsWith(year+''));
+  const area = document.getElementById('work-stats-area');
+  if (!hasData) {
+    area.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--muted);font-size:14px;">📊 ${year}년 배포된 근무표 데이터가 없습니다.</div>`;
+    return;
+  }
+  area.innerHTML = `
+    <div class="stats-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px 32px;">
+      <div>${t1}</div>
+      <div>${t4}</div>
+      <div>${t2}</div>
+      <div>${t3}</div>
+    </div>`;
 }
 
 // ===== DAY EDIT =====
@@ -4293,7 +4399,7 @@ function showAdminTab(tab) {
   document.querySelectorAll('.admin-tab').forEach((btn,i)=>btn.classList.toggle('active',tabs[i]===tab));
   document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+tab).classList.add('active');
-  if (tab==='leave') renderLeaveStaffDropdowns();
+  if (tab==='leave') renderWorkStats();
 }
 
 // ===== 공휴일 API =====
@@ -4406,6 +4512,8 @@ function cellClick(staffId, dateStr, event) {
   // 당직 (모든 dept 허용)
   optHtml+=`<button class="pop-opt" style="background:#d65a52;color:#fff;" onclick="setCell('${staffId}','${dateStr}','danjik')">당직</button>`;
   optHtml+=`<button class="pop-opt" style="color:#7a2c00;border:1px solid #FCE4D6;" onclick="setCell('${staffId}','${dateStr}','leave')">연차</button>`;
+  const _hasCustom=!!(data.schedule[dateStr]?.customCells?.[staffId]);
+  optHtml+=`<button class="pop-opt" style="background:${_hasCustom?'#6366f1':'#f0f3f8'};color:${_hasCustom?'#fff':'#64748b'};border:1px solid #c5cce8;" onclick="openCustomCell('${staffId}','${dateStr}')">${_hasCustom?'✏️ 직접입력(수정)':'✏️ 직접입력'}</button>`;
   opts.innerHTML=optHtml;
   const rect=event.currentTarget.getBoundingClientRect();
   pop.style.display='block';
@@ -4436,6 +4544,49 @@ function morningCellClick(dateStr, event) {
 }
 
 function closeCellPop() { document.getElementById('cell-popover').style.display='none'; }
+
+function openCustomCell(staffId, dateStr) {
+  const pop=document.getElementById('cell-popover');
+  const opts=document.getElementById('cell-pop-opts');
+  const s=staffById(staffId);
+  const ex=data.schedule[dateStr]?.customCells?.[staffId]||{};
+  opts.innerHTML=`
+    <div style="font-size:10px;color:#888;font-weight:700;padding:2px 4px 6px;">${s?.name||''} 직접입력</div>
+    <input type="text" id="cctxt" value="${(ex.text||'').replace(/"/g,'&quot;')}" placeholder="표시 텍스트 (최대 8자)" maxlength="8"
+      style="width:100%;padding:5px 8px;border:1px solid #dce3ed;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:6px;">
+    <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;font-size:11px;color:#555;">
+      <span>배경</span>
+      <input type="color" id="ccbg" value="${ex.bg||'#fffde7'}" style="width:34px;height:24px;border:none;cursor:pointer;border-radius:4px;padding:1px;">
+      <span>글자</span>
+      <input type="color" id="cccol" value="${ex.color||'#333333'}" style="width:34px;height:24px;border:none;cursor:pointer;border-radius:4px;padding:1px;">
+    </div>
+    <div style="display:flex;gap:4px;">
+      <button class="pop-opt" style="flex:1;background:#f0f3f8;color:#64748b;" onclick="closeCellPop()">취소</button>
+      <button class="pop-opt" style="flex:1;background:#6366f1;color:#fff;" onclick="saveCustomCell('${staffId}','${dateStr}')">저장</button>
+      ${ex.text?`<button class="pop-opt" style="background:#fce8e8;color:#d65a52;" onclick="clearCustomCell('${staffId}','${dateStr}')">삭제</button>`:''}
+    </div>`;
+  pop.style.display='block';
+  setTimeout(()=>document.getElementById('cctxt')?.focus(),50);
+  setTimeout(()=>{document.addEventListener('click',closeCellPop,{once:true});},0);
+}
+
+function saveCustomCell(staffId, dateStr) {
+  const text=(document.getElementById('cctxt')?.value||'').trim();
+  const bg=document.getElementById('ccbg')?.value||'#fffde7';
+  const color=document.getElementById('cccol')?.value||'#333333';
+  closeCellPop();
+  if(!data.schedule[dateStr]) data.schedule[dateStr]={vw:{workers:[],desk:null},cg:{workers:[],desk8:null,desk5:null},project:[],sports:[],xr:[],danjik:null,morningDesk:null,notes:''};
+  if(!data.schedule[dateStr].customCells) data.schedule[dateStr].customCells={};
+  if(text){ data.schedule[dateStr].customCells[staffId]={text,bg,color}; }
+  else { delete data.schedule[dateStr].customCells[staffId]; }
+  saveData(data); renderTable(); toast(text?'저장됨':'삭제됨','success');
+}
+
+function clearCustomCell(staffId, dateStr) {
+  closeCellPop();
+  if(data.schedule[dateStr]?.customCells) delete data.schedule[dateStr].customCells[staffId];
+  saveData(data); renderTable(); toast('삭제됨','success');
+}
 
 function setMorningDesk(dateStr, staffId) {
   closeCellPop();
@@ -4474,7 +4625,8 @@ function setCell(staffId, dateStr, type) {
   if (data.leaves[staffId]) data.leaves[staffId]=data.leaves[staffId].filter(d=>d!==dateStr);
 
   if (type==='off') {
-    // 초기화만
+    // 커스텀 셀도 초기화
+    if(entry.customCells) delete entry.customCells[staffId];
   } else if (type==='vw-work') {
     if (!entry.vw) entry.vw={workers:[],desk:null};
     if (!entry.vw.workers.includes(staffId)) entry.vw.workers.push(staffId);
