@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>뉴스디자인 근무 대시보드</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="logo.png">
 <style>
 :root {
   --bg: #f1f4f8; --surface: #ffffff; --surface2: #f7f9fc; --border: #e2e8f0;
@@ -44,8 +46,8 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .panel-title-dot { width: 7px; height: 7px; border-radius: 50%; }
 .panel-count { font-size: 12px; color: var(--muted); background: var(--surface2); padding: 2px 8px; border-radius: 10px; }
 .panel-body { padding: 12px 16px; }
-.week-mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 12px 16px; }
-.week-day-mini { text-align: center; }
+.week-mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 12px 16px 16px; align-items: start; }
+.week-day-mini { display: flex; flex-direction: column; align-items: center; min-width: 0; }
 .wm-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
 .wm-num { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 13px; font-weight: 600; margin: 0 auto; cursor: pointer; color: var(--muted); transition: all 0.1s; }
 .wm-num:hover { background: var(--surface2); color: var(--text); }
@@ -54,6 +56,18 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .wm-num.sun { color: var(--sports-light); }
 .wm-num.sat { color: #6366f1; }
 .wm-num.today.sun, .wm-num.today.sat { color: white; }
+.wm-ev-list { width: 100%; margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.wm-ev-card { width: 100%; padding: 6px 8px; border-radius: 7px; cursor: pointer; border-left: 3px solid; box-sizing: border-box; transition: filter 0.1s; overflow: hidden; }
+.wm-ev-card:hover { filter: brightness(0.95); }
+.wm-ev-time { font-size: 11px; font-weight: 700; margin-bottom: 2px; }
+.wm-ev-title { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wm-ev-pts { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.wm-ev-pt { font-size: 11px; padding: 1px 7px; border-radius: 9px; font-weight: 600; }
+/* 모바일: 이벤트는 아래 리스트로, week-mini는 그대로 */
+@media (max-width: 600px) {
+  .wm-ev-list { display: none; }
+  .wm-ev-title { white-space: normal; }
+}
 .leave-list { padding: 8px 16px 12px; }
 .leave-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
 .leave-item:last-child { border-bottom: none; }
@@ -314,7 +328,7 @@ body.admin-mode-active { padding-top: 30px; }
 <div id="admin-mode-bar">🔐 관리자 모드 <button onclick="adminLogout()">로그아웃</button></div>
 
 <header>
-  <div class="logo">뉴스<span>디자인</span> 근무표</div>
+  <div class="logo"><img src="logo.png" alt="ND" style="height:28px;width:28px;border-radius:7px;vertical-align:middle;margin-right:7px;">뉴스<span>디자인</span> 근무표</div>
   <nav>
     <button class="nav-btn active" onclick="showView('home')">홈</button>
     <button class="nav-btn" onclick="showView('table')">근무표</button>
@@ -332,7 +346,7 @@ body.admin-mode-active { padding-top: 30px; }
 <!-- 로그인 모달 -->
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border-radius:16px;padding:32px 28px;width:320px;box-shadow:0 8px 40px rgba(0,0,0,0.3);text-align:center;">
-    <div style="font-size:32px;margin-bottom:8px;">📋</div>
+    <img src="logo.png" alt="ND" style="width:72px;height:72px;border-radius:18px;margin-bottom:12px;">
     <div style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;">뉴스디자인팀</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:24px;">이름을 입력하면 나의 근무를 확인할 수 있습니다</div>
     <input type="text" id="login-name-input" class="form-input" placeholder="이름 입력 (예: 홍길동)" maxlength="10" style="text-align:center;font-size:16px;padding:10px;margin-bottom:6px;" onkeydown="if(event.key==='Enter')loginUser()">
@@ -347,19 +361,19 @@ body.admin-mode-active { padding-top: 30px; }
 <div class="view active" id="view-home">
   <div id="my-schedule-card" style="display:none;margin-bottom:14px;"></div>
   <div class="summary-row" id="home-summary"></div>
-  <div class="home-row cols-3">
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title"><span>📅</span> 이번 주 일정</div>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <button class="btn btn-sm btn-outline" style="padding:3px 8px;font-size:11px;" onclick="homeWeekOffset--;renderHome()">‹</button>
-          <button class="btn btn-sm btn-outline" style="padding:3px 8px;font-size:11px;" onclick="homeWeekOffset++;renderHome()">›</button>
-          <button class="btn btn-sm" style="padding:3px 10px;font-size:13px;font-weight:700;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;" onclick="openEventModal()">+</button>
-        </div>
+  <div class="panel" style="margin-bottom:14px;">
+    <div class="panel-header">
+      <div class="panel-title"><span>📅</span> 이번 주 일정</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button class="btn btn-sm btn-outline" style="padding:3px 8px;font-size:11px;" onclick="homeWeekOffset--;renderHome()">‹</button>
+        <button class="btn btn-sm btn-outline" style="padding:3px 8px;font-size:11px;" onclick="homeWeekOffset++;renderHome()">›</button>
+        <button class="btn btn-sm" style="padding:3px 10px;font-size:13px;font-weight:700;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;" onclick="openEventModal()">+</button>
       </div>
-      <div class="week-mini" id="home-week-mini"></div>
-      <div id="home-events-list" style="padding:4px 10px 6px;"></div>
     </div>
+    <div class="week-mini" id="home-week-mini"></div>
+    <div id="home-events-list" style="padding:4px 10px 6px;"></div>
+  </div>
+  <div class="home-row cols-2" style="margin-bottom:14px;">
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title"><span class="panel-title-dot" style="background:var(--vw)"></span>VW 근무자</div>
@@ -847,6 +861,10 @@ body.admin-mode-active { padding-top: 30px; }
         <input type="text" class="form-input" id="ev-title" placeholder="일정 내용을 입력하세요" maxlength="60">
       </div>
       <div class="form-group">
+        <label class="form-label">장소 <span style="font-size:10px;color:var(--muted);">(선택)</span></label>
+        <input type="text" class="form-input" id="ev-location" placeholder="예: 3층 회의실, 스튜디오 A" maxlength="50">
+      </div>
+      <div class="form-group">
         <label class="form-label">작성자 <span style="font-size:10px;color:var(--muted);">(선택)</span></label>
         <input type="text" class="form-input" id="ev-author" placeholder="이름" maxlength="20">
       </div>
@@ -906,6 +924,10 @@ body.admin-mode-active { padding-top: 30px; }
       <div class="form-group" style="margin-bottom:10px;">
         <label class="form-label">내용</label>
         <input type="text" class="form-input" id="ev-edit-title" maxlength="60">
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label">장소 <span style="font-size:10px;color:var(--muted);">(선택)</span></label>
+        <input type="text" class="form-input" id="ev-edit-location" placeholder="예: 3층 회의실" maxlength="50">
       </div>
       <div class="form-group" style="margin-bottom:10px;">
         <label class="form-label">참여자</label>
@@ -1317,45 +1339,52 @@ function renderHome() {
   const weekDays = Array.from({length:7}, (_,i) => { const d=new Date(monday); d.setDate(monday.getDate()+i); return d; });
   let wMini = '';
   const dowLabels=['월','화','수','목','금','토','일'];
+  const events = data.events || {};
+  const isMobile = window.innerWidth <= 600;
+  function _evCard(ds, ev) {
+    const c = ev.color||'#6366f1';
+    const ptIds = ev.participants||[];
+    const ptNames = ptIds.map(id=>(data.staff||[]).find(s=>s.id===id)?.name).filter(Boolean);
+    const cmtCnt = (ev.comments||[]).length;
+    const pills = ptNames.map(n=>`<span class="wm-ev-pt" style="background:${c}22;color:${c};">${n}</span>`).join('');
+    return `<div class="wm-ev-card" onclick="openEventDetail('${ds}','${ev.id}')" style="border-color:${c};background:${c}15;">
+      ${ev.time?`<div class="wm-ev-time" style="color:${c};">${ev.time}</div>`:''}
+      <div class="wm-ev-title">${ev.title}${cmtCnt?` <span style="color:${c};font-size:10px;margin-left:4px;">💬${cmtCnt}</span>`:''}</div>
+      ${ev.location?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">📍 ${ev.location}</div>`:''}
+      ${pills?`<div class="wm-ev-pts">${pills}</div>`:''}
+    </div>`;
+  }
+  // week-mini: 공통 7컬럼 헤더 (데스크탑은 이벤트 카드 포함)
   weekDays.forEach((d,i) => {
     const ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
     const isToday=ds===todayStr; const hasData=!!data.schedule[ds];
     const dow=d.getDay(); const isSun=dow===0; const isSat=dow===6;
-    wMini+=`<div class="week-day-mini"><div class="wm-label">${dowLabels[i]}</div><div class="wm-num ${isToday?'today':''} ${hasData?'has-data':''} ${isSun?'sun':isSat?'sat':''}" onclick="showDayModal('${ds}')">${d.getDate()}</div></div>`;
+    const dayEvs = events[ds]||[];
+    const evCards = isMobile ? '' : dayEvs.map(ev=>_evCard(ds,ev)).join('');
+    wMini+=`<div class="week-day-mini">
+      <div class="wm-label">${dowLabels[i]}</div>
+      <div class="wm-num ${isToday?'today':''} ${hasData?'has-data':''} ${isSun?'sun':isSat?'sat':''}" onclick="showDayModal('${ds}')">${d.getDate()}</div>
+      ${evCards?`<div class="wm-ev-list">${evCards}</div>`:''}
+    </div>`;
   });
   document.getElementById('home-week-mini').innerHTML = wMini;
-  // 이번 주 이벤트 렌더링
-  const events = data.events || {};
-  let evHtml = '';
-  weekDays.forEach(d => {
-    const ds = toDateStr(d.getFullYear(), d.getMonth()+1, d.getDate());
-    const dayEvs = (events[ds] || []);
-    if (!dayEvs.length) return;
-    const dow2 = d.getDay();
-    const dowLbl = ['일','월','화','수','목','금','토'][dow2];
-    const isToday2 = ds === todayStr;
-    evHtml += `<div style="margin-bottom:6px;">
-      <div style="font-size:10px;font-weight:700;color:${isToday2?'#6366f1':'var(--muted)'};margin-bottom:3px;padding:0 2px;">${d.getMonth()+1}/${d.getDate()} (${dowLbl})${isToday2?' 오늘':''}</div>`;
-    dayEvs.forEach((ev) => {
-      const cmtCnt = (ev.comments||[]).length;
-      const ptIds = ev.participants||[];
-      const ptNames = ptIds.map(id=>(data.staff||[]).find(s=>s.id===id)?.name).filter(Boolean);
-      evHtml += `<div onclick="openEventDetail('${ds}','${ev.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border-left:3px solid ${ev.color||'#6366f1'};background:${ev.color||'#6366f1'}11;margin:3px 0;cursor:pointer;transition:background 0.1s;" onmouseover="this.style.filter='brightness(0.97)'" onmouseout="this.style.filter=''">
-        <div style="flex:1;min-width:0;">
-          <div>
-            ${ev.time?`<span style="font-size:11px;font-weight:700;color:${ev.color||'#6366f1'};margin-right:5px;">${ev.time}</span>`:''}
-            <span style="font-size:13px;font-weight:600;color:var(--text);">${ev.title}</span>
-            ${ev.author?`<span style="font-size:10px;color:var(--muted);margin-left:5px;">${ev.author}</span>`:''}
-          </div>
-          ${ptNames.length?`<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${ptNames.map(n=>`<span style="font-size:10px;padding:1px 7px;border-radius:9px;background:${ev.color||'#6366f1'}22;color:${ev.color||'#6366f1'};font-weight:600;">${n}</span>`).join('')}</div>`:''}
-        </div>
-        ${cmtCnt?`<span style="font-size:10px;color:${ev.color||'#6366f1'};background:${ev.color||'#6366f1'}22;padding:1px 6px;border-radius:10px;flex-shrink:0;">💬 ${cmtCnt}</span>`:''}
+  // 모바일: 이벤트를 아래 리스트로
+  let evListHtml = '';
+  if (isMobile) {
+    weekDays.forEach(d => {
+      const ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
+      const dayEvs = events[ds]||[];
+      if (!dayEvs.length) return;
+      const dow=d.getDay(); const dowLbl=['일','월','화','수','목','금','토'][dow];
+      const isToday2 = ds===todayStr;
+      evListHtml += `<div style="margin-bottom:8px;">
+        <div style="font-size:11px;font-weight:700;color:${isToday2?'#6366f1':'var(--muted)'};margin-bottom:4px;padding:0 2px;">${d.getMonth()+1}/${d.getDate()} (${dowLbl})${isToday2?' 오늘':''}</div>
+        ${dayEvs.map(ev=>_evCard(ds,ev)).join('')}
       </div>`;
     });
-    evHtml += `</div>`;
-  });
-  if (!evHtml) evHtml = `<div style="color:var(--muted);font-size:12px;padding:8px 4px;">이번 주 일정 없음</div>`;
-  document.getElementById('home-events-list').innerHTML = evHtml;
+    if (!evListHtml) evListHtml = `<div style="color:var(--muted);font-size:12px;padding:4px 2px;">이번 주 일정 없음</div>`;
+  }
+  document.getElementById('home-events-list').innerHTML = evListHtml;
   function makeChips(ids, dept, deskId) {
     if (!ids.length) return '<div class="no-data">근무자 없음</div>';
     return ids.map(id => {
@@ -2982,14 +3011,15 @@ function saveEvent() {
   const title = document.getElementById('ev-title').value.trim();
   if (!date)  { toast('날짜를 선택하세요','error'); return; }
   if (!title) { toast('내용을 입력하세요','error'); return; }
-  const time   = document.getElementById('ev-time').value || '';
-  const author = document.getElementById('ev-author').value.trim();
-  const color  = (document.querySelector('input[name="ev-color"]:checked')?.value) || '#6366f1';
-  const id     = Date.now().toString(36);
+  const time     = document.getElementById('ev-time').value || '';
+  const location = document.getElementById('ev-location').value.trim();
+  const author   = document.getElementById('ev-author').value.trim();
+  const color    = (document.querySelector('input[name="ev-color"]:checked')?.value) || '#6366f1';
+  const id       = Date.now().toString(36);
   if (!data.events) data.events = {};
   if (!data.events[date]) data.events[date] = [];
   const participants = _getSelectedParticipants('ev-participants-wrap');
-  data.events[date].push({ id, title, time, color, author, participants });
+  data.events[date].push({ id, title, time, location, color, author, participants });
   // 시간순 정렬
   data.events[date].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
   saveData(data);
@@ -3414,7 +3444,7 @@ function openEventDetail(dateStr, id) {
   document.getElementById('ev-detail-date-label').style.color = color;
   document.getElementById('ev-detail-date-label').textContent = `${m}월 ${d}일 (${dowLbl})${ev.time?' · '+ev.time:''}`;
   document.getElementById('ev-detail-title').textContent = ev.title;
-  document.getElementById('ev-detail-meta').textContent = ev.author ? '작성자: '+ev.author : '';
+  document.getElementById('ev-detail-meta').textContent = [ev.location?'📍 '+ev.location:'', ev.author?'작성자: '+ev.author:''].filter(Boolean).join('  ·  ');
   _renderDetailParticipants(ev);
   document.getElementById('ev-edit-form').style.display = 'none';
   _renderEventComments(ev);
@@ -3431,6 +3461,7 @@ function openEventEdit() {
   document.getElementById('ev-edit-date').value = _evDetailDate;
   document.getElementById('ev-edit-time').value = ev.time||'';
   document.getElementById('ev-edit-title').value = ev.title;
+  document.getElementById('ev-edit-location').value = ev.location||'';
   const radio = document.querySelector(`input[name="ev-edit-color"][value="${ev.color||'#6366f1'}"]`);
   if (radio) radio.checked = true;
   _renderParticipantChips('ev-edit-participants-wrap', ev.participants||[]);
@@ -3448,6 +3479,7 @@ function saveEventEdit() {
   if (idx<0) return;
   const ev = evList[idx];
   ev.title = newTitle; ev.time = newTime; ev.color = newColor;
+  ev.location = document.getElementById('ev-edit-location').value.trim();
   ev.participants = _getSelectedParticipants('ev-edit-participants-wrap');
   if (newDate !== oldDate) {
     evList.splice(idx,1);
