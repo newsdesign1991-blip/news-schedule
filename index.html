@@ -323,6 +323,9 @@ tr.staff-row-clickable:hover td { background:var(--surface2); cursor:pointer; }
 #admin-mode-bar button { background:rgba(255,255,255,0.2); border:none; color:#fff; font-size:11px; font-weight:600; padding:2px 10px; border-radius:4px; cursor:pointer; margin-left:12px; }
 #admin-mode-bar button:hover { background:rgba(255,255,255,0.35); }
 body.admin-mode-active { padding-top: 30px; }
+body.admin-mode-active header { top: 30px; }
+#ws-sticky-toolbar { position: sticky; top: 50px; z-index: 95; background: var(--bg); padding-bottom: 2px; }
+body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 </style>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
@@ -536,6 +539,8 @@ body.admin-mode-active { padding-top: 30px; }
     <summary style="cursor:pointer;color:var(--muted);font-size:11px;font-weight:600;padding:4px 0;user-select:none;">🕓 배포 기록</summary>
     <div id="ws-deploy-log" style="padding:6px 4px;max-height:160px;overflow-y:auto;"></div>
   </details>
+  <!-- 브러시+뒤로 sticky 영역 -->
+  <div id="ws-sticky-toolbar">
   <!-- 뒤로가기 / 초기화 바 -->
   <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
     <button id="ws-undo-btn" onclick="undoWorkshop()" style="display:flex;align-items:center;gap:4px;padding:5px 13px;font-size:12px;font-weight:700;border-radius:7px;border:1px solid #c5cce8;background:#eef1f9;color:#5d6fb0;cursor:pointer;opacity:0.45;pointer-events:none;">↩ 뒤로</button>
@@ -555,10 +560,13 @@ body.admin-mode-active { padding-top: 30px; }
     <button class="ws-brush-btn" data-brush="8jin"     onclick="setWsBrush('8jin')"     style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #f4bab6;border-radius:5px;background:#fff5f0;color:#d65a52;cursor:pointer;">8진</button>
     <button class="ws-brush-btn" data-brush="ilgeun"   onclick="setWsBrush('ilgeun')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #d4c49a;border-radius:5px;background:#fdf5e4;color:#8c6a3f;cursor:pointer;">일근</button>
     <button class="ws-brush-btn" data-brush="newsoh"   onclick="setWsBrush('newsoh')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #e2c9a8;border-radius:5px;background:#fdf0e3;color:#9c6b4a;cursor:pointer;">뉴.오</button>
+    <button class="ws-brush-btn" data-brush="vw-sub"   onclick="setWsBrush('vw-sub')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #c5cce8;border-radius:5px;background:#eef1f9;color:#5d6fb0;cursor:pointer;">VW대체</button>
+    <button class="ws-brush-btn" data-brush="cg-sub"   onclick="setWsBrush('cg-sub')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #a8d8e2;border-radius:5px;background:#e3f4f8;color:#437d93;cursor:pointer;">CG대체</button>
     <button class="ws-brush-btn" data-brush="leave"    onclick="setWsBrush('leave')"    style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #e2d2a8;border-radius:5px;background:#fdf8ee;color:#c79a5e;cursor:pointer;">신휴가</button>
     <button class="ws-brush-btn" data-brush="off"      onclick="setWsBrush('off')"      style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;color:#94a3b8;cursor:pointer;">지우기</button>
     <span id="ws-brush-label" style="font-size:11px;color:#6366f1;font-weight:600;margin-left:4px;display:none;"></span>
   </div>
+  </div><!-- /ws-sticky-toolbar -->
   <div style="overflow-x:auto;padding:0 2px;">
     <table class="excel-table">
       <colgroup id="ws-colgroup"></colgroup>
@@ -2772,11 +2780,11 @@ function renderWorkshopTable() {
       const hasNL=(_newLvs?.[dateStr]||[]).includes(s.id);
       const contractOut=!isContractActive(s,dateStr);
       const dispatched=isDispatched(s,dateStr);
-      if(contractOut){bg='#f1f5f9';color='#94a3b8';text='계약외';}
+      if(contractOut){bg='';color='#cdd3db';text='계약외';}
       else if(dispatched){bg='#fef3c7';color='#92400e';text='파견';}
       else if(s.id===danjikExitId){bg='#faf6dd';color='#9c7b4a';fw='700';text='퇴근';workCount[s.id]++;}
       else if(onLeave||hasNL){color='#c79a5e';fw='700';text='신휴가';}
-      else if(dow===6&&entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
+      else if(entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
       else if(s.id===danjikId&&entry){bg='#d65a52';color='#fff';fw='700';text='당직';}
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
@@ -2790,6 +2798,8 @@ function renderWorkshopTable() {
           if(s.id===ilgeunId){bg='#f3e3b0';color='#8c6a3f';fw='700';text='일근';}
           else if(s.id===deskId){bg='#6366f1';color='#fff';fw='700';text='데스크';}
           else{color='#64748b';text='정근';}
+        } else if((entry.cg?.workers||[]).includes(s.id)){
+          workCount[s.id]++;bg='#d4e8ee';color='#437d93';fw='700';text='CG';
         }
       }
       const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};`:'');
@@ -2808,6 +2818,8 @@ function renderWorkshopTable() {
         color='#c79a5e';fw='700';text='신휴가';
       } else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='#f5e2cc';color='#9c6b4a';fw='700';text='뉴.오';}
+      else if((entry?.vw?.workers||[]).includes(s.id)){workCount[s.id]++;bg='#dfe4f2';color='#565ba4';fw='700';text='VW';}
+      else if((entry?.cg?.workers||[]).includes(s.id)){workCount[s.id]++;bg='#d4e8ee';color='#437d93';fw='700';text='CG';}
       else{bg='#8893dc';color='#fff';fw='700';text='조근';workCount[s.id]++;}
       const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};`:'');
       tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="cursor:pointer;${st}">${text||'<span class="cell-off">-</span>'}</td>`;
@@ -2822,11 +2834,11 @@ function renderWorkshopTable() {
       const hasNL=(_newLvs?.[dateStr]||[]).includes(s.id);
       const contractOut=!isContractActive(s,dateStr);
       const dispatched=isDispatched(s,dateStr);
-      if(contractOut){bg='#f1f5f9';color='#94a3b8';text='계약외';}
+      if(contractOut){bg='';color='#cdd3db';text='계약외';}
       else if(dispatched){bg='#fef3c7';color='#92400e';text='파견';}
       else if(s.id===danjikExitId){bg='#faf6dd';color='#9c7b4a';fw='700';text='퇴근';workCount[s.id]++;}
       else if(onLeave||hasNL){color='#c79a5e';fw='700';text='신휴가';}
-      else if(dow===6&&entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
+      else if(entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
       else if(s.id===danjikId&&entry){bg='#d65a52';color='#fff';fw='700';text='당직';}
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
@@ -2963,6 +2975,26 @@ function _brushAddWorker(entry, staffId, dept) {
   else if (d==='project') { if(!entry.project) entry.project=[]; if(!entry.project.includes(staffId)) entry.project.push(staffId); }
   else if (d==='sports')  { if(!entry.sports)  entry.sports=[];  if(!entry.sports.includes(staffId))  entry.sports.push(staffId); }
 }
+function _hasBrush(entry, staffId, bt, ds) {
+  const dow = new Date(ds+'T00:00:00').getDay();
+  const isWE = dow===0 || dow===6 || !!(data.holidays&&data.holidays[ds]);
+  switch(bt) {
+    case 'work':    return (entry?.vw?.workers||[]).includes(staffId)||(entry?.cg?.workers||[]).includes(staffId);
+    case 'vw-desk': return entry?.vw?.desk === staffId;
+    case 'desk8':   return entry?.cg?.desk8 === staffId;
+    case 'desk5':   return entry?.cg?.desk5 === staffId;
+    case 'danjik':  return entry?.danjik === staffId;
+    case 'jogeun':  return entry?.satMorning === staffId;
+    case 'ojende':  return entry?.morningDesk === staffId;
+    case '8jin':    return isWE ? entry?.weekend8jin === staffId : entry?.weekday8jin === staffId;
+    case 'ilgeun':  return entry?.ilgeun === staffId;
+    case 'newsoh':  return entry?.newsOh === staffId;
+    case 'vw-sub':  return (entry?.vw?.workers||[]).includes(staffId);
+    case 'cg-sub':  return (entry?.cg?.workers||[]).includes(staffId);
+    case 'leave':   return (data.draft?.newLeaves?.[ds]||[]).includes(staffId);
+    default: return false;
+  }
+}
 function _applyBrush(staffId, ds, skipRender) {
   const s = staffById(staffId); if (!s) return;
   const dept = (s.dept||'').toLowerCase();
@@ -2970,6 +3002,19 @@ function _applyBrush(staffId, ds, skipRender) {
   const dow = new Date(ds+'T00:00:00').getDay();
   const isWE  = dow===0 || dow===6 || !!(data.holidays&&data.holidays[ds]);
   const isSat = dow===6 && !(data.holidays&&data.holidays[ds]);
+
+  // 같은 브러시로 이미 지정된 셀 → 클릭 시 지우기
+  if (bt !== 'off' && _hasBrush(data.draft?.schedule?.[ds], staffId, bt, ds)) {
+    if (bt === 'leave') {
+      if (data.draft?.newLeaves?.[ds]) {
+        data.draft.newLeaves[ds] = data.draft.newLeaves[ds].filter(id => id !== staffId);
+      }
+    } else {
+      const entry = _ensureDraftEntry(ds);
+      _brushClearStaff(entry, staffId, ds);
+    }
+    saveData(data); if (!skipRender) renderWorkshopTable(); return;
+  }
 
   if (bt === 'leave') {
     if (!data.draft) data.draft = {schedule:{}, newLeaves:{}};
@@ -3031,6 +3076,12 @@ function _applyBrush(staffId, ds, skipRender) {
   } else if (bt === 'newsoh') {
     entry.newsOh = staffId;
     _brushAddWorker(entry, staffId, dept);
+  } else if (bt === 'vw-sub') {
+    if (!entry.vw) entry.vw = {workers:[], desk:null};
+    if (!entry.vw.workers.includes(staffId)) entry.vw.workers.push(staffId);
+  } else if (bt === 'cg-sub') {
+    if (!entry.cg) entry.cg = {workers:[], desk8:null, desk5:null};
+    if (!entry.cg.workers.includes(staffId)) entry.cg.workers.push(staffId);
   }
 
   saveData(data);
