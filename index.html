@@ -113,6 +113,7 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .excel-table thead th.dept-group.sports { color: var(--sports-light); border-color: var(--sports); background: var(--sports-bg); }
 .excel-table thead th.name-th { font-weight: 600; color: var(--text); font-size: 10px; padding: 5px 3px; white-space: nowrap; }
 .excel-table thead th.sum-col { background: #ede9fe; color: #5d6fb0; font-weight: 800; font-size: 11px; }
+.excel-table th.check-sticky, .excel-table td.check-sticky { position: sticky; right: 0; z-index: 6; box-shadow: -2px 0 4px rgba(0,0,0,0.06); }
 .excel-table tbody tr.sum-row td { background: #fafafa; border-top: 2px solid #c5cce8; font-weight: 700; }
 .excel-table tbody tr.sum-row td.date-td { font-size: 10px; line-height: 1.4; }
 .excel-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); width: 100%; }
@@ -292,6 +293,13 @@ tr.staff-row-clickable:hover td { background:var(--surface2); cursor:pointer; }
   .header-right { margin-left: auto; gap: 6px; }
   .date-badge { display: none; }
   .admin-link { padding: 4px 8px; font-size: 11px; }
+  /* 모바일 테이블 - 가로 스크롤, 이름 열 가독성 유지 */
+  .excel-wrap { border-radius: 8px; }
+  .excel-table thead th.name-th { font-size: 11px; padding: 5px 4px; min-width: 22px; }
+  .excel-table tbody td { font-size: 11px; height: 26px; }
+  .excel-table thead th.date-th, .excel-table tbody td.date-td { width: 40px; min-width: 40px; font-size: 11px; }
+  .excel-table thead th.dow-th, .excel-table tbody td.dow-td { width: 28px; min-width: 28px; font-size: 11px; }
+  .mobile-table-tip { display: flex !important; }
 }
 #admin-mode-bar { display:none; position:fixed; top:0; left:0; right:0; z-index:2000; background:#d65a52; color:#fff; font-size:12px; font-weight:700; text-align:center; padding:5px 12px; letter-spacing:0.04em; }
 #admin-mode-bar button { background:rgba(255,255,255,0.2); border:none; color:#fff; font-size:11px; font-weight:600; padding:2px 10px; border-radius:4px; cursor:pointer; margin-left:12px; }
@@ -314,28 +322,29 @@ body.admin-mode-active { padding-top: 30px; }
   </nav>
   <div class="header-right">
     <span class="date-badge" id="header-date"></span>
+    <button id="user-name-btn" style="display:none;background:none;border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;" onclick="logoutUser()">👤 <span id="user-name-label"></span> ✕</button>
     <button class="admin-link" id="admin-toggle" onclick="toggleAdmin()">⚙ 관리자</button>
   </div>
 </header>
+
+<!-- 로그인 모달 -->
+<div id="login-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:16px;padding:32px 28px;width:320px;box-shadow:0 8px 40px rgba(0,0,0,0.3);text-align:center;">
+    <div style="font-size:32px;margin-bottom:8px;">📋</div>
+    <div style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;">뉴스디자인팀</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:24px;">이름을 입력하면 나의 근무를 확인할 수 있습니다</div>
+    <input type="text" id="login-name-input" class="form-input" placeholder="이름 입력 (예: 홍길동)" maxlength="10" style="text-align:center;font-size:16px;padding:10px;margin-bottom:6px;" onkeydown="if(event.key==='Enter')loginUser()">
+    <div id="login-name-error" style="font-size:12px;color:#d65a52;margin-bottom:10px;min-height:16px;"></div>
+    <button class="btn btn-primary" style="width:100%;font-size:15px;padding:10px;" onclick="loginUser()">입장</button>
+  </div>
+</div>
 
 <main>
 
 <!-- HOME -->
 <div class="view active" id="view-home">
+  <div id="my-schedule-card" style="display:none;margin-bottom:14px;"></div>
   <div class="summary-row" id="home-summary"></div>
-  <div class="panel" style="margin-bottom:14px;">
-    <div class="panel-header"><div class="panel-title"><span>⚡</span> 빠른 접속</div></div>
-    <div class="panel-body" style="padding:10px 12px;">
-      <div class="quick-links" style="grid-template-columns:repeat(6,1fr);">
-        <a class="qlink" onclick="openPath('R:\\Download')" title="R:\\Download"><span class="qlink-icon">📥</span><span>Download</span><span class="qlink-path">R:\Download</span></a>
-        <a class="qlink" onclick="openPath('R:\\Upload')" title="R:\\Upload"><span class="qlink-icon">📤</span><span>Upload</span><span class="qlink-path">R:\Upload</span></a>
-        <a class="qlink" onclick="openPath('O:\\[XR_NEWS]')" title="O:\[XR_NEWS]"><span class="qlink-icon">📡</span><span>XR</span><span class="qlink-path">O:\[XR_NEWS]</span></a>
-        <a class="qlink" href="https://nds.sbs.co.kr/request-cg" target="_blank"><span class="qlink-icon">🌐</span><span>NDS</span><span class="qlink-path">nds.sbs.co.kr</span></a>
-        <a class="qlink" href="https://cms.sbs.co.kr/newsbank" target="_blank"><span class="qlink-icon">📰</span><span>CMS</span><span class="qlink-path">cms.sbs.co.kr</span></a>
-        <a class="qlink" href="https://wise.sbs.co.kr/wise/intLoginWise.jsp" target="_blank"><span class="qlink-icon">💼</span><span>wise</span><span class="qlink-path">wise.sbs.co.kr</span></a>
-      </div>
-    </div>
-  </div>
   <div class="home-row cols-3">
     <div class="panel">
       <div class="panel-header">
@@ -386,10 +395,23 @@ body.admin-mode-active { padding-top: 30px; }
       <div class="panel-body" style="padding:8px 12px;" id="home-week-summary"></div>
     </div>
   </div>
+  <div class="panel" style="margin-top:14px;">
+    <div class="panel-header"><div class="panel-title"><span>⚡</span> 빠른 접속</div></div>
+    <div class="panel-body" style="padding:10px 12px;">
+      <div class="quick-links" style="grid-template-columns:repeat(3,1fr);">
+        <a class="qlink" href="https://nds.sbs.co.kr/request-cg" target="_blank"><span class="qlink-icon">🌐</span><span>NDS</span><span class="qlink-path">nds.sbs.co.kr</span></a>
+        <a class="qlink" href="https://cms.sbs.co.kr/newsbank" target="_blank"><span class="qlink-icon">📰</span><span>CMS</span><span class="qlink-path">cms.sbs.co.kr</span></a>
+        <a class="qlink" href="https://wise.sbs.co.kr/wise/intLoginWise.jsp" target="_blank"><span class="qlink-icon">💼</span><span>wise</span><span class="qlink-path">wise.sbs.co.kr</span></a>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- TABLE -->
 <div class="view" id="view-table">
+  <div class="mobile-table-tip" style="display:none;align-items:center;gap:8px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#92400e;">
+    <span style="font-size:16px;">📱</span> 가로 모드로 보거나 좌우로 스크롤하세요. 홈의 <b>나의 근무</b> 카드에서 내 일정을 간편하게 확인할 수 있습니다.
+  </div>
   <div class="table-nav" style="flex-wrap:wrap;gap:8px 12px;">
     <h2 id="table-title">근무표</h2>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;">
@@ -1196,6 +1218,7 @@ function updateLeaveReqBadge() {
 }
 function renderHome() {
   updateLeaveReqBadge();
+  renderMySchedule();
   const now = new Date();
   const todayStr = toDateStr(now.getFullYear(), now.getMonth()+1, now.getDate());
   document.getElementById('header-date').textContent = `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 ${DOW_FULL[now.getDay()]}`;
@@ -2517,7 +2540,7 @@ function renderWorkshopTable() {
   if(sportsStaff.length)thead+=`<th class="dept-group sports" colspan="${sportsStaff.length}">SPORTS</th>`;
   thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:#e3eef2;color:#437d93;">CG</th>`;
   thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:#f4f7fc;color:#436bb5;">당일</th>`;
-  thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:#fff0f0;color:#c06b66;min-width:90px;">확인</th></tr><tr>`;
+  thead+=`<th rowspan="2" class="sum-col check-sticky" style="font-size:10px;background:#fff0f0;color:#c06b66;min-width:80px;">확인</th></tr><tr>`;
   vwCols.forEach(s=>{thead+=`<th class="name-th" style="color:${deptColors.vw};">${s.name}</th>`;});
   jogeunCols.forEach(s=>{thead+=`<th class="name-th" style="background:#eef1f9;color:#5d6fb0;">${s.name}</th>`;});
   cgCols.forEach(s=>{const bg=s._dept==='xr'?'background:#f0fdfa;':'';thead+=`<th class="name-th" style="${bg}color:${deptColors[s._dept]||'#333'};">${s.name}</th>`;});
@@ -2676,7 +2699,7 @@ function renderWorkshopTable() {
         if(dow===0&&!entry?.ilgeun) missing.push('일근');
       }
       if(missing.length){
-        tbody+=`<td style="background:#f7e4e2;color:#c06b66;font-size:10px;font-weight:700;text-align:center;line-height:1.6;padding:2px 3px;">${missing.join('<br>')}</td>`;
+        tbody+=`<td class="check-sticky" style="background:#f7e4e2;color:#c06b66;font-size:10px;font-weight:700;text-align:center;line-height:1.6;padding:2px 3px;">${missing.join('<br>')}</td>`;
       } else {
         tbody+=`<td style="text-align:center;font-size:11px;color:#4a9fbd;">✓</td>`;
       }
@@ -3148,8 +3171,9 @@ function renderLeaveReqView() {
         `<div style="padding:40px 0;text-align:center;color:var(--muted);font-size:14px;">현재 휴가 신청 기간이 아닙니다.</div>`;
       return;
     }
+    const autoId = currentUser?.staffId || leaveReqUserId;
     const opts = data.staff.filter(s=>s.active!==false)
-      .map(s=>`<option value="${s.id}" ${s.id===leaveReqUserId?'selected':''}>${s.name} (${s.dept})</option>`).join('');
+      .map(s=>`<option value="${s.id}" ${s.id===autoId?'selected':''}>${s.name} (${s.dept})</option>`).join('');
     userSel = `<div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
       <span style="font-size:12px;font-weight:700;color:var(--muted);">내 이름 선택</span>
       <div style="display:flex;align-items:center;gap:0;">
@@ -4046,6 +4070,133 @@ function setCell(staffId, dateStr, type) {
   toast('저장됨','success');
 }
 
+// ===== 로그인 =====
+const USER_KEY = 'nd_user';
+let currentUser = localStorage.getItem(USER_KEY) || null; // {name, staffId}
+try { if (currentUser) currentUser = JSON.parse(currentUser); } catch(e) { currentUser = null; }
+
+function loginUser() {
+  const input = document.getElementById('login-name-input');
+  const errEl = document.getElementById('login-name-error');
+  const name = input.value.trim();
+  if (!name) { input.style.borderColor='#d65a52'; errEl.textContent='이름을 입력하세요.'; return; }
+  const staff = (data.staff||[]).find(s => s.name === name);
+  if (!staff) {
+    input.style.borderColor='#d65a52';
+    errEl.textContent='해당 이름이 없습니다. 직원/프리랜서 목록에 등록된 이름을 입력하세요.';
+    return;
+  }
+  input.style.borderColor='';
+  errEl.textContent='';
+  currentUser = { name, staffId: staff.id };
+  localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+  document.getElementById('login-overlay').style.display = 'none';
+  _updateUserHeader();
+  renderHome();
+}
+function logoutUser() {
+  if (!confirm(currentUser?.name + '님, 로그아웃 하시겠습니까?')) return;
+  currentUser = null;
+  localStorage.removeItem(USER_KEY);
+  _updateUserHeader();
+  document.getElementById('my-schedule-card').style.display = 'none';
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('login-name-input').value = '';
+}
+function _updateUserHeader() {
+  const btn = document.getElementById('user-name-btn');
+  if (currentUser) {
+    document.getElementById('user-name-label').textContent = currentUser.name;
+    btn.style.display = '';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+function renderMySchedule() {
+  const card = document.getElementById('my-schedule-card');
+  if (!currentUser || !currentUser.staffId) { card.style.display='none'; return; }
+  const sid = currentUser.staffId;
+  const now = new Date();
+  const todayStr = toDateStr(now.getFullYear(), now.getMonth()+1, now.getDate());
+  const sched = data.schedule || {};
+  // 이번 주 월~일
+  const mon = new Date(now);
+  const curDow = now.getDay()===0?6:now.getDay()-1;
+  mon.setDate(now.getDate()-curDow);
+  const weekDays = Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
+
+  function getRoles(entry, sid) {
+    if (!entry) return [];
+    const roles = [];
+    if ((entry.vw?.workers||[]).includes(sid)) roles.push({label:'VW 근무',color:'var(--vw)'});
+    if (entry.vw?.desk===sid) roles.push({label:'VW 데스크',color:'var(--vw)'});
+    if ((entry.cg?.workers||[]).includes(sid)) roles.push({label:'CG 근무',color:'var(--cg)'});
+    if (entry.cg?.desk8===sid||entry.cg?.desk===sid) roles.push({label:'CG 주데스크',color:'var(--cg)'});
+    if (entry.cg?.desk5===sid) roles.push({label:'CG 5시데스크',color:'var(--cg)'});
+    if (entry.danjik===sid) roles.push({label:'당직',color:'#d65a52'});
+    if (entry.satMorning===sid) roles.push({label:'토요 조근',color:'#c79a5e'});
+    if (entry.ilgeun===sid) roles.push({label:'일근',color:'#45847a'});
+    // 조근 대체
+    if (entry.jogeunSubs) {
+      Object.values(entry.jogeunSubs).forEach(subId => {
+        if (subId===sid) roles.push({label:'조근 대체',color:'#6366f1'});
+      });
+    }
+    // 조근 본인 (dept=조근)
+    const me = staffById(sid);
+    if (me?.dept==='조근') {
+      const subbed = entry.jogeunSubs && Object.keys(entry.jogeunSubs).includes(sid);
+      const onLv = isOnLeave(sid, toDateStr ? null : null);
+      if (!subbed) roles.push({label:'조근',color:'#6366f1'});
+    }
+    if ((entry.project||[]).includes(sid)) roles.push({label:'PROJECT',color:'var(--project)'});
+    if ((entry.sports||[]).includes(sid)) roles.push({label:'SPORTS',color:'var(--sports)'});
+    return roles;
+  }
+
+  // 오늘 근무
+  const todayRoles = getRoles(sched[todayStr], sid);
+  const todayOnLeave = isOnLeave(sid, todayStr);
+
+  let todayHtml = '';
+  if (todayOnLeave) {
+    todayHtml = `<span style="display:inline-block;padding:3px 12px;border-radius:12px;background:#fee2e2;color:#d65a52;font-size:13px;font-weight:600;">휴가</span>`;
+  } else if (todayRoles.length) {
+    todayHtml = todayRoles.map(r=>`<span style="display:inline-block;padding:3px 12px;border-radius:12px;background:${r.color}22;color:${r.color};font-size:13px;font-weight:600;border:1px solid ${r.color}44;">${r.label}</span>`).join(' ');
+  } else {
+    todayHtml = `<span style="font-size:13px;color:var(--muted);">오늘 배정된 근무 없음</span>`;
+  }
+
+  // 이번 주 요약
+  const DOW_S=['월','화','수','목','금','토','일'];
+  let weekHtml = weekDays.map((d,i)=>{
+    const ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
+    const isToday=ds===todayStr;
+    const onLv=isOnLeave(sid,ds);
+    const roles=getRoles(sched[ds],sid);
+    const dot = onLv ? `<span style="color:#d65a52;font-size:10px;">휴가</span>`
+      : roles.length ? roles.map(r=>`<span style="color:${r.color};font-size:10px;font-weight:700;">${r.label}</span>`).join('<br>')
+      : `<span style="color:var(--muted);font-size:10px;">-</span>`;
+    return `<div style="text-align:center;flex:1;min-width:0;">
+      <div style="font-size:10px;color:${isToday?'#6366f1':'var(--muted)'};font-weight:${isToday?700:400};margin-bottom:3px;">${DOW_S[i]}<br>${d.getDate()}</div>
+      <div style="line-height:1.6;">${dot}</div>
+    </div>`;
+  }).join('');
+
+  card.style.display='block';
+  card.innerHTML=`<div class="panel" style="border-left:3px solid #6366f1;">
+    <div class="panel-header" style="padding-bottom:8px;">
+      <div class="panel-title"><span>👤</span> ${currentUser.name}님의 근무</div>
+    </div>
+    <div style="padding:0 16px 10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;">오늘</div>
+      <div style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:6px;">${todayHtml}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;">이번 주</div>
+      <div style="display:flex;gap:4px;border-top:1px solid var(--border);padding-top:10px;">${weekHtml}</div>
+    </div>
+  </div>`;
+}
+
 // ===== INIT =====
 (async () => {
   try {
@@ -4085,6 +4236,10 @@ function setCell(staffId, dateStr, type) {
     }
   } catch(e) {
     console.warn('Supabase 로딩 실패, 로컬 데이터 사용:', e);
+  }
+  _updateUserHeader();
+  if (!currentUser) {
+    document.getElementById('login-overlay').style.display = 'flex';
   }
   renderHome();
 })();
