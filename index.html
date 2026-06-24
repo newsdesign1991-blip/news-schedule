@@ -63,10 +63,12 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .wm-ev-title { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wm-ev-pts { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .wm-ev-pt { font-size: 11px; padding: 1px 7px; border-radius: 9px; font-weight: 600; }
-/* 모바일: 이벤트는 아래 리스트로, week-mini는 그대로 */
+/* 모바일: 컬럼 카드 숨기고 아래 리스트 표시 */
+.wm-mobile-list { display: none; padding: 0 16px 12px; }
 @media (max-width: 600px) {
   .wm-ev-list { display: none; }
   .wm-ev-title { white-space: normal; }
+  .wm-mobile-list { display: block; }
 }
 .leave-list { padding: 8px 16px 12px; }
 .leave-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
@@ -371,7 +373,8 @@ body.admin-mode-active { padding-top: 30px; }
       </div>
     </div>
     <div class="week-mini" id="home-week-mini"></div>
-    <div id="home-events-list" style="padding:4px 10px 6px;"></div>
+    <div id="home-events-list" style="display:none;"></div>
+    <div id="home-mobile-ev-list" class="wm-mobile-list"></div>
   </div>
   <div class="home-row cols-2" style="margin-bottom:14px;">
     <div class="panel">
@@ -1340,7 +1343,6 @@ function renderHome() {
   let wMini = '';
   const dowLabels=['월','화','수','목','금','토','일'];
   const events = data.events || {};
-  const isMobile = window.innerWidth <= 600;
   function _evCard(ds, ev) {
     const c = ev.color||'#6366f1';
     const ptIds = ev.participants||[];
@@ -1354,37 +1356,34 @@ function renderHome() {
       ${pills?`<div class="wm-ev-pts">${pills}</div>`:''}
     </div>`;
   }
-  // week-mini: 공통 7컬럼 헤더 (데스크탑은 이벤트 카드 포함)
+  // week-mini: 7컬럼 헤더 + 데스크탑용 이벤트 카드
+  let mobileEvHtml = '';
   weekDays.forEach((d,i) => {
     const ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
     const isToday=ds===todayStr; const hasData=!!data.schedule[ds];
     const dow=d.getDay(); const isSun=dow===0; const isSat=dow===6;
     const dayEvs = events[ds]||[];
-    const evCards = isMobile ? '' : dayEvs.map(ev=>_evCard(ds,ev)).join('');
+    const evCards = dayEvs.map(ev=>_evCard(ds,ev)).join('');
     wMini+=`<div class="week-day-mini">
       <div class="wm-label">${dowLabels[i]}</div>
       <div class="wm-num ${isToday?'today':''} ${hasData?'has-data':''} ${isSun?'sun':isSat?'sat':''}" onclick="showDayModal('${ds}')">${d.getDate()}</div>
       ${evCards?`<div class="wm-ev-list">${evCards}</div>`:''}
     </div>`;
-  });
-  document.getElementById('home-week-mini').innerHTML = wMini;
-  // 모바일: 이벤트를 아래 리스트로
-  let evListHtml = '';
-  if (isMobile) {
-    weekDays.forEach(d => {
-      const ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
-      const dayEvs = events[ds]||[];
-      if (!dayEvs.length) return;
-      const dow=d.getDay(); const dowLbl=['일','월','화','수','목','금','토'][dow];
-      const isToday2 = ds===todayStr;
-      evListHtml += `<div style="margin-bottom:8px;">
-        <div style="font-size:11px;font-weight:700;color:${isToday2?'#6366f1':'var(--muted)'};margin-bottom:4px;padding:0 2px;">${d.getMonth()+1}/${d.getDate()} (${dowLbl})${isToday2?' 오늘':''}</div>
-        ${dayEvs.map(ev=>_evCard(ds,ev)).join('')}
+    // 모바일용 리스트도 동시에 생성
+    if (dayEvs.length) {
+      const dowLbl=['일','월','화','수','목','금','토'][dow];
+      mobileEvHtml += `<div style="margin-bottom:8px;">
+        <div style="font-size:11px;font-weight:700;color:${isToday?'#6366f1':'var(--muted)'};margin-bottom:4px;">${d.getMonth()+1}/${d.getDate()} (${dowLbl})${isToday?' 오늘':''}</div>
+        ${evCards}
       </div>`;
-    });
-    if (!evListHtml) evListHtml = `<div style="color:var(--muted);font-size:12px;padding:4px 2px;">이번 주 일정 없음</div>`;
-  }
-  document.getElementById('home-events-list').innerHTML = evListHtml;
+    }
+  });
+  if (!mobileEvHtml) mobileEvHtml = `<div style="color:var(--muted);font-size:12px;padding:4px 2px;">이번 주 일정 없음</div>`;
+  document.getElementById('home-week-mini').innerHTML = wMini;
+  document.getElementById('home-events-list').innerHTML = '';
+  // 모바일 전용 리스트 영역 (CSS로 데스크탑에선 숨김)
+  const mobileListEl = document.getElementById('home-mobile-ev-list');
+  if (mobileListEl) mobileListEl.innerHTML = mobileEvHtml;
   function makeChips(ids, dept, deskId) {
     if (!ids.length) return '<div class="no-data">근무자 없음</div>';
     return ids.map(id => {
