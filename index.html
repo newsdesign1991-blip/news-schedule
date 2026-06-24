@@ -294,9 +294,9 @@ tr.staff-row-clickable:hover td { background:var(--surface2); cursor:pointer; }
   .date-badge { display: none; }
   .admin-link { padding: 4px 8px; font-size: 11px; }
   /* 모바일 테이블 - 가로 스크롤 */
-  .excel-wrap { border-radius: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .excel-table { width: auto; min-width: max-content; table-layout: auto; }
-  .excel-table thead th.name-th { font-size: 12px; padding: 5px 5px; min-width: 24px; }
+  .excel-wrap { border-radius: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
+  .excel-table { width: max-content; min-width: max-content; table-layout: auto; }
+  .excel-table thead th.name-th { font-size: 12px; padding: 5px 5px; min-width: 28px; }
   .excel-table tbody td { font-size: 12px; height: 28px; }
   .excel-table thead th.date-th, .excel-table tbody td.date-td { width: 42px; min-width: 42px; font-size: 12px; }
   .excel-table thead th.dow-th, .excel-table tbody td.dow-td { width: 30px; min-width: 30px; font-size: 12px; }
@@ -329,7 +329,7 @@ body.admin-mode-active { padding-top: 30px; }
 </header>
 
 <!-- 로그인 모달 -->
-<div id="login-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;">
+<div id="login-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border-radius:16px;padding:32px 28px;width:320px;box-shadow:0 8px 40px rgba(0,0,0,0.3);text-align:center;">
     <div style="font-size:32px;margin-bottom:8px;">📋</div>
     <div style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;">뉴스디자인팀</div>
@@ -467,6 +467,7 @@ body.admin-mode-active { padding-top: 30px; }
       <button style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;" onclick="setWsNextMonth()">다음 달</button>
       <button style="background:#b69bd6;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;" onclick="generateDraftSchedule()">📅 근무 생성</button>
       <button style="background:#c79a5e;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;" onclick="importLeaveToWorkshop()">📋 신휴가 가져오기</button>
+      <button style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;" onclick="openImageImport()">🖼 이미지 분석</button>
       <button style="background:#059669;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;" onclick="publishSchedule()">🚀 배포</button>
     </div>
   </div>
@@ -951,6 +952,57 @@ body.admin-mode-active { padding-top: 30px; }
     <div id="modal-body"></div>
     <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
       <button class="btn btn-sm btn-outline" onclick="editThisDay()">이 날 편집</button>
+    </div>
+  </div>
+</div>
+
+<!-- 이미지 분석 모달 -->
+<div class="modal-overlay" id="img-import-modal" style="display:none;" onclick="if(event.target===this)closeImageImport()">
+  <div class="modal" style="max-width:520px;max-height:90vh;display:flex;flex-direction:column;">
+    <div class="modal-header">
+      <h3>🖼 근무표 이미지 분석</h3>
+      <button class="modal-close" onclick="closeImageImport()">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:4px 0;">
+      <!-- API 키 -->
+      <div class="form-group">
+        <label class="form-label">Google Gemini API Key <span style="font-size:10px;color:var(--muted);">(최초 1회 입력, 로컬 저장 / 무료)</span></label>
+        <input type="password" class="form-input" id="img-api-key" placeholder="sk-ant-...">
+      </div>
+      <!-- 이미지 업로드 -->
+      <div class="form-group">
+        <label class="form-label">근무표 이미지</label>
+        <div id="img-drop-zone" style="border:2px dashed var(--border);border-radius:10px;padding:30px;text-align:center;cursor:pointer;transition:border-color 0.15s;" onclick="document.getElementById('img-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='#6366f1'" ondragleave="this.style.borderColor=''" ondrop="handleImgDrop(event)">
+          <div id="img-drop-label" style="color:var(--muted);font-size:13px;">클릭하거나 이미지를 드래그하여 올려주세요<br><span style="font-size:11px;">PNG, JPG, WEBP 지원</span></div>
+          <img id="img-preview" style="display:none;max-width:100%;max-height:180px;border-radius:6px;margin-top:10px;">
+        </div>
+        <input type="file" id="img-file-input" accept="image/*" style="display:none" onchange="handleImgFile(this)">
+      </div>
+      <!-- 분석 결과 -->
+      <div id="img-result-area" style="display:none;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">분석 결과</div>
+        <div id="img-result-content"></div>
+      </div>
+    </div>
+    <div style="padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary" style="width:auto;" onclick="analyzeScheduleImage()" id="img-analyze-btn">🔍 분석하기</button>
+      <button class="btn btn-sm btn-outline" onclick="closeImageImport()">닫기</button>
+      <button id="img-apply-btn" class="btn btn-sm" style="display:none;background:#059669;color:#fff;border:none;" onclick="applyImageSchedule()">✅ 근무표에 적용</button>
+    </div>
+  </div>
+</div>
+
+<!-- 미등록 직원 등록 팝업 -->
+<div class="modal-overlay" id="unknown-staff-modal" style="display:none;">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h3>⚠️ 미등록 인원 발견</h3>
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">이미지에서 발견된 이름이 직원 목록에 없습니다. 등록하거나 건너뛸 수 있습니다.</div>
+    <div id="unknown-staff-list"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;">
+      <button class="btn btn-primary" style="width:auto;" onclick="registerUnknownStaff()">등록하고 적용</button>
+      <button class="btn btn-sm btn-outline" onclick="skipUnknownStaff()">건너뛰고 적용</button>
     </div>
   </div>
 </div>
@@ -2935,6 +2987,245 @@ function deleteEvent(dateStr, idx) {
   }
 }
 
+// ===== 이미지 분석 =====
+let _imgBase64 = null, _imgMediaType = 'image/jpeg', _imgParsedData = null, _unknownNames = [];
+
+function openImageImport() {
+  const stored = localStorage.getItem('nd_gemini_key');
+  if (stored) document.getElementById('img-api-key').value = stored;
+  document.getElementById('img-result-area').style.display = 'none';
+  document.getElementById('img-apply-btn').style.display = 'none';
+  document.getElementById('img-import-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  _imgBase64 = null; _imgParsedData = null;
+  document.getElementById('img-preview').style.display = 'none';
+  document.getElementById('img-drop-label').style.display = '';
+}
+function closeImageImport() {
+  document.getElementById('img-import-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function handleImgFile(input) {
+  const file = input.files[0]; if (!file) return;
+  _imgMediaType = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = e => {
+    _imgBase64 = e.target.result.split(',')[1];
+    document.getElementById('img-preview').src = e.target.result;
+    document.getElementById('img-preview').style.display = 'block';
+    document.getElementById('img-drop-label').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+function handleImgDrop(e) {
+  e.preventDefault();
+  document.getElementById('img-drop-zone').style.borderColor = '';
+  const file = e.dataTransfer.files[0]; if (!file) return;
+  const dt = new DataTransfer(); dt.items.add(file);
+  document.getElementById('img-file-input').files = dt.files;
+  handleImgFile(document.getElementById('img-file-input'));
+}
+async function analyzeScheduleImage() {
+  const apiKey = document.getElementById('img-api-key').value.trim();
+  if (!apiKey) { toast('API Key를 입력하세요','error'); return; }
+  if (!_imgBase64) { toast('이미지를 먼저 업로드하세요','error'); return; }
+  localStorage.setItem('nd_gemini_key', apiKey);
+  const btn = document.getElementById('img-analyze-btn');
+  btn.textContent = '⏳ 분석 중...'; btn.disabled = true;
+  document.getElementById('img-result-area').style.display = 'none';
+  document.getElementById('img-apply-btn').style.display = 'none';
+  try {
+    const staffNames = (data.staff||[]).map(s=>s.name).join(', ');
+    const prompt = `이 근무표 이미지를 분석해서 JSON으로 반환해주세요.
+
+등록된 직원 이름 목록: ${staffNames}
+
+규칙:
+- 각 날짜(date: "YYYY-MM-DD")별로 직원별 근무유형을 추출
+- 연도와 월은 이미지의 제목에서 추출 (예: "2026년 6월")
+- 근무유형 코드: 정근, 신휴가, 당직, VW대, 8데스크, 5데스크, 오전데스크, 조근, 8진, 뉴오, 일근, 데스크, CG
+- 이미지에서 셀 내용이 "정근"이면 workType을 "정근"으로, "신휴가"이면 "신휴가"로 등 그대로 사용
+- 빈 셀(근무 없음)은 포함하지 마세요
+- 등록된 직원 목록에 없는 이름은 unknownNames 배열에 추가
+
+반드시 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
+{
+  "year": 2026,
+  "month": 6,
+  "unknownNames": [],
+  "schedule": [
+    {
+      "date": "2026-06-01",
+      "entries": [
+        {"name": "홍길동", "workType": "정근"},
+        {"name": "김철수", "workType": "신휴가"}
+      ]
+    }
+  ]
+}`;
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: _imgMediaType, data: _imgBase64 } },
+            { text: prompt }
+          ]
+        }],
+        generationConfig: { temperature: 0, maxOutputTokens: 8192 }
+      })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.statusText); }
+    const resp = await res.json();
+    const rawText = resp.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // JSON 추출
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('JSON 파싱 실패: ' + rawText.substring(0, 200));
+    _imgParsedData = JSON.parse(jsonMatch[0]);
+    _renderImgResult(_imgParsedData);
+  } catch(e) {
+    toast('분석 실패: ' + e.message, 'error');
+    document.getElementById('img-result-content').innerHTML = `<div style="color:#d65a52;font-size:12px;">오류: ${e.message}</div>`;
+    document.getElementById('img-result-area').style.display = 'block';
+  } finally {
+    btn.textContent = '🔍 분석하기'; btn.disabled = false;
+  }
+}
+function _renderImgResult(parsed) {
+  const area = document.getElementById('img-result-area');
+  const content = document.getElementById('img-result-content');
+  const totalEntries = (parsed.schedule||[]).reduce((s,d)=>s+d.entries.length,0);
+  const days = (parsed.schedule||[]).length;
+  let html = `<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;">
+    <b>${parsed.year}년 ${parsed.month}월</b> — ${days}일, ${totalEntries}개 근무 항목 추출됨
+  </div>`;
+  if (parsed.unknownNames?.length) {
+    html += `<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#92400e;">
+      <b>⚠️ 미등록 인원 ${parsed.unknownNames.length}명:</b> ${parsed.unknownNames.join(', ')}<br>
+      <span style="font-size:11px;">적용 시 등록 팝업이 표시됩니다.</span>
+    </div>`;
+  }
+  // 샘플 미리보기 (최대 5일)
+  html += `<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">미리보기 (최대 5일)</div>`;
+  const preview = parsed.schedule.slice(0,5);
+  preview.forEach(day => {
+    const {y,m,d,date} = parseDateStr(day.date);
+    const dow = ['일','월','화','수','목','금','토'][date.getDay()];
+    html += `<div style="margin-bottom:6px;"><span style="font-size:11px;font-weight:700;color:var(--text);">${m}/${d}(${dow})</span> `;
+    html += day.entries.map(e=>`<span style="font-size:11px;padding:1px 6px;border-radius:8px;background:var(--surface2);margin-right:3px;">${e.name}<span style="color:var(--muted);margin-left:2px;">${e.workType}</span></span>`).join('');
+    html += `</div>`;
+  });
+  if (parsed.schedule.length > 5) html += `<div style="font-size:11px;color:var(--muted);">... 외 ${parsed.schedule.length-5}일</div>`;
+  content.innerHTML = html;
+  area.style.display = 'block';
+  document.getElementById('img-apply-btn').style.display = 'block';
+}
+
+const WORK_TYPE_MAP = {
+  '정근': 'work', '신휴가': 'leave', '당직': 'danjik',
+  'VW대': 'vw-desk', '데스크': 'vw-desk',
+  '8데스크': 'desk8', '5데스크': 'desk5', '오전데스크': 'ojende', '오전데': 'ojende',
+  '조근': 'jogeun', '8진': '8jin', '뉴오': 'newsoh', '일근': 'ilgeun', 'CG': 'work'
+};
+
+function applyImageSchedule() {
+  if (!_imgParsedData) return;
+  _unknownNames = _imgParsedData.unknownNames || [];
+  if (_unknownNames.length) {
+    _showUnknownStaffPopup(_unknownNames);
+  } else {
+    _doApplyImageSchedule([]);
+  }
+}
+function _showUnknownStaffPopup(names) {
+  let html = names.map(name => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px;border:1px solid var(--border);border-radius:8px;">
+      <span style="font-weight:600;font-size:13px;min-width:70px;">${name}</span>
+      <select class="form-select" id="un-dept-${name}" style="flex:1;font-size:12px;">
+        <option value="VW">VW</option><option value="CG" selected>CG</option>
+        <option value="조근">조근</option><option value="XR">XR</option>
+        <option value="PROJECT">PROJECT</option><option value="SPORTS">SPORTS</option>
+      </select>
+      <select class="form-select" id="un-type-${name}" style="flex:1;font-size:12px;">
+        <option value="employee">직원</option>
+        <option value="freelancer">프리랜서</option>
+      </select>
+      <label style="font-size:12px;white-space:nowrap;"><input type="checkbox" id="un-skip-${name}"> 건너뜀</label>
+    </div>`).join('');
+  document.getElementById('unknown-staff-list').innerHTML = html;
+  document.getElementById('unknown-staff-modal').style.display = 'flex';
+}
+function registerUnknownStaff() {
+  const skip = [];
+  _unknownNames.forEach(name => {
+    if (document.getElementById('un-skip-'+name)?.checked) { skip.push(name); return; }
+    const dept = document.getElementById('un-dept-'+name)?.value || 'CG';
+    const type = document.getElementById('un-type-'+name)?.value || 'employee';
+    const newId = Date.now().toString(36)+Math.random().toString(36).substr(2,4);
+    data.staff.push({id:newId,name,dept,deskPriority:null,morningDeskPriority:null,canDanjik:false,canSatMorning:false,canIlgeun:false,canVW:false,canCG:true,can3D:false,canNewsOh:false,canWeekend8jin:false,canWeekday8jin:false,active:true,availableDays:[],employmentType:type});
+  });
+  saveData(data);
+  document.getElementById('unknown-staff-modal').style.display = 'none';
+  _doApplyImageSchedule(skip);
+  toast('등록 완료 후 근무표에 적용했습니다','success');
+}
+function skipUnknownStaff() {
+  document.getElementById('unknown-staff-modal').style.display = 'none';
+  _doApplyImageSchedule(_unknownNames);
+}
+function _doApplyImageSchedule(skipNames) {
+  if (!_imgParsedData) return;
+  const skipSet = new Set(skipNames);
+  if (!data.draft.schedule) data.draft.schedule = {};
+  let applied = 0;
+  (_imgParsedData.schedule||[]).forEach(day => {
+    const ds = day.date;
+    if (!data.draft.schedule[ds]) data.draft.schedule[ds] = { vw:{workers:[],desk:null}, cg:{workers:[],desk8:null,desk5:null}, danjik:null, jogeunSubs:{}, satMorning:null, ilgeun:null, project:[], sports:[] };
+    const entry = data.draft.schedule[ds];
+    day.entries.forEach(({name, workType}) => {
+      if (skipSet.has(name)) return;
+      const s = (data.staff||[]).find(x=>x.name===name);
+      if (!s) return;
+      const wt = WORK_TYPE_MAP[workType] || 'work';
+      if (wt === 'leave') {
+        if (!data.draft.newLeaves) data.draft.newLeaves = {};
+        if (!data.draft.newLeaves[s.id]) data.draft.newLeaves[s.id] = [];
+        if (!data.draft.newLeaves[s.id].includes(ds)) data.draft.newLeaves[s.id].push(ds);
+      } else if (wt === 'danjik') {
+        entry.danjik = s.id;
+      } else if (wt === 'desk8') {
+        if (!entry.cg.workers.includes(s.id)) entry.cg.workers.push(s.id);
+        entry.cg.desk8 = s.id;
+      } else if (wt === 'desk5') {
+        if (!entry.cg.workers.includes(s.id)) entry.cg.workers.push(s.id);
+        entry.cg.desk5 = s.id;
+      } else if (wt === 'vw-desk') {
+        if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id);
+        entry.vw.desk = s.id;
+      } else if (wt === 'jogeun') {
+        // no-op: jogeun members are from dept
+      } else if (wt === 'ilgeun') {
+        entry.ilgeun = s.id;
+      } else if (wt === 'newsoh') {
+        // mark in notes
+      } else if (wt === 'work') {
+        const dept = s.dept;
+        if (dept === 'VW') { if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id); }
+        else if (dept === 'CG' || dept === 'XR') { if (!entry.cg.workers.includes(s.id)) entry.cg.workers.push(s.id); }
+        else if (dept === 'PROJECT') { if (!entry.project) entry.project=[]; if (!entry.project.includes(s.id)) entry.project.push(s.id); }
+        else if (dept === 'SPORTS') { if (!entry.sports) entry.sports=[]; if (!entry.sports.includes(s.id)) entry.sports.push(s.id); }
+      }
+      applied++;
+    });
+  });
+  saveData(data);
+  closeImageImport();
+  if (wsStart && wsEnd) renderWorkshopTable(); else renderHome();
+  toast(`${applied}개 항목이 근무표 초안에 적용되었습니다`, 'success');
+}
+
 // ===== 참여자 칩 =====
 function _renderParticipantChips(wrapperId, selectedIds) {
   const wrap = document.getElementById(wrapperId); if (!wrap) return;
@@ -3253,7 +3544,7 @@ function renderLeaveReqView() {
       tb+='</tr>';
     });
 
-    tableHtml=`<div style="overflow-x:auto;"><table class="excel-table lreq-table">
+    tableHtml=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;"><table class="excel-table lreq-table">
       <colgroup>${cg}</colgroup>
       <thead>${th1}${th2}</thead>
       <tbody>${tb}</tbody>
