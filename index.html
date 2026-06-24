@@ -536,6 +536,12 @@ body.admin-mode-active { padding-top: 30px; }
     <summary style="cursor:pointer;color:var(--muted);font-size:11px;font-weight:600;padding:4px 0;user-select:none;">🕓 배포 기록</summary>
     <div id="ws-deploy-log" style="padding:6px 4px;max-height:160px;overflow-y:auto;"></div>
   </details>
+  <!-- 뒤로가기 / 초기화 바 -->
+  <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+    <button id="ws-undo-btn" onclick="undoWorkshop()" style="display:flex;align-items:center;gap:4px;padding:5px 13px;font-size:12px;font-weight:700;border-radius:7px;border:1px solid #c5cce8;background:#eef1f9;color:#5d6fb0;cursor:pointer;opacity:0.45;pointer-events:none;">↩ 뒤로</button>
+    <button onclick="resetDraftSchedule()" style="display:flex;align-items:center;gap:4px;padding:5px 13px;font-size:12px;font-weight:700;border-radius:7px;border:1px solid #f4bab6;background:#fce8e8;color:#d65a52;cursor:pointer;">🗑 초기화</button>
+    <span id="ws-undo-count" style="font-size:11px;color:var(--muted);"></span>
+  </div>
   <!-- 브러쉬 바 -->
   <div id="ws-brush-bar" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:6px 8px;margin-bottom:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
     <span style="font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;margin-right:2px;">🖌</span>
@@ -1218,6 +1224,49 @@ let currentView = 'home';
 let leaveReqUserId = localStorage.getItem('nd_lr_user') || '';
 let wsRangeStart = null, wsRangeEnd = null;
 let _draftCellMode = false;
+let _wsHistory = []; // 뒤로가기 히스토리 (최대 30단계)
+function _pushWsHistory() {
+  _wsHistory.push(JSON.stringify(data.draft||{}));
+  if (_wsHistory.length > 30) _wsHistory.shift();
+  _updateUndoBtn();
+}
+function _updateUndoBtn() {
+  const btn = document.getElementById('ws-undo-btn');
+  if (!btn) return;
+  const n = _wsHistory.length;
+  if (n > 0) {
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto';
+    btn.style.background = '#dfe4f2';
+    btn.style.color = '#3b4db0';
+    btn.title = `${n}단계 뒤로가기 가능`;
+  } else {
+    btn.style.opacity = '0.45';
+    btn.style.pointerEvents = 'none';
+    btn.style.background = '#eef1f9';
+    btn.style.color = '#5d6fb0';
+    btn.title = '뒤로가기 없음';
+  }
+  const cnt = document.getElementById('ws-undo-count');
+  if (cnt) cnt.textContent = n > 0 ? `${n}단계 저장됨` : '';
+}
+function undoWorkshop() {
+  if (!_wsHistory.length) return;
+  const prev = _wsHistory.pop();
+  data.draft = JSON.parse(prev);
+  _updateUndoBtn();
+  saveData(data);
+  renderWorkshopTable();
+  toast('뒤로 되돌렸습니다', 'success');
+}
+function resetDraftSchedule() {
+  if (!confirm('근무표 작성소 전체를 초기화합니다.\n모든 배정이 지워집니다. 계속하시겠습니까?')) return;
+  _pushWsHistory();
+  data.draft = {schedule:{}, newLeaves:{}};
+  saveData(data);
+  renderWorkshopTable();
+  toast('초기화 완료', 'success');
+}
 
 function _setAdminNav(on) {
   const ws = document.getElementById('nav-workshop');
@@ -1995,6 +2044,7 @@ function editThisDay() {
 
 // ===== SCHEDULE GENERATION =====
 function generateDraftSchedule() {
+  _pushWsHistory();
   // 작성소 인원 설정을 생성 전에 즉시 반영 (onchange 미발동 방지)
   saveWsSettings();
   const startVal=document.getElementById('ws-start').value;
@@ -2592,6 +2642,7 @@ function showResult(id,msg,ok) {
 // ===== 근무표 작성소 =====
 function renderWorkshop() {
   if (!isAdmin) return;
+  _updateUndoBtn();
   // 날짜 범위 초기화 (기본: 다음 달)
   if (!wsRangeStart || !wsRangeEnd) {
     const now=new Date();
@@ -2698,8 +2749,8 @@ function renderWorkshopTable() {
     const holidayName=isHoliday?data.holidays[dateStr]:'';
     const dowClass=dow===0?'sun':dow===6?'sat':'';
     const entry=_sched[dateStr];
-    const danjikExitId=getDanjikExitStaff(dateStr,_sched);
-    const danjikOffId=getDanjikOffStaff(dateStr,_sched);
+    const danjikExitId=_sched[addDays(dateStr,-1)]?.danjik||null;
+    const danjikOffId=_sched[addDays(dateStr,-2)]?.danjik||null;
     const danjikId=entry?.danjik||null;
     const ilgeunId=entry?.ilgeun||null;
     const _cgExclude=new Set([entry?.danjik,danjikExitId].filter(Boolean));
@@ -2985,40 +3036,12 @@ function _applyBrush(staffId, ds, skipRender) {
   saveData(data);
   if (!skipRender) renderWorkshopTable();
 }
-// 브러쉬 드래그: 마우스를 누른 채 드래그하면 지나간 셀에 모두 적용
-let _wsBrushDragging = false;
-let _wsBrushLastKey = '';
-document.addEventListener('mousedown', function(e) {
-  if (!wsBrushType || !isAdmin) return;
-  const td = e.target.closest('#ws-tbody td[data-sid]');
-  if (!td) return;
-  _wsBrushDragging = true;
-  _wsBrushLastKey = td.dataset.sid + '|' + td.dataset.ds;
-  e.preventDefault();
-});
-document.addEventListener('mousemove', function(e) {
-  if (!_wsBrushDragging || !wsBrushType) return;
-  const el = document.elementFromPoint(e.clientX, e.clientY);
-  const td = el && el.closest('#ws-tbody td[data-sid]');
-  if (!td) return;
-  const key = td.dataset.sid + '|' + td.dataset.ds;
-  if (key === _wsBrushLastKey) return;
-  _wsBrushLastKey = key;
-  _applyBrush(td.dataset.sid, td.dataset.ds, true); // skipRender=true during drag
-});
-document.addEventListener('mouseup', function() {
-  if (_wsBrushDragging) {
-    _wsBrushDragging = false;
-    _wsBrushLastKey = '';
-    if (wsBrushType) renderWorkshopTable(); // single re-render after drag ends
-  }
-});
 function wsCellClick(td, event) {
   if (!isAdmin) return;
   event.stopPropagation();
   const staffId = td.dataset.sid;
   const dateStr = td.dataset.ds;
-  if (wsBrushType) { _applyBrush(staffId, dateStr); return; }
+  if (wsBrushType) { _pushWsHistory(); _applyBrush(staffId, dateStr); return; }
   _draftCellMode = true;
   cellClick(staffId, dateStr, event);
 }
@@ -3607,7 +3630,9 @@ function publishSchedule() {
   if (data.deployLog.length > 20) data.deployLog = data.deployLog.slice(0, 20);
   saveData(data);
   renderDeployLog();
-  toast('근무표가 배포되었습니다. 근무표 탭에서 확인하세요.','success');
+  renderHome();
+  renderTable();
+  toast('근무표가 배포되었습니다.','success');
 }
 
 function renderDeployLog() {
@@ -4601,6 +4626,7 @@ function setCell(staffId, dateStr, type) {
   const isDraft=_draftCellMode;
   _draftCellMode=false;
   if (isDraft) {
+    _pushWsHistory();
     if (!data.draft) data.draft={schedule:{},newLeaves:{}};
     if (!data.draft.schedule) data.draft.schedule={};
   }
