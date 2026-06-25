@@ -5561,13 +5561,14 @@ function renderMySchedule() {
   // bg / text / border 세트로 반환 (근무표 작성소 색상 사용)
   function getRoles(entry, sid) {
     if (!entry) return [];
+    // 당직이면 당직만 표시 (VW/CG 등 다른 근무 역할 생략)
+    if (entry.danjik===sid) return [{label:'당직',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'}];
     const roles = [];
     if ((entry.vw?.workers||[]).includes(sid)) roles.push({label:'VW 근무',bg:'var(--vw-bg)',color:'var(--vw-light)',border:'var(--vw)'});
     if (entry.vw?.desk===sid) roles.push({label:'VW 데스크',bg:'var(--vw-bg)',color:'var(--vw-light)',border:'var(--vw)'});
     if ((entry.cg?.workers||[]).includes(sid)) roles.push({label:'CG 근무',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
     if (entry.cg?.desk8===sid||entry.cg?.desk===sid) roles.push({label:'CG 8데스크',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
     if (entry.cg?.desk5===sid) roles.push({label:'CG 5데스크',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
-    if (entry.danjik===sid) roles.push({label:'당직',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'});
     if (entry.newsOh===sid) roles.push({label:'뉴.오',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
     if (entry.newsOh2===sid) roles.push({label:'뉴.오2',bg:'#f3ddc0',color:'#b07d4a',border:'#d9b483'});
     if (entry.weekend8jin===sid) roles.push({label:'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
