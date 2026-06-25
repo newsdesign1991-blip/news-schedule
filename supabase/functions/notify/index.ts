@@ -1,0 +1,122 @@
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import webpush from 'npm:web-push@3'
+
+const VAPID_PUBLIC = 'BPbuDNOiXuJN5KpRWINHNtAYVlG3Pq6T6KVJ4ABv9PFn9hv8cfMoQXHCWVbLwqvxteVAkxaN4XKX1KOi5lhAMdc'
+const VAPID_EMAIL = 'mailto:sbs8xr@gmail.com'
+
+const WORK_LABELS: Record<string, string> = {
+  danjik: '당직', jogeun: '조근', ojende: '오전데스크',
+  '8jin': '8진', ilgeun: '일근', newsoh: '뉴스오',
+  vw: 'VW 근무', cg: 'CG 근무', general: '근무', off: '휴무'
+}
+
+Deno.serve(async (req) => {
+  const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE') || ''
+  const SB_URL = Deno.env.get('SUPABASE_URL') || ''
+  const SB_SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+
+  if (!VAPID_PRIVATE) return new Response('VAPID_PRIVATE not set', { status: 500 })
+
+  const sb = createClient(SB_URL, SB_SVC)
+
+  let body: any = {}
+  try { body = await req.json() } catch { /* no body */ }
+  const mode = body?.mode || 'cron'
+
+  webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC, VAPID_PRIVATE)
+
+  // KST 기준 현재 시각
+  const now = new Date()
+  const kst = new Date(now.getTime() + 9 * 3600000)
+  const todayStr = kst.toISOString().slice(0, 10)
+  const curMin = kst.getUTCHours() * 60 + kst.getUTCMinutes()
+
+  // push_subs 로드
+  const { data: subs, error: subsErr } = await sb.from('push_subs').select('*')
+  if (subsErr) return new Response('push_subs read error: ' + subsErr.message, { status: 500 })
+  if (!subs?.length) return new Response(JSON.stringify({ sent: 0, reason: 'no subscribers' }), { headers: { 'Content-Type': 'application/json' } })
+
+  let sent = 0, errors = 0
+
+  // ── 배포 알림 모드 ──────────────────────────────────────────────
+  if (mode === 'publish') {
+    const payload = JSON.stringify({
+      title: '📅 근무표가 업데이트되었습니다',
+      body: '새 근무표를 확인하세요.',
+      icon: 'icon-192.png', badge: 'icon-192.png',
+      tag: `publish-${todayStr}`, data: { url: './' }
+    })
+    for (const sub of subs) {
+      try { await webpush.sendNotification(sub.sub, payload); sent++ }
+      catch (e: any) {
+        errors++
+        if (e.statusCode === 410 || e.statusCode === 404) await sb.from('push_subs').delete().eq('endpoint', sub.endpoint)
+      }
+    }
+    return new Response(JSON.stringify({ sent, errors, mode: 'publish' }), { headers: { 'Content-Type': 'application/json' } })
+  }
+
+  // ── 크론 알림 모드 ──────────────────────────────────────────────
+  const { data: ndRow } = await sb.from('nd_data').select('payload').eq('id', 'main').single()
+  const nd = ndRow?.payload
+  if (!nd?.settings?.notify?.enabled) {
+    return new Response(JSON.stringify({ sent: 0, reason: 'notify disabled in settings' }), { headers: { 'Content-Type': 'application/json' } })
+  }
+
+  const cfg = nd.settings.notify
+  const entry = nd?.schedule?.[todayStr] || null
+  const leaves = new Set<string>((nd?.newLeaves?.[todayStr]) || [])
+
+  function getWorkType(staffId: string, staff: any): string | null {
+    if (leaves.has(staffId)) return null
+    if (!entry) return cfg.types?.find((t: any) => t.key === 'off')?.enabled ? 'off' : null
+    if (entry.danjik === staffId) return 'danjik'
+    if (entry.morningDesk === staffId || entry.satMorning === staffId) return 'ojende'
+    if (entry.weekday8jin === staffId || entry.weekend8jin === staffId) return '8jin'
+    if (entry.ilgeun === staffId) return 'ilgeun'
+    if (entry.newsOh === staffId) return 'newsoh'
+    if (staff?.dept === '조근') return 'jogeun'
+    if (entry.jogeunSubs && Object.values(entry.jogeunSubs as Record<string, string>).includes(staffId)) return 'jogeun'
+    if ((entry.vw?.workers || []).includes(staffId)) return 'vw'
+    if ((entry.cg?.workers || []).includes(staffId)) return 'cg'
+    if ((entry.xr || []).includes(staffId)) return 'general'
+    if ((entry.project || []).includes(staffId)) return 'general'
+    if ((entry.sports || []).includes(staffId)) return 'general'
+    return cfg.types?.find((t: any) => t.key === 'off')?.enabled ? 'off' : null
+  }
+
+  for (const sub of subs) {
+    const staff = nd?.staff?.find((s: any) => s.id === sub.staff_id)
+    const wt = getWorkType(sub.staff_id, staff)
+    if (!wt) continue
+
+    const typeCfg = (cfg.types || []).find((t: any) => t.key === wt)
+    if (!typeCfg?.enabled || !typeCfg.time) continue
+
+    const [h, m] = typeCfg.time.split(':').map(Number)
+    const targetMin = h * 60 + m
+    if (Math.abs(curMin - targetMin) > 1) continue  // ±1분 윈도우 (매 분 호출 기준)
+
+    const label = WORK_LABELS[wt] || '근무'
+    const name = staff?.name || sub.name || ''
+    const bodyText = wt === 'off' ? `${name}님, 오늘은 근무가 없습니다.` : `${name}님, 오늘 ${label}입니다.`
+
+    try {
+      await webpush.sendNotification(sub.sub, JSON.stringify({
+        title: `📅 오늘 근무 알림 — ${label}`,
+        body: bodyText,
+        icon: 'icon-192.png', badge: 'icon-192.png',
+        tag: `work-${todayStr}-${sub.staff_id}`,
+        data: { url: './' }
+      }))
+      sent++
+    } catch (e: any) {
+      errors++
+      if (e.statusCode === 410 || e.statusCode === 404) await sb.from('push_subs').delete().eq('endpoint', sub.endpoint)
+    }
+  }
+
+  return new Response(JSON.stringify({ sent, errors, kst: kst.toISOString(), todayStr }), {
+    headers: { 'Content-Type': 'application/json' }
+  })
+})
