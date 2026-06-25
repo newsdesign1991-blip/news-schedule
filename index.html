@@ -3224,7 +3224,9 @@ function _brushClearStaff(entry, staffId, ds) {
   if (entry.jogeunExtra) entry.jogeunExtra = entry.jogeunExtra.filter(id=>id!==staffId);
   if (entry.jogeunEdu)   entry.jogeunEdu   = entry.jogeunEdu.filter(id=>id!==staffId);
   if (entry.jogeunSubs) {
-    // 조근 대체자(value)인 경우 해당 키 제거
+    // 조근 직원(key)이 지워지는 경우 → 해당 대체 배정 제거
+    if (staffId in entry.jogeunSubs) delete entry.jogeunSubs[staffId];
+    // 대체자(value)가 지워지는 경우 → 해당 키 제거
     Object.keys(entry.jogeunSubs).forEach(k=>{ if(entry.jogeunSubs[k]===staffId) delete entry.jogeunSubs[k]; });
   }
 }
