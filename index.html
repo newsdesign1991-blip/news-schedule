@@ -3943,6 +3943,9 @@ function publishSchedule() {
   renderHome();
   renderTable();
   toast('근무표가 배포되었습니다.','success');
+  // 배포 알림 발송 (설정 켜진 경우)
+  const _ncfg = data.settings?.notify;
+  if (_ncfg?.enabled && _ncfg.publishNotify) _sendPublishPush(label);
 }
 
 function renderDeployLog() {
@@ -4969,6 +4972,80 @@ function saveNotifyConfig() {
   toast('알림 설정 저장됨','success');
 }
 
+// ===== 푸시 구독 (클라이언트) =====
+const VAPID_PUBLIC = 'BPbuDNOiXuJN5KpRWINHNtAYVlG3Pq6T6KVJ4ABv9PFn9hv8cfMoQXHCWVbLwqvxteVAkxaN4XKX1KOi5lhAMdc';
+const NOTIFY_FN_URL = `${SB_URL}/functions/v1/notify`;
+function _urlB64ToUint8(b64) {
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const base = (b64 + pad).replace(/-/g,'+').replace(/_/g,'/');
+  const raw = atob(base); const arr = new Uint8Array(raw.length);
+  for (let i=0;i<raw.length;i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+function _pushSupported() { return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); }
+async function isPushSubscribed() {
+  try {
+    if (!_pushSupported()) return false;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return false;
+    return !!(await reg.pushManager.getSubscription());
+  } catch(_) { return false; }
+}
+async function enablePush() {
+  if (!currentUser || !currentUser.staffId) { toast('먼저 이름으로 로그인하세요.','error'); return; }
+  if (!_pushSupported()) { toast('이 브라우저는 푸시 미지원입니다. 아이폰은 Safari에서 "홈 화면에 추가" 후 사용하세요.','error'); return; }
+  try {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('알림 권한이 거부되었습니다.','error'); return; }
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:_urlB64ToUint8(VAPID_PUBLIC) });
+    const j = sub.toJSON();
+    await fetch(`${SB_URL}/rest/v1/push_subs`, {
+      method:'POST',
+      headers:{...SB_HEADERS, 'Prefer':'resolution=merge-duplicates'},
+      body: JSON.stringify({ staff_id:currentUser.staffId, name:currentUser.name, endpoint:j.endpoint, sub:j })
+    });
+    toast('알림이 켜졌습니다 🔔','success');
+    renderMySchedule();
+  } catch(e) { console.warn('enablePush', e); toast('알림 설정 실패: '+e.message,'error'); }
+}
+async function disablePush() {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    if (sub) {
+      const ep = sub.endpoint;
+      await sub.unsubscribe();
+      await fetch(`${SB_URL}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(ep)}`, { method:'DELETE', headers:SB_HEADERS });
+    }
+    toast('알림이 꺼졌습니다.','success');
+    renderMySchedule();
+  } catch(e) { console.warn('disablePush', e); }
+}
+async function togglePush() {
+  if (await isPushSubscribed()) disablePush(); else enablePush();
+}
+async function _refreshPushBtn() {
+  const btn = document.getElementById('push-toggle-btn');
+  if (!btn) return;
+  if (!_pushSupported()) { btn.style.display='none'; return; }
+  const subbed = await isPushSubscribed();
+  btn.textContent = subbed ? '🔕 알림 끄기' : '🔔 알림 받기';
+  btn.style.borderColor = subbed ? '#45847a' : 'var(--border)';
+  btn.style.color = subbed ? '#45847a' : 'var(--muted)';
+}
+async function _sendPublishPush(token) {
+  try {
+    await fetch(NOTIFY_FN_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY },
+      body: JSON.stringify({ mode:'publish', token: token||'' })
+    });
+  } catch(e) { console.warn('publish push failed', e); }
+}
+
 // ===== 공휴일 API =====
 async function fetchHolidaysAll() {
   const key=document.getElementById('set-holiday-key').value.trim();
@@ -5374,8 +5451,9 @@ function renderMySchedule() {
 
   card.style.display='block';
   card.innerHTML=`<div class="panel" style="border-left:3px solid #6366f1;">
-    <div class="panel-header" style="padding-bottom:8px;">
+    <div class="panel-header" style="padding-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
       <div class="panel-title"><span>👤</span> ${currentUser.name}님의 근무</div>
+      <button id="push-toggle-btn" onclick="togglePush()" style="background:none;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;">🔔 알림 받기</button>
     </div>
     <div style="padding:0 16px 10px;">
       <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;">오늘</div>
@@ -5384,6 +5462,7 @@ function renderMySchedule() {
       <div style="display:flex;gap:4px;border-top:1px solid var(--border);padding-top:10px;">${weekHtml}</div>
     </div>
   </div>`;
+  _refreshPushBtn();
 }
 
 // ===== INIT =====
