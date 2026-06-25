@@ -4872,10 +4872,10 @@ const NOTIFY_DEFAULT_TYPES = [
   { key:'ojende',  label:'오전데스크',       time:'07:30', enabled:true },
   { key:'8jin',    label:'8진',             time:'08:00', enabled:true },
   { key:'ilgeun',  label:'일근',            time:'09:00', enabled:true },
-  { key:'newsoh',  label:'뉴스오후',         time:'13:00', enabled:true },
+  { key:'newsoh',  label:'뉴.오',         time:'13:00', enabled:true },
   { key:'vw',      label:'VW 근무',         time:'09:00', enabled:true },
   { key:'cg',      label:'CG 근무',         time:'09:00', enabled:true },
-  { key:'general', label:'기타 근무',        time:'09:00', enabled:true },
+  { key:'general', label:'기타 근무 (XR·PROJECT·SPORTS)',        time:'09:00', enabled:true },
   { key:'off',     label:'휴무 (오늘 근무 없음 알림)', time:'09:00', enabled:false },
 ];
 function getNotifyConfig() {
@@ -5395,7 +5395,7 @@ function renderMySchedule() {
     if (entry.cg?.desk8===sid||entry.cg?.desk===sid) roles.push({label:'CG 주데스크',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
     if (entry.cg?.desk5===sid) roles.push({label:'CG 5시데스크',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
     if (entry.danjik===sid) roles.push({label:'당직',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'});
-    if (entry.newsOh===sid) roles.push({label:'뉴스오후',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
+    if (entry.newsOh===sid) roles.push({label:'뉴.오',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
     if (entry.weekend8jin===sid) roles.push({label:'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
     if (entry.weekday8jin===sid) roles.push({label:'평일 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
     if (entry.morningDesk===sid) roles.push({label:'오전데스크',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
