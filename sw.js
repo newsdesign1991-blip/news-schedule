@@ -2,6 +2,16 @@
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
 
+// 네비게이션 요청(HTML)은 항상 네트워크에서 최신본 가져오기
+// iOS 홈화면 PWA가 HTML을 오래 캐시하는 문제 방지
+self.addEventListener('fetch', event => {
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' }).catch(() => fetch(event.request))
+    );
+  }
+});
+
 self.addEventListener('push', event => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; }
