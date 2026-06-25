@@ -1870,7 +1870,7 @@ function renderTable() {
       else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
       else if(entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
-      else if(s.id===danjikId&&entry){bg='#d65a52';color='#fff';fw='700';text='당직';}
+      else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='#d4edda';color='#276c3e';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='#f5e2cc';color='#9c6b4a';fw='700';text='뉴.오';}
@@ -1944,7 +1944,7 @@ function renderTable() {
       else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
       else if(entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
-      else if(s.id===danjikId&&entry){bg='#d65a52';color='#fff';fw='700';text='당직';}
+      else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='#d4edda';color='#276c3e';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='#f5e2cc';color='#9c6b4a';fw='700';text='뉴.오';}
@@ -2982,7 +2982,7 @@ function renderWorkshopTable() {
       else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
       else if(entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
-      else if(s.id===danjikId&&entry){bg='#d65a52';color='#fff';fw='700';text='당직';}
+      else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='#d4edda';color='#276c3e';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='#f5e2cc';color='#9c6b4a';fw='700';text='뉴.오';}
@@ -3053,7 +3053,7 @@ function renderWorkshopTable() {
       else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
       else if(entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
-      else if(s.id===danjikId&&entry){bg='#d65a52';color='#fff';fw='700';text='당직';}
+      else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='#d4edda';color='#276c3e';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='#f5e2cc';color='#9c6b4a';fw='700';text='뉴.오';}
