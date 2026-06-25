@@ -2,22 +2,33 @@ name: Push Notification Cron
 
 on:
   schedule:
-    - cron: '*/5 * * * *'   # 5분마다 실행 (내부에서 1분 간격으로 5회 호출)
-  workflow_dispatch:          # 수동 실행 가능
+    - cron: '*/5 * * * *'   # 5분마다 실행 (수동 실행 시 iterations 입력으로 조절)
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: '1분 간격 호출 횟수 (수동 테스트는 1 권장)'
+        default: '1'
+        required: false
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger notify function every minute (x5)
+      - name: Trigger notify function
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          COUNT: ${{ github.event.inputs.iterations || '5' }}
         run: |
-          for i in 1 2 3 4 5; do
-            curl -sf -X POST \
-              "${{ secrets.SUPABASE_URL }}/functions/v1/notify" \
-              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-              -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          for i in $(seq 1 "$COUNT"); do
+            echo "=== [$i/$COUNT] $(date -u '+%H:%M:%S') UTC ==="
+            HTTP=$(curl -s -o /tmp/resp.txt -w '%{http_code}' -X POST \
+              "$URL/functions/v1/notify" \
+              -H "Authorization: Bearer $KEY" \
+              -H "apikey: $KEY" \
               -H "Content-Type: application/json" \
-              -d '{"mode":"cron"}' || true
-            echo "[$i/5] $(date -u '+%H:%M:%S') done"
-            [ $i -lt 5 ] && sleep 60
+              -d '{"mode":"cron"}')
+            echo "HTTP $HTTP"
+            cat /tmp/resp.txt; echo ""
+            if [ "$i" -lt "$COUNT" ]; then sleep 60; fi
           done
