@@ -592,6 +592,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
     <button class="ws-brush-btn" data-brush="8jin"     onclick="setWsBrush('8jin')"     style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #f4bab6;border-radius:5px;background:#fff5f0;color:#d65a52;cursor:pointer;">8진</button>
     <button class="ws-brush-btn" data-brush="ilgeun"   onclick="setWsBrush('ilgeun')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #d4c49a;border-radius:5px;background:#fdf5e4;color:#8c6a3f;cursor:pointer;">일근</button>
     <button class="ws-brush-btn" data-brush="newsoh"   onclick="setWsBrush('newsoh')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #e2c9a8;border-radius:5px;background:#fdf0e3;color:#9c6b4a;cursor:pointer;">뉴.오</button>
+    <button class="ws-brush-btn" data-brush="newsoh2"  onclick="setWsBrush('newsoh2')"  style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #d9b483;border-radius:5px;background:#f7e6cf;color:#b07d4a;cursor:pointer;">뉴.오2</button>
     <button class="ws-brush-btn" data-brush="vw-sub"   onclick="setWsBrush('vw-sub')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #c5cce8;border-radius:5px;background:#eef1f9;color:#5d6fb0;cursor:pointer;">VW대체</button>
     <button class="ws-brush-btn" data-brush="cg-sub"   onclick="setWsBrush('cg-sub')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #a8d8e2;border-radius:5px;background:#e3f4f8;color:#437d93;cursor:pointer;">CG대체</button>
     <button class="ws-brush-btn" data-brush="leave"    onclick="setWsBrush('leave')"    style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #e2d2a8;border-radius:5px;background:#fdf8ee;color:#c79a5e;cursor:pointer;">신휴가</button>
@@ -1264,6 +1265,12 @@ function isContractActive(s, dateStr) {
   if (s.contractEnd   && dateStr > s.contractEnd)   return false;
   return true;
 }
+// 프리랜서가 해당 기간(날짜 배열) 중 하루라도 계약이 유효한지 — 계약 만료된 프리랜서는 다음 달 근무표 컬럼에서 제외
+function _freelancerActiveInRange(s, dateList) {
+  if (s.employmentType !== 'freelancer') return true;
+  if (!s.contractStart && !s.contractEnd) return true;
+  return (dateList||[]).some(dt => isContractActive(s, toDateStr(dt.getFullYear(), dt.getMonth()+1, dt.getDate())));
+}
 function isDispatched(s, dateStr) {
   if (!s || s.employmentType !== 'employee') return false;
   if (!s.dispatchStart && !s.dispatchEnd) return false;
@@ -1728,10 +1735,11 @@ function renderTable() {
 
   // 직원 먼저, 프리랜서 나중 (드래그 순서 내에서 stable sort)
   function empFirst(arr){ return [...arr].sort((a,b)=>(a.employmentType==='freelancer'?1:0)-(b.employmentType==='freelancer'?1:0)); }
-  const vwStaff=empFirst(getStaff('VW')), cgStaff=empFirst(getStaff('CG'));
-  const projectStaff=empFirst(getStaff('PROJECT')), sportsStaff=empFirst(getStaff('SPORTS'));
-  const xrStaff=empFirst(getStaff('XR'));
-  const jogeunStaff=empFirst(getStaff('조근'));
+  const _gs = dept => empFirst(getStaff(dept).filter(s=>_freelancerActiveInRange(s,dates)));
+  const vwStaff=_gs('VW'), cgStaff=_gs('CG');
+  const projectStaff=_gs('PROJECT'), sportsStaff=_gs('SPORTS');
+  const xrStaff=_gs('XR');
+  const jogeunStaff=_gs('조근');
   // VW 컬럼 그룹 | 조근 컬럼 그룹 | CG+ 컬럼 그룹 분리
   const vwCols=vwStaff.map(s=>({...s,_dept:'vw'}));
   const jogeunCols=jogeunStaff.map(s=>({...s,_dept:'jogeun'}));
@@ -1870,6 +1878,7 @@ function renderTable() {
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='#d4edda';color='#276c3e';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='#f5e2cc';color='#9c6b4a';fw='700';text='뉴.오';}
+      else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='#f3ddc0';color='#b07d4a';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
       else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
       else if(entry){
@@ -1907,6 +1916,7 @@ function renderTable() {
       } else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='#d4edda';color='#276c3e';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='#f5e2cc';color='#9c6b4a';fw='700';text='뉴.오';}
+      else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='#f3ddc0';color='#b07d4a';fw='700';text='뉴.오2';}
       else if((entry?.vw?.workers||[]).includes(s.id)){workCount[s.id]++;bg='#dfe4f2';color='#565ba4';fw='700';text='VW';}
       else if((entry?.cg?.workers||[]).includes(s.id)){workCount[s.id]++;bg='#d4e8ee';color='#437d93';fw='700';text='CG';}
       else{bg='#8893dc';color='#fff';fw='700';text='조근';workCount[s.id]++;}
@@ -1944,6 +1954,7 @@ function renderTable() {
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='#d4edda';color='#276c3e';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='#f5e2cc';color='#9c6b4a';fw='700';text='뉴.오';}
+      else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='#f3ddc0';color='#b07d4a';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
       else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
       else if(entry){
@@ -1988,6 +1999,7 @@ function renderTable() {
       const jin8=entry.weekend8jin||entry.weekday8jin;
       if(jin8) _addRole(jin8,'8진','#d65a52','#fce8e8');
       if(entry.newsOh) _addRole(entry.newsOh,'뉴.오','#9c6b4a','#f5e2cc');
+      if(entry.newsOh2) _addRole(entry.newsOh2,'뉴.오2','#b07d4a','#f3ddc0');
       if(ilgeunId) _addRole(ilgeunId,'일근','#8c6a3f','#f3e3b0');
       (entry.vw?.workers||[]).forEach(id=>{
         const sx=staffById(id); if(!sx)return;
@@ -2001,7 +2013,7 @@ function renderTable() {
       });
     }
     // 우선순위: 일근>뉴.오>8진>VW대>CG대 — 첫번째는 셀에, 나머지는 비고에
-    const _roleOrder=['일근','뉴.오','8진','VW대','CG대'];
+    const _roleOrder=['일근','뉴.오','뉴.오2','8진','VW대','CG대'];
     const bigoItems=[];
     Object.entries(_personRoles).forEach(([id,roles])=>{
       if(roles.length<2)return; // 1개뿐이면 비고 불필요
@@ -2702,8 +2714,9 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     }
     // 뉴.오 배정 (평일, canNewsOh 프리랜서, 공평 순환)
     let newsOhAssign = _prevSnap[dateStr]?.newsOh || null;
+    const _ns2 = _prevSnap[dateStr]?.newsOh2 || null;   // 수동 입력한 뉴.오2(교육)는 자동 뉴.오 후보에서 제외
     if (!newsOhAssign && !isHoliOrWE && newsOhPool.length > 0) {
-      const cand = newsOhPool.filter(p=>!isOnLeave(p.id,dateStr));
+      const cand = newsOhPool.filter(p=>!isOnLeave(p.id,dateStr) && p.id!==_ns2);
       const sorted = shuffleSort(cand, p=>newsOhCount[p.id]||0);
       if (sorted.length) { newsOhAssign=sorted[0].id; newsOhCount[sorted[0].id]++; }
     }
@@ -2734,6 +2747,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       morningDesk:morningDeskAssign,
       satMorning:satMorningAssign,
       newsOh:newsOhAssign,
+      newsOh2:_prevSnap[dateStr]?.newsOh2||null,
       weekend8jin:weekend8jinAssign,
       weekday8jin:weekday8jinAssign,
       restWorkers:restDays[dateStr]?[...restDays[dateStr]]:[],
@@ -2880,9 +2894,10 @@ function renderWorkshopTable() {
   while(cur<=endD){dates.push(new Date(cur));cur.setDate(cur.getDate()+1);}
 
   function empFirst(arr){return [...arr].sort((a,b)=>(a.employmentType==='freelancer'?1:0)-(b.employmentType==='freelancer'?1:0));}
-  const vwStaff=empFirst(getStaff('VW')),cgStaff=empFirst(getStaff('CG'));
-  const projectStaff=empFirst(getStaff('PROJECT')),sportsStaff=empFirst(getStaff('SPORTS'));
-  const xrStaff=empFirst(getStaff('XR')),jogeunStaff=empFirst(getStaff('조근'));
+  const _gs = dept => empFirst(getStaff(dept).filter(s=>_freelancerActiveInRange(s,dates)));
+  const vwStaff=_gs('VW'),cgStaff=_gs('CG');
+  const projectStaff=_gs('PROJECT'),sportsStaff=_gs('SPORTS');
+  const xrStaff=_gs('XR'),jogeunStaff=_gs('조근');
   const vwCols=vwStaff.map(s=>({...s,_dept:'vw'}));
   const jogeunCols=jogeunStaff.map(s=>({...s,_dept:'jogeun'}));
   const cgCols=[...cgStaff.map(s=>({...s,_dept:'cg'})),...xrStaff.map(s=>({...s,_dept:'xr'})),...projectStaff.map(s=>({...s,_dept:'project'})),...sportsStaff.map(s=>({...s,_dept:'sports'}))];
@@ -2982,6 +2997,7 @@ function renderWorkshopTable() {
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='#d4edda';color='#276c3e';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='#f5e2cc';color='#9c6b4a';fw='700';text='뉴.오';}
+      else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='#f3ddc0';color='#b07d4a';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
       else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
       else if(entry){
@@ -3018,6 +3034,7 @@ function renderWorkshopTable() {
       } else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='#d4edda';color='#276c3e';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='#f5e2cc';color='#9c6b4a';fw='700';text='뉴.오';}
+      else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='#f3ddc0';color='#b07d4a';fw='700';text='뉴.오2';}
       else if((entry?.vw?.workers||[]).includes(s.id)){workCount[s.id]++;bg='#dfe4f2';color='#565ba4';fw='700';text='VW';}
       else if((entry?.cg?.workers||[]).includes(s.id)){workCount[s.id]++;bg='#d4e8ee';color='#437d93';fw='700';text='CG';}
       else{bg='#8893dc';color='#fff';fw='700';text='조근';workCount[s.id]++;}
@@ -3053,6 +3070,7 @@ function renderWorkshopTable() {
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='#d4edda';color='#276c3e';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='#f5e2cc';color='#9c6b4a';fw='700';text='뉴.오';}
+      else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='#f3ddc0';color='#b07d4a';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
       else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
       else if(entry){
@@ -3177,7 +3195,7 @@ let wsBrushType = null;
 const WS_BRUSH_LABELS = {
   'work':'정근','vw-desk':'VW데스크','desk8':'8데스크','desk5':'5데스크',
   'danjik':'당직','jogeun':'조근','ojende':'오전데','8jin':'8진',
-  'ilgeun':'일근','newsoh':'뉴.오','leave':'신휴가','off':'지우기'
+  'ilgeun':'일근','newsoh':'뉴.오','newsoh2':'뉴.오2','leave':'신휴가','off':'지우기'
 };
 function setWsBrush(type) {
   wsBrushType = (wsBrushType === type) ? null : type;
@@ -3216,6 +3234,7 @@ function _brushClearStaff(entry, staffId, ds) {
   if (entry.weekday8jin===staffId) entry.weekday8jin = null;
   if (entry.weekend8jin===staffId) entry.weekend8jin = null;
   if (entry.newsOh===staffId)      entry.newsOh = null;
+  if (entry.newsOh2===staffId)     entry.newsOh2 = null;
   if (data.draft?.newLeaves?.[ds]) data.draft.newLeaves[ds] = data.draft.newLeaves[ds].filter(id=>id!==staffId);
   if (entry.jogeunExtra) entry.jogeunExtra = entry.jogeunExtra.filter(id=>id!==staffId);
   if (entry.jogeunEdu)   entry.jogeunEdu   = entry.jogeunEdu.filter(id=>id!==staffId);
@@ -3248,6 +3267,7 @@ function _hasBrush(entry, staffId, bt, ds) {
     case '8jin':    return isWE ? entry?.weekend8jin === staffId : entry?.weekday8jin === staffId;
     case 'ilgeun':  return entry?.ilgeun === staffId;
     case 'newsoh':  return entry?.newsOh === staffId;
+    case 'newsoh2': return entry?.newsOh2 === staffId;
     case 'jogeun-edu': return (entry?.jogeunEdu||[]).includes(staffId);
     case 'vw-sub':  return (entry?.vw?.workers||[]).includes(staffId);
     case 'cg-sub':  return (entry?.cg?.workers||[]).includes(staffId);
@@ -3308,6 +3328,7 @@ function _applyBrush(staffId, ds, skipRender) {
   const _coVwW = (entry?.vw?.workers||[]).includes(staffId);
   const _coCgW = (entry?.cg?.workers||[]).includes(staffId);
   const _coNewsOh = entry?.newsOh === staffId;
+  const _coNewsOh2 = entry?.newsOh2 === staffId;
   const _coW8jin  = entry?.weekend8jin === staffId;
   const _coWd8jin = entry?.weekday8jin === staffId;
   const _coIlgeun = entry?.ilgeun === staffId;
@@ -3351,6 +3372,9 @@ function _applyBrush(staffId, ds, skipRender) {
   } else if (bt === 'newsoh') {
     entry.newsOh = staffId;
     _brushAddWorker(entry, staffId, dept);
+  } else if (bt === 'newsoh2') {
+    entry.newsOh2 = staffId;
+    _brushAddWorker(entry, staffId, dept);
   } else if (bt === 'jogeun-edu') {
     if (!entry.jogeunEdu) entry.jogeunEdu=[];
     if (!entry.jogeunEdu.includes(staffId)) entry.jogeunEdu.push(staffId);
@@ -3363,12 +3387,13 @@ function _applyBrush(staffId, ds, skipRender) {
   }
 
   // 공존 역할 복원: 뉴.오·8진·일근 ↔ VW/CG대체 서로 지우지 않음
-  if (bt==='newsoh' || bt==='8jin' || bt==='ilgeun') {
+  if (bt==='newsoh' || bt==='newsoh2' || bt==='8jin' || bt==='ilgeun') {
     if (_coVwW && !(entry.vw?.workers||[]).includes(staffId)) { if(!entry.vw) entry.vw={workers:[],desk:null}; entry.vw.workers.push(staffId); }
     if (_coCgW && !(entry.cg?.workers||[]).includes(staffId)) { if(!entry.cg) entry.cg={workers:[],desk8:null,desk5:null}; entry.cg.workers.push(staffId); }
   }
   if (bt==='vw-sub' || bt==='cg-sub') {
     if (_coNewsOh) entry.newsOh = staffId;
+    if (_coNewsOh2) entry.newsOh2 = staffId;
     if (_coW8jin)  entry.weekend8jin = staffId;
     if (_coWd8jin) entry.weekday8jin = staffId;
     if (_coIlgeun) entry.ilgeun = staffId;
@@ -5487,6 +5512,7 @@ function renderMySchedule() {
     if (entry.cg?.desk5===sid) roles.push({label:'CG 5데스크',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
     if (entry.danjik===sid) roles.push({label:'당직',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'});
     if (entry.newsOh===sid) roles.push({label:'뉴.오',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
+    if (entry.newsOh2===sid) roles.push({label:'뉴.오2',bg:'#f3ddc0',color:'#b07d4a',border:'#d9b483'});
     if (entry.weekend8jin===sid) roles.push({label:'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
     if (entry.weekday8jin===sid) roles.push({label:'평일 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
     if (entry.morningDesk===sid) roles.push({label:'오전데스크',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
