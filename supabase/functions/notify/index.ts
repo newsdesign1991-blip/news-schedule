@@ -1,8 +1,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3'
 
-const VAPID_PUBLIC = 'BPbuDNOiXuJN5KpRWINHNtAYVlG3Pq6T6KVJ4ABv9PFn9hv8cfMoQXHCWVbLwqvxteVAkxaN4XKX1KOi5lhAMdc'
-const VAPID_EMAIL = 'mailto:sbs8xr@gmail.com'
+const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC') || 'BPbuDNOiXuJN5KpRWINHNtAYVlG3Pq6T6KVJ4ABv9PFn9hv8cfMoQXHCWVbLwqvxteVAkxaN4XKX1KOi5lhAMdc'
+const VAPID_EMAIL = Deno.env.get('VAPID_SUBJECT') || 'mailto:sbs8xr@gmail.com'
 
 const WORK_LABELS: Record<string, string> = {
   danjik: '당직', jogeun: '조근', ojende: '오전데스크',
