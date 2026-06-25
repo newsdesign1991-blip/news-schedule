@@ -1517,9 +1517,27 @@ function renderHome() {
     const ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
     const e2=data.schedule[ds]; const dow=d.getDay(); const isToday2=ds===todayStr;
     const style=isToday2?'background:rgba(99,102,241,0.1);':'';
+    let wVw='-', wCg='-';
+    if (e2) {
+      const _wDxExit=getDanjikExitStaff(ds);
+      const _wCgExcl=new Set([e2.danjik,_wDxExit].filter(Boolean));
+      const _wJIds=new Set(getStaff('조근').map(x=>x.id));
+      const _wSpExcl=new Set([e2.satMorning,e2.morningDesk].filter(Boolean));
+      const _wLv=new Set((data.newLeaves?.[ds])||[]);
+      const _wExcl=id=>_wCgExcl.has(id)||_wJIds.has(id)||_wSpExcl.has(id)||_wLv.has(id);
+      const _wCgWorkers=new Set(e2.cg?.workers||[]);
+      const _wVwSet=new Set((e2.vw?.workers||[]).filter(id=>!_wExcl(id)&&!(_wCgWorkers.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
+      const _w8Ids=[e2.weekend8jin,e2.weekday8jin].filter(id=>id&&!_wSpExcl.has(id)&&!_wLv.has(id));
+      const _w8VwAdd=_w8Ids.filter(id=>!_wVwSet.has(id)&&!_wCgWorkers.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
+      const _w8CgAdd=_w8Ids.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(staffById(id)?.dept||'').toLowerCase();return dd==='cg'||dd==='xr';}).length;
+      const _wIlVw=(e2.ilgeun?staffById(e2.ilgeun)?.dept?.toUpperCase():'')==='VW';
+      const _wIlOk=e2.ilgeun&&!_wLv.has(e2.ilgeun)&&!_wSpExcl.has(e2.ilgeun);
+      wVw=_wVwSet.size+(_wIlVw&&!_wCgWorkers.has(e2.ilgeun)&&_wIlOk?1:0)+_w8VwAdd;
+      wCg=(e2.cg?.workers||[]).filter(id=>!_wExcl(id)&&!_wVwSet.has(id)).length+(e2.xr||[]).filter(id=>!_wExcl(id)).length+(!_wIlVw&&_wIlOk&&!_wVwSet.has(e2.ilgeun)?1:0)+_w8CgAdd;
+    }
     wsHtml+=`<tr style="${style}"><td style="padding:5px 8px;border-bottom:1px solid var(--border);font-weight:${isToday2?700:400};color:${dow===0?'#a8657f':dow===6?'#6366f1':'var(--text)'};">${d.getMonth()+1}/${d.getDate()} ${DOW_KR[dow]}</td>
-      <td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border);color:var(--vw-light);">${e2?(e2.vw?.workers||[]).length:'-'}</td>
-      <td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border);color:var(--cg-light);">${e2?(e2.cg?.workers||[]).length:'-'}</td>
+      <td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border);color:var(--vw-light);">${wVw}</td>
+      <td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border);color:var(--cg-light);">${wCg}</td>
       <td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border);color:var(--project-light);">${e2?(e2.project||[]).length:'-'}</td>
       <td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border);color:var(--sports-light);">${e2?(e2.sports||[]).length:'-'}</td></tr>`;
   });
@@ -3205,6 +3223,10 @@ function _brushClearStaff(entry, staffId, ds) {
   if (data.draft?.newLeaves?.[ds]) data.draft.newLeaves[ds] = data.draft.newLeaves[ds].filter(id=>id!==staffId);
   if (entry.jogeunExtra) entry.jogeunExtra = entry.jogeunExtra.filter(id=>id!==staffId);
   if (entry.jogeunEdu)   entry.jogeunEdu   = entry.jogeunEdu.filter(id=>id!==staffId);
+  if (entry.jogeunSubs) {
+    // 조근 대체자(value)인 경우 해당 키 제거
+    Object.keys(entry.jogeunSubs).forEach(k=>{ if(entry.jogeunSubs[k]===staffId) delete entry.jogeunSubs[k]; });
+  }
 }
 function _brushAddWorker(entry, staffId, dept) {
   const d = dept.toLowerCase();
