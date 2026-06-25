@@ -5082,11 +5082,17 @@ async function enablePush() {
     let sub = await reg.pushManager.getSubscription();
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:_urlB64ToUint8(VAPID_PUBLIC) });
     const j = sub.toJSON();
-    await fetch(`${SB_URL}/rest/v1/push_subs`, {
+    // 같은 endpoint 기존 행 제거 후 새로 삽입 (unique 제약 없이도 중복 방지)
+    await fetch(`${SB_URL}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(j.endpoint)}`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});
+    const res = await fetch(`${SB_URL}/rest/v1/push_subs`, {
       method:'POST',
-      headers:{...SB_HEADERS, 'Prefer':'resolution=merge-duplicates'},
+      headers:{...SB_HEADERS, 'Prefer':'return=minimal'},
       body: JSON.stringify({ staff_id:currentUser.staffId, name:currentUser.name, endpoint:j.endpoint, sub:j })
     });
+    if (!res.ok) {
+      const errTxt = await res.text().catch(()=>'');
+      throw new Error(`구독 저장 실패 (HTTP ${res.status}). ${errTxt||'서버 권한(RLS) 설정을 확인하세요.'}`);
+    }
     toast('알림이 켜졌습니다 🔔','success');
     renderMySchedule();
     _refreshUserSettingsModal();
