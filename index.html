@@ -1049,7 +1049,11 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
           <input type="file" id="xl-file-input" accept=".xlsx,.xls" style="display:none" onchange="handleXlFile(this)">
         </div>
         <div style="font-size:11px;color:var(--muted);background:var(--surface2);border-radius:8px;padding:8px 10px;line-height:1.6;">
-          💡 엑셀 파일 구조: 1행=제목(연도/월 포함), 2~3행=이름 헤더, 이후=날짜별 근무 데이터
+          💡 업로드 후 시트를 선택하고 '파싱하기'를 눌러주세요
+        </div>
+        <div id="xl-sheet-select-wrap" style="display:none;margin-top:8px;">
+          <label class="form-label" style="font-size:11px;">시트 선택</label>
+          <select id="xl-sheet-select" class="form-input" style="font-size:12px;padding:4px 8px;"></select>
         </div>
       </div>
       <!-- 이미지 탭 -->
@@ -3488,7 +3492,18 @@ function handleXlFile(input) {
   document.getElementById('xl-file-name').style.display = 'block';
   document.getElementById('xl-drop-label').style.display = 'none';
   const reader = new FileReader();
-  reader.onload = e => { _xlArrayBuffer = e.target.result; };
+  reader.onload = e => {
+    _xlArrayBuffer = e.target.result;
+    try {
+      const wb = XLSX.read(_xlArrayBuffer, {type:'array'});
+      const sel = document.getElementById('xl-sheet-select');
+      sel.innerHTML = wb.SheetNames.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
+      // 기본 선택: "최종" 포함 시트 우선
+      const preferred = wb.SheetNames.findIndex(n=>n.includes('최종'));
+      if (preferred>=0) sel.value = preferred;
+      document.getElementById('xl-sheet-select-wrap').style.display = '';
+    } catch(e) { /* ignore */ }
+  };
   reader.readAsArrayBuffer(file);
 }
 function handleXlDrop(e) {
@@ -3503,83 +3518,90 @@ function parseExcelSchedule() {
   if (!_xlArrayBuffer) { toast('엑셀 파일을 먼저 올려주세요','error'); return; }
   try {
     const wb = XLSX.read(_xlArrayBuffer, {type:'array'});
-    const ws = wb.Sheets[wb.SheetNames[0]];
+    const sheetIdx = parseInt(document.getElementById('xl-sheet-select')?.value||'0');
+    const sheetName = wb.SheetNames[sheetIdx] || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
 
-    // 연도/월 추출: 첫 행에서 "YYYY년 M월" 또는 "YYYY년MM월" 검색
+    // 연도/월 추출: 시트명 또는 상단 행에서 "YYYY년 M월" 검색
     let year = new Date().getFullYear(), month = new Date().getMonth()+1;
-    for (let r=0; r<Math.min(5,rows.length); r++) {
-      const line = rows[r].join(' ');
-      const m = line.match(/(\d{4})[년\s]*\s*(\d{1,2})[월]/);
-      if (m) { year=parseInt(m[1]); month=parseInt(m[2]); break; }
-    }
+    const srcText = [sheetName, ...rows.slice(0,5).map(r=>r.join(' '))].join(' ');
+    const ymMatch = srcText.match(/(\d{4})[년\s]*\s*(\d{1,2})[월]/);
+    if (ymMatch) { year=parseInt(ymMatch[1]); month=parseInt(ymMatch[2]); }
 
-    // 이름 헤더 행 찾기: 날짜 열(A) 다음에 직원 이름들이 나오는 첫 행
-    // 날짜 데이터 행은 A열이 "숫자/숫자" 또는 날짜 형식
     const staffNames = new Set((data.staff||[]).map(s=>s.name));
-    let nameRowIdx = -1;
-    let nameColStart = 2; // 기본값: C열(index 2)부터 이름
-    for (let r=0; r<Math.min(10,rows.length); r++) {
-      const row = rows[r];
-      let matchCount = 0;
-      for (let c=1; c<row.length; c++) {
-        const v = String(row[c]).trim();
-        if (staffNames.has(v)) matchCount++;
-      }
-      if (matchCount >= 3) { // 3명 이상 직원 이름이 있으면 이름 행으로 판정
-        nameRowIdx = r;
-        // 이름 시작 열 찾기 (날짜/요일 열 건너뜀)
-        for (let c=0; c<row.length; c++) {
-          if (staffNames.has(String(row[c]).trim())) { nameColStart=c; break; }
-        }
-        break;
-      }
-    }
-    if (nameRowIdx === -1) { toast('직원 이름 헤더 행을 찾을 수 없습니다.\n엑셀 파일에 직원 이름이 포함되어 있는지 확인하세요.','error'); return; }
-
-    // 이름 → 열 인덱스 매핑
-    const nameRow = rows[nameRowIdx];
-    const colMap = []; // [{name, colIdx}]
-    for (let c=nameColStart; c<nameRow.length; c++) {
-      const v = String(nameRow[c]).trim();
-      if (v) colMap.push({name:v, colIdx:c});
-    }
-
-    // 날짜 데이터 행 파싱
-    const unknown = new Set();
     const knownStaffByName = {};
     (data.staff||[]).forEach(s=>{ knownStaffByName[s.name]=s; });
+
+    // 이름 헤더 행 찾기 (직원 이름이 3개 이상 있는 첫 행)
+    let nameRowIdx = -1;
+    for (let r=0; r<Math.min(10,rows.length); r++) {
+      let cnt=0;
+      rows[r].forEach(v=>{ if(staffNames.has(String(v).trim())) cnt++; });
+      if (cnt>=3) { nameRowIdx=r; break; }
+    }
+    if (nameRowIdx===-1) { toast('직원 이름 헤더 행을 찾을 수 없습니다.','error'); return; }
+
+    const nameRow = rows[nameRowIdx];
+
+    // 날짜 열 자동 감지: 데이터 행에서 1~31 숫자만 있는 열
+    let dateColIdx = -1;
+    for (let c=0; c<nameRow.length; c++) {
+      if (staffNames.has(String(nameRow[c]).trim())) continue; // 이름 열 제외
+      let numCount=0, total=0;
+      for (let r=nameRowIdx+1; r<Math.min(nameRowIdx+10,rows.length); r++) {
+        const v=String(rows[r][c]).trim();
+        if(v){total++; if(/^\d{1,2}$/.test(v)&&parseInt(v)>=1&&parseInt(v)<=31) numCount++;}
+      }
+      if(total>0&&numCount/total>=0.7){dateColIdx=c;break;}
+    }
+
+    // 이름→열 매핑 (날짜 열 제외, 빈 이름 제외)
+    const colMap = [];
+    nameRow.forEach((v,c)=>{
+      const nm=String(v).trim();
+      if(nm&&c!==dateColIdx) colMap.push({name:nm,colIdx:c});
+    });
+
+    const unknown = new Set();
     colMap.forEach(({name})=>{ if(!knownStaffByName[name]) unknown.add(name); });
 
+    // 날짜별 근무 파싱
     const schedule = [];
     for (let r=nameRowIdx+1; r<rows.length; r++) {
       const row = rows[r];
-      const dateCell = String(row[0]).trim();
-      if (!dateCell) continue;
-      // 날짜 파싱: "6/1", "6월1일", 또는 Excel 날짜 숫자
-      let dayNum = null, monNum = month;
-      const slash = dateCell.match(/^(\d{1,2})[\/.](\d{1,2})$/);
-      const kor   = dateCell.match(/(\d{1,2})월(\d{1,2})일?/);
-      if (slash) { monNum=parseInt(slash[1]); dayNum=parseInt(slash[2]); }
-      else if (kor) { monNum=parseInt(kor[1]); dayNum=parseInt(kor[2]); }
-      else if (/^\d+$/.test(dateCell)) {
-        // Excel 날짜 시리얼
-        const jsDate = new Date(Math.round((parseInt(dateCell)-25569)*86400*1000));
-        monNum=jsDate.getUTCMonth()+1; dayNum=jsDate.getUTCDate();
+      let dayNum=null, monNum=month;
+
+      if (dateColIdx>=0) {
+        // 날짜 열에서 일(day) 숫자 읽기
+        const dv=String(row[dateColIdx]).trim();
+        if(/^\d{1,2}$/.test(dv)) dayNum=parseInt(dv);
+      }
+      if (!dayNum) {
+        // col0에서 "6/1", "6월1일" 등 파싱 시도
+        const dc=String(row[0]).trim();
+        const s=dc.match(/^(\d{1,2})[\/.](\d{1,2})$/);
+        const k=dc.match(/(\d{1,2})월(\d{1,2})일?/);
+        if(s){monNum=parseInt(s[1]);dayNum=parseInt(s[2]);}
+        else if(k){monNum=parseInt(k[1]);dayNum=parseInt(k[2]);}
+        else if(/^\d+$/.test(dc)&&parseInt(dc)>31){
+          const jd=new Date(Math.round((parseInt(dc)-25569)*86400*1000));
+          monNum=jd.getUTCMonth()+1;dayNum=jd.getUTCDate();
+        }
       }
       if (!dayNum) continue;
-      const dateStr = `${year}-${String(monNum).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
-      const entries = [];
-      colMap.forEach(({name, colIdx})=>{
-        const val = String(row[colIdx]||'').trim();
-        if (val && val !== '-' && val !== '0') {
-          entries.push({name, workType: val});
-        }
+
+      const dateStr=`${year}-${String(monNum).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+      const entries=[];
+      colMap.forEach(({name,colIdx})=>{
+        const val=String(row[colIdx]||'').trim();
+        if(val&&val!=='-'&&val!=='0') entries.push({name,workType:val});
       });
-      if (entries.length) schedule.push({date:dateStr, entries});
+      if(entries.length) schedule.push({date:dateStr,entries});
     }
+
     if (!schedule.length) { toast('파싱된 근무 데이터가 없습니다. 엑셀 구조를 확인해주세요.','error'); return; }
-    _imgParsedData = {year, month, unknownNames:[...unknown], schedule};
+    _imgParsedData = {year,month,unknownNames:[...unknown],schedule};
     _renderImgResult(_imgParsedData);
   } catch(err) {
     toast('엑셀 파싱 오류: '+err.message, 'error');
@@ -3698,9 +3720,11 @@ function _renderImgResult(parsed) {
 
 const WORK_TYPE_MAP = {
   '정근': 'work', '신휴가': 'leave', '당직': 'danjik',
-  'VW대': 'vw-desk', '데스크': 'vw-desk',
-  '8데스크': 'desk8', '5데스크': 'desk5', '오전데스크': 'ojende', '오전데': 'ojende',
-  '조근': 'jogeun', '8진': '8jin', '뉴오': 'newsoh', '일근': 'ilgeun', 'CG': 'work'
+  'VW대': 'vw-desk', 'VW데': 'vw-desk', '데스크': 'vw-desk',
+  '8데스크': 'desk8', '8데스': 'desk8', '5데스크': 'desk5', '5데스': 'desk5',
+  '오전데스크': 'ojende', '오전데': 'ojende',
+  '조근': 'jogeun', '8진': '8jin', '뉴오': 'newsoh', '뉴.오': 'newsoh', '일근': 'ilgeun',
+  'CG': 'work', 'XR': 'work'
 };
 
 function applyImageSchedule() {
@@ -3764,8 +3788,8 @@ function _doApplyImageSchedule(skipNames) {
       const wt = WORK_TYPE_MAP[workType] || 'work';
       if (wt === 'leave') {
         if (!data.draft.newLeaves) data.draft.newLeaves = {};
-        if (!data.draft.newLeaves[s.id]) data.draft.newLeaves[s.id] = [];
-        if (!data.draft.newLeaves[s.id].includes(ds)) data.draft.newLeaves[s.id].push(ds);
+        if (!data.draft.newLeaves[ds]) data.draft.newLeaves[ds] = [];
+        if (!data.draft.newLeaves[ds].includes(s.id)) data.draft.newLeaves[ds].push(s.id);
       } else if (wt === 'danjik') {
         entry.danjik = s.id;
       } else if (wt === 'desk8') {
@@ -3777,12 +3801,18 @@ function _doApplyImageSchedule(skipNames) {
       } else if (wt === 'vw-desk') {
         if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id);
         entry.vw.desk = s.id;
+      } else if (wt === 'ojende') {
+        entry.morningDesk = s.id;
       } else if (wt === 'jogeun') {
         // no-op: jogeun members are from dept
       } else if (wt === 'ilgeun') {
         entry.ilgeun = s.id;
       } else if (wt === 'newsoh') {
-        // mark in notes
+        entry.newsOh = s.id;
+      } else if (wt === '8jin') {
+        const dow = new Date(ds+'T00:00:00').getDay();
+        if (dow===0||dow===6) entry.weekend8jin = s.id;
+        else entry.weekday8jin = s.id;
       } else if (wt === 'work') {
         const dept = s.dept;
         if (dept === 'VW') { if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id); }
