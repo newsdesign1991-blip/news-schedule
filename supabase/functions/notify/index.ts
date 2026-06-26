@@ -60,6 +60,26 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ sent, errors, mode: 'test' }), { headers: { 'Content-Type': 'application/json' } })
   }
 
+  // ── 공지 등록 알림 모드 ──────────────────────────────────────────
+  if (mode === 'notice') {
+    const text = (body?.text || '').toString().trim()
+    const payload = JSON.stringify({
+      title: '📢 공지사항이 등록되었습니다',
+      body: text || '새 공지를 확인하세요.',
+      icon: 'icon-192.png', badge: 'icon-192.png',
+      tag: 'notice-' + Date.now(), renotify: true,
+      data: { url: './' }
+    })
+    for (const sub of subs) {
+      try { await webpush.sendNotification(sub.sub, payload); sent++ }
+      catch (e: any) {
+        errors++
+        if (e.statusCode === 410 || e.statusCode === 404) await sb.from('push_subs').delete().eq('endpoint', sub.endpoint)
+      }
+    }
+    return new Response(JSON.stringify({ sent, errors, mode: 'notice' }), { headers: { 'Content-Type': 'application/json' } })
+  }
+
   // ── 배포 알림 모드 ──────────────────────────────────────────────
   if (mode === 'publish') {
     const payload = JSON.stringify({
@@ -116,7 +136,16 @@ Deno.serve(async (req) => {
     if (!typeCfg?.enabled || !typeCfg.time) continue
 
     const [h, m] = typeCfg.time.split(':').map(Number)
-    const targetMin = h * 60 + m
+    let targetMin = h * 60 + m
+    // 8진: 오늘 공지에 '8뉴스 진입시간'이 있으면 그 15분 전으로 알림 시각을 변경
+    if (wt === '8jin') {
+      const n8 = nd?.notices?.[todayStr]?.news8Time
+      if (n8 && /^\d{1,2}:\d{2}$/.test(n8)) {
+        const [nh, nm] = n8.split(':').map(Number)
+        targetMin = nh * 60 + nm - 15
+        if (targetMin < 0) targetMin += 1440
+      }
+    }
     if (Math.abs(curMin - targetMin) > 1) continue  // ±1분 윈도우 (매 분 호출 기준)
 
     const label = WORK_LABELS[wt] || '근무'
