@@ -401,6 +401,31 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   </div>
 </div>
 
+<!-- 작성소 초기화 선택 모달 -->
+<div id="reset-draft-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:16px;padding:24px;width:360px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="font-size:16px;font-weight:700;color:#d65a52;">🗑 작성소 초기화</div>
+      <button onclick="_closeResetModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:16px;">초기화할 범위를 선택하세요.<br><span style="font-size:11px;color:var(--muted);">배포된 근무표(근무표 탭)는 영향받지 않습니다.</span></p>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button id="reset-range-btn" class="btn" style="background:#4a9fbd;color:#fff;border:none;line-height:1.4;" onclick="_resetDraftRange()">📅 현재 기간만 지우기<br><span style="font-size:11px;opacity:0.85;" id="reset-range-label"></span></button>
+      <div style="border-top:1px solid var(--border);margin:2px 0;padding-top:10px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">📆 기간 직접 지정해서 지우기</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+          <input type="date" id="reset-custom-start" class="form-input" style="flex:1;min-width:0;">
+          <span style="color:var(--muted);">~</span>
+          <input type="date" id="reset-custom-end" class="form-input" style="flex:1;min-width:0;">
+        </div>
+        <button class="btn" style="background:#c79a5e;color:#fff;border:none;width:100%;" onclick="_resetDraftCustom()">이 기간 지우기</button>
+      </div>
+      <button class="btn" style="background:#d65a52;color:#fff;border:none;" onclick="_resetDraftAll()">🗑 작성소 전체 지우기</button>
+      <button class="btn btn-outline" onclick="_closeResetModal()">취소</button>
+    </div>
+  </div>
+</div>
+
 <!-- 지난 공지 모달 -->
 <div id="notice-history-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border-radius:16px;padding:24px;width:440px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
@@ -1353,12 +1378,48 @@ function undoWorkshop() {
   toast('뒤로 되돌렸습니다', 'success');
 }
 function resetDraftSchedule() {
-  if (!confirm('근무표 작성소 전체를 초기화합니다.\n모든 배정이 지워집니다. 계속하시겠습니까?')) return;
+  const lbl = document.getElementById('reset-range-label');
+  const rb = document.getElementById('reset-range-btn');
+  const hasRange = !!(wsRangeStart && wsRangeEnd);
+  if (lbl) lbl.textContent = hasRange ? `${wsRangeStart} ~ ${wsRangeEnd}` : '기간 미설정';
+  if (rb) rb.style.display = hasRange ? '' : 'none';
+  const cs=document.getElementById('reset-custom-start'), ce=document.getElementById('reset-custom-end');
+  if (cs && hasRange) cs.value = wsRangeStart;
+  if (ce && hasRange) ce.value = wsRangeEnd;
+  document.getElementById('reset-draft-modal').style.display = 'flex';
+}
+function _closeResetModal() { const m=document.getElementById('reset-draft-modal'); if(m) m.style.display='none'; }
+function _resetDraftDates(startStr, endStr) {
+  if (!startStr || !endStr) { toast('기간을 입력하세요.','error'); return false; }
+  if (new Date(startStr+'T00:00:00') > new Date(endStr+'T00:00:00')) { toast('종료일이 시작일보다 앞섭니다.','error'); return false; }
+  _pushWsHistory();
+  const cur = new Date(startStr+'T00:00:00'), end = new Date(endStr+'T00:00:00');
+  while (cur <= end) {
+    const ds = toDateStr(cur.getFullYear(), cur.getMonth()+1, cur.getDate());
+    if (data.draft?.schedule) delete data.draft.schedule[ds];
+    if (data.draft?.newLeaves) delete data.draft.newLeaves[ds];
+    cur.setDate(cur.getDate()+1);
+  }
+  saveData(data);
+  renderWorkshopTable();
+  return true;
+}
+function _resetDraftRange() {
+  if (!wsRangeStart || !wsRangeEnd) { toast('기간이 설정되지 않았습니다.','error'); return; }
+  if (_resetDraftDates(wsRangeStart, wsRangeEnd)) { _closeResetModal(); toast(`현재 기간(${wsRangeStart} ~ ${wsRangeEnd}) 초기화 완료`, 'success'); }
+}
+function _resetDraftCustom() {
+  const s = document.getElementById('reset-custom-start')?.value;
+  const e = document.getElementById('reset-custom-end')?.value;
+  if (_resetDraftDates(s, e)) { _closeResetModal(); toast(`${s} ~ ${e} 초기화 완료`, 'success'); }
+}
+function _resetDraftAll() {
   _pushWsHistory();
   data.draft = {schedule:{}, newLeaves:{}};
   saveData(data);
   renderWorkshopTable();
-  toast('초기화 완료', 'success');
+  _closeResetModal();
+  toast('작성소 전체 초기화 완료', 'success');
 }
 
 function _setAdminNav(on) {
