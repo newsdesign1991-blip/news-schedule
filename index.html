@@ -599,7 +599,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
       <button style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;" onclick="setWsNextMonth()">다음 달</button>
       <button style="background:#b69bd6;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;" onclick="generateDraftSchedule()">📅 근무 생성</button>
       <button style="background:#c79a5e;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;" onclick="importLeaveToWorkshop()">📋 신휴가 가져오기</button>
-      <button style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;" onclick="openImageImport()">🖼 이미지 분석</button>
+      <button style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;" onclick="openImageImport()">📊 엑셀 분석</button>
       <button style="background:#059669;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;" onclick="publishSchedule()">🚀 배포</button>
     </div>
   </div>
@@ -1104,11 +1104,6 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
       <h3 id="img-modal-title">📊 근무표 가져오기</h3>
       <button class="modal-close" onclick="closeImageImport()">✕</button>
     </div>
-    <!-- 탭 -->
-    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px;">
-      <button id="img-tab-excel" onclick="switchImportTab('excel')" style="flex:1;padding:8px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid #6366f1;margin-bottom:-2px;background:transparent;color:#6366f1;cursor:pointer;">📊 엑셀 파일</button>
-      <button id="img-tab-image" onclick="switchImportTab('image')" style="flex:1;padding:8px;font-size:13px;font-weight:600;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:transparent;color:var(--muted);cursor:pointer;">🖼 이미지 분석 (AI)</button>
-    </div>
     <div style="flex:1;overflow-y:auto;padding:4px 0;">
       <!-- 엑셀 탭 -->
       <div id="img-section-excel">
@@ -1503,6 +1498,10 @@ function openDaySpecial(ds, ev) {
       <div style="flex:1;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">CG</div><input type="number" id="dsp-cg" value="${sp.cg??''}" placeholder="기본" min="0" max="40" style="width:100%;padding:5px 2px;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:6px;text-align:center;"></div>
       <div style="flex:1;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">최대</div><input type="number" id="dsp-cap" value="${sp.cap??''}" placeholder="기본" min="0" max="60" style="width:100%;padding:5px 2px;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:6px;text-align:center;"></div>
     </div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text);margin-bottom:9px;cursor:pointer;">
+      <input type="checkbox" id="dsp-deskpair" ${sp.deskPair?'checked':''} style="width:15px;height:15px;">
+      CG 데스크 2명 (8데스+5데스) <span style="color:var(--muted);">— 휴일/주말용</span>
+    </label>
     <div style="display:flex;gap:5px;margin-bottom:7px;">
       <button onclick="_saveDaySpecial('${ds}')" style="flex:1;background:#4a9fbd;color:#fff;border:none;border-radius:7px;padding:6px;font-size:12px;font-weight:700;cursor:pointer;">저장</button>
       <button onclick="_clearDaySpecial('${ds}')" style="background:#fce8e8;color:#d65a52;border:1px solid #f4bab6;border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer;">해제</button>
@@ -1519,9 +1518,10 @@ function _saveDaySpecial(ds) {
   const vw=parseInt(document.getElementById('dsp-vw').value);
   const cg=parseInt(document.getElementById('dsp-cg').value);
   const cap=parseInt(document.getElementById('dsp-cap').value);
+  const pair=document.getElementById('dsp-deskpair')?.checked;
   if(!data.settings.specialDays) data.settings.specialDays={};
-  if(isNaN(vw)&&isNaN(cg)&&isNaN(cap)){ delete data.settings.specialDays[ds]; }
-  else { const o={}; if(!isNaN(vw))o.vw=vw; if(!isNaN(cg))o.cg=cg; if(!isNaN(cap))o.cap=cap; data.settings.specialDays[ds]=o; }
+  if(isNaN(vw)&&isNaN(cg)&&isNaN(cap)&&!pair){ delete data.settings.specialDays[ds]; }
+  else { const o={}; if(!isNaN(vw))o.vw=vw; if(!isNaN(cg))o.cg=cg; if(!isNaN(cap))o.cap=cap; if(pair)o.deskPair=true; data.settings.specialDays[ds]=o; }
   saveData(data);
   const pop=document.getElementById('day-special-pop'); if(pop) pop.style.display='none';
   renderWorkshopTable();
@@ -2791,6 +2791,12 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
         const plan=weekendDeskPlan[wk]||{};
         cgDesk8=wkDeskCands.find(p=>p.id===plan.cg)||wkDeskCands.find(p=>p.id===plan.cg2)||shuffleSort(wkDeskCands,p=>(weekendDeskCount[p.id]||0))[0];
         weekendDeskCount[cgDesk8.id]=(weekendDeskCount[cgDesk8.id]||0)+1;
+        // 특정일 'CG 데스크 2명' 지정 시 5데스도 배정 (휴일/주말 기본은 8데스 1명)
+        if (_sp?.deskPair) {
+          const rest = wkDeskCands.filter(p=>p.id!==cgDesk8.id);
+          cgDesk5 = shuffleSort(rest, p=>(weekendDeskCount[p.id]||0))[0] || null;
+          if (cgDesk5) weekendDeskCount[cgDesk5.id]=(weekendDeskCount[cgDesk5.id]||0)+1;
+        }
       }
     }
     // 오전데 배정 (평일만) — cgPicked 초기화 전에 확정하여 workers에 포함 보장
@@ -3711,28 +3717,19 @@ let _imgBase64 = null, _imgMediaType = 'image/jpeg', _imgParsedData = null, _unk
 let _xlArrayBuffer = null, _currentImportTab = 'excel';
 
 function switchImportTab(tab) {
-  _currentImportTab = tab;
-  document.getElementById('img-section-excel').style.display = tab==='excel' ? '' : 'none';
-  document.getElementById('img-section-image').style.display = tab==='image' ? '' : 'none';
-  document.getElementById('img-tab-excel').style.cssText = tab==='excel'
-    ? 'flex:1;padding:8px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid #6366f1;margin-bottom:-2px;background:transparent;color:#6366f1;cursor:pointer;'
-    : 'flex:1;padding:8px;font-size:13px;font-weight:600;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:transparent;color:var(--muted);cursor:pointer;';
-  document.getElementById('img-tab-image').style.cssText = tab==='image'
-    ? 'flex:1;padding:8px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid #6366f1;margin-bottom:-2px;background:transparent;color:#6366f1;cursor:pointer;'
-    : 'flex:1;padding:8px;font-size:13px;font-weight:600;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:transparent;color:var(--muted);cursor:pointer;';
-  const btn = document.getElementById('img-analyze-btn');
-  btn.textContent = tab==='excel' ? '📊 파싱하기' : '🔍 AI 분석하기';
-  document.getElementById('img-result-area').style.display = 'none';
-  document.getElementById('img-apply-btn').style.display = 'none';
+  _currentImportTab = 'excel';
+  const ex = document.getElementById('img-section-excel'); if (ex) ex.style.display = '';
+  const im = document.getElementById('img-section-image'); if (im) im.style.display = 'none';
+  const btn = document.getElementById('img-analyze-btn'); if (btn) btn.textContent = '📊 파싱하기';
+  const ra = document.getElementById('img-result-area'); if (ra) ra.style.display = 'none';
+  const ab = document.getElementById('img-apply-btn'); if (ab) ab.style.display = 'none';
 }
 function openImageImport() {
-  const stored = localStorage.getItem('nd_gemini_key');
-  if (stored) document.getElementById('img-api-key').value = stored;
   document.getElementById('img-result-area').style.display = 'none';
   document.getElementById('img-apply-btn').style.display = 'none';
   document.getElementById('img-import-modal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
-  _imgBase64 = null; _imgParsedData = null; _xlArrayBuffer = null;
+  _imgParsedData = null; _xlArrayBuffer = null;
   switchImportTab('excel');
 }
 function closeImageImport() {
@@ -3740,8 +3737,7 @@ function closeImageImport() {
   document.body.style.overflow = '';
 }
 function runImport() {
-  if (_currentImportTab === 'excel') parseExcelSchedule();
-  else analyzeScheduleImage();
+  parseExcelSchedule();
 }
 // ---- 엑셀 파일 처리 ----
 function handleXlFile(input) {
