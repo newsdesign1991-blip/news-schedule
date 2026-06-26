@@ -3642,10 +3642,19 @@ function parseExcelSchedule() {
     }
 
     // 이름→열 매핑 (날짜 열 제외, 빈 이름 제외)
+    // 이름 헤더 행 오른쪽에 붙은 메모·요약 영역이 이름으로 잘못 잡히는 것 방지:
+    // 등록 직원이 아니면서 명백히 이름이 아닌 값(숫자/공백포함/근무유형 텍스트/너무 긴 값)은 제외
     const colMap = [];
     nameRow.forEach((v,c)=>{
       const nm=String(v).trim();
-      if(nm&&c!==dateColIdx) colMap.push({name:nm,colIdx:c});
+      if(!nm || c===dateColIdx) return;
+      if(!knownStaffByName[nm]) {
+        if(/^\d+$/.test(nm)) return;        // 날짜·숫자
+        if(/\s/.test(nm)) return;           // 공백 포함(여러 명 나열·메모)
+        if(nm in WORK_TYPE_MAP) return;     // 근무유형 텍스트(일근·정근 등)
+        if(nm.length > 5) return;           // 이름은 보통 5자 이하
+      }
+      colMap.push({name:nm,colIdx:c});
     });
 
     const unknown = new Set();
