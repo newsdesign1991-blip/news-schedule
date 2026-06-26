@@ -426,6 +426,29 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   </div>
 </div>
 
+<!-- 특정일 인원 설정 모달 -->
+<div id="special-day-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:16px;padding:24px;width:420px;max-width:92vw;max-height:84vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0;">
+      <div style="font-size:16px;font-weight:700;color:#b8860b;">📌 특정일 적정 인원</div>
+      <button onclick="closeSpecialDayModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px;flex-shrink:0;">특별히 인원이 다른 날만 따로 지정하세요. 지정 안 한 날은 평일/토/일 기본 설정을 따릅니다. (빈칸은 기본값 사용)</p>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;flex-shrink:0;">
+      <label class="form-label">날짜</label>
+      <input type="date" id="sp-date" class="form-input" style="margin-bottom:10px;">
+      <div style="display:flex;align-items:flex-end;gap:8px;">
+        <div style="flex:1;"><label class="form-label" style="font-size:11px;">VW 목표</label><input type="number" id="sp-vw" class="form-input" min="0" max="40" placeholder="기본"></div>
+        <div style="flex:1;"><label class="form-label" style="font-size:11px;">CG 목표</label><input type="number" id="sp-cg" class="form-input" min="0" max="40" placeholder="기본"></div>
+        <div style="flex:1;"><label class="form-label" style="font-size:11px;">최대 인원</label><input type="number" id="sp-cap" class="form-input" min="0" max="60" placeholder="기본"></div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="saveSpecialDay()">💾 저장 / 수정</button>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;flex-shrink:0;">등록된 특정일</div>
+    <div id="special-day-list" style="overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+  </div>
+</div>
+
 <!-- 지난 공지 모달 -->
 <div id="notice-history-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border-radius:16px;padding:24px;width:440px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
@@ -614,6 +637,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
         <input type="number" id="ws-sun-cap" min="1" max="40" style="width:38px;padding:2px 4px;font-size:12px;font-weight:700;border:1px solid #d4c8ee;border-radius:4px;text-align:center;" onchange="saveWsSettings()">
       </div>
       <div style="margin-left:auto;display:flex;gap:6px;">
+        <button class="btn btn-sm" style="background:#fef3c7;color:#b8860b;border:1px solid #fcd97d;font-weight:700;" onclick="openSpecialDayModal()">📌 특정일 인원</button>
         <button class="btn btn-sm btn-outline" onclick="exportData()">📤 내보내기</button>
         <button class="btn btn-sm btn-outline" onclick="document.getElementById('import-file-ws').click()">📥 가져오기</button>
         <input type="file" id="import-file-ws" accept=".json" style="display:none" onchange="importData(this)">
@@ -1421,6 +1445,119 @@ function _resetDraftAll() {
   _closeResetModal();
   toast('작성소 전체 초기화 완료', 'success');
 }
+// ===== 특정일 적정 인원 =====
+function openSpecialDayModal() {
+  ['sp-date','sp-vw','sp-cg','sp-cap'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  _renderSpecialDayList();
+  document.getElementById('special-day-modal').style.display = 'flex';
+}
+function closeSpecialDayModal() { const m=document.getElementById('special-day-modal'); if(m) m.style.display='none'; }
+function saveSpecialDay() {
+  const ds = document.getElementById('sp-date').value;
+  const vw = parseInt(document.getElementById('sp-vw').value);
+  const cg = parseInt(document.getElementById('sp-cg').value);
+  const cap = parseInt(document.getElementById('sp-cap').value);
+  if (!ds) { toast('날짜를 선택하세요.','error'); return; }
+  if (isNaN(vw) && isNaN(cg) && isNaN(cap)) { toast('VW·CG·최대 중 최소 하나는 입력하세요.','error'); return; }
+  if (!data.settings.specialDays) data.settings.specialDays = {};
+  const o = {};
+  if (!isNaN(vw)) o.vw = vw;
+  if (!isNaN(cg)) o.cg = cg;
+  if (!isNaN(cap)) o.cap = cap;
+  data.settings.specialDays[ds] = o;
+  saveData(data);
+  _renderSpecialDayList();
+  ['sp-date','sp-vw','sp-cg','sp-cap'].forEach(id=>{document.getElementById(id).value='';});
+  toast('특정일 인원 저장됨 — 근무 생성 시 반영됩니다.','success');
+  if (wsRangeStart && wsRangeEnd) renderWorkshopTable();
+}
+function _editSpecialDay(ds) {
+  const o = (data.settings.specialDays||{})[ds] || {};
+  document.getElementById('sp-date').value = ds;
+  document.getElementById('sp-vw').value = o.vw ?? '';
+  document.getElementById('sp-cg').value = o.cg ?? '';
+  document.getElementById('sp-cap').value = o.cap ?? '';
+}
+function deleteSpecialDay(ds) {
+  if (data.settings.specialDays) delete data.settings.specialDays[ds];
+  saveData(data);
+  _renderSpecialDayList();
+  toast('삭제되었습니다.','success');
+  if (wsRangeStart && wsRangeEnd) renderWorkshopTable();
+}
+// 작성소 날짜 칸 클릭 → 작은 팝업으로 그날 적정 인원 직접 수정
+function openDaySpecial(ds, ev) {
+  if (ev) ev.stopPropagation();
+  const sp = (data.settings.specialDays||{})[ds] || {};
+  const [y,m,d] = ds.split('-').map(Number);
+  let pop = document.getElementById('day-special-pop');
+  if (!pop) {
+    pop = document.createElement('div'); pop.id='day-special-pop'; document.body.appendChild(pop);
+    document.addEventListener('click', (e)=>{ if(pop.style.display==='block' && !pop.contains(e.target)) pop.style.display='none'; });
+  }
+  pop.style.cssText = 'position:fixed;z-index:10001;background:var(--surface);border:1px solid #fcd97d;border-radius:12px;box-shadow:0 6px 30px rgba(0,0,0,0.28);padding:13px;width:236px;';
+  pop.innerHTML = `
+    <div style="font-size:13px;font-weight:800;color:#b8860b;margin-bottom:9px;">📌 ${m}/${d} 적정 인원<br><span style="font-size:10px;font-weight:500;color:var(--muted);">빈칸은 기본 설정 사용</span></div>
+    <div style="display:flex;gap:5px;margin-bottom:9px;">
+      <div style="flex:1;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">VW</div><input type="number" id="dsp-vw" value="${sp.vw??''}" placeholder="기본" min="0" max="40" style="width:100%;padding:5px 2px;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:6px;text-align:center;"></div>
+      <div style="flex:1;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">CG</div><input type="number" id="dsp-cg" value="${sp.cg??''}" placeholder="기본" min="0" max="40" style="width:100%;padding:5px 2px;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:6px;text-align:center;"></div>
+      <div style="flex:1;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">최대</div><input type="number" id="dsp-cap" value="${sp.cap??''}" placeholder="기본" min="0" max="60" style="width:100%;padding:5px 2px;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:6px;text-align:center;"></div>
+    </div>
+    <div style="display:flex;gap:5px;margin-bottom:7px;">
+      <button onclick="_saveDaySpecial('${ds}')" style="flex:1;background:#4a9fbd;color:#fff;border:none;border-radius:7px;padding:6px;font-size:12px;font-weight:700;cursor:pointer;">저장</button>
+      <button onclick="_clearDaySpecial('${ds}')" style="background:#fce8e8;color:#d65a52;border:1px solid #f4bab6;border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer;">해제</button>
+    </div>
+    <button onclick="document.getElementById('day-special-pop').style.display='none';wsShowDay('${ds}')" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:6px;font-size:11px;color:var(--muted);font-weight:700;cursor:pointer;">✏ 이 날 근무 상세 편집</button>`;
+  pop.style.display='block';
+  const px = ev ? Math.min(ev.clientX, window.innerWidth-244) : 80;
+  const py = ev ? Math.min(ev.clientY+8, window.innerHeight-200) : 80;
+  pop.style.left = Math.max(8,px)+'px';
+  pop.style.top = Math.max(8,py)+'px';
+  setTimeout(()=>{ const f=document.getElementById('dsp-vw'); if(f) f.focus(); }, 30);
+}
+function _saveDaySpecial(ds) {
+  const vw=parseInt(document.getElementById('dsp-vw').value);
+  const cg=parseInt(document.getElementById('dsp-cg').value);
+  const cap=parseInt(document.getElementById('dsp-cap').value);
+  if(!data.settings.specialDays) data.settings.specialDays={};
+  if(isNaN(vw)&&isNaN(cg)&&isNaN(cap)){ delete data.settings.specialDays[ds]; }
+  else { const o={}; if(!isNaN(vw))o.vw=vw; if(!isNaN(cg))o.cg=cg; if(!isNaN(cap))o.cap=cap; data.settings.specialDays[ds]=o; }
+  saveData(data);
+  const pop=document.getElementById('day-special-pop'); if(pop) pop.style.display='none';
+  renderWorkshopTable();
+  toast('특정일 인원 저장됨','success');
+}
+function _clearDaySpecial(ds) {
+  if(data.settings.specialDays) delete data.settings.specialDays[ds];
+  saveData(data);
+  const pop=document.getElementById('day-special-pop'); if(pop) pop.style.display='none';
+  renderWorkshopTable();
+  toast('해제됨','success');
+}
+function _renderSpecialDayList() {
+  const wrap = document.getElementById('special-day-list');
+  if (!wrap) return;
+  const sp = data.settings.specialDays || {};
+  const keys = Object.keys(sp).sort();
+  if (!keys.length) { wrap.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:12px;padding:16px 0;">등록된 특정일이 없습니다.</div>'; return; }
+  const DOW=['일','월','화','수','목','금','토'];
+  wrap.innerHTML = keys.map(ds=>{
+    const o = sp[ds];
+    const parts=[];
+    if (o.vw!=null) parts.push(`VW ${o.vw}`);
+    if (o.cg!=null) parts.push(`CG ${o.cg}`);
+    if (o.cap!=null) parts.push(`최대 ${o.cap}`);
+    const [y,m,d]=ds.split('-').map(Number);
+    const dow=DOW[new Date(ds+'T00:00:00').getDay()];
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--border);border-radius:8px;padding:8px 11px;background:var(--surface2);">
+      <div style="font-size:12px;"><b style="color:#b8860b;">${m}/${d}(${dow})</b> <span style="color:var(--text);margin-left:4px;">${parts.join(' · ')}</span></div>
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        <button onclick="_editSpecialDay('${ds}')" style="background:#eef1f9;border:1px solid #c5cce8;color:#5d6fb0;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;">수정</button>
+        <button onclick="deleteSpecialDay('${ds}')" style="background:#fce8e8;border:1px solid #f4bab6;color:#d65a52;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 function _setAdminNav(on) {
   const ws = document.getElementById('nav-workshop');
@@ -1526,11 +1663,17 @@ function renderHome() {
   const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_hEx(id)&&!_hVwS.has(id)).length+(entry?.xr||[]).filter(id=>!_hEx(id)).length+(!_hIlVw&&_hIlOk&&!_hVwS.has(entry?.ilgeun)?1:0)+_h8cg;
   const prjCnt = (entry?.project||[]).length;
   const sptCnt = (entry?.sports||[]).length;
-  const vwOk = vwCnt >= (s.weekdayVW||7);
-  const cgOk = cgCnt >= (s.weekdayCG||19);
+  // 오늘 요일/공휴일에 맞는 목표 인원 (작성소 설정 반영)
+  const _hDow = now.getDay();
+  const _hHoliWE = _hDow===0 || _hDow===6 || !!(data.holidays && data.holidays[todayStr]);
+  const _spToday = (s.specialDays||{})[todayStr];
+  const goalVW = _spToday?.vw ?? (_hHoliWE ? (_hDow===6 ? (s.satVW||s.weekendVW||4) : (s.sunVW||s.weekendVW||4)) : (s.weekdayVW||7));
+  const goalCG = _spToday?.cg ?? (_hHoliWE ? (_hDow===6 ? (s.satCG||6) : (s.sunCG||7)) : (s.weekdayCG||19));
+  const vwOk = vwCnt >= goalVW;
+  const cgOk = cgCnt >= goalCG;
   document.getElementById('home-summary').innerHTML = `
-    <div class="sum-card" style="${entry&&!vwOk?'background:linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);border-color:#fca5a5;':''}""><div class="sum-icon vw">👁</div><div class="sum-info"><div class="sum-label">VW</div><div><span class="sum-val vw">${vwCnt}</span><span style="font-size:12px;color:var(--muted)">/${s.weekdayVW||7}명</span>${entry?(vwOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
-    <div class="sum-card" style="${entry&&!cgOk?'background:linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);border-color:#fca5a5;':''}"><div class="sum-icon cg">🎨</div><div class="sum-info"><div class="sum-label">CG</div><div><span class="sum-val cg">${cgCnt}</span><span style="font-size:12px;color:var(--muted)">/${s.weekdayCG||19}명</span>${entry?(cgOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
+    <div class="sum-card" style="${entry&&!vwOk?'background:linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);border-color:#fca5a5;':''}""><div class="sum-icon vw">👁</div><div class="sum-info"><div class="sum-label">VW</div><div><span class="sum-val vw">${vwCnt}</span><span style="font-size:12px;color:var(--muted)">/${goalVW}명</span>${entry?(vwOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
+    <div class="sum-card" style="${entry&&!cgOk?'background:linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);border-color:#fca5a5;':''}"><div class="sum-icon cg">🎨</div><div class="sum-info"><div class="sum-label">CG</div><div><span class="sum-val cg">${cgCnt}</span><span style="font-size:12px;color:var(--muted)">/${goalCG}명</span>${entry?(cgOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
     <div class="sum-card"><div class="sum-icon project">📁</div><div class="sum-info"><div class="sum-label">PROJECT</div><div><span class="sum-val project">${prjCnt}</span><span style="font-size:12px;color:var(--muted)">명</span></div></div></div>
     <div class="sum-card"><div class="sum-icon sports">⚽</div><div class="sum-info"><div class="sum-label">SPORTS</div><div><span class="sum-val sports">${sptCnt}</span><span style="font-size:12px;color:var(--muted)">명</span></div></div></div>
   `;
@@ -2541,8 +2684,9 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
         ilgeun:ilgeunCandPlan[0]?.id||null, ilgeun2:ilgeunCandPlan[1]?.id||null
       };
     }
-    const vwTarget=isHoliOrWE?(dow===6?(s.satVW||s.weekendVW||4):(s.sunVW||s.weekendVW||4)):(s.weekdayVW||7);
-    const cgTarget=isHoliOrWE?(dow===6?(s.satCG||6):(s.sunCG||7)):(s.weekdayCG||19);
+    const _sp = (s.specialDays||{})[dateStr];   // 특정일 수동 목표(있으면 우선 적용)
+    const vwTarget=_sp?.vw ?? (isHoliOrWE?(dow===6?(s.satVW||s.weekendVW||4):(s.sunVW||s.weekendVW||4)):(s.weekdayVW||7));
+    const cgTarget=_sp?.cg ?? (isHoliOrWE?(dow===6?(s.satCG||6):(s.sunCG||7)):(s.weekdayCG||19));
     // 당직 constraints — targetSchedule(초안) 우선, 없으면 배포본 참조
     const _prevDay1 = addDays(dateStr,-1);
     const _prevDay2 = addDays(dateStr,-2);
@@ -2673,15 +2817,15 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     const sportsPicked=targetSchedule[dateStr]?.sports||[];
 
     // CG 유효 목표: 당일 최대 인원(평일/토/일 구분)에서 VW·XR·Project를 뺀 나머지
-    const dailyCap = isHoliOrWE
+    const dailyCap = _sp?.cap ?? (isHoliOrWE
       ? (dow===6 ? (s.satDailyCap||s.dailyCap||11) : (s.sunDailyCap||s.dailyCap||11))
-      : (s.wdDailyCap||s.dailyCap||22);
-    const effectiveCgTarget = isHoliOrWE
+      : (s.wdDailyCap||s.dailyCap||22));
+    const effectiveCgTarget = _sp?.cg ?? (isHoliOrWE
       ? cgTarget
       : Math.max(
           (cgDesk8?1:0)+(cgDesk5?1:0),
           dailyCap - vwPicked.length - xrPicked.length - projectPicked.length
-        );
+        ));
 
     // 수동 입력 보존: 스냅샷에 cg.desk8/desk5/workers가 있으면 우선 사용
     const manualCgDesk8 = _prevSnap[dateStr]?.cg?.desk8 || null;
@@ -3067,7 +3211,8 @@ function renderWorkshopTable() {
     const dm=date.getMonth()+1,dd=date.getDate();
     tbody+=`<tr class="${isWeekend||isHoliday?'weekend':''} ${isHoliday?'holiday':''} ${isToday?'today-row':''}">`;
     const shortHoliWs=holidayName.length>4?holidayName.slice(0,4)+'…':holidayName;
-    tbody+=`<td class="date-td" onclick="wsShowDay('${dateStr}')" style="cursor:pointer;" title="${holidayName}">${dm}/${dd}${isHoliday?`<br><span style="font-size:8px;color:#a8657f;white-space:nowrap;">${shortHoliWs}</span>`:''}</td>`;
+    const _isSp = !!(data.settings.specialDays||{})[dateStr];
+    tbody+=`<td class="date-td" onclick="openDaySpecial('${dateStr}', event)" style="cursor:pointer;${_isSp?'box-shadow:inset 3px 0 0 #f0a500;':''}" title="${_isSp?'특정일 인원 지정됨 — 클릭하여 수정':'클릭: 적정 인원/상세 편집'}">${dm}/${dd}${_isSp?'<span style="color:#f0a500;">📌</span>':''}${isHoliday?`<br><span style="font-size:8px;color:#a8657f;white-space:nowrap;">${shortHoliWs}</span>`:''}</td>`;
     tbody+=`<td class="dow-td ${dowClass}">${DOW_KR[dow]}</td>`;
 
     // VW cells
