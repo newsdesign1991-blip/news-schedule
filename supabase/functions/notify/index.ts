@@ -32,9 +32,12 @@ Deno.serve(async (req) => {
   const curMin = kst.getUTCHours() * 60 + kst.getUTCMinutes()
 
   // push_subs 로드
-  const { data: subs, error: subsErr } = await sb.from('push_subs').select('*')
+  const { data: rawSubs, error: subsErr } = await sb.from('push_subs').select('*')
   if (subsErr) return new Response('push_subs read error: ' + subsErr.message, { status: 500 })
-  if (!subs?.length) return new Response(JSON.stringify({ sent: 0, reason: 'no subscribers' }), { headers: { 'Content-Type': 'application/json' } })
+  if (!rawSubs?.length) return new Response(JSON.stringify({ sent: 0, reason: 'no subscribers' }), { headers: { 'Content-Type': 'application/json' } })
+  // 같은 기기(endpoint)가 여러 번 구독된 경우 중복 제거 — 알림 2번 가는 것 방지
+  const _seenEp = new Set<string>()
+  const subs = rawSubs.filter((s: any) => { if (_seenEp.has(s.endpoint)) return false; _seenEp.add(s.endpoint); return true; })
 
   let sent = 0, errors = 0
 
@@ -63,8 +66,9 @@ Deno.serve(async (req) => {
   // ── 공지 등록 알림 모드 ──────────────────────────────────────────
   if (mode === 'notice') {
     const text = (body?.text || '').toString().trim()
+    const title = (body?.title || '').toString().trim() || '📢 공지사항이 등록되었습니다'
     const payload = JSON.stringify({
-      title: '📢 공지사항이 등록되었습니다',
+      title,
       body: text || '새 공지를 확인하세요.',
       icon: 'icon-192.png', badge: 'icon-192.png',
       tag: 'notice-' + Date.now(), renotify: true,
@@ -146,7 +150,7 @@ Deno.serve(async (req) => {
         if (targetMin < 0) targetMin += 1440
       }
     }
-    if (Math.abs(curMin - targetMin) > 1) continue  // ±1분 윈도우 (매 분 호출 기준)
+    if (curMin !== targetMin) continue  // 정확히 그 분에만 발송 (매 분 호출 → 하루 1회, 중복 방지)
 
     const label = WORK_LABELS[wt] || '근무'
     const name = staff?.name || sub.name || ''

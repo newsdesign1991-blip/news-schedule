@@ -496,9 +496,6 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 
 <!-- TABLE -->
 <div class="view" id="view-table">
-  <div class="mobile-table-tip" style="display:none;align-items:center;gap:8px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#92400e;">
-    <span style="font-size:16px;">📱</span> 가로 모드로 보거나 좌우로 스크롤하세요. 홈의 <b>나의 근무</b> 카드에서 내 일정을 간편하게 확인할 수 있습니다.
-  </div>
   <div class="table-nav" style="flex-wrap:wrap;gap:8px 12px;">
     <h2 id="table-title">근무표</h2>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;">
@@ -1439,6 +1436,7 @@ function updateLeaveReqBadge() {
   }
 }
 function renderHome() {
+  _checkLeaveReqDeadline();
   updateLeaveReqBadge();
   renderMySchedule();
   renderNoticeBar();
@@ -4137,9 +4135,10 @@ function publishSchedule() {
   renderHome();
   renderTable();
   toast('근무표가 배포되었습니다.','success');
-  // 배포 알림 발송 (설정 켜진 경우)
-  const _ncfg = data.settings?.notify;
-  if (_ncfg?.enabled && _ncfg.publishNotify) _sendPublishPush(label);
+  // 배포 알림: 전 직원에게 보낼지 매번 확인
+  if (confirm('근무표를 배포했습니다.\n\n전 직원에게 "근무표 업데이트" 알림을 보낼까요?')) {
+    _sendPublishPush(label);
+  }
 }
 
 function renderDeployLog() {
@@ -4197,26 +4196,55 @@ function importLeaveToWorkshop() {
 }
 
 // ===== 휴가신청 =====
+function _fmtLrDeadline(dl) {
+  if (!dl) return '';
+  const d = new Date(dl);
+  if (isNaN(d.getTime())) return dl;
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function _checkLeaveReqDeadline() {
+  const lr = data.leaveReq;
+  if (lr && lr.isOpen && lr.deadline && new Date() >= new Date(lr.deadline)) {
+    lr.isOpen = false;
+    saveData(data);
+  }
+}
 function renderLeaveReqView() {
+  _checkLeaveReqDeadline();   // 마감 시각이 지났으면 자동으로 닫기
   const lr = data.leaveReq || {};
   const isOpen = !!lr.isOpen;
   const rs = lr.rangeStart||'', re = lr.rangeEnd||'';
+  const dl = lr.deadline||'';
   const entries = lr.entries||{};
+  const hasEntries = Object.keys(entries).some(d=>(entries[d]||[]).length);
+
+  // 마감일 배너 (사용자 화면 가장 위)
+  let deadlineBanner = '';
+  if (isOpen && dl) {
+    deadlineBanner = `<div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:700;color:#059669;">📅 휴가 신청 마감: ${_fmtLrDeadline(dl)} 까지</div>`;
+  } else if (!isOpen && (hasEntries || dl)) {
+    deadlineBanner = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:700;color:#dc2626;">⛔ 휴가 신청이 마감되었습니다${dl?` (마감: ${_fmtLrDeadline(dl)})`:''}</div>`;
+  }
 
   // 관리자 컨트롤
   let adminCtrl = '';
   if (isAdmin) {
     adminCtrl = `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px;">
-      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-        <div class="form-group" style="margin:0;"><label class="form-label">신청 기간 시작</label>
-          <input type="date" class="form-input" id="lr-start" value="${rs}" ${isOpen?'disabled':''}></div>
-        <div class="form-group" style="margin:0;"><label class="form-label">신청 기간 종료</label>
-          <input type="date" class="form-input" id="lr-end" value="${re}" ${isOpen?'disabled':''}></div>
+      <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="form-group" style="margin:0;"><label class="form-label">신청 기간</label>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="date" class="form-input" id="lr-start" value="${rs}" ${isOpen?'disabled':''} style="width:auto;">
+            <span style="color:var(--muted);">~</span>
+            <input type="date" class="form-input" id="lr-end" value="${re}" ${isOpen?'disabled':''} style="width:auto;">
+          </div></div>
+        <div class="form-group" style="margin:0;"><label class="form-label">신청 마감 (날짜·시간)</label>
+          <input type="datetime-local" class="form-input" id="lr-deadline" value="${dl}" ${isOpen?'disabled':''} style="width:auto;"></div>
         <button class="btn" style="background:${isOpen?'#d65a52':'#4a9fbd'};color:#fff;border:none;" onclick="toggleLeaveReq()">${isOpen?'⛔ CLOSE':'✅ OPEN'}</button>
         <button class="btn btn-outline" onclick="importLeaveReq()" style="font-size:12px;">📥 근무표로 가져오기</button>
+        ${isOpen?`<button class="btn" style="background:#7c3aed;color:#fff;border:none;font-size:12px;" onclick="sendLeaveReqNotice()">📢 신청 알림 보내기</button>`:''}
       </div>
       <div style="margin-top:8px;font-size:12px;color:${isOpen?'#059669':'var(--muted)'};">
-        ${isOpen?`🟢 신청 진행 중: ${rs} ~ ${re}`:'⚫ 휴가 신청 닫힘'}
+        ${isOpen?`🟢 신청 진행 중: ${rs} ~ ${re}${dl?` · 마감 ${_fmtLrDeadline(dl)}`:''}`:'⚫ 휴가 신청 닫힘'}
       </div>
     </div>`;
   }
@@ -4224,24 +4252,26 @@ function renderLeaveReqView() {
   // 비관리자: 드롭다운 + 열 클릭 병행
   let userSel = '';
   if (!isAdmin) {
-    if (!isOpen) {
-      document.getElementById('leavereq-content').innerHTML = adminCtrl +
+    if (!isOpen && !hasEntries) {
+      document.getElementById('leavereq-content').innerHTML = deadlineBanner +
         `<div style="padding:40px 0;text-align:center;color:var(--muted);font-size:14px;">현재 휴가 신청 기간이 아닙니다.</div>`;
       return;
     }
-    const autoId = currentUser?.staffId || leaveReqUserId;
-    const opts = data.staff.filter(s=>s.active!==false)
-      .map(s=>`<option value="${s.id}" ${s.id===autoId?'selected':''}>${s.name} (${s.dept})</option>`).join('');
-    userSel = `<div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-size:12px;font-weight:700;color:var(--muted);">내 이름 선택</span>
-      <div style="display:flex;align-items:center;gap:0;">
-        <select class="form-select" id="lr-user-sel" style="width:160px;border-radius:6px 0 0 6px;border-right:none;">
-          <option value="">-- 선택하세요 --</option>${opts}
-        </select>
-        <button class="btn btn-primary" style="padding:5px 12px;font-size:12px;border-radius:0 6px 6px 0;white-space:nowrap;" onclick="(function(){const v=document.getElementById('lr-user-sel').value;if(!v){toast('이름을 선택하세요.','error');return;}setLeaveReqUser(v);openLrPopup(v);})()">확인</button>
-      </div>
-      <span style="font-size:11px;color:var(--muted);">또는 표에서 셀을 클릭</span>
-    </div>`;
+    if (isOpen) {
+      const autoId = currentUser?.staffId || leaveReqUserId;
+      const opts = data.staff.filter(s=>s.active!==false)
+        .map(s=>`<option value="${s.id}" ${s.id===autoId?'selected':''}>${s.name} (${s.dept})</option>`).join('');
+      userSel = `<div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:12px;font-weight:700;color:var(--muted);">내 이름 선택</span>
+        <div style="display:flex;align-items:center;gap:0;">
+          <select class="form-select" id="lr-user-sel" style="width:160px;border-radius:6px 0 0 6px;border-right:none;">
+            <option value="">-- 선택하세요 --</option>${opts}
+          </select>
+          <button class="btn btn-primary" style="padding:5px 12px;font-size:12px;border-radius:0 6px 6px 0;white-space:nowrap;" onclick="(function(){const v=document.getElementById('lr-user-sel').value;if(!v){toast('이름을 선택하세요.','error');return;}setLeaveReqUser(v);openLrPopup(v);})()">확인</button>
+        </div>
+        <span style="font-size:11px;color:var(--muted);">또는 표에서 셀을 클릭</span>
+      </div>`;
+    }
   }
 
   // 테이블 생성
@@ -4319,7 +4349,7 @@ function renderLeaveReqView() {
     tableHtml='<div style="color:var(--muted);font-size:13px;padding:20px 0;">날짜 범위를 설정하고 OPEN을 눌러 휴가 신청을 시작하세요.</div>';
   }
 
-  document.getElementById('leavereq-content').innerHTML = adminCtrl + userSel + tableHtml;
+  document.getElementById('leavereq-content').innerHTML = deadlineBanner + adminCtrl + userSel + tableHtml;
 }
 
 function setLeaveReqUser(id) {
@@ -4431,14 +4461,25 @@ function toggleLeaveReq() {
   if (!lr.isOpen) {
     const s=document.getElementById('lr-start').value;
     const e=document.getElementById('lr-end').value;
+    const dl=document.getElementById('lr-deadline')?.value||'';
     if(!s||!e){toast('날짜 범위를 입력하세요.','error');return;}
     if(new Date(s+'T00:00:00')>new Date(e+'T00:00:00')){toast('종료일이 시작일보다 앞섭니다.','error');return;}
-    data.leaveReq={isOpen:true,rangeStart:s,rangeEnd:e,entries:lr.entries||{}};
+    data.leaveReq={isOpen:true,rangeStart:s,rangeEnd:e,deadline:dl,entries:lr.entries||{}};
   } else {
     data.leaveReq={...lr,isOpen:false};
   }
   saveData(data);
   renderLeaveReqView();
+}
+function sendLeaveReqNotice() {
+  if (!isAdmin) return;
+  const lr = data.leaveReq;
+  if (!lr?.isOpen) { toast('휴가 신청이 열려 있을 때만 보낼 수 있습니다.','error'); return; }
+  const dlTxt = lr.deadline ? _fmtLrDeadline(lr.deadline) : '';
+  const msg = `휴가 신청이 시작되었습니다. 신청 기간 ${lr.rangeStart} ~ ${lr.rangeEnd}.${dlTxt?` 마감: ${dlTxt}`:''}`;
+  if (!confirm('전 직원에게 휴가신청 시작 알림을 보낼까요?\n\n'+msg)) return;
+  _sendNoticePush(msg, '📋 휴가 신청 안내');
+  toast('휴가신청 알림을 보냈습니다.','success');
 }
 
 function lrCellClick(staffId, dateStr) {
@@ -5730,12 +5771,12 @@ function deleteNotice() {
   renderNoticeBar();
   toast('공지를 삭제했습니다.','success');
 }
-async function _sendNoticePush(text) {
+async function _sendNoticePush(text, title) {
   try {
     await fetch(NOTIFY_FN_URL, {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY },
-      body: JSON.stringify({ mode:'notice', text })
+      body: JSON.stringify({ mode:'notice', text, title: title||'' })
     });
   } catch(e) { console.warn('notice push failed', e); }
 }
