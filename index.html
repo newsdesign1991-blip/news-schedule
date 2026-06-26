@@ -597,11 +597,22 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
       <input type="date" id="ws-end" style="border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;background:var(--surface);color:var(--text);">
       <button style="background:var(--vw);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;" onclick="applyWsRange()">적용</button>
       <button style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;" onclick="setWsNextMonth()">다음 달</button>
-      <button style="background:#b69bd6;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;" onclick="generateDraftSchedule()">📅 근무 생성</button>
-      <button style="background:#c79a5e;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;" onclick="importLeaveToWorkshop()">📋 신휴가 가져오기</button>
-      <button style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;" onclick="openImageImport()">📊 엑셀 분석</button>
       <button style="background:#059669;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;" onclick="publishSchedule()">🚀 배포</button>
     </div>
+  </div>
+  <!-- 근무 생성 도구 묶음 (순서대로 단계별, 또는 전체 한 번에) -->
+  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;margin-bottom:8px;">
+    <span style="font-size:11px;font-weight:800;color:var(--muted);white-space:nowrap;margin-right:2px;">🛠 근무 생성</span>
+    <button style="background:#c79a5e;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="importLeaveToWorkshop()">① 📋 신휴가</button>
+    <span style="color:var(--muted);font-size:12px;">→</span>
+    <button style="background:#4a9fbd;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="generateDraftSchedule('desk')">② 🖥 데스크 채우기</button>
+    <span style="color:var(--muted);font-size:12px;">→</span>
+    <button style="background:#d65a52;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="generateDraftSchedule('danjik')">③ 🌙 당직 채우기</button>
+    <span style="color:var(--muted);font-size:12px;">→</span>
+    <button style="background:#5d6fb0;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="generateDraftSchedule('rest')">④ 👥 나머지 채우기</button>
+    <span style="color:var(--border);font-weight:700;margin:0 2px;">|</span>
+    <button style="background:#b69bd6;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;" onclick="generateDraftSchedule()">⚡ 전체 자동생성</button>
+    <button style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;margin-left:auto;" onclick="openImageImport()">📊 엑셀 분석</button>
   </div>
   <!-- 작성소 인원 설정 바 -->
   <div style="padding:8px 2px;border-bottom:1px solid var(--border);margin-bottom:6px;">
@@ -2458,7 +2469,7 @@ function editThisDay() {
 }
 
 // ===== SCHEDULE GENERATION =====
-function generateDraftSchedule() {
+function generateDraftSchedule(phase) {
   _pushWsHistory();
   // 작성소 인원 설정을 생성 전에 즉시 반영 (onchange 미발동 방지)
   saveWsSettings();
@@ -2471,7 +2482,7 @@ function generateDraftSchedule() {
     wsRangeStart = startVal; wsRangeEnd = endVal;
     saveData(data);
     renderWorkshopTable();
-  });
+  }, { phase: (typeof phase==='string' ? phase : 'all') });
 }
 function generateSchedule() {
   // 어드민 패널의 기존 gen-start/gen-end 사용 (하위 호환)
@@ -2981,7 +2992,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     }
     // 수동 입력 보존: jogeunSubs는 자동생성에 수동 스냅샷 병합 (수동 우선)
     const finalJogeunSubs = { ...jogeunSubs, ...(_prevSnap[dateStr]?.jogeunSubs||{}) };
-    targetSchedule[dateStr]={
+    const _full={
       vw:{workers:vwPicked, desk:manualVwDesk||vwDeskCand?.id||null},
       cg:{workers:cgPicked, desk8:manualCgDesk8||cgDesk8?.id||null, desk5:manualCgDesk5||cgDesk5?.id||null},
       project:projectPicked,
@@ -3002,6 +3013,33 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       jogeunEdu:_prevSnap[dateStr]?.jogeunEdu||[],
       notes:_prevSnap[dateStr]?.notes||targetSchedule[dateStr]?.notes||''
     };
+    const _phase = opts.phase || 'all';
+    if (_phase==='desk') {
+      // 데스크(+오전데)만 배정, 그 인원만 근무자로. 나머지 근무는 채우지 않음
+      const pv=_prevSnap[dateStr]||{};
+      const e={
+        vw:{workers:[], desk:_full.vw.desk},
+        cg:{workers:[], desk8:_full.cg.desk8, desk5:_full.cg.desk5},
+        project:[], sports:[], xr:[],
+        danjik:pv.danjik||null, jogeunSubs:pv.jogeunSubs||{}, ilgeun:pv.ilgeun||null,
+        morningDesk:_full.morningDesk, satMorning:pv.satMorning||null,
+        newsOh:pv.newsOh||null, newsOh2:pv.newsOh2||null,
+        weekend8jin:pv.weekend8jin||null, weekday8jin:pv.weekday8jin||null,
+        restWorkers:[], customCells:pv.customCells||undefined, jogeunEdu:pv.jogeunEdu||[], notes:pv.notes||''
+      };
+      if(e.vw.desk) e.vw.workers.push(e.vw.desk);
+      [e.cg.desk8,e.cg.desk5,e.morningDesk].forEach(id=>{ if(id&&!e.cg.workers.includes(id)) e.cg.workers.push(id); });
+      targetSchedule[dateStr]=e;
+    } else if (_phase==='danjik') {
+      // 당직만 추가, 데스크 등 기존은 보존
+      const pv=_prevSnap[dateStr];
+      const e=pv?JSON.parse(JSON.stringify(pv)):{vw:{workers:[],desk:null},cg:{workers:[],desk8:null,desk5:null},project:[],sports:[],xr:[],morningDesk:null,notes:''};
+      e.danjik=_full.danjik;
+      targetSchedule[dateStr]=e;
+    } else {
+      // 'all' / 'rest' — 기존 데스크·당직·근무자 보존하며 나머지 전부 채움
+      targetSchedule[dateStr]=_full;
+    }
   }
   if (!opts.silent) {
     showResult(resultElId,`✅ ${startVal} ~ ${endVal} 근무표 생성 완료 (${totalDays}일)`,true);
@@ -3010,7 +3048,8 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
   return { genDateStrs, totalDays };
 }
 // 데스크 누락 점검: VW데스/CG데스(매일), 평일 5데스·오전데
-function _validateScheduleRange(targetSchedule, genDateStrs) {
+function _validateScheduleRange(targetSchedule, genDateStrs, phase) {
+  phase = phase || 'all';
   const issues=[];
   const ilgeunHasPool=data.staff.some(s=>s.canIlgeun&&s.employmentType!=='freelancer'&&s.active!==false);
   for (const ds of genDateStrs) {
@@ -3027,7 +3066,7 @@ function _validateScheduleRange(targetSchedule, genDateStrs) {
       if(!entry.morningDesk) issues.push({date:ds,what:'오전데'});
     }
     // 일요일 일근 누락 점검 (canIlgeun 직원이 있을 때만)
-    if(dow===0&&!isHoliday&&ilgeunHasPool&&!entry.ilgeun) issues.push({date:ds,what:'일근'});
+    if(dow===0&&!isHoliday&&ilgeunHasPool&&!entry.ilgeun&&phase!=='desk'&&phase!=='danjik') issues.push({date:ds,what:'일근'});
   }
   return issues;
 }
@@ -3040,16 +3079,17 @@ function _restoreRange(targetSchedule, dateStrs, snap){
   dateStrs.forEach(ds=>{ if(snap[ds]) targetSchedule[ds]=JSON.parse(JSON.stringify(snap[ds])); });
 }
 // 백그라운드 자동 재생성: 데스크 누락 없을 때까지 반복 (최대 시도 후 최선안 채택)
-function _generateWithRetry(startVal, endVal, targetSchedule, resultElId, onDone){
+function _generateWithRetry(startVal, endVal, targetSchedule, resultElId, onDone, opts){
+  opts = opts || {};
   const MAX_ATTEMPTS=50;
   let attempt=0, bestSnap=null, bestIssues=null, bestCount=Infinity, lastDateStrs=null, lastTotal=0;
   showResult(resultElId,'⏳ 근무표 계산 중...',true);
   function step(){
     attempt++;
-    const res=_generateScheduleCore(startVal,endVal,targetSchedule,resultElId,{silent:true});
+    const res=_generateScheduleCore(startVal,endVal,targetSchedule,resultElId,{silent:true, phase:opts.phase});
     if(!res){ if(onDone)onDone(false); return; } // 하드 에러(직원부족 등) — 이미 메시지 표시됨
     lastDateStrs=res.genDateStrs; lastTotal=res.totalDays;
-    const issues=_validateScheduleRange(targetSchedule,res.genDateStrs);
+    const issues=_validateScheduleRange(targetSchedule,res.genDateStrs, opts.phase);
     if(issues.length<bestCount){
       bestCount=issues.length;
       bestSnap=_snapshotRange(targetSchedule,res.genDateStrs);
