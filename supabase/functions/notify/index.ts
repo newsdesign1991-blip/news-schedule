@@ -99,7 +99,11 @@ Deno.serve(async (req) => {
 
     const label = WORK_LABELS[wt] || '근무'
     const name = staff?.name || sub.name || ''
-    const bodyText = wt === 'off' ? `${name}님, 오늘은 근무가 없습니다.` : `${name}님, 오늘 ${label}입니다.`
+    // 관리자가 알림 제어 탭에서 편집한 메시지(typeCfg.body) 사용. {이름}/{근무}/{시각} 치환.
+    const tmpl = (typeCfg.body || '').trim()
+    const bodyText = tmpl
+      ? tmpl.replace(/\{이름\}/g, name).replace(/\{근무\}/g, label).replace(/\{시각\}/g, typeCfg.time || '')
+      : (wt === 'off' ? `${name}님, 오늘은 근무가 없습니다.` : `${name}님, 오늘 ${label}입니다.`)
 
     try {
       await webpush.sendNotification(sub.sub, JSON.stringify({

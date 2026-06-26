@@ -4990,16 +4990,16 @@ function showAdminTab(tab) {
 // 근무형태별 알림 시각 설정. 백엔드(GitHub Actions cron)가 이 설정을 읽어
 // 매일 지정 시각에 해당 근무자에게만 푸시를 전송한다.
 const NOTIFY_DEFAULT_TYPES = [
-  { key:'danjik',  label:'당직',            time:'08:30', enabled:true },
-  { key:'jogeun',  label:'조근 (평일·토요)', time:'06:30', enabled:true },
-  { key:'ojende',  label:'오전데스크',       time:'07:30', enabled:true },
-  { key:'8jin',    label:'8진',             time:'08:00', enabled:true },
-  { key:'ilgeun',  label:'일근',            time:'09:00', enabled:true },
-  { key:'newsoh',  label:'뉴.오',         time:'13:00', enabled:true },
-  { key:'vw',      label:'VW 근무',         time:'09:00', enabled:true },
-  { key:'cg',      label:'CG 근무',         time:'09:00', enabled:true },
-  { key:'general', label:'기타 근무 (XR·PROJECT·SPORTS)',        time:'09:00', enabled:true },
-  { key:'off',     label:'휴무 (오늘 근무 없음 알림)', time:'09:00', enabled:false },
+  { key:'danjik',  label:'당직',            time:'08:30', enabled:true,  body:'{이름}님, 오늘은 당직 근무입니다.' },
+  { key:'jogeun',  label:'조근 (평일·토요)', time:'06:30', enabled:true,  body:'{이름}님, 오늘은 조근입니다.' },
+  { key:'ojende',  label:'오전데스크',       time:'07:30', enabled:true,  body:'{이름}님, 오늘은 오전데스크입니다.' },
+  { key:'8jin',    label:'8진',             time:'08:00', enabled:true,  body:'{이름}님, 오늘은 8진 근무입니다.' },
+  { key:'ilgeun',  label:'일근',            time:'09:00', enabled:true,  body:'{이름}님, 오늘은 일근입니다.' },
+  { key:'newsoh',  label:'뉴.오',         time:'13:00', enabled:true,  body:'{이름}님, 오늘은 뉴.오 근무입니다.' },
+  { key:'vw',      label:'VW 근무',         time:'09:00', enabled:true,  body:'{이름}님, 오늘은 VW 근무입니다.' },
+  { key:'cg',      label:'CG 근무',         time:'09:00', enabled:true,  body:'{이름}님, 오늘은 CG 근무입니다.' },
+  { key:'general', label:'기타 근무 (XR·PROJECT·SPORTS)',        time:'09:00', enabled:true,  body:'{이름}님, 오늘 근무가 있습니다.' },
+  { key:'off',     label:'휴무 (오늘 근무 없음 알림)', time:'09:00', enabled:false, body:'{이름}님, 오늘은 근무가 없습니다.' },
 ];
 function getNotifyConfig() {
   if (!data.settings) data.settings = {};
@@ -5014,7 +5014,9 @@ function getNotifyConfig() {
   const cfg = data.settings.notify;
   if (!Array.isArray(cfg.types)) cfg.types = NOTIFY_DEFAULT_TYPES.map(t=>({...t}));
   NOTIFY_DEFAULT_TYPES.forEach(def=>{
-    if (!cfg.types.some(t=>t.key===def.key)) cfg.types.push({...def});
+    const ex = cfg.types.find(t=>t.key===def.key);
+    if (!ex) cfg.types.push({...def});
+    else if (ex.body===undefined) ex.body = def.body;   // 기존 설정에 알림 내용 채우기
   });
   return cfg;
 }
@@ -5024,17 +5026,21 @@ function renderNotifyTab() {
   if (!body) return;
   const rows = cfg.types.map(t=>`
     <tr style="border-bottom:1px solid var(--border);">
-      <td style="padding:9px 8px;font-weight:600;font-size:13px;">${t.label}</td>
-      <td style="padding:9px 8px;text-align:center;">
-        <input type="time" class="form-input" style="width:120px;padding:5px 8px;display:inline-block;"
+      <td style="padding:9px 8px;font-weight:600;font-size:13px;white-space:nowrap;vertical-align:top;">${t.label}</td>
+      <td style="padding:9px 8px;text-align:center;vertical-align:top;">
+        <input type="time" class="form-input" style="width:110px;padding:5px 8px;display:inline-block;"
           value="${t.time||'09:00'}" data-nt-time="${t.key}" ${t.enabled?'':'disabled'}>
       </td>
-      <td style="padding:9px 8px;text-align:center;">
+      <td style="padding:9px 8px;text-align:center;vertical-align:top;">
         <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
           <input type="checkbox" data-nt-enabled="${t.key}" ${t.enabled?'checked':''}
             onchange="this.closest('tr').querySelector('[data-nt-time]').disabled=!this.checked;">
           <span style="color:var(--muted);">알림</span>
         </label>
+      </td>
+      <td style="padding:9px 8px;vertical-align:top;">
+        <input type="text" class="form-input" style="width:100%;min-width:220px;padding:6px 8px;font-size:12px;"
+          value="${(t.body||'').replace(/"/g,'&quot;')}" data-nt-body="${t.key}" placeholder="{이름}님, 오늘 ...">
       </td>
     </tr>`).join('');
   body.innerHTML = `
@@ -5058,19 +5064,23 @@ function renderNotifyTab() {
     </div>
     <div class="gen-box" style="margin-top:14px;">
       <h3>⏰ 근무형태별 알림 시각</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">
-        각 근무형태마다 그날 해당 근무인 사람에게 지정 시각에 알림이 갑니다. 한 사람이 여러 근무면 형태별로 각각 받습니다.
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">
+        각 근무형태마다 그날 해당 근무인 사람에게 지정 시각에 알림이 갑니다. 한 사람이 여러 근무면 형태별로 각각 받습니다.<br>
+        <b>알림 내용</b>은 직접 편집할 수 있어요. <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;">{이름}</code>=직원 이름, <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;">{근무}</code>=근무형태명, <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;">{시각}</code>=알림 시각 으로 자동 치환됩니다.
       </p>
-      <table style="width:100%;border-collapse:collapse;">
+      <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;min-width:560px;">
         <thead>
           <tr style="border-bottom:2px solid var(--border);text-align:left;">
             <th style="padding:8px;font-size:12px;color:var(--muted);">근무형태</th>
             <th style="padding:8px;font-size:12px;color:var(--muted);text-align:center;">알림 시각</th>
             <th style="padding:8px;font-size:12px;color:var(--muted);text-align:center;">사용</th>
+            <th style="padding:8px;font-size:12px;color:var(--muted);">알림 내용 (메시지)</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
+      </div>
       <button class="btn btn-primary" style="width:auto;margin-top:14px;" onclick="saveNotifyConfig()">💾 알림 설정 저장</button>
       <div id="nt-save-status" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
     </div>`;
@@ -5088,6 +5098,11 @@ function saveNotifyConfig() {
     const key = el.getAttribute('data-nt-enabled');
     const t = cfg.types.find(x=>x.key===key);
     if (t) t.enabled = el.checked;
+  });
+  document.querySelectorAll('[data-nt-body]').forEach(el=>{
+    const key = el.getAttribute('data-nt-body');
+    const t = cfg.types.find(x=>x.key===key);
+    if (t) t.body = el.value;
   });
   saveData(data);
   const st = document.getElementById('nt-save-status');
