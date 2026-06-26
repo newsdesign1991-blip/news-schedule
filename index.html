@@ -401,6 +401,17 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   </div>
 </div>
 
+<!-- 지난 공지 모달 -->
+<div id="notice-history-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:16px;padding:24px;width:440px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0;">
+      <div style="font-size:16px;font-weight:700;">📜 지난 공지 <span style="font-size:11px;color:var(--muted);font-weight:400;">(최근 1개월)</span></div>
+      <button onclick="closeNoticeHistory()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">✕</button>
+    </div>
+    <div id="notice-history-list" style="overflow-y:auto;display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+</div>
+
 <!-- 로그인 모달 -->
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border-radius:16px;padding:32px 28px;width:320px;box-shadow:0 8px 40px rgba(0,0,0,0.3);text-align:center;">
@@ -5616,11 +5627,21 @@ function renderNoticeBar() {
   const wrap = document.getElementById('home-notice');
   if (!wrap) return;
   const ds = _todayStr();
+  // 한 달(30일)이 지난 공지는 자동 삭제
+  if (data.notices) {
+    const cutoff = addDays(ds, -30);
+    let pruned = false;
+    Object.keys(data.notices).forEach(d => { if (d < cutoff) { delete data.notices[d]; pruned = true; } });
+    if (pruned) saveData(data);
+  }
   const n = (data.notices||{})[ds];
   const has = n && (n.text || n.news8Time);
   const canWrite = !!(currentUser && currentUser.staffId);   // 로그인한 직원 누구나 작성 가능
   const writeBtn = canWrite
     ? `<button onclick="openNoticeModal()" style="background:#fff;border:1px solid #fcd97d;color:#b8860b;padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;">${has?'✏ 공지 수정':'📢 공지 작성'}</button>`
+    : '';
+  const histBtn = canWrite
+    ? `<button onclick="openNoticeHistory()" style="background:#fff;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;">📜 지난 공지</button>`
     : '';
   if (has) {
     const by = n.postedBy ? `<span style="font-size:11px;color:#b8860b;font-weight:600;opacity:0.75;margin-left:6px;">— ${n.postedBy}</span>` : '';
@@ -5628,13 +5649,14 @@ function renderNoticeBar() {
     const txt = (n.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
     wrap.innerHTML = `<div style="background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);border:1px solid #fcd97d;border-radius:12px;padding:14px 16px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-        <div style="font-size:13px;font-weight:800;color:#b8860b;">📢 오늘의 공지${by}</div>${writeBtn}
+        <div style="font-size:13px;font-weight:800;color:#b8860b;">📢 오늘의 공지${by}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">${histBtn}${writeBtn}</div>
       </div>
       ${txt?`<div style="font-size:13px;color:var(--text);margin-top:8px;line-height:1.6;">${txt}</div>`:''}
       ${news8}
     </div>`;
   } else if (canWrite) {
-    wrap.innerHTML = `<div style="display:flex;justify-content:flex-end;">${writeBtn}</div>`;
+    wrap.innerHTML = `<div style="display:flex;justify-content:flex-end;gap:6px;">${histBtn}${writeBtn}</div>`;
   } else {
     wrap.innerHTML = '';
   }
@@ -5663,6 +5685,32 @@ async function saveNotice() {
   renderNoticeBar();
   toast('공지가 등록되었습니다. 전 직원에게 알림을 보냅니다.','success');
   _sendNoticePush(text || ('오늘 8뉴스 진입시간 ' + news8 + ' 입니다.'));
+}
+function openNoticeHistory() {
+  const list = document.getElementById('notice-history-list');
+  const today = _todayStr();
+  const entries = Object.entries(data.notices||{})
+    .filter(([d,n]) => n && (n.text || n.news8Time))
+    .sort((a,b) => b[0].localeCompare(a[0]));   // 최신순
+  if (!entries.length) {
+    list.innerHTML = `<div style="text-align:center;color:var(--muted);font-size:13px;padding:30px 0;">등록된 공지가 없습니다.</div>`;
+  } else {
+    list.innerHTML = entries.map(([d,n]) => {
+      const [y,mo,dd] = d.split('-').map(Number);
+      const isToday = d===today;
+      const by = n.postedBy ? ` · ${n.postedBy}` : '';
+      const news8 = n.news8Time ? `<span style="font-size:11px;font-weight:700;color:#d65a52;background:#fff5f0;border:1px solid #f4bab6;border-radius:5px;padding:1px 6px;margin-left:6px;">📺 8뉴스 ${n.news8Time}</span>` : '';
+      const txt = (n.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+      return `<div style="border:1px solid var(--border);border-radius:10px;padding:11px 13px;${isToday?'background:#fffbeb;border-color:#fcd97d;':'background:var(--surface2);'}">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:${txt?'5px':'0'};">${mo}월 ${dd}일${isToday?' (오늘)':''}${by}${news8}</div>
+        ${txt?`<div style="font-size:13px;color:var(--text);line-height:1.55;">${txt}</div>`:''}
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('notice-history-modal').style.display = 'flex';
+}
+function closeNoticeHistory() {
+  document.getElementById('notice-history-modal').style.display = 'none';
 }
 function deleteNotice() {
   if (!currentUser || !currentUser.staffId) return;
