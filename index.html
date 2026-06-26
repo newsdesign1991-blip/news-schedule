@@ -1239,13 +1239,16 @@ const SB_URL = 'https://ntpoaqnhnwrpenstqhwb.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50cG9hcW5obndycGVuc3RxaHdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNzEyMzQsImV4cCI6MjA5Nzg0NzIzNH0.MyX2v56Q8SFqcU56tQfmZZVVr1R-X6BF4iBJautOANs';
 const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
 
+let _ndUpdatedAt = null;   // 마지막으로 확인한 서버 수정시각 (자동 동기화 기준)
 function saveData(d) {
   data = d;
   localStorage.setItem(STORE_KEY, JSON.stringify(d));
+  const _ua = new Date().toISOString();
+  _ndUpdatedAt = _ua;   // 내 변경은 폴링이 '남의 변경'으로 오인하지 않도록 기준 갱신
   fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main`, {
     method: 'PATCH',
     headers: SB_HEADERS,
-    body: JSON.stringify({ payload: d, updated_at: new Date().toISOString() })
+    body: JSON.stringify({ payload: d, updated_at: _ua })
   }).catch(e => console.warn('Supabase sync failed', e));
 }
 
@@ -5875,36 +5878,86 @@ function renderMySchedule() {
   _refreshPushBtn();
 }
 
-// ===== INIT =====
-(async () => {
+// ===== 자동 동기화 (절약형: updated_at만 폴링 → 변경됐을 때만 전체 1회 로드) =====
+let _autoSyncTimer = null;
+const _AUTO_SYNC_MS = 120000; // 2분
+function _migrateRemote(remote) {
+  if (!remote.leaves) remote.leaves = {};
+  if (!remote.events) remote.events = {};
+  if (!remote.holidays) remote.holidays = {};
+  if (!remote.settings) remote.settings = {};
+  if (!remote.newLeaves) remote.newLeaves = {};
+  if (!remote.leaveReq) remote.leaveReq = {isOpen:false,rangeStart:'',rangeEnd:'',entries:{}};
+  if (!remote.draft) remote.draft = {schedule:{},newLeaves:{},rangeStart:'',rangeEnd:''};
+  if (!remote.deployLog) remote.deployLog = [];
+  if (!remote.notices) remote.notices = {};
+  if (remote.staff) remote.staff.forEach(s => {
+    s.employmentType = s.employmentType || 'employee';
+    if (s.morningDeskPriority === undefined) s.morningDeskPriority = null;
+    if (s.canSatMorning === undefined) s.canSatMorning = false;
+    if (s.canIlgeun === undefined) s.canIlgeun = false;
+    if (s.canVW === undefined) s.canVW = false;
+    if (s.canCG === undefined) s.canCG = false;
+    if (s.can3D === undefined) s.can3D = false;
+    if (s.availableDays === undefined) s.availableDays = [];
+  });
+  return remote;
+}
+function _rerenderActiveView() {
+  const v = document.querySelector('.view.active')?.id;
+  if (v==='view-home') renderHome();
+  else if (v==='view-table') renderTable();
+  else if (v==='view-month') renderMonth();
+  else if (v==='view-leavereq') renderLeaveReqView();
+  else if (v==='view-workshop') renderWorkshopTable();
+}
+async function _reloadRemoteData() {
   try {
     const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
     });
     const rows = await res.json();
+    let remote = rows?.[0]?.payload;
+    if (!remote || typeof remote!=='object' || !Object.keys(remote).length) return;
+    data = _migrateRemote(remote);
+    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+    const ae = document.activeElement;
+    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return; // 입력 중이면 화면 갱신만 보류(데이터는 갱신됨)
+    _rerenderActiveView();
+    if (typeof toast==='function') toast('🔄 최신 정보로 업데이트되었습니다.','info');
+  } catch(e) {}
+}
+async function _checkRemoteUpdate() {
+  if (document.hidden) return;   // 백그라운드면 트래픽 0
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=updated_at`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    const ua = rows?.[0]?.updated_at;
+    if (!ua) return;
+    if (_ndUpdatedAt === null) { _ndUpdatedAt = ua; return; }
+    if (ua !== _ndUpdatedAt) { _ndUpdatedAt = ua; await _reloadRemoteData(); }
+  } catch(e) {}
+}
+function _startAutoSync() {
+  if (_autoSyncTimer) clearInterval(_autoSyncTimer);
+  _autoSyncTimer = setInterval(() => { if (!document.hidden) _checkRemoteUpdate(); }, _AUTO_SYNC_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) _checkRemoteUpdate(); }); // 탭 복귀 즉시 1회
+}
+
+// ===== INIT =====
+(async () => {
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload,updated_at`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
+    });
+    const rows = await res.json();
+    _ndUpdatedAt = rows?.[0]?.updated_at || null;
     const remote = rows?.[0]?.payload;
     if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
-      // 마이그레이션 적용
-      if (!remote.leaves) remote.leaves = {};
-      if (!remote.events) remote.events = {};
-      if (!remote.holidays) remote.holidays = {};
-      if (!remote.settings) remote.settings = {};
-      if (!remote.newLeaves) remote.newLeaves = {};
-      if (!remote.leaveReq) remote.leaveReq = {isOpen:false,rangeStart:'',rangeEnd:'',entries:{}};
-      if (!remote.draft) remote.draft = {schedule:{},newLeaves:{},rangeStart:'',rangeEnd:''};
-      if (!remote.deployLog) remote.deployLog = [];
-      if (!remote.notices) remote.notices = {};
-      if (remote.staff) remote.staff.forEach(s => {
-        s.employmentType = s.employmentType || 'employee';
-        if (s.morningDeskPriority === undefined) s.morningDeskPriority = null;
-        if (s.canSatMorning === undefined) s.canSatMorning = false;
-        if (s.canIlgeun === undefined) s.canIlgeun = false;
-        if (s.canVW === undefined) s.canVW = false;
-        if (s.canCG === undefined) s.canCG = false;
-        if (s.can3D === undefined) s.can3D = false;
-        if (s.availableDays === undefined) s.availableDays = [];
-      });
-      data = remote;
+      data = _migrateRemote(remote);
       localStorage.setItem(STORE_KEY, JSON.stringify(data));
     } else if (Object.keys(data).length > 0) {
       // Supabase가 비어있으면 로컬 데이터를 올림
@@ -5921,6 +5974,7 @@ function renderMySchedule() {
     document.getElementById('login-overlay').style.display = 'flex';
   }
   renderHome();
+  _startAutoSync();
 })();
 document.body.insertAdjacentHTML('beforeend', `
 <div class="staff-modal-overlay" id="staff-edit-modal">
