@@ -373,6 +373,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
       </label>
       <div id="us-push-status" style="font-size:11px;color:var(--muted);"></div>
       <button id="us-push-toggle-btn" onclick="togglePush()" style="background:none;border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;"></button>
+      <button id="us-push-test-btn" onclick="sendTestPush()" style="background:#6366f1;border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;">🔔 테스트 알림 보내기</button>
     </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
       <button onclick="logoutUser();closeUserSettings();" style="background:none;border:1px solid #f8a0a0;color:#d65a52;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;width:100%;">로그아웃</button>
@@ -5173,6 +5174,29 @@ async function disablePush() {
 async function togglePush() {
   if (await isPushSubscribed()) disablePush(); else enablePush();
 }
+async function sendTestPush() {
+  const btn = document.getElementById('us-push-test-btn');
+  if (!currentUser || !currentUser.staffId) { toast('먼저 이름으로 로그인하세요.','error'); return; }
+  if (!_pushSupported()) { toast('이 브라우저는 푸시 미지원입니다. 아이폰은 홈 화면에 추가 후 사용하세요.','error'); return; }
+  if (!(await isPushSubscribed())) { toast('먼저 위에서 "이 기기 알림 켜기"를 눌러주세요.','error'); return; }
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 발송 중...'; }
+  try {
+    const res = await fetch(NOTIFY_FN_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY },
+      body: JSON.stringify({ mode:'test', staff_id: currentUser.staffId })
+    });
+    const j = await res.json().catch(()=>({}));
+    if (res.ok && j.sent > 0) toast('테스트 알림을 보냈습니다! 잠시 후 알림이 떠요 🔔','success');
+    else if (res.ok && j.sent === 0) toast('보낼 구독 정보가 없습니다. 알림을 껐다 다시 켜보세요.','error');
+    else toast('발송 실패 (HTTP '+res.status+'). 서버 함수 배포 상태를 확인하세요.','error');
+  } catch(e) {
+    toast('발송 오류: '+e.message,'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig || '🔔 테스트 알림 보내기'; }
+  }
+}
 async function openUserSettings() {
   const modal = document.getElementById('user-settings-modal');
   modal.style.display = 'flex';
@@ -5188,14 +5212,17 @@ function closeUserSettings() {
 async function _refreshUserSettingsModal() {
   const subbed = await isPushSubscribed();
   const btn = document.getElementById('us-push-toggle-btn');
+  const testBtn = document.getElementById('us-push-test-btn');
   const status = document.getElementById('us-push-status');
   if (!btn) return;
   if (!_pushSupported()) {
     btn.style.display = 'none';
+    if (testBtn) testBtn.style.display = 'none';
     if (status) { status.textContent = '이 브라우저는 푸시 미지원입니다. 아이폰은 홈 화면에 추가 후 사용하세요.'; status.style.color = '#c79a5e'; }
     return;
   }
   btn.style.display = '';
+  if (testBtn) testBtn.style.display = subbed ? '' : 'none';   // 구독된 기기에서만 테스트 버튼 노출
   if (subbed) {
     btn.textContent = '🔕 이 기기 알림 끄기';
     btn.style.borderColor = '#f8a0a0'; btn.style.color = '#d65a52';

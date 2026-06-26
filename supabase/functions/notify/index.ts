@@ -38,6 +38,28 @@ Deno.serve(async (req) => {
 
   let sent = 0, errors = 0
 
+  // ── 테스트 모드 ──────────────────────────────────────────────────
+  // 버튼으로 즉시 호출. staff_id 주면 본인 기기에만, 없으면 전체에 테스트 발송.
+  if (mode === 'test') {
+    const target = body?.staff_id
+    const list = target ? subs.filter(s => s.staff_id === target) : subs
+    const payload = JSON.stringify({
+      title: '🔔 테스트 알림',
+      body: '푸시 알림이 정상 작동합니다! 이 알림이 보이면 설정 완료예요.',
+      icon: 'icon-192.png', badge: 'icon-192.png',
+      tag: 'test-' + Date.now(), renotify: true,
+      data: { url: './' }
+    })
+    for (const sub of list) {
+      try { await webpush.sendNotification(sub.sub, payload); sent++ }
+      catch (e: any) {
+        errors++
+        if (e.statusCode === 410 || e.statusCode === 404) await sb.from('push_subs').delete().eq('endpoint', sub.endpoint)
+      }
+    }
+    return new Response(JSON.stringify({ sent, errors, mode: 'test' }), { headers: { 'Content-Type': 'application/json' } })
+  }
+
   // ── 배포 알림 모드 ──────────────────────────────────────────────
   if (mode === 'publish') {
     const payload = JSON.stringify({
