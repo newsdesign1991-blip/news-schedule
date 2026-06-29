@@ -414,6 +414,14 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   </div>
 </div>
 
+<!-- 구글 캘린더 일정 상세 -->
+<div id="gcal-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)closeGcalDetail()">
+  <div style="background:var(--surface);border-radius:16px;padding:22px;width:400px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
+    <div id="gcal-detail-body"></div>
+    <button class="btn btn-outline" style="width:100%;margin-top:18px;" onclick="closeGcalDetail()">닫기</button>
+  </div>
+</div>
+
 
 <!-- 작성소 초기화 선택 모달 -->
 <div id="reset-draft-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
@@ -1749,10 +1757,10 @@ function renderHome() {
     const _wkE=toDateStr(weekDays[6].getFullYear(),weekDays[6].getMonth()+1,weekDays[6].getDate());
     for(const ev of _gcalEvents){ for(const ds of _icsOccurrences(ev,_wkS,_wkE)){ (_gcalWeek[ds]=_gcalWeek[ds]||[]).push(ev); } }
   }
-  function _gcalCard(ev){
+  function _gcalCard(ds, ev){
     const c=ev._color||'#4285f4';
     const t=(ev.title||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-    return `<div class="wm-ev-card" style="border-color:${c};background:${c}15;cursor:default;">${ev.start.time?`<div class="wm-ev-time" style="color:${c};">${ev.start.time}</div>`:''}<div class="wm-ev-title">📆 ${t}</div></div>`;
+    return `<div class="wm-ev-card" onclick="showGcalDetail('${ds}','${ev._id}')" style="border-color:${c};background:${c}15;cursor:pointer;">${ev.start.time?`<div class="wm-ev-time" style="color:${c};">${ev.start.time}</div>`:''}<div class="wm-ev-title">📆 ${t}</div></div>`;
   }
   // week-mini: 7컬럼 헤더 + 데스크탑용 이벤트 카드
   let mobileEvHtml = '';
@@ -1762,7 +1770,7 @@ function renderHome() {
     const dow=d.getDay(); const isSun=dow===0; const isSat=dow===6;
     const dayEvs = events[ds]||[];
     const dayGcal = _gcalWeek[ds]||[];
-    const evCards = dayEvs.map(ev=>_evCard(ds,ev)).join('') + dayGcal.map(_gcalCard).join('');
+    const evCards = dayEvs.map(ev=>_evCard(ds,ev)).join('') + dayGcal.map(ev=>_gcalCard(ds,ev)).join('');
     wMini+=`<div class="week-day-mini">
       <div class="wm-label">${dowLabels[i]}</div>
       <div class="wm-num ${isToday?'today':''} ${hasData?'has-data':''} ${isSun?'sun':isSat?'sat':''}" onclick="showDayModal('${ds}')">${d.getDate()}</div>
@@ -2389,13 +2397,16 @@ function _parseICS(text){
   const blocks=text.split('BEGIN:VEVENT').slice(1);
   for(const b of blocks){
     const block=b.split('END:VEVENT')[0]; const lines=block.split('\n');
-    let title='', start=null, rrule=null;
+    let title='', start=null, end=null, rrule=null, location='', desc='';
     for(const ln of lines){
       if(/^SUMMARY[:;]/i.test(ln)) title=_icsDecode(ln.slice(ln.indexOf(':')+1)).trim();
       else if(/^DTSTART/i.test(ln)) start=_icsParseDate(ln);
+      else if(/^DTEND/i.test(ln)) end=_icsParseDate(ln);
+      else if(/^LOCATION[:;]/i.test(ln)) location=_icsDecode(ln.slice(ln.indexOf(':')+1)).trim();
+      else if(/^DESCRIPTION[:;]/i.test(ln)) desc=_icsDecode(ln.slice(ln.indexOf(':')+1)).trim();
       else if(/^RRULE[:;]/i.test(ln)) rrule=ln.slice(ln.indexOf(':')+1).trim();
     }
-    if(start) events.push({ title:title||'(제목 없음)', start, rrule });
+    if(start) events.push({ title:title||'(제목 없음)', start, end, rrule, location, desc });
   }
   return events;
 }
@@ -2455,6 +2466,7 @@ async function _loadGcal(force){
       const evs=_parseICS(txt); const col=c.color||'#4285f4'; evs.forEach(e=>{ e._color=col; e._calName=c.name||''; }); all.push(...evs);
     }catch(e){ failed++; console.warn('gcal', e); }
   }
+  all.forEach((e,i)=>{ e._id='g'+i; });   // 클릭 상세보기용 고유 id
   _gcalEvents=all; _gcalLoadedAt=Date.now(); _gcalLoading=false;
   if(force) toast(failed?`구글 일정 ${all.length}건 (${failed}개 캘린더 실패)`:`구글 일정 ${all.length}건 불러옴`, failed?'error':'success');
   if(currentView==='month') renderMonth();
@@ -2463,6 +2475,22 @@ function toggleGcal(){
   if(!_gcalList().some(c=>c.url&&c.url.trim())){ toast(isAdmin?'관리자 패널 → 설정에서 구글 캘린더를 연동하세요.':'관리자가 구글 캘린더를 연동해야 합니다.','error'); return; }
   gcalShow=!gcalShow; renderMonth();
 }
+function showGcalDetail(dateStr, id){
+  const ev=(_gcalEvents||[]).find(e=>e._id===id); if(!ev) return;
+  const c=ev._color||'#4285f4';
+  const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const dt=new Date(dateStr+'T00:00:00'); const dow=['일','월','화','수','목','금','토'][dt.getDay()];
+  const timeStr = ev.start.allDay ? '종일' : (ev.start.time + (ev.end&&ev.end.time&&!ev.end.allDay ? ' ~ '+ev.end.time : ''));
+  const locHtml=ev.location?`<div style="margin-top:10px;font-size:13px;color:var(--text);">📍 ${esc(ev.location)}</div>`:'';
+  const descHtml=ev.desc?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;color:var(--text);line-height:1.65;white-space:pre-wrap;word-break:break-word;">${esc(ev.desc)}</div>`:'';
+  document.getElementById('gcal-detail-body').innerHTML=`
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;"><span style="width:11px;height:11px;border-radius:3px;background:${c};flex-shrink:0;"></span><span style="font-size:11px;color:var(--muted);font-weight:700;">📆 ${esc(ev._calName||'구글 캘린더')}</span></div>
+    <div style="font-size:18px;font-weight:800;color:var(--text);line-height:1.4;">${esc(ev.title)}</div>
+    <div style="margin-top:10px;font-size:14px;color:var(--text);font-weight:600;">🗓 ${dt.getMonth()+1}월 ${dt.getDate()}일 (${dow}) · ${timeStr}</div>
+    ${locHtml}${descHtml}`;
+  document.getElementById('gcal-detail-modal').style.display='flex';
+}
+function closeGcalDetail(){ document.getElementById('gcal-detail-modal').style.display='none'; }
 // ── 구글 캘린더 관리 (관리자 패널 설정 탭에 인라인) ──
 let _gcalEdit=[];
 function _initGcalSettings(){
@@ -2578,7 +2606,7 @@ function renderMonth() {
     const dayEvents=(data.events||{})[dateStr]||[];
     const evChips=dayEvents.map(ev=>`<div class="cal-event-chip" style="background:${ev.color}22;color:${ev.color};border-left:3px solid ${ev.color};">${ev.time?ev.time+' ':''}${ev.title}</div>`).join('');
     const _esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-    const gchips=(_gcalByDate[dateStr]||[]).map(ev=>{const _c=ev._color||'#4285f4';return `<div class="cal-event-chip" style="background:${_c}1f;color:${_c};border-left:3px solid ${_c};" title="📆 ${_esc(ev._calName?ev._calName+': ':'')}${_esc(ev.title)}">${ev.start.time?ev.start.time+' ':''}📆 ${_esc(ev.title)}</div>`;}).join('');
+    const gchips=(_gcalByDate[dateStr]||[]).map(ev=>{const _c=ev._color||'#4285f4';return `<div class="cal-event-chip" onclick="event.stopPropagation();showGcalDetail('${dateStr}','${ev._id}')" style="background:${_c}1f;color:${_c};border-left:3px solid ${_c};cursor:pointer;" title="📆 ${_esc(ev._calName?ev._calName+': ':'')}${_esc(ev.title)}">${ev.start.time?ev.start.time+' ':''}📆 ${_esc(ev.title)}</div>`;}).join('');
     html+=`<div class="cal-day ${isToday?'today':''} ${isWeekend?'weekend':''} ${isHoliday2?'holiday':''}" onclick="showDayModal('${dateStr}')"><div class="cal-date-num ${dowClass}">${d}${isHoliday2?`<span class="cal-holiday-name">${holidayName2}</span>`:''}</div><div class="cal-pips">${pips}</div><div class="cal-events">${evChips}${gchips}</div></div>`;
   }
   const total=firstDay+daysInMonth; const rem=total%7===0?0:7-(total%7);
