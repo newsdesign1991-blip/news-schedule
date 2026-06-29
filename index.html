@@ -749,15 +749,38 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <!-- ADMIN -->
 <div class="view" id="view-admin">
   <div id="login-area">
-    <div class="login-box">
-      <h2>🔐 관리자 로그인</h2>
-      <p class="login-sub">관리자만 접근할 수 있습니다.</p>
-      <div class="form-group">
-        <label class="form-label">비밀번호</label>
-        <input type="password" class="form-input" id="pw-input" placeholder="비밀번호 입력">
+    <div style="display:flex;flex-direction:column;gap:16px;max-width:420px;margin:0 auto;">
+      <div class="login-box">
+        <h2>🔐 관리자 로그인</h2>
+        <p class="login-sub">전체 편집 권한</p>
+        <div class="form-group">
+          <label class="form-label">비밀번호</label>
+          <input type="password" class="form-input" id="pw-admin" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLoginMode('admin')">
+        </div>
+        <button class="btn btn-primary" onclick="doLoginMode('admin')">로그인</button>
+        <div class="error-msg" id="login-err-admin"></div>
       </div>
-      <button class="btn btn-primary" onclick="doLogin()">로그인</button>
-      <div class="error-msg" id="login-error"></div>
+      <div class="login-box">
+        <h2>👁 관리자 테스트 로그인</h2>
+        <p class="login-sub">같은 화면 · <b>읽기 전용</b>(수정 저장 안 됨)</p>
+        <div class="form-group">
+          <label class="form-label">비밀번호</label>
+          <input type="password" class="form-input" id="pw-test" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLoginMode('test')">
+        </div>
+        <button class="btn btn-primary" onclick="doLoginMode('test')">로그인</button>
+        <div class="error-msg" id="login-err-test"></div>
+      </div>
+      <button id="master-secret-btn" onclick="toggleMasterBox()" tabindex="-1" aria-hidden="true" style="display:block;width:100%;height:32px;background:transparent;border:none;cursor:default;padding:0;margin:0;"></button>
+      <div id="master-login-box" class="login-box" style="display:none;">
+        <h2>👑 마스터 로그인</h2>
+        <p class="login-sub">관리자 권한 + 비밀번호 관리</p>
+        <div class="form-group">
+          <label class="form-label">비밀번호</label>
+          <input type="password" class="form-input" id="pw-master" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLoginMode('master')">
+        </div>
+        <button class="btn btn-primary" onclick="doLoginMode('master')">로그인</button>
+        <div class="error-msg" id="login-err-master"></div>
+      </div>
     </div>
   </div>
 
@@ -951,18 +974,6 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
     <!-- SETTINGS -->
     <div class="admin-panel" id="panel-settings">
       <div class="gen-box">
-        <h3>근무 인원 설정</h3>
-        <div class="gen-row">
-          <div class="form-group"><label class="form-label">평일 VW 최소</label><input type="number" class="form-input" id="set-wd-vw" min="1" max="20"></div>
-          <div class="form-group"><label class="form-label">평일 CG 최소</label><input type="number" class="form-input" id="set-wd-cg" min="1" max="30"></div>
-          <div class="form-group"><label class="form-label">주말 VW 최소</label><input type="number" class="form-input" id="set-we-vw" min="0" max="20"></div>
-          <div class="form-group"><label class="form-label">토요일 CG 최소</label><input type="number" class="form-input" id="set-sat-cg" min="0" max="30"></div>
-          <div class="form-group"><label class="form-label">일요일 CG 최소</label><input type="number" class="form-input" id="set-sun-cg" min="0" max="30"></div>
-          <div class="form-group"><label class="form-label">당일 최대 인원</label><input type="number" class="form-input" id="set-daily-cap" min="10" max="40"></div>
-        </div>
-        <button class="btn btn-primary" style="width:auto;" onclick="saveSettings()">저장</button>
-      </div>
-      <div class="gen-box" style="margin-top:14px;">
         <h3>🎌 공휴일 자동 로드 (공공데이터포털)</h3>
         <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">
           <a href="https://www.data.go.kr/data/15012690/openapi.do" target="_blank" style="color:var(--vw);">공공데이터포털</a>에서 발급받은 서비스키를 입력하고 공휴일을 불러오세요.
@@ -988,7 +999,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
         <div id="holiday-status" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
         <div id="holiday-list" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;max-height:120px;overflow-y:auto;"></div>
       </div>
-      <div class="gen-box" style="margin-top:14px;">
+      <div class="gen-box" id="admin-pw-box" style="margin-top:14px;">
         <h3>비밀번호 변경</h3>
         <div class="gen-row">
           <div class="form-group"><label class="form-label">현재 비밀번호</label><input type="password" class="form-input" id="pw-current"></div>
@@ -997,6 +1008,19 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
         </div>
         <button class="btn btn-primary" style="width:auto;" onclick="changePassword()">변경</button>
         <div class="error-msg" id="pw-error"></div>
+      </div>
+      <div class="gen-box" id="master-pw-box" style="margin-top:14px;display:none;">
+        <h3>👑 비밀번호 관리 (마스터)</h3>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">관리자·관리자 테스트·마스터 비밀번호를 각각 설정합니다. (4자 이상 · <b>관리자 테스트는 비우고 설정하면 비활성화</b>) — 마스터는 관리자와 권한이 같고, 관리자 테스트는 같은 화면을 보지만 수정이 저장되지 않습니다.</p>
+        <div class="gen-row">
+          <div class="form-group"><label class="form-label">관리자 새 비번</label><div style="display:flex;gap:6px;"><input type="password" class="form-input" id="master-pw-admin" style="flex:1;min-width:0;"><button class="btn btn-sm btn-primary" style="flex-shrink:0;width:auto;padding:0 16px;" onclick="masterSetPw('admin')">설정</button></div></div>
+          <div class="form-group"><label class="form-label">관리자 테스트 새 비번</label><div style="display:flex;gap:6px;"><input type="password" class="form-input" id="master-pw-test" style="flex:1;min-width:0;"><button class="btn btn-sm btn-primary" style="flex-shrink:0;width:auto;padding:0 16px;" onclick="masterSetPw('test')">설정</button></div></div>
+          <div class="form-group"><label class="form-label">마스터 새 비번</label><div style="display:flex;gap:6px;"><input type="password" class="form-input" id="master-pw-master" style="flex:1;min-width:0;"><button class="btn btn-sm btn-primary" style="flex-shrink:0;width:auto;padding:0 16px;" onclick="masterSetPw('master')">설정</button></div></div>
+        </div>
+        <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+          <button class="btn btn-sm btn-outline" onclick="revealMasterPws()">🔓 현재 비밀번호 보기 / 숨기기</button>
+          <div id="master-pw-reveal" data-shown="0" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;"></div>
+        </div>
       </div>
       <div class="gen-box" style="margin-top:14px;">
         <h3>📆 구글 캘린더 연동</h3>
@@ -1017,6 +1041,8 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 </div>
 
 </main>
+
+<!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
 <!-- Day Modal -->
 <!-- 이벤트 추가 모달 -->
@@ -1346,6 +1372,11 @@ const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY, 'Conte
 
 let _ndUpdatedAt = null;   // 마지막으로 확인한 서버 수정시각 (자동 동기화 기준)
 function saveData(d) {
+  if (isAdminTest) {   // 관리자 테스트 모드: 저장(영구 반영) 차단 — 토스트는 3초에 한 번만
+    const now = Date.now();
+    if (!window._lastTestToast || now - window._lastTestToast > 3000) { window._lastTestToast = now; toast('관리자 테스트 모드 — 수정 사항이 저장되지 않습니다.','error'); }
+    return;
+  }
   data = d;
   localStorage.setItem(STORE_KEY, JSON.stringify(d));
   const _ua = new Date().toISOString();
@@ -1635,6 +1666,8 @@ let _noticeEditId = null;     // 공지 수정 중인 항목 id (없으면 새 �
 let tableRangeStart = null; // 'YYYY-MM-DD'
 let tableRangeEnd = null;   // 'YYYY-MM-DD'
 let isAdmin = false;
+let isMaster = false;     // 마스터 모드: 관리자와 동일 + 관리자/관리자테스트 비번 변경 가능
+let isAdminTest = false;  // 관리자 테스트 모드: 관리자와 동일 화면, 읽기 전용(저장 안 됨)
 let modalDate = null;
 const DOW_KR = ['일','월','화','수','목','금','토'];
 const DOW_FULL = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
@@ -1667,27 +1700,89 @@ function toggleAdmin() {
   } else { renderAdminPanel(); }
 }
 function adminLogout() {
-  isAdmin = false;
+  isAdmin = false; isMaster = false; isAdminTest = false;
   _setAdminNav(false);
   document.getElementById('login-area').style.display='block';
   document.getElementById('admin-area').style.display='none';
-  document.getElementById('pw-input').value='';
+  ['pw-admin','pw-test','pw-master'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
 }
 
-// ===== LOGIN =====
-document.getElementById('pw-input').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
-function doLogin() {
-  const pw = document.getElementById('pw-input').value;
-  if (btoa(pw) === data.adminPass) {
-    isAdmin = true;
-    _setAdminNav(true);
-    document.getElementById('login-area').style.display='none';
-    document.getElementById('admin-area').style.display='block';
-    document.getElementById('login-error').textContent='';
-    renderAdminPanel();
+// ===== LOGIN ===== (모드별 명시 로그인: 관리자/관리자테스트 박스 + 마스터 하단 투명버튼)
+function doLoginMode(mode) {
+  const inMap = { admin:'pw-admin', test:'pw-test', master:'pw-master' };
+  const errMap = { admin:'login-err-admin', test:'login-err-test', master:'login-err-master' };
+  const passMap = { admin:data.adminPass, test:data.adminTestPass, master:(data.masterPass||data.adminPass) };
+  const inEl = document.getElementById(inMap[mode]);
+  const errEl = document.getElementById(errMap[mode]);
+  if (errEl) errEl.textContent='';
+  if (mode==='test' && !data.adminTestPass) { if(errEl) errEl.textContent='관리자 테스트가 비활성화돼 있습니다.'; return; }
+  if (btoa(inEl.value) === passMap[mode]) {
+    if (mode==='master') closeMasterLogin();
+    // 관리자 화면으로 전환 후 입장
+    document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+    document.getElementById('view-admin').classList.add('active');
+    document.getElementById('admin-toggle')?.classList.add('active');
+    currentView='admin';
+    inEl.value='';
+    _enterAdmin(mode);
   } else {
-    document.getElementById('login-error').textContent='비밀번호가 틀렸습니다.';
+    if (errEl) errEl.textContent='비밀번호가 틀렸습니다.';
   }
+}
+function _enterAdmin(mode) {
+  isAdmin = true;
+  isMaster = (mode === 'master');
+  isAdminTest = (mode === 'test');
+  _setAdminNav(true);
+  document.getElementById('login-area').style.display='none';
+  document.getElementById('admin-area').style.display='block';
+  renderAdminPanel();
+  if (mode === 'master') showAdminTab('settings');
+  _updateAdminModeUI();
+}
+function toggleMasterBox() {
+  const box=document.getElementById('master-login-box'); if(!box) return;
+  const show = box.style.display==='none';
+  box.style.display = show ? '' : 'none';
+  if (show) {
+    const e=document.getElementById('login-err-master'); if(e) e.textContent='';
+    const i=document.getElementById('pw-master'); if(i){ i.value=''; setTimeout(()=>{ try{i.focus();}catch(_){} },100); }
+  }
+}
+function openMasterLogin() { const b=document.getElementById('master-login-box'); if(b) b.style.display=''; }
+function closeMasterLogin() { const b=document.getElementById('master-login-box'); if(b) b.style.display='none'; }
+function _updateAdminModeUI() {
+  const bar = document.getElementById('admin-mode-bar');
+  if (bar) bar.innerHTML = (isAdminTest ? '👁 관리자 테스트 모드 — 읽기 전용(수정 저장 안 됨)' : isMaster ? '👑 마스터 모드' : '🔐 관리자 모드') + ' <button onclick="adminLogout()">로그아웃</button>';
+  const ab = document.getElementById('admin-pw-box'); if (ab) ab.style.display = (isAdmin && !isMaster && !isAdminTest) ? '' : 'none';
+  const mb = document.getElementById('master-pw-box'); if (mb) mb.style.display = isMaster ? '' : 'none';
+}
+function masterSetPw(which) {
+  if (!isMaster) { toast('마스터 모드에서만 변경할 수 있습니다.','error'); return; }
+  const map = { admin:'master-pw-admin', test:'master-pw-test', master:'master-pw-master' };
+  const el = document.getElementById(map[which]); const v = (el.value||'').trim();
+  if (which !== 'test' && v.length < 4) { toast('4자 이상 입력하세요.','error'); return; }   // 테스트는 빈값=비활성 허용
+  if (which === 'admin') data.adminPass = btoa(v);
+  else if (which === 'test') data.adminTestPass = v ? btoa(v) : '';
+  else if (which === 'master') data.masterPass = btoa(v);
+  saveData(data); el.value='';
+  toast((which==='admin'?'관리자':which==='test'?(v?'관리자 테스트':'관리자 테스트 비활성화'):'마스터') + ' 비밀번호 ' + (which==='test'&&!v?'됨':'설정됨'),'success');
+  if(document.getElementById('master-pw-reveal')?.dataset.shown==='1') revealMasterPws(), revealMasterPws();  // 보기 중이면 갱신
+}
+function revealMasterPws() {
+  if (!isMaster) { toast('마스터 모드에서만 볼 수 있습니다.','error'); return; }
+  const el = document.getElementById('master-pw-reveal');
+  if (el.dataset.shown === '1') { el.dataset.shown='0'; el.style.display='none'; el.innerHTML=''; return; }
+  const dec = v => { try { return v ? atob(v) : ''; } catch(e) { return '(읽기 오류)'; } };
+  const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const admin = dec(data.adminPass), master = dec(data.masterPass || data.adminPass);
+  const test = data.adminTestPass ? dec(data.adminTestPass) : '(비활성)';
+  el.innerHTML = `<div style="font-size:13px;line-height:2;font-family:ui-monospace,monospace;">`+
+    `🔐 관리자: <b style="color:var(--text);">${esc(admin)}</b><br>`+
+    `👁 관리자 테스트: <b style="color:var(--text);">${esc(test)}</b><br>`+
+    `👑 마스터: <b style="color:var(--text);">${esc(master)}</b></div>`+
+    `<div style="font-size:11px;color:var(--muted);margin-top:6px;">※ 마스터만 볼 수 있습니다.</div>`;
+  el.dataset.shown='1'; el.style.display='block';
 }
 
 // ===== HOME =====
@@ -5633,7 +5728,6 @@ function importData(input) {
 // ===== ADMIN PANEL =====
 function renderAdminPanel() {
   renderStaffTable(); updateSettingsSummary();
-  renderLeaveStaffDropdowns();
   ['set-wd-vw','set-wd-cg','set-we-vw','set-sat-cg','set-sun-cg','set-daily-cap'].forEach((id,i)=>{
     const el=document.getElementById(id); if(el) el.value=[data.settings.weekdayVW,data.settings.weekdayCG,data.settings.weekendVW,data.settings.satCG,data.settings.sunCG,data.settings.dailyCap||21][i]||[7,19,4,6,7,21][i];
   });
@@ -5646,8 +5740,8 @@ function renderAdminPanel() {
   const now=new Date();
   const _ny=now.getFullYear(),_nm=String(now.getMonth()+1).padStart(2,'0');
   const _nLast=new Date(_ny,now.getMonth()+1,0).getDate();
-  document.getElementById('gen-start').value=`${_ny}-${_nm}-01`;
-  document.getElementById('gen-end').value=`${_ny}-${_nm}-${String(_nLast).padStart(2,'0')}`;
+  const _gs=document.getElementById('gen-start'); if(_gs) _gs.value=`${_ny}-${_nm}-01`;
+  const _ge=document.getElementById('gen-end'); if(_ge) _ge.value=`${_ny}-${_nm}-${String(_nLast).padStart(2,'0')}`;
 }
 function showAdminTab(tab) {
   document.querySelectorAll('.admin-tab').forEach(btn=>{
@@ -6622,6 +6716,12 @@ function _startAutoSync() {
     }
   } catch(e) {
     console.warn('Supabase 로딩 실패, 로컬 데이터 사용:', e);
+  }
+  // 3모드 비번 1회 초기화: 관리자/관리자테스트/마스터 모두 '0000'으로 통일 (이후 마스터가 각각 변경 가능)
+  if (!data._pwModeInit) {
+    data.adminPass = btoa('0000'); data.masterPass = btoa('0000'); data.adminTestPass = btoa('0000');
+    data._pwModeInit = true;
+    saveData(data);
   }
   _updateUserHeader();
   if (!currentUser) {
