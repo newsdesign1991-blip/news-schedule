@@ -328,6 +328,13 @@ tr.staff-row-clickable:hover td { background:var(--surface2); cursor:pointer; }
   .excel-table thead th.dow-th, .excel-table tbody td.dow-td { width: 30px; min-width: 30px; font-size: 12px; }
   .mobile-table-tip { display: flex !important; }
 }
+/* 태블릿/터치 기기(또는 ≤1280px): 넓은 근무표를 화면에 욱여넣지 말고 자연폭+가로 스크롤 → 이름/글자 잘림 방지 */
+@media (pointer: coarse), (max-width: 1280px) {
+  .excel-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .excel-table { width: max-content; min-width: max-content; table-layout: auto; }
+  .excel-table thead th.name-th { padding-left: 6px; padding-right: 6px; }
+  .excel-table tbody td { padding-left: 2px; padding-right: 2px; }
+}
 #admin-mode-bar { display:none; position:fixed; top:0; left:0; right:0; z-index:2000; background:#d65a52; color:#fff; font-size:12px; font-weight:700; text-align:center; padding:5px 12px; letter-spacing:0.04em; }
 #admin-mode-bar button { background:rgba(255,255,255,0.2); border:none; color:#fff; font-size:11px; font-weight:600; padding:2px 10px; border-radius:4px; cursor:pointer; margin-left:12px; }
 #admin-mode-bar button:hover { background:rgba(255,255,255,0.35); }
