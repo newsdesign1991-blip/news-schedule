@@ -3948,7 +3948,8 @@ function parseExcelSchedule() {
       const dateStr=`${useYear}-${String(useMon).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
       const entries=[];
       colMap.forEach(({name,colIdx})=>{
-        const val=String(row[colIdx]||'').trim();
+        // 셀 안의 공백·줄바꿈을 제거해 표기 변형 흡수 ('오전 데'→'오전데', '뉴.오 2'→'뉴.오2' 등)
+        const val=String(row[colIdx]||'').replace(/\s+/g,'').trim();
         if(val&&val!=='-'&&val!=='0') entries.push({name,workType:val});
       });
       if(entries.length) schedule.push({date:dateStr,entries});
@@ -4136,9 +4137,12 @@ function _doApplyImageSchedule(skipNames) {
   const skipSet = new Set(skipNames);
   if (!data.draft.schedule) data.draft.schedule = {};
   let applied = 0;
+  if (!data.draft.newLeaves) data.draft.newLeaves = {};
   (_imgParsedData.schedule||[]).forEach(day => {
     const ds = day.date;
-    if (!data.draft.schedule[ds]) data.draft.schedule[ds] = { vw:{workers:[],desk:null}, cg:{workers:[],desk8:null,desk5:null}, danjik:null, jogeunSubs:{}, satMorning:null, ilgeun:null, project:[], sports:[] };
+    // 파싱된 날짜는 기존 내용을 비우고 새로 덮어씀 (재파싱 시 누적 방지)
+    data.draft.schedule[ds] = { vw:{workers:[],desk:null}, cg:{workers:[],desk8:null,desk5:null}, danjik:null, jogeunSubs:{}, satMorning:null, ilgeun:null, project:[], sports:[], xr:[], notes:'' };
+    delete data.draft.newLeaves[ds];
     const entry = data.draft.schedule[ds];
     day.entries.forEach(({name, workType}) => {
       if (skipSet.has(name)) return;
@@ -4204,9 +4208,18 @@ function _doApplyImageSchedule(skipNames) {
       applied++;
     });
   });
+  // 작성소 범위를 파싱된 날짜 범위로 맞춤 (적용 직후 바로 보이게)
+  const _ds = (_imgParsedData.schedule||[]).map(d=>d.date).filter(Boolean).sort();
+  if (_ds.length) {
+    data.draft.rangeStart = _ds[0];
+    data.draft.rangeEnd = _ds[_ds.length-1];
+    wsRangeStart = _ds[0]; wsRangeEnd = _ds[_ds.length-1];
+    const ss=document.getElementById('ws-start'), ee=document.getElementById('ws-end');
+    if(ss) ss.value=_ds[0]; if(ee) ee.value=_ds[_ds.length-1];
+  }
   saveData(data);
   closeImageImport();
-  if (wsRangeStart && wsRangeEnd) renderWorkshopTable(); else renderHome();
+  renderWorkshopTable();
   toast(`${applied}개 항목이 근무표 초안에 적용되었습니다`, 'success');
 }
 
