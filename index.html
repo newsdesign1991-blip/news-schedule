@@ -4151,7 +4151,9 @@ const WORK_TYPE_MAP = {
   '뉴오': 'newsoh', '뉴.오': 'newsoh', '뉴오1': 'newsoh', '뉴.오1': 'newsoh',
   '뉴오2': 'newsoh2', '뉴.오2': 'newsoh2', '뉴오②': 'newsoh2',
   '일근': 'ilgeun',
-  'CG': 'work', 'XR': 'work', 'VW': 'work', 'N': 'work',
+  'XR': 'work', 'N': 'work',
+  // 부서명 라벨 = "그 부서에서 근무". 같은 부서면 정근, 타부서 사람이면 대체로 자동 표시(cg.workers/vw.workers).
+  'CG': 'cg-sub', 'VW': 'vw-sub',
   // 당직 지정 시 자동 계산되는 항목 → 가져오기에서 무시
   '퇴근': 'skip', '당직퇴근': 'skip', '비번': 'skip', '당직비번': 'skip'
 };
