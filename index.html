@@ -2469,7 +2469,8 @@ async function _loadGcal(force){
   all.forEach((e,i)=>{ e._id='g'+i; });   // 클릭 상세보기용 고유 id
   _gcalEvents=all; _gcalLoadedAt=Date.now(); _gcalLoading=false;
   if(force) toast(failed?`구글 일정 ${all.length}건 (${failed}개 캘린더 실패)`:`구글 일정 ${all.length}건 불러옴`, failed?'error':'success');
-  if(currentView==='month') renderMonth();
+  // 비동기 로드 완료 후 현재 보고 있는 화면을 다시 그림 (홈/달력 모두 — 첫 진입 시 일정 안 뜨던 문제)
+  if(currentView==='month') renderMonth(); else if(currentView==='home') renderHome();
 }
 function toggleGcal(){
   if(!_gcalList().some(c=>c.url&&c.url.trim())){ toast(isAdmin?'관리자 패널 → 설정에서 구글 캘린더를 연동하세요.':'관리자가 구글 캘린더를 연동해야 합니다.','error'); return; }
