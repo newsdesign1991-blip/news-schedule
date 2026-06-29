@@ -4170,15 +4170,13 @@ function _doApplyImageSchedule(skipNames) {
         if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id);
         entry.vw.desk = s.id;
       } else if (wt === 'desk-auto') {
-        // 그냥 '데스크' — 주말/휴일은 8데스(CG), 평일은 VW데
-        const _dow = new Date(ds+'T00:00:00').getDay();
-        const _isWE = _dow===0 || _dow===6 || !!(data.holidays && data.holidays[ds]);
-        if (_isWE) {
-          if (!entry.cg.workers.includes(s.id)) entry.cg.workers.push(s.id);
-          entry.cg.desk8 = s.id;
-        } else {
+        // 그냥 '데스크' — 직원 부서로 판별: VW 직원이면 VW데스크, 그 외(CG 등)는 8데스 (토·일 포함)
+        if ((s.dept||'').toUpperCase()==='VW') {
           if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id);
           entry.vw.desk = s.id;
+        } else {
+          if (!entry.cg.workers.includes(s.id)) entry.cg.workers.push(s.id);
+          entry.cg.desk8 = s.id;
         }
       } else if (wt === 'ojende') {
         entry.morningDesk = s.id;
@@ -4194,7 +4192,8 @@ function _doApplyImageSchedule(skipNames) {
       } else if (wt === 'ilgeun') {
         entry.ilgeun = s.id;
       } else if (wt === 'newsoh') {
-        entry.newsOh = s.id;
+        if (!entry.newsOh) entry.newsOh = s.id;
+        else if (entry.newsOh !== s.id && !entry.newsOh2) entry.newsOh2 = s.id;   // 같은 날 두 번째 뉴.오 → 뉴.오2
       } else if (wt === 'newsoh2') {
         entry.newsOh2 = s.id;
       } else if (wt === '8jin') {
