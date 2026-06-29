@@ -35,9 +35,10 @@ Deno.serve(async (req) => {
   const { data: rawSubs, error: subsErr } = await sb.from('push_subs').select('*')
   if (subsErr) return new Response('push_subs read error: ' + subsErr.message, { status: 500 })
   if (!rawSubs?.length) return new Response(JSON.stringify({ sent: 0, reason: 'no subscribers' }), { headers: { 'Content-Type': 'application/json' } })
-  // 같은 기기(endpoint)가 여러 번 구독된 경우 중복 제거 — 알림 2번 가는 것 방지
-  const _seenEp = new Set<string>()
-  const subs = rawSubs.filter((s: any) => { if (_seenEp.has(s.endpoint)) return false; _seenEp.add(s.endpoint); return true; })
+  // 같은 사람(staff_id)이 여러 기기/재구독으로 행을 2개 이상 가져도 1건만 발송 → 알림 2번 가는 문제 방지.
+  // (staff_id가 없는 행은 endpoint로 폴백 dedup) — 모든 모드(cron/test/notice/publish)가 이 subs를 순회하므로 전부 적용됨.
+  const _seenKey = new Set<string>()
+  const subs = rawSubs.filter((s: any) => { const k = s.staff_id || s.endpoint; if (_seenKey.has(k)) return false; _seenKey.add(k); return true; })
 
   let sent = 0, errors = 0
 

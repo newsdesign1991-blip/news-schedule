@@ -385,7 +385,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <div id="notice-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border-radius:16px;padding:24px;width:400px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <div style="font-size:16px;font-weight:700;">📢 오늘의 공지</div>
+      <div id="notice-modal-title" style="font-size:16px;font-weight:700;">📢 공지 작성</div>
       <button onclick="closeNoticeModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">✕</button>
     </div>
     <label class="form-label">공지 내용</label>
@@ -393,11 +393,15 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
     <label class="form-label" style="margin-top:14px;display:block;">오늘의 8뉴스 진입시간 <span style="color:var(--muted);font-weight:400;">(선택)</span></label>
     <input type="time" id="notice-news8" class="form-input" style="width:140px;">
     <p style="font-size:11px;color:var(--muted);margin:6px 0 0;line-height:1.5;">입력하면 그 시각 <b style="color:#d65a52;">15분 전</b>에 오늘 8진 근무자에게 알림이 갑니다. 비우면 기본 알림 시각을 사용합니다.</p>
-    <div style="display:flex;gap:8px;margin-top:20px;">
-      <button class="btn btn-primary" style="flex:1;" onclick="saveNotice()">💾 저장 + 전직원 알림</button>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px;cursor:pointer;font-size:13px;color:var(--text);">
+      <input type="checkbox" id="notice-silent" onchange="_updateNoticeSaveBtn()" style="width:16px;height:16px;cursor:pointer;">
+      🔕 조용히 등록 <span style="color:var(--muted);font-weight:400;">(전 직원 알림을 보내지 않음)</span>
+    </label>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button id="notice-save-btn" class="btn btn-primary" style="flex:1;" onclick="saveNotice()">💾 저장 + 전직원 알림</button>
       <button class="btn btn-outline" style="width:auto;" onclick="closeNoticeModal()">취소</button>
     </div>
-    <button id="notice-delete-btn" class="btn btn-outline" style="width:100%;margin-top:8px;color:#d65a52;border-color:#f8a0a0;display:none;" onclick="deleteNotice()">🗑 오늘 공지 삭제</button>
+    <button id="notice-delete-btn" class="btn btn-outline" style="width:100%;margin-top:8px;color:#d65a52;border-color:#f8a0a0;display:none;" onclick="deleteNotice()">🗑 이 공지 삭제</button>
   </div>
 </div>
 
@@ -583,6 +587,10 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
     <button onclick="monthOffset++;renderMonth()">다음 →</button>
     <button class="btn btn-sm btn-outline" onclick="monthOffset=0;renderMonth()">이번 달</button>
   </div>
+  <div class="cal-mode-toggle" style="display:flex;gap:6px;justify-content:center;margin:0 0 12px;">
+    <button id="cal-mode-mine" class="btn btn-sm" onclick="setCalMode('mine')">📅 나만의 달력</button>
+    <button id="cal-mode-team" class="btn btn-sm btn-outline" onclick="setCalMode('team')">👥 팀 전체</button>
+  </div>
   <div class="calendar-grid" id="month-calendar"></div>
 </div>
 
@@ -605,11 +613,9 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
     <span style="font-size:11px;font-weight:800;color:var(--muted);white-space:nowrap;margin-right:2px;">🛠 근무 생성</span>
     <button style="background:#c79a5e;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="importLeaveToWorkshop()">① 📋 신휴가</button>
     <span style="color:var(--muted);font-size:12px;">→</span>
-    <button style="background:#4a9fbd;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="generateDraftSchedule('desk')">② 🖥 데스크 채우기</button>
+    <button style="background:#4a9fbd;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="generateDraftSchedule('desk')" title="데스크·당직·8진·뉴오·일근·조근 등 고정 역할 전부 (누를 때마다 새로 굴림 — 여기서 당직도 마이크로 수정)">② 🖥 데스크·당직·고정근무 채우기</button>
     <span style="color:var(--muted);font-size:12px;">→</span>
-    <button style="background:#d65a52;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="generateDraftSchedule('danjik')">③ 🌙 당직 채우기</button>
-    <span style="color:var(--muted);font-size:12px;">→</span>
-    <button style="background:#5d6fb0;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="generateDraftSchedule('rest')">④ 👥 나머지 채우기</button>
+    <button style="background:#5d6fb0;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="generateDraftSchedule('rest')" title="일반 근무자·XR·PROJECT·SPORTS 채우기">③ 👥 나머지 채우기</button>
     <span style="color:var(--border);font-weight:700;margin:0 2px;">|</span>
     <button style="background:#b69bd6;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;" onclick="generateDraftSchedule()">⚡ 전체 자동생성</button>
     <button style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;margin-left:auto;" onclick="openImageImport()">📊 엑셀 분석</button>
@@ -1579,6 +1585,9 @@ function _setAdminNav(on) {
 }
 let homeWeekOffset = 0;
 let monthOffset = 0;
+let calMode = 'mine';   // 달력 탭 모드: 'mine'(나만의 달력) | 'team'(팀 전체). 탭 진입 시 기본 mine
+let _noticeExpanded = false;  // 홈 공지 다중카드 펼침 상태
+let _noticeEditId = null;     // 공지 수정 중인 항목 id (없으면 새 공지)
 let tableRangeStart = null; // 'YYYY-MM-DD'
 let tableRangeEnd = null;   // 'YYYY-MM-DD'
 let isAdmin = false;
@@ -1598,7 +1607,7 @@ function showView(v) {
   currentView = v;
   if (v==='home') renderHome();
   else if (v==='table') renderTable();
-  else if (v==='month') renderMonth();
+  else if (v==='month') setCalMode('mine');
   else if (v==='leavereq') renderLeaveReqView();
   else if (v==='workshop') { if(!isAdmin){showView('home');return;} renderWorkshop(); }
 }
@@ -2087,7 +2096,7 @@ function renderTable() {
     const _cgWorkersSet=new Set(entry?.cg?.workers||[]);
     const _leaveSet=new Set((data.newLeaves?.[dateStr])||[]);
     const _specialExclude=new Set([entry?.satMorning,entry?.morningDesk].filter(Boolean));
-    const _excl=id=>_cgExclude.has(id)||jogeunIds.has(id)||_specialExclude.has(id)||_leaveSet.has(id);
+    const _excl=id=>{const _p=staffById(id);return _cgExclude.has(id)||jogeunIds.has(id)||_specialExclude.has(id)||_leaveSet.has(id)||(_p&&!isContractActive(_p,dateStr));};
     const _vwSet=new Set((entry?.vw?.workers||[]).filter(id=>!_excl(id)&&!(_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
     const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _8jinVwAdd=_8jinIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
@@ -2308,12 +2317,52 @@ function renderTable() {
 }
 
 // ===== MONTH CALENDAR =====
+function setCalMode(m){
+  calMode = m;
+  const mine=document.getElementById('cal-mode-mine'), team=document.getElementById('cal-mode-team');
+  if(mine&&team){
+    mine.className = 'btn btn-sm' + (m==='mine'?'':' btn-outline');
+    team.className = 'btn btn-sm' + (m==='team'?'':' btn-outline');
+  }
+  renderMonth();
+}
+// 달력 셀(좁음)용 컴팩트 역할 칩 — 한 사람 하루 근무를 짧은 라벨로. (홈 카드 getRoles와 별도: 라벨 길이 다름)
+function _calRolesShort(entry, sid){
+  if(!entry) return [];
+  if(entry.danjik===sid) return [{label:'당직',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'}];
+  const r=[];
+  const C={vw:['var(--vw-bg)','var(--vw-light)','var(--vw)'], cg:['var(--cg-bg)','var(--cg-light)','var(--cg)'], xr:['var(--xr-bg)','var(--xr-light)','var(--xr)'], pj:['var(--project-bg)','var(--project-light)','var(--project)'], sp:['var(--sports-bg)','var(--sports-light)','var(--sports)'], y:['#fef3c7','#c79a5e','#fcd97d'], g:['#d1fae5','#45847a','#6ee7b7'], p:['#ede9fe','#6366f1','#c4b5fd']};
+  const add=(label,c)=>r.push({label,bg:c[0],color:c[1],border:c[2]});
+  // VW: 데스크 > 근무
+  if(entry.vw?.desk===sid) add('VW데',C.vw);
+  else if((entry.vw?.workers||[]).includes(sid)) add('VW',C.vw);
+  // CG: 8데스 > 5데스 > 오전데 > 근무 (가장 구체적 1개)
+  if(entry.cg?.desk8===sid||entry.cg?.desk===sid) add('8데스',C.cg);
+  else if(entry.cg?.desk5===sid) add('5데스',C.cg);
+  else if(entry.morningDesk===sid) add('오전데',C.y);
+  else if((entry.cg?.workers||[]).includes(sid)) add('CG',C.cg);
+  // 독립 역할
+  if(entry.ilgeun===sid) add('일근',C.g);
+  if(entry.newsOh===sid) add('뉴오',C.p);
+  if(entry.newsOh2===sid) add('뉴오2',C.p);
+  if(entry.weekend8jin===sid||entry.weekday8jin===sid) add('8진',C.p);
+  if(entry.satMorning===sid) add('조근',C.y);
+  if(entry.jogeunSubs&&Object.values(entry.jogeunSubs).includes(sid)) add('조근',C.p);
+  else { const me=staffById(sid); if(me?.dept==='조근'&&!(entry.jogeunSubs&&Object.keys(entry.jogeunSubs).includes(sid))) add('조근',C.p); }
+  if((entry.xr||[]).includes(sid)) add('XR',C.xr);
+  if((entry.project||[]).includes(sid)) add('P.J',C.pj);
+  if((entry.sports||[]).includes(sid)) add('SP',C.sp);
+  return r;
+}
 function renderMonth() {
   const now=new Date();
   const target=new Date(now.getFullYear(),now.getMonth()+monthOffset,1);
   const year=target.getFullYear(); const month=target.getMonth();
   document.getElementById('month-title').textContent=`${year}년 ${month+1}월`;
   const todayStr=toDateStr(now.getFullYear(),now.getMonth()+1,now.getDate());
+  const mine = (calMode==='mine');
+  const sid = currentUser && currentUser.staffId;
+  if (mine && !sid) { document.getElementById('month-calendar').innerHTML='<div style="grid-column:1 / -1;padding:30px 16px;text-align:center;color:#94a3b8;font-size:13px;">로그인하면 나만의 근무 달력을 볼 수 있어요.</div>'; return; }
   let html='';
   ['일','월','화','수','목','금','토'].forEach(d=>{html+=`<div class="cal-head">${d}</div>`;});
   const firstDay=new Date(year,month,1).getDay();
@@ -2329,7 +2378,10 @@ function renderMonth() {
     const entry=data.schedule[dateStr];
     const dowClass=dow===0?'sun':dow===6?'sat':'';
     let pips='';
-    if (entry) {
+    if (mine) {
+      const roles = isOnLeave(sid,dateStr) ? [{label:'휴가',bg:'#fee2e2',color:'#c0524a',border:'#f8a0a0'}] : _calRolesShort(entry, sid);
+      pips = roles.map(r=>`<span class="cal-pip" style="background:${r.bg};color:${r.color};border:1px solid ${r.border||'transparent'};">${r.label}</span>`).join('');
+    } else if (entry) {
       const vwN=(entry.vw?.workers||[]).length,cgN=(entry.cg?.workers||[]).length;
       const prjN=(entry.project||[]).length,sptN=(entry.sports||[]).length;
       if(vwN) pips+=`<span class="cal-pip vw">VW ${vwN}</span>`;
@@ -2516,6 +2568,12 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     const ds=toDateStr(dt.getFullYear(),dt.getMonth()+1,dt.getDate());
     // 기존 초안 전체 스냅샷 (수동 입력 보존)
     _prevSnap[ds] = JSON.parse(JSON.stringify(targetSchedule[ds] || {}));
+    // 데스크 단계('desk')는 누를 때마다 자동배정(데스크·당직·8진·뉴오·일근 등)을 새로 굴린다.
+    // 수동 편집(셀 직접입력·조근 교육/추가·뉴오2·메모)만 보존하고 나머지 자동 필드는 스냅샷에서 제거.
+    if (opts.phase==='desk' && _prevSnap[ds]) {
+      const _pv=_prevSnap[ds];
+      _prevSnap[ds] = { customCells:_pv.customCells, jogeunEdu:_pv.jogeunEdu, jogeunExtra:_pv.jogeunExtra, newsOh2:_pv.newsOh2, notes:_pv.notes };
+    }
     const draftSports = targetSchedule[ds]?.sports||[];
     const publishedSports = isDraftTarget ? (data.schedule[ds]?.sports||[]) : [];
     const savedSports = draftSports.length ? draftSports : publishedSports;
@@ -2719,19 +2777,21 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       // 주말 데스크 담당 예약자는 그 주말 당직 제외 → 주말 데스크 공백 방지
       // (오전데 순위자는 항상 당직 제외 / 데스크 순위자는 평일 당직 가능 — 다른 순위가 데스크 커버)
       const isWeekendDeskPerson=(id)=>isHoliOrWE&&(weekendDeskPlan[wk]?.vw===id||weekendDeskPlan[wk]?.cg===id);
+      // 주말 데스크 가능자(2~5순위)는 주말 당직에서 우선 제외 → 주말 데스크 확보 (부족하면 최후 fallback에서 허용)
+      const isWeekendDeskCand=(p)=>isHoliOrWE&&p.deskPriority>=2&&p.deskPriority<=5;
       const basePool = [...vwPool,...cgPool].filter(p=>
-        p.canDanjik&&!p.morningDeskPriority&&!isWeekendDeskPerson(p.id)&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)
+        p.canDanjik&&p.morningDeskPriority!==1&&!isWeekendDeskPerson(p.id)&&!isWeekendDeskCand(p)&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)
         &&!(dow===6&&satDanjikDone.has(p.id))
         &&(genDanjikCount[p.id]||0) < MAX_DANJIK_MONTH
       );
-      // MAX 초과자 포함 fallback (오전데·주말데스크 예약자 제외 유지)
+      // MAX 초과자 포함 fallback (오전데·주말데스크 가능자 제외 유지)
       let basePoolFull = basePool.length ? basePool : [...vwPool,...cgPool].filter(p=>
-        p.canDanjik&&!p.morningDeskPriority&&!isWeekendDeskPerson(p.id)&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)
+        p.canDanjik&&p.morningDeskPriority!==1&&!isWeekendDeskPerson(p.id)&&!isWeekendDeskCand(p)&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)
         &&!(dow===6&&satDanjikDone.has(p.id))
       );
       // 최후 fallback: 그래도 없으면 예약자도 허용 (당직 공백 방지)
       if(!basePoolFull.length) basePoolFull = [...vwPool,...cgPool].filter(p=>
-        p.canDanjik&&!p.morningDeskPriority&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)
+        p.canDanjik&&p.morningDeskPriority!==1&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)
         &&!(dow===6&&satDanjikDone.has(p.id))
       );
       const withGap = basePoolFull.filter(p=>{
@@ -2739,8 +2799,10 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
         return (curMs - new Date(lastDanjikDate[p.id]+'T00:00:00').getTime()) / 86400000 >= MIN_DANJIK_GAP;
       });
       // gap 조건 + 당월횟수 기준 정렬 (당월 횟수 우선, 전체 누적 횟수 보조)
+      // 공정성(이번 생성 당직수)×1000이 지배적 → 모두 1회 먼저 채움. 같은 레벨에선 데스크 순위자(+500)를
+      // 뒤로 미뤄 비데스크 인원이 당직을 먼저 맡게 함 → 데스크 인원 확보(데스크 최우선). 누적 당직수는 보조.
       const danjikEligible = shuffleSort(withGap.length ? withGap : basePoolFull,
-        p=>(genDanjikCount[p.id]||0)*100+(danjikCount[p.id]||0));
+        p=>(genDanjikCount[p.id]||0)*1000+(p.deskPriority?500:0)+(danjikCount[p.id]||0));
       if (danjikEligible.length) {
         existingDanjik = danjikEligible[0].id;
         danjikCount[existingDanjik] = (danjikCount[existingDanjik]||0) + 1;
@@ -2814,7 +2876,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     let morningDeskAssign = _prevSnap[dateStr]?.morningDesk || null;
     if (!isHoliOrWE && !morningDeskAssign) {
       const mdCand = data.staff
-        .filter(p=>p.morningDeskPriority&&p.active!==false&&!isOnLeave(p.id,dateStr)&&!(data.draft?.newLeaves?.[dateStr]||[]).includes(p.id))
+        .filter(p=>p.morningDeskPriority&&p.active!==false&&!isOnLeave(p.id,dateStr)&&!(data.draft?.newLeaves?.[dateStr]||[]).includes(p.id)&&!blockedIds.includes(p.id))
         .sort((a,b)=>(a.morningDeskPriority||9)-(b.morningDeskPriority||9));
       if (mdCand.length) morningDeskAssign = mdCand[0].id;
     }
@@ -3011,24 +3073,22 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       // 수동 입력 필드 보존
       customCells:_prevSnap[dateStr]?.customCells||undefined,
       jogeunEdu:_prevSnap[dateStr]?.jogeunEdu||[],
+      jogeunExtra:_prevSnap[dateStr]?.jogeunExtra||undefined,
       notes:_prevSnap[dateStr]?.notes||targetSchedule[dateStr]?.notes||''
     };
     const _phase = opts.phase || 'all';
     if (_phase==='desk') {
-      // 데스크(+오전데)만 배정, 그 인원만 근무자로. 나머지 근무는 채우지 않음
-      const pv=_prevSnap[dateStr]||{};
-      const e={
-        vw:{workers:[], desk:_full.vw.desk},
-        cg:{workers:[], desk8:_full.cg.desk8, desk5:_full.cg.desk5},
-        project:[], sports:[], xr:[],
-        danjik:pv.danjik||null, jogeunSubs:pv.jogeunSubs||{}, ilgeun:pv.ilgeun||null,
-        morningDesk:_full.morningDesk, satMorning:pv.satMorning||null,
-        newsOh:pv.newsOh||null, newsOh2:pv.newsOh2||null,
-        weekend8jin:pv.weekend8jin||null, weekday8jin:pv.weekday8jin||null,
-        restWorkers:[], customCells:pv.customCells||undefined, jogeunEdu:pv.jogeunEdu||[], notes:pv.notes||''
-      };
-      if(e.vw.desk) e.vw.workers.push(e.vw.desk);
-      [e.cg.desk8,e.cg.desk5,e.morningDesk].forEach(id=>{ if(id&&!e.cg.workers.includes(id)) e.cg.workers.push(id); });
+      // 고정 역할 전부(데스크·오전데·당직·8진·뉴오·일근·조근) + 그 인원만. 일반 근무자·XR·PROJECT·SPORTS는 '나머지 채우기'에서.
+      const fixed = new Set([
+        _full.vw.desk, _full.cg.desk8, _full.cg.desk5, _full.morningDesk,
+        _full.danjik, _full.ilgeun, _full.newsOh, _full.newsOh2,
+        _full.weekend8jin, _full.weekday8jin, _full.satMorning,
+        ...(_full.jogeunExtra||[]), ...Object.values(_full.jogeunSubs||{})
+      ].filter(Boolean));
+      const e = JSON.parse(JSON.stringify(_full));
+      e.vw.workers = (e.vw.workers||[]).filter(id=>fixed.has(id));
+      e.cg.workers = (e.cg.workers||[]).filter(id=>fixed.has(id));
+      e.xr=[]; e.project=[]; e.sports=[];
       targetSchedule[dateStr]=e;
     } else if (_phase==='danjik') {
       // 당직만 추가, 데스크 등 기존은 보존
@@ -3066,7 +3126,7 @@ function _validateScheduleRange(targetSchedule, genDateStrs, phase) {
       if(!entry.morningDesk) issues.push({date:ds,what:'오전데'});
     }
     // 일요일 일근 누락 점검 (canIlgeun 직원이 있을 때만)
-    if(dow===0&&!isHoliday&&ilgeunHasPool&&!entry.ilgeun&&phase!=='desk'&&phase!=='danjik') issues.push({date:ds,what:'일근'});
+    if(dow===0&&!isHoliday&&ilgeunHasPool&&!entry.ilgeun&&phase!=='danjik') issues.push({date:ds,what:'일근'});
   }
   return issues;
 }
@@ -3245,7 +3305,7 @@ function renderWorkshopTable() {
     const _cgWorkersSet=new Set(entry?.cg?.workers||[]);
     const _leaveSet=new Set(_newLvs?.[dateStr]||[]);
     const _specialExclude=new Set([entry?.satMorning,entry?.morningDesk].filter(Boolean));
-    const _excl=id=>_cgExclude.has(id)||jogeunIds.has(id)||_specialExclude.has(id)||_leaveSet.has(id);
+    const _excl=id=>{const _p=staffById(id);return _cgExclude.has(id)||jogeunIds.has(id)||_specialExclude.has(id)||_leaveSet.has(id)||(_p&&!isContractActive(_p,dateStr));};
     const _vwSet=new Set((entry?.vw?.workers||[]).filter(id=>!_excl(id)&&!(_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
     const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _8jinVwAdd=_8jinIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
@@ -3430,7 +3490,12 @@ function renderWorkshopTable() {
         if(dow===0&&!entry?.ilgeun) missing.push('일근');
       }
       if(missing.length){
-        tbody+=`<td class="check-sticky" style="background:#f7e4e2;color:#c06b66;font-size:10px;font-weight:700;text-align:center;line-height:1.6;padding:2px 3px;">${missing.join('<br>')}</td>`;
+        // 셀 세로 길이 고정: 최대 3줄까지만. 항목이 많으면 앞 2개 + "+N개"로 접고 전체는 title(hover)로 보존
+        const _MAXM=3;
+        const _mhtml = missing.length<=_MAXM
+          ? missing.join('<br>')
+          : missing.slice(0,_MAXM-1).join('<br>')+`<br><span style="color:#b58a86;font-weight:800;">+${missing.length-(_MAXM-1)}개</span>`;
+        tbody+=`<td class="check-sticky" title="${missing.join(', ')}" style="background:#f7e4e2;color:#c06b66;font-size:10px;font-weight:700;text-align:center;line-height:1.6;padding:2px 3px;">${_mhtml}</td>`;
       } else {
         tbody+=`<td style="text-align:center;font-size:11px;color:#4a9fbd;">✓</td>`;
       }
@@ -3442,7 +3507,7 @@ function renderWorkshopTable() {
       const _cgW=entry?.cg?.workers||[];
       const _vwDesk=entry?.vw?.desk;
       const _cgDepts=new Set(['cg','xr','project','sports']);
-      const _addBigo=(id,text)=>{const p=staffById(id);if(p)_bigo.push(`<span style="color:#7c3aed;font-weight:700;">${p.name}</span>:${text}`);};
+      const _addBigo=(id,text)=>{const p=staffById(id);if(p&&isContractActive(p,dateStr))_bigo.push(`<span style="color:#7c3aed;font-weight:700;">${p.name}</span>:${text}`);};
       const _isVwSub=(id)=>{const d=(staffById(id)?.dept||'').toLowerCase();return _vwW.includes(id)&&d!=='vw';};
       const _isCgSub=(id)=>{const d=(staffById(id)?.dept||'').toLowerCase();return _cgW.includes(id)&&d==='vw';};
       // newsOh + 타부서 대체자 중복
@@ -4075,7 +4140,9 @@ function _renderImgResult(parsed) {
 
 const WORK_TYPE_MAP = {
   '정근': 'work', '신휴가': 'leave', '당직': 'danjik',
-  'VW대': 'vw-desk', 'VW데': 'vw-desk', '데스크': 'desk-auto',
+  'VW데': 'vw-desk', '데스크': 'desk-auto',
+  'VW대': 'vw-sub', 'VW대체': 'vw-sub', 'VW대체자': 'vw-sub',
+  'CG대': 'cg-sub', 'CG대체': 'cg-sub', 'CG대체자': 'cg-sub',
   '8데스크': 'desk8', '8데스': 'desk8', '5데스크': 'desk5', '5데스': 'desk5',
   '오전데스크': 'ojende', '오전데': 'ojende', '오데': 'ojende', '오데/반차': 'ojende',
   '조근': 'jogeun', '8진': '8jin',
@@ -4180,6 +4247,13 @@ function _doApplyImageSchedule(skipNames) {
         }
       } else if (wt === 'ojende') {
         entry.morningDesk = s.id;
+        _brushAddWorker(entry, s.id, s.dept || '');   // cg.workers에 넣어야 렌더에서 '오전데'로 표시됨
+      } else if (wt === 'cg-sub') {
+        // CG 대체자(타부서 사람이 CG 자리) → cg.workers에만 추가(데스크 건드리지 않음). 렌더가 자동으로 'CG'/'CG대' 표시
+        if (!entry.cg.workers.includes(s.id)) entry.cg.workers.push(s.id);
+      } else if (wt === 'vw-sub') {
+        // VW 대체자(타부서 사람이 VW 자리) → vw.workers에만 추가(메인데스크로 만들지 않음)
+        if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id);
       } else if (wt === 'jogeun') {
         // 토요일 조근(직원)→satMorning, 평일 조근 대체(비조근 부서/프리랜서)→jogeunExtra, 평일 조근부서원은 기본 자동
         const _dow = new Date(ds+'T00:00:00').getDay();
@@ -4564,7 +4638,7 @@ function renderLeaveReqView() {
     const DEPT_BG={XR:'#f0fdfa','조근':'#eef1f9'};
     const cols=[];
     DEPT_ORDER.forEach(dept=>{
-      const members=data.staff.filter(s=>s.dept===dept&&s.active!==false)
+      const members=data.staff.filter(s=>s.dept===dept&&s.active!==false&&_freelancerActiveInRange(s,dates))
         .sort((a,b)=>(a.employmentType==='freelancer'?1:0)-(b.employmentType==='freelancer'?1:0));
       members.forEach(s=>cols.push({...s,_dept:dept}));
     });
@@ -5502,8 +5576,8 @@ async function enablePush() {
     let sub = await reg.pushManager.getSubscription();
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:_urlB64ToUint8(VAPID_PUBLIC) });
     const j = sub.toJSON();
-    // 같은 endpoint 기존 행 제거 후 새로 삽입 (unique 제약 없이도 중복 방지)
-    await fetch(`${SB_URL}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(j.endpoint)}`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});
+    // 같은 사람(staff_id)의 기존 구독을 전부 제거 후 새로 삽입 → 옛 endpoint 잔존으로 인한 중복 알림 방지
+    await fetch(`${SB_URL}/rest/v1/push_subs?staff_id=eq.${encodeURIComponent(currentUser.staffId)}`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});
     const res = await fetch(`${SB_URL}/rest/v1/push_subs`, {
       method:'POST',
       headers:{...SB_HEADERS, 'Prefer':'return=minimal'},
@@ -5951,50 +6025,92 @@ function _updateUserHeader() {
 
 // ===== 오늘의 공지 =====
 function _todayStr() { const n=new Date(); return toDateStr(n.getFullYear(),n.getMonth()+1,n.getDate()); }
+function _genNoticeId(){ return 'n'+Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4); }
+// 공지 컨테이너 정규화: { news8Time, items:[{id,text,postedBy,postedAt,silent}] }. 구형 단일객체도 흡수(읽기 전용).
+function _getNoticeBox(ds){
+  const raw = (data.notices||{})[ds];
+  if (!raw) return { news8Time:'', items:[] };
+  if (Array.isArray(raw.items)) return raw;
+  return { news8Time: raw.news8Time||'', items: raw.text ? [{ id:_genNoticeId(), text:raw.text, postedBy:raw.postedBy||'', postedAt:raw.postedAt||'', silent:false }] : [] };
+}
+// 쓰기용: 정규화한 컨테이너를 data.notices[ds]에 보장하고 반환
+function _ensureNoticeBox(ds){
+  if(!data.notices) data.notices={};
+  const cur = data.notices[ds];
+  if (cur && Array.isArray(cur.items)) return cur;
+  const box = _getNoticeBox(ds);
+  data.notices[ds] = box;
+  return box;
+}
+function toggleNoticeExpand(){ _noticeExpanded = !_noticeExpanded; renderNoticeBar(); }
+function _updateNoticeSaveBtn(){
+  const b=document.getElementById('notice-save-btn'), s=document.getElementById('notice-silent');
+  if(b&&s) b.textContent = s.checked ? '💾 조용히 저장' : '💾 저장 + 전직원 알림';
+}
 function renderNoticeBar() {
   const wrap = document.getElementById('home-notice');
   if (!wrap) return;
   const ds = _todayStr();
-  // 한 달(30일)이 지난 공지는 자동 삭제
+  // 한 달(30일)이 지난 공지는 자동 삭제 (날짜 키 단위)
   if (data.notices) {
     const cutoff = addDays(ds, -30);
     let pruned = false;
     Object.keys(data.notices).forEach(d => { if (d < cutoff) { delete data.notices[d]; pruned = true; } });
     if (pruned) saveData(data);
   }
-  const n = (data.notices||{})[ds];
-  const has = n && (n.text || n.news8Time);
+  const box = _getNoticeBox(ds);
+  const items = box.items || [];
+  const news8 = box.news8Time || '';
+  const has = items.length>0 || news8;
   const canWrite = !!(currentUser && currentUser.staffId);   // 로그인한 직원 누구나 작성 가능
-  const writeBtn = canWrite
-    ? `<button onclick="openNoticeModal()" style="background:#fff;border:1px solid #fcd97d;color:#b8860b;padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;">${has?'✏ 공지 수정':'📢 공지 작성'}</button>`
-    : '';
-  const histBtn = canWrite
-    ? `<button onclick="openNoticeHistory()" style="background:#fff;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;">📜 지난 공지</button>`
-    : '';
-  if (has) {
-    const by = n.postedBy ? `<span style="font-size:11px;color:#b8860b;font-weight:600;opacity:0.75;margin-left:6px;">— ${n.postedBy}</span>` : '';
-    const news8 = n.news8Time ? `<div style="margin-top:8px;"><span style="font-size:12px;font-weight:700;color:#d65a52;background:#fff;border:1px solid #f4bab6;border-radius:6px;padding:3px 9px;">📺 오늘 8뉴스 진입 ${n.news8Time}</span></div>` : '';
-    const txt = (n.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
-    wrap.innerHTML = `<div style="background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);border:1px solid #fcd97d;border-radius:12px;padding:14px 16px;">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-        <div style="font-size:13px;font-weight:800;color:#b8860b;">📢 오늘의 공지${by}</div>
-        <div style="display:flex;gap:6px;flex-shrink:0;">${histBtn}${writeBtn}</div>
-      </div>
-      ${txt?`<div style="font-size:13px;color:var(--text);margin-top:8px;line-height:1.6;">${txt}</div>`:''}
-      ${news8}
-    </div>`;
-  } else if (canWrite) {
-    wrap.innerHTML = `<div style="display:flex;justify-content:flex-end;gap:6px;">${histBtn}${writeBtn}</div>`;
-  } else {
-    wrap.innerHTML = '';
+  const writeBtn = canWrite ? `<button onclick="openNoticeModal()" style="background:#fff;border:1px solid #fcd97d;color:#b8860b;padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;">📢 공지 작성</button>` : '';
+  const histBtn = canWrite ? `<button onclick="openNoticeHistory()" style="background:#fff;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;">📜 지난 공지</button>` : '';
+  if (!has) {
+    wrap.innerHTML = canWrite ? `<div style="display:flex;justify-content:flex-end;gap:6px;">${histBtn}${writeBtn}</div>` : '';
+    return;
   }
+  const news8Html = news8 ? `<div style="margin-top:10px;"><span style="font-size:12px;font-weight:700;color:#d65a52;background:#fff;border:1px solid #f4bab6;border-radius:6px;padding:3px 9px;">📺 오늘 8뉴스 진입 ${news8}</span></div>` : '';
+  const header = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:800;color:#b8860b;">📢 오늘의 공지${items.length>1?` <span style="opacity:0.7;">· ${items.length}건</span>`:''}</div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">${histBtn}${writeBtn}</div>
+    </div>`;
+  const card = (it) => {
+    const by = it.postedBy ? `<span style="font-size:11px;color:#b8860b;font-weight:600;opacity:0.7;margin-left:6px;">— ${it.postedBy}</span>` : '';
+    const txt = (it.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+    const bell = it.silent ? `<span title="조용한 공지(알림 미발송)" style="font-size:11px;opacity:0.7;margin-left:4px;">🔕</span>` : '';
+    const edit = canWrite ? `<button onclick="event.stopPropagation();openNoticeModal('${it.id}')" style="background:transparent;border:none;color:#b8860b;cursor:pointer;font-size:13px;padding:0 2px;flex-shrink:0;" title="수정">✏</button>` : '';
+    return `<div class="notice-card" style="background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);border:1px solid #fcd97d;border-radius:12px;padding:11px 13px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+          <div style="font-size:13px;color:var(--text);line-height:1.6;flex:1;min-width:0;">${txt}${bell}${by}</div>${edit}
+        </div></div>`;
+  };
+  let body;
+  if (items.length <= 1) {
+    body = items.map(card).join('');
+  } else if (_noticeExpanded) {
+    body = `<div style="display:flex;flex-direction:column;gap:8px;">${items.map(card).join('')}</div>
+      <div style="text-align:center;margin-top:8px;"><button onclick="toggleNoticeExpand()" style="background:transparent;border:none;color:#b8860b;font-size:12px;font-weight:700;cursor:pointer;">▲ 접기</button></div>`;
+  } else {
+    body = `<div onclick="toggleNoticeExpand()" style="position:relative;margin-bottom:20px;cursor:pointer;">
+        <div style="position:relative;z-index:3;">${card(items[0])}</div>
+        <div style="position:absolute;left:6px;right:6px;bottom:-6px;height:18px;background:#fdeec1;border:1px solid #fcd97d;border-radius:0 0 12px 12px;z-index:2;"></div>
+        <div style="position:absolute;left:12px;right:12px;bottom:-12px;height:18px;background:#fbe6a3;border:1px solid #fcd97d;border-radius:0 0 12px 12px;z-index:1;"></div>
+      </div>
+      <div style="text-align:center;"><button onclick="toggleNoticeExpand()" style="background:#fff;border:1px solid #fcd97d;color:#b8860b;font-size:11px;font-weight:700;cursor:pointer;padding:3px 12px;border-radius:20px;">▾ 공지 ${items.length}건 모두 보기</button></div>`;
+  }
+  wrap.innerHTML = `<div style="background:#fffdf5;border:1px solid #fcd97d;border-radius:14px;padding:14px 16px;">${header}${body}${news8Html}</div>`;
 }
-function openNoticeModal() {
+function openNoticeModal(editId) {
   if (!currentUser || !currentUser.staffId) { toast('이름으로 로그인 후 작성할 수 있습니다.','error'); return; }
-  const n = (data.notices||{})[_todayStr()] || {};
-  document.getElementById('notice-text').value = n.text || '';
-  document.getElementById('notice-news8').value = n.news8Time || '';
-  document.getElementById('notice-delete-btn').style.display = (n.text||n.news8Time) ? '' : 'none';
+  const box = _getNoticeBox(_todayStr());
+  _noticeEditId = (typeof editId==='string') ? editId : null;
+  const it = _noticeEditId ? (box.items||[]).find(i=>i.id===_noticeEditId) : null;
+  document.getElementById('notice-modal-title').textContent = it ? '✏ 공지 수정' : '📢 공지 작성';
+  document.getElementById('notice-text').value = it ? (it.text||'') : '';
+  document.getElementById('notice-news8').value = box.news8Time || '';
+  const silentEl = document.getElementById('notice-silent'); if (silentEl) silentEl.checked = it ? !!it.silent : false;
+  _updateNoticeSaveBtn();
+  document.getElementById('notice-delete-btn').style.display = it ? '' : 'none';
   document.getElementById('notice-modal').style.display = 'flex';
 }
 function closeNoticeModal() {
@@ -6005,32 +6121,52 @@ async function saveNotice() {
   const ds = _todayStr();
   const text = document.getElementById('notice-text').value.trim();
   const news8 = document.getElementById('notice-news8').value || '';
+  const silent = !!(document.getElementById('notice-silent')||{}).checked;
   if (!text && !news8) { toast('공지 내용 또는 8뉴스 진입시간을 입력하세요.','error'); return; }
-  if (!data.notices) data.notices = {};
-  data.notices[ds] = { text, news8Time:news8, postedBy:currentUser.name||'', postedAt:new Date().toISOString() };
+  const box = _ensureNoticeBox(ds);
+  box.news8Time = news8;   // 8뉴스 진입시간은 날짜당 1개(공지와 분리)
+  let isEdit = false;
+  if (_noticeEditId) {
+    const it = (box.items||[]).find(i=>i.id===_noticeEditId);
+    if (it) { it.text = text; it.silent = silent; isEdit = true; }
+  }
+  if (!isEdit && text) {
+    box.items.unshift({ id:_genNoticeId(), text, postedBy:currentUser.name||'', postedAt:new Date().toISOString(), silent });  // 새 공지는 맨 앞(최신)
+  }
   saveData(data);
   closeNoticeModal();
   renderNoticeBar();
-  toast('공지가 등록되었습니다. 전 직원에게 알림을 보냅니다.','success');
-  _sendNoticePush(text || ('오늘 8뉴스 진입시간 ' + news8 + ' 입니다.'));
+  const doPush = !silent && !isEdit && (text || news8);   // 수정/조용한 공지는 알림 미발송
+  if (doPush) {
+    toast('공지가 등록되었습니다. 전 직원에게 알림을 보냅니다.','success');
+    _sendNoticePush(text || ('오늘 8뉴스 진입시간 ' + news8 + ' 입니다.'));
+  } else {
+    toast(isEdit ? '공지를 수정했습니다.' : (silent ? '조용히 등록되었습니다 (알림 미발송).' : '저장되었습니다.'),'success');
+  }
+  _noticeEditId = null;
 }
 function openNoticeHistory() {
   const list = document.getElementById('notice-history-list');
   const today = _todayStr();
-  const entries = Object.entries(data.notices||{})
-    .filter(([d,n]) => n && (n.text || n.news8Time))
-    .sort((a,b) => b[0].localeCompare(a[0]));   // 최신순
-  if (!entries.length) {
+  const rows = [];
+  Object.keys(data.notices||{}).sort((a,b) => b.localeCompare(a)).forEach(d => {   // 최신 날짜순
+    const box = _getNoticeBox(d);
+    const its = box.items || [];
+    its.forEach((it,idx) => rows.push({ d, it, news8: idx===0?box.news8Time:'' }));   // 8뉴스 배지는 날짜 첫 항목에만
+    if (!its.length && box.news8Time) rows.push({ d, it:null, news8:box.news8Time });
+  });
+  if (!rows.length) {
     list.innerHTML = `<div style="text-align:center;color:var(--muted);font-size:13px;padding:30px 0;">등록된 공지가 없습니다.</div>`;
   } else {
-    list.innerHTML = entries.map(([d,n]) => {
+    list.innerHTML = rows.map(({d,it,news8}) => {
       const [y,mo,dd] = d.split('-').map(Number);
       const isToday = d===today;
-      const by = n.postedBy ? ` · ${n.postedBy}` : '';
-      const news8 = n.news8Time ? `<span style="font-size:11px;font-weight:700;color:#d65a52;background:#fff5f0;border:1px solid #f4bab6;border-radius:5px;padding:1px 6px;margin-left:6px;">📺 8뉴스 ${n.news8Time}</span>` : '';
-      const txt = (n.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+      const by = it && it.postedBy ? ` · ${it.postedBy}` : '';
+      const bell = it && it.silent ? ` <span style="font-size:10px;opacity:0.7;">🔕</span>` : '';
+      const n8 = news8 ? `<span style="font-size:11px;font-weight:700;color:#d65a52;background:#fff5f0;border:1px solid #f4bab6;border-radius:5px;padding:1px 6px;margin-left:6px;">📺 8뉴스 ${news8}</span>` : '';
+      const txt = it ? (it.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>') : '';
       return `<div style="border:1px solid var(--border);border-radius:10px;padding:11px 13px;${isToday?'background:#fffbeb;border-color:#fcd97d;':'background:var(--surface2);'}">
-        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:${txt?'5px':'0'};">${mo}월 ${dd}일${isToday?' (오늘)':''}${by}${news8}</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:${txt?'5px':'0'};">${mo}월 ${dd}일${isToday?' (오늘)':''}${by}${bell}${n8}</div>
         ${txt?`<div style="font-size:13px;color:var(--text);line-height:1.55;">${txt}</div>`:''}
       </div>`;
     }).join('');
@@ -6043,11 +6179,14 @@ function closeNoticeHistory() {
 function deleteNotice() {
   if (!currentUser || !currentUser.staffId) return;
   const ds = _todayStr();
-  if (data.notices && data.notices[ds]) delete data.notices[ds];
+  const box = _ensureNoticeBox(ds);
+  if (_noticeEditId) box.items = (box.items||[]).filter(i=>i.id!==_noticeEditId);   // 개별 공지만 삭제
+  if ((!box.items || !box.items.length) && !box.news8Time) delete data.notices[ds];  // 공지 0건 + 8뉴스 없으면 정리
   saveData(data);
   closeNoticeModal();
   renderNoticeBar();
   toast('공지를 삭제했습니다.','success');
+  _noticeEditId = null;
 }
 async function _sendNoticePush(text, title) {
   try {
@@ -6100,7 +6239,7 @@ function renderMySchedule() {
       const subbed = entry.jogeunSubs && Object.keys(entry.jogeunSubs).includes(sid);
       if (!subbed) roles.push({label:'조근',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
     }
-    if ((entry.project||[]).includes(sid)) roles.push({label:'PROJECT',bg:'var(--project-bg)',color:'var(--project-light)',border:'var(--project)'});
+    if ((entry.project||[]).includes(sid)) roles.push({label:'P.J',bg:'var(--project-bg)',color:'var(--project-light)',border:'var(--project)'});
     if ((entry.sports||[]).includes(sid)) roles.push({label:'SPORTS',bg:'var(--sports-bg)',color:'var(--sports-light)',border:'var(--sports)'});
     return roles;
   }
