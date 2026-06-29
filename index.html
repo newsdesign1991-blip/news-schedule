@@ -407,6 +407,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   </div>
 </div>
 
+
 <!-- 작성소 초기화 선택 모달 -->
 <div id="reset-draft-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border-radius:16px;padding:24px;width:360px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
@@ -592,6 +593,8 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   <div class="cal-mode-toggle" style="display:flex;gap:6px;justify-content:center;margin:0 0 12px;">
     <button id="cal-mode-mine" class="btn btn-sm" onclick="setCalMode('mine')">📅 나만의 달력</button>
     <button id="cal-mode-team" class="btn btn-sm btn-outline" onclick="setCalMode('team')">👥 팀 전체</button>
+    <span style="width:1px;background:var(--border);margin:2px 2px;"></span>
+    <button id="cal-gcal-toggle" class="btn btn-sm btn-outline" onclick="toggleGcal()" title="구글 캘린더 일정 표시/숨김">📆 구글</button>
   </div>
   <div class="calendar-grid" id="month-calendar"></div>
 </div>
@@ -964,6 +967,15 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
         </div>
         <button class="btn btn-primary" style="width:auto;" onclick="changePassword()">변경</button>
         <div class="error-msg" id="pw-error"></div>
+      </div>
+      <div class="gen-box" style="margin-top:14px;">
+        <h3>📆 구글 캘린더 연동</h3>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">구글 캘린더 설정 → "캘린더 통합" → <b>iCal 형식의 공개 주소</b>(.ics)를 붙여넣으세요. 캘린더별로 색을 지정하면 달력 탭에 그 색으로 표시됩니다. <b style="color:#d65a52;">캘린더가 '공개' 상태여야</b> 팀원에게도 보입니다.</p>
+        <div id="gcal-list"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+          <button class="btn btn-sm btn-outline" onclick="addGcalRow()">+ 캘린더 추가</button>
+          <button class="btn btn-primary" style="width:auto;" onclick="saveGcals()">💾 저장</button>
+        </div>
       </div>
     </div>
 
@@ -1681,8 +1693,11 @@ function renderHome() {
   const _h8=[entry?.weekend8jin,entry?.weekday8jin].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
   const _h8vw=_h8.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
   const _h8cg=_h8.filter(id=>{if(_hVwS.has(id)||_hCgW.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).length;
-  const vwCnt=_hVwS.size+(_hIlVw&&!_hCgW.has(entry?.ilgeun)&&_hIlOk?1:0)+_h8vw;
-  const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_hEx(id)&&!_hVwS.has(id)).length+(entry?.xr||[]).filter(id=>!_hEx(id)).length+(!_hIlVw&&_hIlOk&&!_hVwS.has(entry?.ilgeun)?1:0)+_h8cg;
+  const _hNo=[entry?.newsOh,entry?.newsOh2].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
+  const _hNoVw=_hNo.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
+  const _hNoCg=_hNo.filter(id=>{if(_hVwS.has(id)||_hCgW.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).length;
+  const vwCnt=_hVwS.size+(_hIlVw&&!_hCgW.has(entry?.ilgeun)&&_hIlOk?1:0)+_h8vw+_hNoVw;
+  const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_hEx(id)&&!_hVwS.has(id)).length+(entry?.xr||[]).filter(id=>!_hEx(id)).length+(!_hIlVw&&_hIlOk&&!_hVwS.has(entry?.ilgeun)?1:0)+_h8cg+_hNoCg;
   const prjCnt = (entry?.project||[]).length;
   const sptCnt = (entry?.sports||[]).length;
   // 오늘 요일/공휴일에 맞는 목표 인원 (작성소 설정 반영)
@@ -1794,10 +1809,13 @@ function renderHome() {
       const _w8Ids=[e2.weekend8jin,e2.weekday8jin].filter(id=>id&&!_wSpExcl.has(id)&&!_wLv.has(id));
       const _w8VwAdd=_w8Ids.filter(id=>!_wVwSet.has(id)&&!_wCgWorkers.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
       const _w8CgAdd=_w8Ids.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(staffById(id)?.dept||'').toLowerCase();return dd==='cg'||dd==='xr';}).length;
+      const _wNoIds=[e2.newsOh,e2.newsOh2].filter(id=>id&&!_wSpExcl.has(id)&&!_wLv.has(id));
+      const _wNoVwAdd=_wNoIds.filter(id=>!_wVwSet.has(id)&&!_wCgWorkers.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
+      const _wNoCgAdd=_wNoIds.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(staffById(id)?.dept||'').toLowerCase();return dd==='cg'||dd==='xr';}).length;
       const _wIlVw=(e2.ilgeun?staffById(e2.ilgeun)?.dept?.toUpperCase():'')==='VW';
       const _wIlOk=e2.ilgeun&&!_wLv.has(e2.ilgeun)&&!_wSpExcl.has(e2.ilgeun);
-      wVw=_wVwSet.size+(_wIlVw&&!_wCgWorkers.has(e2.ilgeun)&&_wIlOk?1:0)+_w8VwAdd;
-      wCg=(e2.cg?.workers||[]).filter(id=>!_wExcl(id)&&!_wVwSet.has(id)).length+(e2.xr||[]).filter(id=>!_wExcl(id)).length+(!_wIlVw&&_wIlOk&&!_wVwSet.has(e2.ilgeun)?1:0)+_w8CgAdd;
+      wVw=_wVwSet.size+(_wIlVw&&!_wCgWorkers.has(e2.ilgeun)&&_wIlOk?1:0)+_w8VwAdd+_wNoVwAdd;
+      wCg=(e2.cg?.workers||[]).filter(id=>!_wExcl(id)&&!_wVwSet.has(id)).length+(e2.xr||[]).filter(id=>!_wExcl(id)).length+(!_wIlVw&&_wIlOk&&!_wVwSet.has(e2.ilgeun)?1:0)+_w8CgAdd+_wNoCgAdd;
     }
     wsHtml+=`<tr style="${style}"><td style="padding:5px 8px;border-bottom:1px solid var(--border);font-weight:${isToday2?700:400};color:${dow===0?'#a8657f':dow===6?'#6366f1':'var(--text)'};">${d.getMonth()+1}/${d.getDate()} ${DOW_KR[dow]}</td>
       <td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border);color:var(--vw-light);">${wVw}</td>
@@ -2103,9 +2121,13 @@ function renderTable() {
     const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _8jinVwAdd=_8jinIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
     const _8jinCgAdd=_8jinIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).length;
+    // 뉴.오/뉴.오2도 부서별로 일일 총계에 포함 (CG부서→CG총계, VW부서→VW총계). 이미 workers에 있으면 중복 제외
+    const _newsOhIds=[entry?.newsOh,entry?.newsOh2].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
+    const _newsOhVwAdd=_newsOhIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
+    const _newsOhCgAdd=_newsOhIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).length;
     const _ilgeunOk=entry?.ilgeun&&!_leaveSet.has(entry.ilgeun)&&!_specialExclude.has(entry?.ilgeun);
-    const vwCnt=_vwSet.size+(_ilgeunIsVW&&!_cgWorkersSet.has(entry?.ilgeun)&&_ilgeunOk?1:0)+_8jinVwAdd;
-    const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_excl(id)&&!_vwSet.has(id)).length+(entry?.xr||[]).filter(id=>!_excl(id)).length+(!_ilgeunIsVW&&_ilgeunOk&&!_vwSet.has(entry.ilgeun)?1:0)+_8jinCgAdd;
+    const vwCnt=_vwSet.size+(_ilgeunIsVW&&!_cgWorkersSet.has(entry?.ilgeun)&&_ilgeunOk?1:0)+_8jinVwAdd+_newsOhVwAdd;
+    const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_excl(id)&&!_vwSet.has(id)).length+(entry?.xr||[]).filter(id=>!_excl(id)).length+(!_ilgeunIsVW&&_ilgeunOk&&!_vwSet.has(entry.ilgeun)?1:0)+_8jinCgAdd+_newsOhCgAdd;
     const dailyCnt=vwCnt+cgCnt;
     if(isToday) window._todayCounts={vw:vwCnt,cg:cgCnt};
 
@@ -2319,6 +2341,137 @@ function renderTable() {
 }
 
 // ===== MONTH CALENDAR =====
+// ===== 구글 캘린더 연동 (공개 .ics → Edge Function 프록시 → 클라이언트 파싱 → 달력 셀 오버레이) =====
+const GCAL_FN_URL = `${SB_URL}/functions/v1/gcal`;
+let _gcalEvents = null;   // [{title, start:{date,time,allDay}, rrule}]
+let _gcalLoadedAt = 0;    // 마지막 로드(ms)
+let _gcalLoading = false;
+let gcalShow = true;      // 구글 일정 표시 토글
+function _icsUnfold(t){ return (t||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n[ \t]/g,''); }
+function _icsDecode(v){ return (v||'').replace(/\\n/gi,'\n').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\'); }
+function _icsParseDate(line){
+  const ci=line.indexOf(':'); if(ci<0) return null;
+  const params=line.slice(0,ci), val=line.slice(ci+1).trim();
+  const m=val.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?/); if(!m) return null;
+  const [,Y,Mo,D,h,mi,s,z]=m;
+  const dateOnly = /VALUE=DATE(?!-)/i.test(params) || h===undefined;
+  if(dateOnly) return { date:`${Y}-${Mo}-${D}`, time:'', allDay:true };
+  if(z){ // UTC → KST(+9)
+    const dt=new Date(Date.UTC(+Y,+Mo-1,+D,+h,+mi,+(s||0))); dt.setUTCHours(dt.getUTCHours()+9);
+    const p=n=>String(n).padStart(2,'0');
+    return { date:`${dt.getUTCFullYear()}-${p(dt.getUTCMonth()+1)}-${p(dt.getUTCDate())}`, time:`${p(dt.getUTCHours())}:${p(dt.getUTCMinutes())}`, allDay:false };
+  }
+  return { date:`${Y}-${Mo}-${D}`, time:`${h}:${mi}`, allDay:false };   // TZID/floating → 그대로(현지/KST 가정)
+}
+function _parseICS(text){
+  text=_icsUnfold(text); const events=[];
+  const blocks=text.split('BEGIN:VEVENT').slice(1);
+  for(const b of blocks){
+    const block=b.split('END:VEVENT')[0]; const lines=block.split('\n');
+    let title='', start=null, rrule=null;
+    for(const ln of lines){
+      if(/^SUMMARY[:;]/i.test(ln)) title=_icsDecode(ln.slice(ln.indexOf(':')+1)).trim();
+      else if(/^DTSTART/i.test(ln)) start=_icsParseDate(ln);
+      else if(/^RRULE[:;]/i.test(ln)) rrule=ln.slice(ln.indexOf(':')+1).trim();
+    }
+    if(start) events.push({ title:title||'(제목 없음)', start, rrule });
+  }
+  return events;
+}
+// 반복일정 전개 → 범위 내 발생일 ['YYYY-MM-DD',...]
+function _icsOccurrences(ev, rsStr, reStr){
+  const sd=ev.start.date;
+  if(!ev.rrule) return (sd>=rsStr && sd<=reStr) ? [sd] : [];
+  const R={}; ev.rrule.split(';').forEach(p=>{const i=p.indexOf('='); if(i>0) R[p.slice(0,i).toUpperCase()]=p.slice(i+1);});
+  const freq=(R.FREQ||'').toUpperCase(), interval=Math.max(1,parseInt(R.INTERVAL||'1',10));
+  const count=R.COUNT?parseInt(R.COUNT,10):Infinity;
+  let until=null; if(R.UNTIL){const m=R.UNTIL.match(/^(\d{4})(\d{2})(\d{2})/); if(m) until=`${m[1]}-${m[2]}-${m[3]}`;}
+  const byday=(R.BYDAY||'').split(',').map(x=>x.trim().slice(-2).toUpperCase()).filter(Boolean);
+  const DOW={SU:0,MO:1,TU:2,WE:3,TH:4,FR:5,SA:6};
+  const p=n=>String(n).padStart(2,'0'); const fmt=dt=>`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`;
+  const out=[]; let emitted=0, iter=0; const CAP=4000; let cur=new Date(sd+'T00:00:00');
+  while(iter++<CAP && emitted<count){
+    const curStr=fmt(cur);
+    if(until&&curStr>until) break;
+    if(curStr>reStr) break;
+    if(freq==='WEEKLY'&&byday.length){
+      const ws=new Date(cur); ws.setDate(cur.getDate()-cur.getDay()); let brk=false;
+      for(const d of byday){ if(!(d in DOW))continue; const dt=new Date(ws); dt.setDate(ws.getDate()+DOW[d]); const ds=fmt(dt);
+        if(ds<sd) continue; if(until&&ds>until){brk=true;break;} if(emitted>=count){brk=true;break;}
+        emitted++; if(ds>=rsStr&&ds<=reStr) out.push(ds); }
+      if(brk) break; cur.setDate(cur.getDate()+7*interval);
+    } else {
+      emitted++; if(curStr>=rsStr&&curStr<=reStr) out.push(curStr);
+      if(freq==='DAILY') cur.setDate(cur.getDate()+interval);
+      else if(freq==='WEEKLY') cur.setDate(cur.getDate()+7*interval);
+      else if(freq==='MONTHLY') cur.setMonth(cur.getMonth()+interval);
+      else if(freq==='YEARLY') cur.setFullYear(cur.getFullYear()+interval);
+      else break;
+    }
+  }
+  return [...new Set(out)];
+}
+const GCAL_PALETTE=['#4285f4','#0b8043','#d50000','#f4511e','#8e24aa','#e4c441','#3f51b5','#039be5'];
+function _migrateGcals(){
+  if(!data.settings) data.settings={};
+  if(!Array.isArray(data.settings.gcals)){
+    data.settings.gcals = data.settings.gcalUrl ? [{id:_genNoticeId(), url:data.settings.gcalUrl, color:'#4285f4', name:'구글'}] : [];
+  }
+}
+function _gcalList(){ _migrateGcals(); return data.settings.gcals; }
+async function _loadGcal(force){
+  const cals=_gcalList().filter(c=>c.url && c.url.trim());
+  if(!cals.length){ _gcalEvents=null; return; }
+  if(!force && _gcalEvents && (Date.now()-_gcalLoadedAt < 30*60*1000)) return;   // 30분 캐시
+  if(_gcalLoading) return; _gcalLoading=true;
+  const all=[]; let failed=0;
+  for(const c of cals){
+    try{
+      const res=await fetch(GCAL_FN_URL,{ method:'POST', headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}, body:JSON.stringify({url:c.url.trim()}) });
+      const txt=await res.text();
+      if(!res.ok){ failed++; console.warn('gcal load failed', c.url, txt); continue; }
+      const evs=_parseICS(txt); const col=c.color||'#4285f4'; evs.forEach(e=>{ e._color=col; e._calName=c.name||''; }); all.push(...evs);
+    }catch(e){ failed++; console.warn('gcal', e); }
+  }
+  _gcalEvents=all; _gcalLoadedAt=Date.now(); _gcalLoading=false;
+  if(force) toast(failed?`구글 일정 ${all.length}건 (${failed}개 캘린더 실패)`:`구글 일정 ${all.length}건 불러옴`, failed?'error':'success');
+  if(currentView==='month') renderMonth();
+}
+function toggleGcal(){
+  if(!_gcalList().some(c=>c.url&&c.url.trim())){ toast(isAdmin?'관리자 패널 → 설정에서 구글 캘린더를 연동하세요.':'관리자가 구글 캘린더를 연동해야 합니다.','error'); return; }
+  gcalShow=!gcalShow; renderMonth();
+}
+// ── 구글 캘린더 관리 (관리자 패널 설정 탭에 인라인) ──
+let _gcalEdit=[];
+function _initGcalSettings(){
+  _gcalEdit = _gcalList().map(c=>({id:c.id||_genNoticeId(), url:c.url||'', color:c.color||'#4285f4', name:c.name||''}));
+  if(!_gcalEdit.length) _gcalEdit.push({id:_genNoticeId(), url:'', color:'#4285f4', name:''});
+  _renderGcalList();
+}
+function _renderGcalList(){
+  const box=document.getElementById('gcal-list'); if(!box) return;
+  box.innerHTML=_gcalEdit.length? _gcalEdit.map((c,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <input type="color" value="${c.color}" onchange="_gcalEdit[${i}].color=this.value" style="width:34px;height:34px;border:none;background:none;cursor:pointer;flex-shrink:0;padding:0;" title="색상">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
+        <input type="text" value="${(c.name||'').replace(/"/g,'&quot;')}" oninput="_gcalEdit[${i}].name=this.value" placeholder="이름(선택, 예: 부서일정)" class="form-input" style="font-size:12px;padding:5px 8px;">
+        <input type="text" value="${(c.url||'').replace(/"/g,'&quot;')}" oninput="_gcalEdit[${i}].url=this.value" placeholder="iCal 공개 .ics 주소 붙여넣기" class="form-input" style="font-size:11px;padding:5px 8px;">
+      </div>
+      <button onclick="removeGcalRow(${i})" style="background:none;border:none;color:#d65a52;font-size:16px;cursor:pointer;flex-shrink:0;" title="삭제">✕</button>
+    </div>`).join('') : '<div style="color:var(--muted);font-size:13px;padding:10px 0;text-align:center;">+ 캘린더 추가를 눌러 시작하세요.</div>';
+}
+function addGcalRow(){ _gcalEdit.push({id:_genNoticeId(), url:'', color:GCAL_PALETTE[_gcalEdit.length%GCAL_PALETTE.length], name:''}); _renderGcalList(); }
+function removeGcalRow(i){ _gcalEdit.splice(i,1); _renderGcalList(); }
+function saveGcals(){
+  if(!isAdmin){ toast('관리자만 설정할 수 있습니다.','error'); return; }
+  if(!data.settings) data.settings={};
+  data.settings.gcals=_gcalEdit.filter(c=>c.url&&c.url.trim()).map(c=>({id:c.id,url:c.url.trim(),color:c.color,name:(c.name||'').trim()}));
+  delete data.settings.gcalUrl;   // 구형 단일 필드 제거
+  saveData(data);
+  _gcalEvents=null; _gcalLoadedAt=0; gcalShow=true;
+  if(data.settings.gcals.length){ _loadGcal(true); toast('구글 캘린더를 저장했습니다.','success'); } else { toast('구글 캘린더 연동을 해제했습니다.','success'); }
+  if(currentView==='month') renderMonth();
+}
 function setCalMode(m){
   calMode = m;
   const mine=document.getElementById('cal-mode-mine'), team=document.getElementById('cal-mode-team');
@@ -2326,6 +2479,8 @@ function setCalMode(m){
     mine.className = 'btn btn-sm' + (m==='mine'?'':' btn-outline');
     team.className = 'btn btn-sm' + (m==='team'?'':' btn-outline');
   }
+  const gt=document.getElementById('cal-gcal-toggle');
+  if(gt){ const has=_gcalList().some(c=>c.url&&c.url.trim()); gt.className='btn btn-sm'+((has&&gcalShow)?'':' btn-outline'); gt.style.opacity=has?'1':'0.55'; }
   renderMonth();
 }
 // 달력 셀(좁음)용 컴팩트 역할 칩 — 한 사람 하루 근무를 짧은 라벨로. (홈 카드 getRoles와 별도: 라벨 길이 다름)
@@ -2370,6 +2525,13 @@ function renderMonth() {
   const firstDay=new Date(year,month,1).getDay();
   const daysInMonth=new Date(year,month+1,0).getDate();
   const daysInPrev=new Date(year,month,0).getDate();
+  // 구글 캘린더 일정(연동 시) 이번 달 발생일 인덱스
+  _loadGcal();
+  const _gcalByDate={};
+  if(gcalShow && _gcalEvents && _gcalEvents.length){
+    const _mS=toDateStr(year,month+1,1), _mE=toDateStr(year,month+1,daysInMonth);
+    for(const ev of _gcalEvents){ for(const ds of _icsOccurrences(ev,_mS,_mE)){ (_gcalByDate[ds]=_gcalByDate[ds]||[]).push(ev); } }
+  }
   for (let i=0;i<firstDay;i++) html+=`<div class="cal-day other-month"><div class="cal-date-num">${daysInPrev-firstDay+1+i}</div></div>`;
   for (let d=1;d<=daysInMonth;d++) {
     const date=new Date(year,month,d); const dow=date.getDay();
@@ -2393,7 +2555,9 @@ function renderMonth() {
     }
     const dayEvents=(data.events||{})[dateStr]||[];
     const evChips=dayEvents.map(ev=>`<div class="cal-event-chip" style="background:${ev.color}22;color:${ev.color};border-left:3px solid ${ev.color};">${ev.time?ev.time+' ':''}${ev.title}</div>`).join('');
-    html+=`<div class="cal-day ${isToday?'today':''} ${isWeekend?'weekend':''} ${isHoliday2?'holiday':''}" onclick="showDayModal('${dateStr}')"><div class="cal-date-num ${dowClass}">${d}${isHoliday2?`<span class="cal-holiday-name">${holidayName2}</span>`:''}</div><div class="cal-pips">${pips}</div><div class="cal-events">${evChips}</div></div>`;
+    const _esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const gchips=(_gcalByDate[dateStr]||[]).map(ev=>{const _c=ev._color||'#4285f4';return `<div class="cal-event-chip" style="background:${_c}1f;color:${_c};border-left:3px solid ${_c};" title="📆 ${_esc(ev._calName?ev._calName+': ':'')}${_esc(ev.title)}">${ev.start.time?ev.start.time+' ':''}📆 ${_esc(ev.title)}</div>`;}).join('');
+    html+=`<div class="cal-day ${isToday?'today':''} ${isWeekend?'weekend':''} ${isHoliday2?'holiday':''}" onclick="showDayModal('${dateStr}')"><div class="cal-date-num ${dowClass}">${d}${isHoliday2?`<span class="cal-holiday-name">${holidayName2}</span>`:''}</div><div class="cal-pips">${pips}</div><div class="cal-events">${evChips}${gchips}</div></div>`;
   }
   const total=firstDay+daysInMonth; const rem=total%7===0?0:7-(total%7);
   for (let i=1;i<=rem;i++) html+=`<div class="cal-day other-month"><div class="cal-date-num">${i}</div></div>`;
@@ -3312,9 +3476,13 @@ function renderWorkshopTable() {
     const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _8jinVwAdd=_8jinIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
     const _8jinCgAdd=_8jinIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).length;
+    // 뉴.오/뉴.오2도 부서별로 일일 총계에 포함 (CG부서→CG총계, VW부서→VW총계). 이미 workers에 있으면 중복 제외
+    const _newsOhIds=[entry?.newsOh,entry?.newsOh2].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
+    const _newsOhVwAdd=_newsOhIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
+    const _newsOhCgAdd=_newsOhIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).length;
     const _ilgeunOk=entry?.ilgeun&&!_leaveSet.has(entry.ilgeun)&&!_specialExclude.has(entry?.ilgeun);
-    const vwCnt=_vwSet.size+(_ilgeunIsVW&&!_cgWorkersSet.has(entry?.ilgeun)&&_ilgeunOk?1:0)+_8jinVwAdd;
-    const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_excl(id)&&!_vwSet.has(id)).length+(entry?.xr||[]).filter(id=>!_excl(id)).length+(!_ilgeunIsVW&&_ilgeunOk&&!_vwSet.has(entry.ilgeun)?1:0)+_8jinCgAdd;
+    const vwCnt=_vwSet.size+(_ilgeunIsVW&&!_cgWorkersSet.has(entry?.ilgeun)&&_ilgeunOk?1:0)+_8jinVwAdd+_newsOhVwAdd;
+    const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_excl(id)&&!_vwSet.has(id)).length+(entry?.xr||[]).filter(id=>!_excl(id)).length+(!_ilgeunIsVW&&_ilgeunOk&&!_vwSet.has(entry.ilgeun)?1:0)+_8jinCgAdd+_newsOhCgAdd;
     const dailyCnt=vwCnt+cgCnt;
     const dm=date.getMonth()+1,dd=date.getDate();
     tbody+=`<tr class="${isWeekend||isHoliday?'weekend':''} ${isHoliday?'holiday':''} ${isToday?'today-row':''}">`;
@@ -3454,6 +3622,7 @@ function renderWorkshopTable() {
       (entry?.xr||[]).filter(id=>!_excl(id)).forEach(id=>{const p=staffById(id);if(p)_cgDbg.push(p.name+'(XR)');});
       if(!_ilgeunIsVW&&_ilgeunOk&&!_vwSet.has(entry.ilgeun)){const p=staffById(entry.ilgeun);if(p)_cgDbg.push(p.name+'(일근)');}
       _8jinIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).forEach(id=>{const p=staffById(id);if(p)_cgDbg.push(p.name+'(8진)');});
+      _newsOhIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).forEach(id=>{const p=staffById(id);if(p)_cgDbg.push(p.name+'(뉴.오)');});
       const _cgTip=_cgDbg.join(', ');
       tbody+=`<td title="${_cgTip}" style="text-align:center;font-size:11px;font-weight:700;color:${cgCnt?'#437d93':'#cbd5e1'};cursor:help;">${cgCnt||'-'}</td>`;
     }
@@ -5424,6 +5593,7 @@ function showAdminTab(tab) {
   if (panel) panel.classList.add('active');
   if (tab==='leave') { _statsEditMode = false; renderWorkStats(); _updateStatsEditBtn(); }
   if (tab==='notify') renderNotifyTab();
+  if (tab==='settings') _initGcalSettings();
 }
 
 // ===== 알림 제어 =====
