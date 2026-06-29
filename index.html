@@ -1741,6 +1741,19 @@ function renderHome() {
       ${pills?`<div class="wm-ev-pts">${pills}</div>`:''}
     </div>`;
   }
+  // 구글 캘린더 일정(연동 시) 이번 주 발생일 인덱스
+  _loadGcal();
+  const _gcalWeek={};
+  if(gcalShow && _gcalEvents && _gcalEvents.length){
+    const _wkS=toDateStr(weekDays[0].getFullYear(),weekDays[0].getMonth()+1,weekDays[0].getDate());
+    const _wkE=toDateStr(weekDays[6].getFullYear(),weekDays[6].getMonth()+1,weekDays[6].getDate());
+    for(const ev of _gcalEvents){ for(const ds of _icsOccurrences(ev,_wkS,_wkE)){ (_gcalWeek[ds]=_gcalWeek[ds]||[]).push(ev); } }
+  }
+  function _gcalCard(ev){
+    const c=ev._color||'#4285f4';
+    const t=(ev.title||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    return `<div class="wm-ev-card" style="border-color:${c};background:${c}15;cursor:default;">${ev.start.time?`<div class="wm-ev-time" style="color:${c};">${ev.start.time}</div>`:''}<div class="wm-ev-title">📆 ${t}</div></div>`;
+  }
   // week-mini: 7컬럼 헤더 + 데스크탑용 이벤트 카드
   let mobileEvHtml = '';
   weekDays.forEach((d,i) => {
@@ -1748,14 +1761,15 @@ function renderHome() {
     const isToday=ds===todayStr; const hasData=!!data.schedule[ds];
     const dow=d.getDay(); const isSun=dow===0; const isSat=dow===6;
     const dayEvs = events[ds]||[];
-    const evCards = dayEvs.map(ev=>_evCard(ds,ev)).join('');
+    const dayGcal = _gcalWeek[ds]||[];
+    const evCards = dayEvs.map(ev=>_evCard(ds,ev)).join('') + dayGcal.map(_gcalCard).join('');
     wMini+=`<div class="week-day-mini">
       <div class="wm-label">${dowLabels[i]}</div>
       <div class="wm-num ${isToday?'today':''} ${hasData?'has-data':''} ${isSun?'sun':isSat?'sat':''}" onclick="showDayModal('${ds}')">${d.getDate()}</div>
       ${evCards?`<div class="wm-ev-list">${evCards}</div>`:''}
     </div>`;
     // 모바일용 리스트도 동시에 생성
-    if (dayEvs.length) {
+    if (dayEvs.length || dayGcal.length) {
       const dowLbl=['일','월','화','수','목','금','토'][dow];
       mobileEvHtml += `<div style="margin-bottom:8px;">
         <div style="font-size:11px;font-weight:700;color:${isToday?'#6366f1':'var(--muted)'};margin-bottom:4px;">${d.getMonth()+1}/${d.getDate()} (${dowLbl})${isToday?' 오늘':''}</div>
