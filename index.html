@@ -308,8 +308,10 @@ tr.staff-row-clickable:hover td { background:var(--surface2); cursor:pointer; }
 @media (max-width: 1000px) { .home-row.cols-3 { grid-template-columns: 1fr 1fr; } .home-row.cols-3 > :last-child { grid-column: 1/-1; } .staff-split { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { main { padding: 10px 12px; } .home-row.cols-3, .home-row.cols-2 { grid-template-columns: 1fr; } .summary-row { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 900px) { .stats-grid { grid-template-columns: 1fr !important; } }
-@media (max-width: 600px) {
+@media (max-width: 600px), (orientation: landscape) and (max-height: 500px) {
   header { height: auto; padding: 6px 10px; gap: 0; flex-wrap: wrap; }
+  .btn-label { display: none; }   /* 가로/모바일: 헤더 우상단은 아이콘만 (👤✕ / 🔔 / ⚙) */
+  #user-name-btn, #user-settings-btn { padding: 5px 8px !important; font-size: 14px !important; }
   .logo { font-size: 14px; padding: 4px 0; flex-shrink: 0; }
   nav { order: 3; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 2px 0 4px; gap: 2px; flex-wrap: nowrap; scrollbar-width: none; }
   nav::-webkit-scrollbar { display: none; }
@@ -352,9 +354,9 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   </nav>
   <div class="header-right">
     <span class="date-badge" id="header-date"></span>
-    <button id="user-name-btn" style="display:none;background:none;border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;" onclick="logoutUser()">👤 <span id="user-name-label"></span> ✕</button>
-    <button id="user-settings-btn" style="display:none;background:#ede9fe;border:1px solid #c4b5fd;color:#6366f1;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;" onclick="openUserSettings()" title="개인설정">🔔 설정</button>
-    <button class="admin-link" id="admin-toggle" onclick="toggleAdmin()">⚙ 관리자</button>
+    <button id="user-name-btn" style="display:none;background:none;border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;" onclick="logoutUser()">👤 <span id="user-name-label" class="btn-label"></span> ✕</button>
+    <button id="user-settings-btn" style="display:none;background:#ede9fe;border:1px solid #c4b5fd;color:#6366f1;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;" onclick="openUserSettings()" title="개인설정">🔔<span class="btn-label"> 설정</span></button>
+    <button class="admin-link" id="admin-toggle" onclick="toggleAdmin()">⚙<span class="btn-label"> 관리자</span></button>
   </div>
 </header>
 
