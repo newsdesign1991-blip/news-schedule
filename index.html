@@ -2434,7 +2434,8 @@ async function _loadGcal(force){
   const all=[]; let failed=0;
   for(const c of cals){
     try{
-      const res=await fetch(GCAL_FN_URL,{ method:'POST', headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}, body:JSON.stringify({url:c.url.trim()}) });
+      // apikey를 쿼리로, Content-Type text/plain → CORS preflight 회피(더 견고). Edge Function은 req.json()으로 본문 파싱.
+      const res=await fetch(GCAL_FN_URL+'?apikey='+encodeURIComponent(SB_KEY),{ method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({url:c.url.trim()}) });
       const txt=await res.text();
       if(!res.ok){ failed++; console.warn('gcal load failed', c.url, txt); continue; }
       const evs=_parseICS(txt); const col=c.color||'#4285f4'; evs.forEach(e=>{ e._color=col; e._calName=c.name||''; }); all.push(...evs);
