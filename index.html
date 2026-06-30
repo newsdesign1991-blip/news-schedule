@@ -1023,6 +1023,15 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
         </div>
       </div>
       <div class="gen-box" style="margin-top:14px;">
+        <h3>💾 데이터 백업 (이 기기)</h3>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">저장할 때마다 <b>이 기기에 최근 7일치 백업</b>이 자동 보관됩니다(서버 미사용). 만일에 대비해 <b>가끔 "파일로 내보내기"로 따로 보관</b>해 두세요. 사고 시 백업이나 파일에서 되돌릴 수 있습니다.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <button class="btn btn-sm btn-primary" style="width:auto;" onclick="exportBackup()">💾 지금 파일로 내보내기</button>
+          <label class="btn btn-sm btn-outline" style="width:auto;cursor:pointer;margin:0;">📂 파일에서 복원<input type="file" accept="application/json,.json" style="display:none;" onchange="importBackupFile(this)"></label>
+        </div>
+        <div id="local-backup-list"></div>
+      </div>
+      <div class="gen-box" style="margin-top:14px;">
         <h3>📆 구글 캘린더 연동</h3>
         <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">구글 캘린더 설정 → "캘린더 통합" → <b>iCal 형식의 공개 주소</b>(.ics)를 붙여넣으세요. 캘린더별로 색을 지정하면 달력 탭에 그 색으로 표시됩니다. <b style="color:#d65a52;">캘린더가 '공개' 상태여야</b> 팀원에게도 보입니다.</p>
         <div id="gcal-list"></div>
@@ -1386,6 +1395,63 @@ function saveData(d) {
     headers: SB_HEADERS,
     body: JSON.stringify({ payload: d, updated_at: _ua })
   }).catch(e => console.warn('Supabase sync failed', e));
+  _localBackup(d);   // 저장 때마다 이 기기에 당일 백업 갱신(데이터 유실 대비, 서버 미사용)
+}
+
+// ===== 로컬 자동 백업 (서버 미사용 · 데이터 유실 대비) =====
+// 매일 1개씩(당일 키에 최신본 덮어쓰기) 이 기기 localStorage에 최근 7일치 보관.
+// 자동동기화는 'nd_v3'만 덮어쓰므로 'nd_backup_*'는 사고에도 살아남는다.
+function _bkToday(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function _bkKeys(){ return Object.keys(localStorage).filter(k=>/^nd_backup_\d{4}-\d{2}-\d{2}$/.test(k)).sort(); }
+function _localBackup(d){
+  try {
+    if (typeof _looksEmptyData==='function' && _looksEmptyData(d)) return;   // 빈/기본 데이터는 백업 안 함
+    localStorage.setItem('nd_backup_'+_bkToday(), JSON.stringify(d));
+    const keys=_bkKeys(); while (keys.length>7) localStorage.removeItem(keys.shift());   // 최근 7일만
+  } catch(e){
+    try { const keys=_bkKeys(); if(keys.length){ localStorage.removeItem(keys[0]); localStorage.setItem('nd_backup_'+_bkToday(), JSON.stringify(d)); } } catch(_){}
+  }
+}
+function listLocalBackups(){
+  return _bkKeys().reverse().map(k=>{ let days='?'; try{ days=Object.keys((JSON.parse(localStorage.getItem(k)).schedule)||{}).length; }catch(_){} return {key:k, date:k.replace('nd_backup_',''), days}; });
+}
+function exportBackup(){
+  try {
+    const blob=new Blob([JSON.stringify(data)], {type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`근무표백업_${_bkToday()}.json`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    toast('백업 파일을 내려받았습니다 💾','success');
+  } catch(e){ toast('내보내기 실패: '+e.message,'error'); }
+}
+function restoreLocalBackup(key){
+  try {
+    const raw=localStorage.getItem(key); if(!raw){ toast('백업을 찾을 수 없습니다.','error'); return; }
+    const o=JSON.parse(raw); const days=Object.keys(o.schedule||{}).length;
+    if(!confirm(`${key.replace('nd_backup_','')} 백업(근무표 ${days}일)으로 되돌립니다.\n현재 데이터를 덮어쓰고 모든 기기에 반영됩니다. 계속할까요?`)) return;
+    saveData(_migrateRemote(o)); _rerenderActiveView(); renderAdminPanel(); _renderBackupList();
+    toast('백업에서 복원했습니다.','success');
+  } catch(e){ toast('복원 실패: '+e.message,'error'); }
+}
+function importBackupFile(input){
+  const f=input.files&&input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try {
+      const o=JSON.parse(r.result);
+      if(!o.staff||!o.schedule){ toast('올바른 백업 파일이 아닙니다.','error'); return; }
+      const days=Object.keys(o.schedule||{}).length;
+      if(!confirm(`가져온 파일(근무표 ${days}일)로 되돌립니다.\n현재 데이터를 덮어쓰고 모든 기기에 반영됩니다. 계속할까요?`)) return;
+      saveData(_migrateRemote(o)); _rerenderActiveView(); renderAdminPanel(); _renderBackupList();
+      toast('파일에서 복원했습니다.','success');
+    } catch(e){ toast('가져오기 실패: '+e.message,'error'); } finally { input.value=''; }
+  };
+  r.readAsText(f);
+}
+function _renderBackupList(){
+  const box=document.getElementById('local-backup-list'); if(!box) return;
+  const list=listLocalBackups();
+  box.innerHTML = list.length
+    ? '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">이 기기에 저장된 백업 (최근 7일):</div>'+list.map(b=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0;"><span style="font-family:ui-monospace,monospace;">${b.date}</span><span style="color:var(--muted);font-size:12px;">근무표 ${b.days}일</span><button class="btn btn-sm btn-outline" style="width:auto;padding:2px 10px;margin-left:auto;" onclick="restoreLocalBackup('${b.key}')">이 백업으로 복원</button></div>`).join('')
+    : '<div style="font-size:12px;color:var(--muted);">아직 저장된 백업이 없습니다. (정상 데이터로 앱을 열면 오늘자 백업이 자동 생성됩니다.)</div>';
 }
 
 let data = loadData();
@@ -5753,7 +5819,7 @@ function showAdminTab(tab) {
   if (panel) panel.classList.add('active');
   if (tab==='leave') { _statsEditMode = false; renderWorkStats(); _updateStatsEditBtn(); }
   if (tab==='notify') renderNotifyTab();
-  if (tab==='settings') _initGcalSettings();
+  if (tab==='settings') { _initGcalSettings(); _renderBackupList(); }
 }
 
 // ===== 알림 제어 =====
@@ -6699,32 +6765,49 @@ function _startAutoSync() {
 }
 
 // ===== INIT =====
+// 근무표 등 날짜형 데이터가 전부 비었으면 '기본/빈' 상태로 간주(실수로 원격을 덮어쓰는 사고 방지용)
+function _looksEmptyData(d){
+  if(!d) return true;
+  const e=o=>!o||Object.keys(o).length===0;
+  return e(d.schedule)&&e(d.events)&&e(d.leaves)&&e(d.holidays)&&e(d.newLeaves);
+}
 (async () => {
+  let _remoteLoadOk = false;   // 원격 fetch가 성공적으로 끝났는지(빈 응답 포함). 실패 시엔 절대 저장하지 않음.
   try {
     const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload,updated_at`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
     });
+    if (!res.ok) throw new Error('HTTP '+res.status);
     const rows = await res.json();
+    _remoteLoadOk = true;
     _ndUpdatedAt = rows?.[0]?.updated_at || null;
     const remote = rows?.[0]?.payload;
     if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
       data = _migrateRemote(remote);
       localStorage.setItem(STORE_KEY, JSON.stringify(data));
-    } else if (Object.keys(data).length > 0) {
-      // Supabase가 비어있으면 로컬 데이터를 올림
+      _localBackup(data);   // 정상 로드 시 당일 백업 확보
+    } else if (Object.keys(data).length > 0 && !_looksEmptyData(data)) {
+      // Supabase가 비어있고 + 로컬에 실제 데이터가 있을 때만 올림 (빈/기본 데이터로 원격을 덮어쓰지 않음)
       fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main`, {
         method: 'PATCH', headers: SB_HEADERS,
         body: JSON.stringify({ payload: data, updated_at: new Date().toISOString() })
       }).catch(()=>{});
     }
   } catch(e) {
-    console.warn('Supabase 로딩 실패, 로컬 데이터 사용:', e);
+    _remoteLoadOk = false;
+    console.warn('Supabase 로딩 실패, 로컬 데이터 사용(저장은 보류):', e);
   }
   // 3모드 비번 1회 초기화: 관리자/관리자테스트/마스터 모두 '0000'으로 통일 (이후 마스터가 각각 변경 가능)
+  // ⚠️ 원격 로드가 실패했거나(=원격 상태 모름) 데이터가 빈/기본이면 저장하지 않는다.
+  //    (로드 실패 시 기본 데이터를 saveData하면 원격 근무표가 통째로 날아갔던 사고 재발 방지)
   if (!data._pwModeInit) {
-    data.adminPass = btoa('0000'); data.masterPass = btoa('0000'); data.adminTestPass = btoa('0000');
-    data._pwModeInit = true;
-    saveData(data);
+    data.adminPass = data.adminPass || btoa('0000');
+    data.masterPass = data.masterPass || btoa('0000');
+    data.adminTestPass = data.adminTestPass || btoa('0000');
+    if (_remoteLoadOk && !_looksEmptyData(data)) {
+      data._pwModeInit = true;
+      saveData(data);
+    }
   }
   _updateUserHeader();
   if (!currentUser) {
