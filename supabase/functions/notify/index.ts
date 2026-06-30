@@ -10,12 +10,22 @@ const WORK_LABELS: Record<string, string> = {
   vw: 'VW 근무', cg: 'CG 근무', general: '근무', off: '휴무'
 }
 
+// 브라우저(앱)에서 functions/v1/notify 를 호출하려면 CORS 헤더가 필요하다.
+// 없으면 테스트/배포 알림 호출이 'Load failed'(CORS 차단)로 실패한다. (cron은 서버사이드라 영향 없음)
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+
   const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE') || ''
   const SB_URL = Deno.env.get('SUPABASE_URL') || ''
   const SB_SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 
-  if (!VAPID_PRIVATE) return new Response('VAPID_PRIVATE not set', { status: 500 })
+  if (!VAPID_PRIVATE) return new Response('VAPID_PRIVATE not set', { status: 500, headers: CORS })
 
   const sb = createClient(SB_URL, SB_SVC)
 
@@ -33,8 +43,8 @@ Deno.serve(async (req) => {
 
   // push_subs 로드
   const { data: rawSubs, error: subsErr } = await sb.from('push_subs').select('*')
-  if (subsErr) return new Response('push_subs read error: ' + subsErr.message, { status: 500 })
-  if (!rawSubs?.length) return new Response(JSON.stringify({ sent: 0, reason: 'no subscribers' }), { headers: { 'Content-Type': 'application/json' } })
+  if (subsErr) return new Response('push_subs read error: ' + subsErr.message, { status: 500, headers: CORS })
+  if (!rawSubs?.length) return new Response(JSON.stringify({ sent: 0, reason: 'no subscribers' }), { headers: { ...CORS, 'Content-Type': 'application/json' } })
   // 같은 사람(staff_id)이 여러 기기/재구독으로 행을 2개 이상 가져도 1건만 발송 → 알림 2번 가는 문제 방지.
   // (staff_id가 없는 행은 endpoint로 폴백 dedup) — 모든 모드(cron/test/notice/publish)가 이 subs를 순회하므로 전부 적용됨.
   const _seenKey = new Set<string>()
@@ -61,7 +71,7 @@ Deno.serve(async (req) => {
         if (e.statusCode === 410 || e.statusCode === 404) await sb.from('push_subs').delete().eq('endpoint', sub.endpoint)
       }
     }
-    return new Response(JSON.stringify({ sent, errors, mode: 'test' }), { headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ sent, errors, mode: 'test' }), { headers: { ...CORS, 'Content-Type': 'application/json' } })
   }
 
   // ── 공지 등록 알림 모드 ──────────────────────────────────────────
@@ -82,7 +92,7 @@ Deno.serve(async (req) => {
         if (e.statusCode === 410 || e.statusCode === 404) await sb.from('push_subs').delete().eq('endpoint', sub.endpoint)
       }
     }
-    return new Response(JSON.stringify({ sent, errors, mode: 'notice' }), { headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ sent, errors, mode: 'notice' }), { headers: { ...CORS, 'Content-Type': 'application/json' } })
   }
 
   // ── 배포 알림 모드 ──────────────────────────────────────────────
@@ -100,14 +110,14 @@ Deno.serve(async (req) => {
         if (e.statusCode === 410 || e.statusCode === 404) await sb.from('push_subs').delete().eq('endpoint', sub.endpoint)
       }
     }
-    return new Response(JSON.stringify({ sent, errors, mode: 'publish' }), { headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ sent, errors, mode: 'publish' }), { headers: { ...CORS, 'Content-Type': 'application/json' } })
   }
 
   // ── 크론 알림 모드 ──────────────────────────────────────────────
   const { data: ndRow } = await sb.from('nd_data').select('payload').eq('id', 'main').single()
   const nd = ndRow?.payload
   if (!nd?.settings?.notify?.enabled) {
-    return new Response(JSON.stringify({ sent: 0, reason: 'notify disabled in settings' }), { headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ sent: 0, reason: 'notify disabled in settings' }), { headers: { ...CORS, 'Content-Type': 'application/json' } })
   }
 
   const cfg = nd.settings.notify
@@ -177,6 +187,6 @@ Deno.serve(async (req) => {
   }
 
   return new Response(JSON.stringify({ sent, errors, kst: kst.toISOString(), todayStr }), {
-    headers: { 'Content-Type': 'application/json' }
+    headers: { ...CORS, 'Content-Type': 'application/json' }
   })
 })
