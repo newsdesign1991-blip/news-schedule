@@ -5907,8 +5907,11 @@ async function enablePush() {
     await navigator.serviceWorker.ready;
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') { toast('알림 권한이 거부되었습니다.','error'); return; }
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:_urlB64ToUint8(VAPID_PUBLIC) });
+    // iOS 등에서 옛 구독이 무효화돼도 로컬엔 남아있어, 그걸 재사용하면 죽은 endpoint를 다시 저장하게 됨.
+    // → 켤 때마다 기존 구독을 해지하고 새 구독을 만들어 항상 유효한 endpoint를 보장한다.
+    const _old = await reg.pushManager.getSubscription();
+    if (_old) { try { await _old.unsubscribe(); } catch(_){} }
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:_urlB64ToUint8(VAPID_PUBLIC) });
     const j = sub.toJSON();
     // 같은 사람(staff_id)의 기존 구독을 전부 제거 후 새로 삽입 → 옛 endpoint 잔존으로 인한 중복 알림 방지
     await fetch(`${SB_URL}/rest/v1/push_subs?staff_id=eq.${encodeURIComponent(currentUser.staffId)}`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});
