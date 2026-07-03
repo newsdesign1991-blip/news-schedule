@@ -185,7 +185,7 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .event-tag button:hover { opacity: 1; }
 
 /* MODAL */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.38); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.38);  z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .modal { background: var(--surface); border: 0.5px solid rgba(0,0,0,0.06); border-radius: 22px; padding: 24px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 60px rgba(15,23,42,0.22); }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .modal-header h3 { font-size: 17px; font-weight: 700; }
@@ -202,13 +202,13 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .staff-modal-overlay.open { animation: ndModalFade .18s ease both; }
 .staff-modal-overlay.open > * { animation: ndModalPop .30s cubic-bezier(.22,1,.36,1) both; }
 /* 인라인 스타일 모달(공지·설정·지난공지 등)에 클래스로 부여 */
-.nd-modal { animation: ndModalFade .18s ease both; background: rgba(0,0,0,0.38) !important; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.nd-modal { animation: ndModalFade .18s ease both; background: rgba(0,0,0,0.38) !important;  }
 .nd-modal > div { animation: ndModalPop .30s cubic-bezier(.22,1,.36,1) both; border-radius: 22px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; }
 /* 휴가 팝업 콘텐츠(재생성 시엔 .no-anim으로 애니메이션 생략) */
 .nd-pop { animation: ndModalPop .30s cubic-bezier(.22,1,.36,1) both; border-radius: 22px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; }
 .nd-pop.no-anim { animation: none; }
-#lr-popup-overlay { background: rgba(0,0,0,0.38) !important; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.staff-modal-overlay.open { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+#lr-popup-overlay { background: rgba(0,0,0,0.38) !important;  }
+.staff-modal-overlay.open {  }
 /* iOS풍 버튼 — 모달 안의 주요 버튼을 더 둥글고 큼직하게 */
 .modal .btn-primary, .nd-modal .btn-primary { border-radius: 14px; padding: 13px; font-size: 15px; font-weight: 700; }
 .modal .btn, .nd-modal .btn { border-radius: 12px; }
@@ -2717,6 +2717,38 @@ function _animModalClose(el){
   setTimeout(finish, 240);   // 폴백
 }
 function closeGcalDetail(){ _animModalClose(document.getElementById('gcal-detail-modal')); }
+// iOS Safari는 display:none→표시 전환 시 CSS 애니메이션을 재생하지 않는 경우가 있어, 표시되는 순간 강제로 재시작한다.
+function _restartAnim(el){
+  [el].concat(Array.prototype.slice.call(el.children)).forEach(function(n){
+    if(!(n instanceof HTMLElement) || !n.style) return;
+    n.style.animation='none';
+    void n.offsetWidth;      // reflow
+    n.style.animation='';    // CSS에 정의된 애니메이션으로 되돌려 재생
+  });
+}
+function _watchModalAnim(el){
+  if(!el || el.__animWatch) return; el.__animWatch=true;
+  new MutationObserver(function(){
+    if(el.__animBusy || el.classList.contains('nd-closing')) return;
+    if(getComputedStyle(el).display==='none') return;
+    el.__animBusy=true;
+    _restartAnim(el);
+    setTimeout(function(){ el.__animBusy=false; }, 60);
+  }).observe(el, { attributes:true, attributeFilter:['style','class'] });
+}
+(function(){
+  function scan(root){ (root||document).querySelectorAll('.modal-overlay, .nd-modal, .staff-modal-overlay').forEach(_watchModalAnim); }
+  scan();
+  if(document.body){
+    new MutationObserver(function(muts){
+      muts.forEach(function(m){ Array.prototype.forEach.call(m.addedNodes||[], function(n){
+        if(n.nodeType!==1) return;
+        if(n.matches && n.matches('.modal-overlay, .nd-modal, .staff-modal-overlay')) _watchModalAnim(n);
+        if(n.querySelectorAll) scan(n);
+      }); });
+    }).observe(document.body, { childList:true, subtree:true });
+  }
+})();
 // ── 구글 캘린더 관리 (관리자 패널 설정 탭에 인라인) ──
 let _gcalEdit=[];
 function _initGcalSettings(){
