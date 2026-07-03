@@ -196,16 +196,16 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 
 /* 팝업/모달 등장 애니메이션 — 배경 페이드 + 콘텐츠 팝인 */
 @keyframes ndModalFade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes ndModalPop { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: none; } }
-.modal-overlay { animation: ndModalFade .18s ease both; }
-.modal-overlay > .modal { animation: ndModalPop .30s cubic-bezier(.22,1,.36,1) both; }
-.staff-modal-overlay.open { animation: ndModalFade .18s ease both; }
-.staff-modal-overlay.open > * { animation: ndModalPop .30s cubic-bezier(.22,1,.36,1) both; }
+@keyframes ndModalPop { from { opacity: 0; transform: translateY(48px); } to { opacity: 1; transform: translateY(0); } }
+.modal-overlay { animation: ndModalFade .32s ease both; }
+.modal-overlay > .modal { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; }
+.staff-modal-overlay.open { animation: ndModalFade .32s ease both; }
+.staff-modal-overlay.open > * { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; }
 /* 인라인 스타일 모달(공지·설정·지난공지 등)에 클래스로 부여 */
-.nd-modal { animation: ndModalFade .18s ease both; background: rgba(0,0,0,0.38) !important;  }
-.nd-modal > div { animation: ndModalPop .30s cubic-bezier(.22,1,.36,1) both; border-radius: 22px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; }
+.nd-modal { animation: ndModalFade .32s ease both; background: rgba(0,0,0,0.38) !important;  }
+.nd-modal > div { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 22px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; }
 /* 휴가 팝업 콘텐츠(재생성 시엔 .no-anim으로 애니메이션 생략) */
-.nd-pop { animation: ndModalPop .30s cubic-bezier(.22,1,.36,1) both; border-radius: 22px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; }
+.nd-pop { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 22px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; }
 .nd-pop.no-anim { animation: none; }
 #lr-popup-overlay { background: rgba(0,0,0,0.38) !important;  }
 .staff-modal-overlay.open {  }
@@ -214,15 +214,15 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .modal .btn, .nd-modal .btn { border-radius: 12px; }
 /* 닫힘 애니메이션 — .nd-closing 부여 후 animationend에 실제로 숨김 */
 @keyframes ndModalFadeOut { from { opacity: 1; } to { opacity: 0; } }
-@keyframes ndModalPopOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(10px) scale(0.96); } }
-.modal-overlay.nd-closing { animation: ndModalFadeOut .2s ease both; }
-.modal-overlay.nd-closing > .modal { animation: ndModalPopOut .2s ease both; }
-.nd-modal.nd-closing { animation: ndModalFadeOut .2s ease both; }
-.nd-modal.nd-closing > div { animation: ndModalPopOut .2s ease both; }
-#lr-popup-overlay.nd-closing { animation: ndModalFadeOut .2s ease both; }
-#lr-popup-overlay.nd-closing .nd-pop { animation: ndModalPopOut .2s ease both; }
-.staff-modal-overlay.nd-closing { animation: ndModalFadeOut .2s ease both; }
-.staff-modal-overlay.nd-closing > * { animation: ndModalPopOut .2s ease both; }
+@keyframes ndModalPopOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(34px); } }
+.modal-overlay.nd-closing { animation: ndModalFadeOut .34s ease both; }
+.modal-overlay.nd-closing > .modal { animation: ndModalPopOut .34s ease both; }
+.nd-modal.nd-closing { animation: ndModalFadeOut .34s ease both; }
+.nd-modal.nd-closing > div { animation: ndModalPopOut .34s ease both; }
+#lr-popup-overlay.nd-closing { animation: ndModalFadeOut .34s ease both; }
+#lr-popup-overlay.nd-closing .nd-pop { animation: ndModalPopOut .34s ease both; }
+.staff-modal-overlay.nd-closing { animation: ndModalFadeOut .34s ease both; }
+.staff-modal-overlay.nd-closing > * { animation: ndModalPopOut .34s ease both; }
 
 /* ADMIN */
 .login-box { max-width: 340px; margin: 50px auto; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; }
@@ -2714,7 +2714,7 @@ function _animModalClose(el){
   const finish=()=>{ if(done)return; done=true; el.style.display='none'; el.classList.remove('nd-closing'); el.removeEventListener('animationend',h); };
   function h(ev){ if(ev.target===el) finish(); }
   el.addEventListener('animationend',h);
-  setTimeout(finish, 240);   // 폴백
+  setTimeout(finish, 400);   // 폴백
 }
 function closeGcalDetail(){ _animModalClose(document.getElementById('gcal-detail-modal')); }
 // iOS Safari는 display:none→표시 전환 시 CSS 애니메이션을 재생하지 않는 경우가 있어, 표시되는 순간 강제로 재시작한다.
@@ -5290,7 +5290,7 @@ function dismissLrPopup() {
   const ov = document.getElementById('lr-popup-overlay');
   if (!ov) { closeLrPopup(); return; }
   ov.classList.add('nd-closing');
-  setTimeout(closeLrPopup, 200);
+  setTimeout(closeLrPopup, 360);
 }
 
 function lrPopupCellClick(staffId, dateStr) {
@@ -7117,7 +7117,7 @@ function closeStaffModal() {
   const el = document.getElementById('staff-edit-modal');
   if (el && el.classList.contains('open')) {
     el.classList.add('nd-closing');
-    setTimeout(()=>{ el.classList.remove('open'); el.classList.remove('nd-closing'); }, 200);
+    setTimeout(()=>{ el.classList.remove('open'); el.classList.remove('nd-closing'); }, 360);
   }
   document.body.style.overflow = '';
 }
