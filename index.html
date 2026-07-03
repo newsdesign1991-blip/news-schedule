@@ -1728,6 +1728,7 @@ let homeWeekOffset = 0;
 let monthOffset = 0;
 let calMode = 'mine';   // 달력 탭 모드: 'mine'(나만의 달력) | 'team'(팀 전체). 탭 진입 시 기본 mine
 let _noticeExpanded = false;  // 홈 공지 다중카드 펼침 상태
+let _noticeTextOpen = new Set();  // 개별 공지 본문 펼침 상태(id) — 길면 접고 페이드+더보기
 let _noticeEditId = null;     // 공지 수정 중인 항목 id (없으면 새 공지)
 let tableRangeStart = null; // 'YYYY-MM-DD'
 let tableRangeEnd = null;   // 'YYYY-MM-DD'
@@ -5171,7 +5172,7 @@ function openLrPopup(staffId) {
         </div>
         <button onclick="closeLrPopup()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;line-height:1;">✕</button>
       </div>
-      <div style="overflow-y:auto;padding:0 16px 12px;">
+      <div id="lr-popup-scroll" style="overflow-y:auto;padding:0 16px 12px;">
         <table style="border-collapse:collapse;width:100%;table-layout:fixed;">
           <colgroup><col style="width:60px"><col style="width:44px"><col><col style="width:72px"></colgroup>
           <thead>
@@ -5185,7 +5186,12 @@ function openLrPopup(staffId) {
           <tbody>${rows}</tbody>
         </table>
       </div>
-      <div style="padding:10px 20px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center;flex-shrink:0;">${canEdit?'셀을 클릭해 신휴가를 신청/취소하세요':'읽기 전용'}</div>
+      <div style="padding:10px 16px 14px;border-top:1px solid #e2e8f0;flex-shrink:0;">
+        ${canEdit
+          ? `<div style="font-size:11px;color:#94a3b8;text-align:center;margin-bottom:8px;">셀을 클릭해 신휴가를 신청/취소하세요</div>
+             <button onclick="lrSaveAndClose()" style="width:100%;background:#c79a5e;color:#fff;border:none;border-radius:9px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;">💾 저장하고 닫기</button>`
+          : `<div style="font-size:11px;color:#94a3b8;text-align:center;">읽기 전용</div>`}
+      </div>
     </div>
   </div>`;
 
@@ -5201,10 +5207,20 @@ function closeLrPopup() {
 }
 
 function lrPopupCellClick(staffId, dateStr) {
-  lrCellClick(staffId, dateStr);
-  // 팝업 갱신
+  // 팝업 스크롤 위치 보존 (재생성 시 맨 위로 튀는 문제 방지)
+  const sc = document.getElementById('lr-popup-scroll');
+  const top = sc ? sc.scrollTop : 0;
+  lrCellClick(staffId, dateStr);   // 토글 + 저장 + 배경 갱신
   closeLrPopup();
   openLrPopup(staffId);
+  const sc2 = document.getElementById('lr-popup-scroll');
+  if (sc2) { sc2.scrollTop = top; requestAnimationFrame(()=>{ sc2.scrollTop = top; }); }
+}
+function lrSaveAndClose() {
+  saveData(data);          // 셀 클릭 시 이미 저장되지만, 명시적 저장 + 확인 토스트
+  renderLeaveReqView();
+  closeLrPopup();
+  toast('휴가 신청이 저장되었습니다.','success');
 }
 
 function toggleLeaveReq() {
@@ -6482,9 +6498,17 @@ function renderNoticeBar() {
     const txt = (it.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
     const bell = it.silent ? `<span title="조용한 공지(알림 미발송)" style="font-size:11px;opacity:0.7;margin-left:4px;">🔕</span>` : '';
     const edit = canWrite ? `<button onclick="event.stopPropagation();openNoticeModal('${it.id}')" style="background:transparent;border:none;color:#b8860b;cursor:pointer;font-size:13px;padding:0 2px;flex-shrink:0;" title="수정">✏</button>` : '';
+    // 본문은 접힘 상태로 렌더 → 렌더 후 _applyNoticeClamp()가 길이 재서 페이드/더보기 표시. transition으로 펼침 애니메이션.
     return `<div class="notice-card" style="background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);border:1px solid #fcd97d;border-radius:12px;padding:11px 13px;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
-          <div style="font-size:13px;color:var(--text);line-height:1.6;flex:1;min-width:0;">${txt}${bell}${by}</div>${edit}
+          <div style="flex:1;min-width:0;">
+            <div class="notice-text" data-nid="${it.id}" style="overflow:hidden;transition:max-height .38s cubic-bezier(.4,0,.2,1);">
+              <div class="notice-text-inner" style="font-size:13px;color:var(--text);line-height:1.6;">${txt}${bell}${by}</div>
+            </div>
+            <div class="notice-more" data-nid="${it.id}" style="display:none;margin-top:3px;">
+              <button onclick="event.stopPropagation();toggleNoticeText('${it.id}')" style="background:transparent;border:none;color:#b8860b;font-size:11px;font-weight:700;cursor:pointer;padding:2px 0;">▼ 더보기</button>
+            </div>
+          </div>${edit}
         </div></div>`;
   };
   let body;
@@ -6502,6 +6526,40 @@ function renderNoticeBar() {
       <div style="text-align:center;"><button onclick="toggleNoticeExpand()" style="background:#fff;border:1px solid #fcd97d;color:#b8860b;font-size:11px;font-weight:700;cursor:pointer;padding:3px 12px;border-radius:20px;">▾ 공지 ${items.length}건 모두 보기</button></div>`;
   }
   wrap.innerHTML = `<div style="background:#fffdf5;border:1px solid #fcd97d;border-radius:14px;padding:14px 16px;">${header}${body}${news8Html}</div>`;
+  _applyNoticeClamp();
+}
+// 각 공지 본문이 접힘 최대높이보다 길면 → 접고 하단 페이드 + '더보기' 노출. 펼침 상태(_noticeTextOpen)면 전문+접기.
+function _applyNoticeClamp(){
+  // 접힘 최대 높이: 화면의 약 30%(120~300px)로 제한 — '길어도 절반 정도만' 보이게
+  const cap = Math.max(120, Math.min(Math.round((window.innerHeight||700)*0.30), 300));
+  // 접힘 시 글자 자체를 하단으로 갈수록 투명하게(mask) → 배경이 그대로 비쳐 경계(사각형) 없이 자연스럽게 흐려짐
+  const MASK = 'linear-gradient(to bottom, #000 calc(100% - 52px), transparent 100%)';
+  document.querySelectorAll('#home-notice .notice-text').forEach(el=>{
+    const id = el.getAttribute('data-nid');
+    const inner = el.querySelector('.notice-text-inner');
+    const moreWrap = el.parentElement.querySelector('.notice-more');
+    const btn = moreWrap ? moreWrap.querySelector('button') : null;
+    const contentH = inner ? inner.scrollHeight : 0;
+    const overflow = contentH > cap + 6;
+    const open = _noticeTextOpen.has(id);
+    const setMask = (on)=>{ el.style.webkitMaskImage = on?MASK:'none'; el.style.maskImage = on?MASK:'none'; };
+    if (open) {
+      el.style.maxHeight = contentH + 'px';
+      setMask(false);
+      if (moreWrap) moreWrap.style.display = overflow ? '' : 'none';
+      if (btn) btn.innerHTML = '▲ 접기';
+    } else {
+      el.style.maxHeight = (overflow ? cap : contentH) + 'px';
+      setMask(overflow);
+      if (moreWrap) moreWrap.style.display = overflow ? '' : 'none';
+      if (btn) btn.innerHTML = '▼ 더보기';
+    }
+  });
+}
+// 개별 공지 본문 펼치기/접기 (재렌더 없이 DOM 직접 조작 → transition으로 부드럽게)
+function toggleNoticeText(id){
+  if (_noticeTextOpen.has(id)) _noticeTextOpen.delete(id); else _noticeTextOpen.add(id);
+  _applyNoticeClamp();
 }
 function openNoticeModal(editId) {
   if (!currentUser || !currentUser.staffId) { toast('이름으로 로그인 후 작성할 수 있습니다.','error'); return; }
