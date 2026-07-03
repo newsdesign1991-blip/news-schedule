@@ -2,13 +2,19 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>뉴스디자인 근무 대시보드</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="logo.png">
+<script>
+// 핀치줌 방지 — iOS Safari가 viewport의 user-scalable=no를 무시하는 경우 대비(제스처 이벤트 차단)
+['gesturestart','gesturechange','gestureend'].forEach(function(ev){
+  document.addEventListener(ev, function(e){ e.preventDefault(); }, { passive:false });
+});
+</script>
 <style>
 :root {
   --bg: #f1f4f8; --surface: #ffffff; --surface2: #f7f9fc; --border: #e2e8f0;
@@ -179,14 +185,44 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .event-tag button:hover { opacity: 1; }
 
 /* MODAL */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.38); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: var(--surface); border: 0.5px solid rgba(0,0,0,0.06); border-radius: 22px; padding: 24px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 60px rgba(15,23,42,0.22); }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .modal-header h3 { font-size: 17px; font-weight: 700; }
 .modal-close { background: var(--surface2); border: none; color: var(--text); width: 30px; height: 30px; border-radius: 7px; cursor: pointer; font-size: 18px; }
 .modal-sect { margin-bottom: 16px; }
 .modal-sect-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
 .modal-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* 팝업/모달 등장 애니메이션 — 배경 페이드 + 콘텐츠 팝인 */
+@keyframes ndModalFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ndModalPop { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: none; } }
+.modal-overlay { animation: ndModalFade .18s ease both; }
+.modal-overlay > .modal { animation: ndModalPop .30s cubic-bezier(.22,1,.36,1) both; }
+.staff-modal-overlay.open { animation: ndModalFade .18s ease both; }
+.staff-modal-overlay.open > * { animation: ndModalPop .30s cubic-bezier(.22,1,.36,1) both; }
+/* 인라인 스타일 모달(공지·설정·지난공지 등)에 클래스로 부여 */
+.nd-modal { animation: ndModalFade .18s ease both; background: rgba(0,0,0,0.38) !important; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.nd-modal > div { animation: ndModalPop .30s cubic-bezier(.22,1,.36,1) both; border-radius: 22px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; }
+/* 휴가 팝업 콘텐츠(재생성 시엔 .no-anim으로 애니메이션 생략) */
+.nd-pop { animation: ndModalPop .30s cubic-bezier(.22,1,.36,1) both; border-radius: 22px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; }
+.nd-pop.no-anim { animation: none; }
+#lr-popup-overlay { background: rgba(0,0,0,0.38) !important; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.staff-modal-overlay.open { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+/* iOS풍 버튼 — 모달 안의 주요 버튼을 더 둥글고 큼직하게 */
+.modal .btn-primary, .nd-modal .btn-primary { border-radius: 14px; padding: 13px; font-size: 15px; font-weight: 700; }
+.modal .btn, .nd-modal .btn { border-radius: 12px; }
+/* 닫힘 애니메이션 — .nd-closing 부여 후 animationend에 실제로 숨김 */
+@keyframes ndModalFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ndModalPopOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(10px) scale(0.96); } }
+.modal-overlay.nd-closing { animation: ndModalFadeOut .2s ease both; }
+.modal-overlay.nd-closing > .modal { animation: ndModalPopOut .2s ease both; }
+.nd-modal.nd-closing { animation: ndModalFadeOut .2s ease both; }
+.nd-modal.nd-closing > div { animation: ndModalPopOut .2s ease both; }
+#lr-popup-overlay.nd-closing { animation: ndModalFadeOut .2s ease both; }
+#lr-popup-overlay.nd-closing .nd-pop { animation: ndModalPopOut .2s ease both; }
+.staff-modal-overlay.nd-closing { animation: ndModalFadeOut .2s ease both; }
+.staff-modal-overlay.nd-closing > * { animation: ndModalPopOut .2s ease both; }
 
 /* ADMIN */
 .login-box { max-width: 340px; margin: 50px auto; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; }
@@ -383,7 +419,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 </header>
 
 <!-- 개인설정 모달 -->
-<div id="user-settings-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
+<div id="user-settings-modal" class="nd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border-radius:16px;padding:28px 24px;width:320px;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
       <div style="font-size:16px;font-weight:700;">⚙ 개인설정</div>
@@ -406,7 +442,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 </div>
 
 <!-- 공지 작성 모달 (관리자) -->
-<div id="notice-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
+<div id="notice-modal" class="nd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border-radius:16px;padding:24px;width:400px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <div id="notice-modal-title" style="font-size:16px;font-weight:700;">📢 공지 작성</div>
@@ -430,7 +466,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 </div>
 
 <!-- 구글 캘린더 일정 상세 -->
-<div id="gcal-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)closeGcalDetail()">
+<div id="gcal-detail-modal" class="nd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)closeGcalDetail()">
   <div style="background:var(--surface);border-radius:16px;padding:22px;width:400px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
     <div id="gcal-detail-body"></div>
     <button class="btn btn-outline" style="width:100%;margin-top:18px;" onclick="closeGcalDetail()">닫기</button>
@@ -487,7 +523,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 </div>
 
 <!-- 지난 공지 모달 -->
-<div id="notice-history-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
+<div id="notice-history-modal" class="nd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border-radius:16px;padding:24px;width:440px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0;">
       <div style="font-size:16px;font-weight:700;">📜 지난 공지 <span style="font-size:11px;color:var(--muted);font-weight:400;">(최근 1개월)</span></div>
@@ -2668,7 +2704,19 @@ function showGcalDetail(dateStr, id){
     ${locHtml}${descHtml}`;
   document.getElementById('gcal-detail-modal').style.display='flex';
 }
-function closeGcalDetail(){ document.getElementById('gcal-detail-modal').style.display='none'; }
+// 모달을 닫을 때 닫힘 애니메이션 재생 후 실제로 숨김 (열림과 동일한 느낌으로 사라짐)
+function _animModalClose(el){
+  if(!el) return;
+  if(getComputedStyle(el).display==='none'){ el.style.display='none'; return; }
+  if(el.classList.contains('nd-closing')) return;
+  el.classList.add('nd-closing');
+  let done=false;
+  const finish=()=>{ if(done)return; done=true; el.style.display='none'; el.classList.remove('nd-closing'); el.removeEventListener('animationend',h); };
+  function h(ev){ if(ev.target===el) finish(); }
+  el.addEventListener('animationend',h);
+  setTimeout(finish, 240);   // 폴백
+}
+function closeGcalDetail(){ _animModalClose(document.getElementById('gcal-detail-modal')); }
 // ── 구글 캘린더 관리 (관리자 패널 설정 탭에 인라인) ──
 let _gcalEdit=[];
 function _initGcalSettings(){
@@ -2905,7 +2953,7 @@ function removeCalEvent(dateStr, idx) {
   if(currentView==='month') renderMonth();
   toast('삭제됨','success');
 }
-function closeModal() { document.getElementById('day-modal').style.display='none'; }
+function closeModal() { _animModalClose(document.getElementById('day-modal')); }
 function editThisDay() {
   closeModal();
   if (!isAdmin) { toggleAdmin(); return; }
@@ -4180,7 +4228,7 @@ function openEventModal(dateStr) {
   setTimeout(()=>document.getElementById('ev-title').focus(), 100);
 }
 function closeEventModal() {
-  document.getElementById('event-add-modal').style.display = 'none';
+  _animModalClose(document.getElementById('event-add-modal'));
   document.body.style.overflow = '';
 }
 function saveEvent() {
@@ -4237,7 +4285,7 @@ function openImageImport() {
   switchImportTab('excel');
 }
 function closeImageImport() {
-  document.getElementById('img-import-modal').style.display = 'none';
+  _animModalClose(document.getElementById('img-import-modal'));
   document.body.style.overflow = '';
 }
 function runImport() {
@@ -4757,7 +4805,7 @@ function openEventDetail(dateStr, id) {
   document.body.style.overflow = 'hidden';
 }
 function closeEventDetail() {
-  document.getElementById('event-detail-modal').style.display = 'none';
+  _animModalClose(document.getElementById('event-detail-modal'));
   document.body.style.overflow = '';
   _evDetailDate = null; _evDetailId = null;
 }
@@ -5112,7 +5160,7 @@ function setLeaveReqUser(id) {
   if (id) openLrPopup(id);
 }
 
-function openLrPopup(staffId) {
+function openLrPopup(staffId, noAnim) {
   const lr = data.leaveReq || {};
   const entries = lr.entries || {};
   const rs = lr.rangeStart, re = lr.rangeEnd;
@@ -5163,14 +5211,14 @@ function openLrPopup(staffId) {
 
   const TH = 'border:1px solid #e2e8f0;padding:6px 8px;font-size:11px;font-weight:700;text-align:center;background:#f7f9fc;position:sticky;top:0;z-index:1;';
   const html = `
-  <div id="lr-popup-overlay" onclick="closeLrPopup()" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;display:flex;align-items:center;justify-content:center;">
-    <div onclick="event.stopPropagation()" style="background:#fff;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,0.3);max-height:82vh;display:flex;flex-direction:column;width:340px;">
+  <div id="lr-popup-overlay" onclick="dismissLrPopup()" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;display:flex;align-items:center;justify-content:center;">
+    <div onclick="event.stopPropagation()" class="nd-pop${noAnim?' no-anim':''}" style="background:#fff;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,0.3);max-height:82vh;display:flex;flex-direction:column;width:340px;">
       <div style="padding:16px 20px 12px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
         <div>
           <span style="font-size:15px;font-weight:800;color:${nameColor};">${staff.name}</span>
           <span style="font-size:11px;color:#94a3b8;margin-left:6px;">${staff.dept}</span>
         </div>
-        <button onclick="closeLrPopup()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;line-height:1;">✕</button>
+        <button onclick="dismissLrPopup()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;line-height:1;">✕</button>
       </div>
       <div id="lr-popup-scroll" style="overflow-y:auto;padding:0 16px 12px;">
         <table style="border-collapse:collapse;width:100%;table-layout:fixed;">
@@ -5205,6 +5253,13 @@ function closeLrPopup() {
   const el = document.getElementById('lr-popup-root');
   if (el) el.remove();
 }
+// 사용자가 닫을 때(✕·배경·저장): 닫힘 애니메이션 후 제거 (셀 클릭 재생성은 즉시 closeLrPopup 사용)
+function dismissLrPopup() {
+  const ov = document.getElementById('lr-popup-overlay');
+  if (!ov) { closeLrPopup(); return; }
+  ov.classList.add('nd-closing');
+  setTimeout(closeLrPopup, 200);
+}
 
 function lrPopupCellClick(staffId, dateStr) {
   // 팝업 스크롤 위치 보존 (재생성 시 맨 위로 튀는 문제 방지)
@@ -5212,14 +5267,14 @@ function lrPopupCellClick(staffId, dateStr) {
   const top = sc ? sc.scrollTop : 0;
   lrCellClick(staffId, dateStr);   // 토글 + 저장 + 배경 갱신
   closeLrPopup();
-  openLrPopup(staffId);
+  openLrPopup(staffId, true);   // 재생성 시엔 애니메이션 생략(깜빡임 방지)
   const sc2 = document.getElementById('lr-popup-scroll');
   if (sc2) { sc2.scrollTop = top; requestAnimationFrame(()=>{ sc2.scrollTop = top; }); }
 }
 function lrSaveAndClose() {
   saveData(data);          // 셀 클릭 시 이미 저장되지만, 명시적 저장 + 확인 토스트
   renderLeaveReqView();
-  closeLrPopup();
+  dismissLrPopup();
   toast('휴가 신청이 저장되었습니다.','success');
 }
 
@@ -6061,7 +6116,7 @@ async function openUserSettings() {
   await _refreshUserSettingsModal();
 }
 function closeUserSettings() {
-  document.getElementById('user-settings-modal').style.display = 'none';
+  _animModalClose(document.getElementById('user-settings-modal'));
 }
 async function _refreshUserSettingsModal() {
   const subbed = await isPushSubscribed();
@@ -6575,7 +6630,7 @@ function openNoticeModal(editId) {
   document.getElementById('notice-modal').style.display = 'flex';
 }
 function closeNoticeModal() {
-  document.getElementById('notice-modal').style.display = 'none';
+  _animModalClose(document.getElementById('notice-modal'));
 }
 async function saveNotice() {
   if (!currentUser || !currentUser.staffId) { toast('이름으로 로그인 후 작성할 수 있습니다.','error'); return; }
@@ -6635,7 +6690,7 @@ function openNoticeHistory() {
   document.getElementById('notice-history-modal').style.display = 'flex';
 }
 function closeNoticeHistory() {
-  document.getElementById('notice-history-modal').style.display = 'none';
+  _animModalClose(document.getElementById('notice-history-modal'));
 }
 function deleteNotice() {
   if (!currentUser || !currentUser.staffId) return;
@@ -7027,7 +7082,11 @@ function openStaffModal(id) {
   document.body.style.overflow = 'hidden';
 }
 function closeStaffModal() {
-  document.getElementById('staff-edit-modal').classList.remove('open');
+  const el = document.getElementById('staff-edit-modal');
+  if (el && el.classList.contains('open')) {
+    el.classList.add('nd-closing');
+    setTimeout(()=>{ el.classList.remove('open'); el.classList.remove('nd-closing'); }, 200);
+  }
   document.body.style.overflow = '';
 }
 function _setModalTag(el, on) {
