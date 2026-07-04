@@ -86,6 +86,11 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 #view-table.active ~ * { padding: 0; }
 .view { display: none; }
 .view.active { display: block; }
+/* 탭 전환 페이지 슬라이드 (방향: 오른쪽 탭이면 오른쪽에서, 왼쪽 탭이면 왼쪽에서) */
+@keyframes ndViewFromR { from { opacity: 0; transform: translateX(44px); } to { opacity: 1; transform: none; } }
+@keyframes ndViewFromL { from { opacity: 0; transform: translateX(-44px); } to { opacity: 1; transform: none; } }
+.view.nd-slide-r { animation: ndViewFromR .3s cubic-bezier(.22,1,.36,1); }
+.view.nd-slide-l { animation: ndViewFromL .3s cubic-bezier(.22,1,.36,1); }
 
 /* HOME */
 .home-row { display: grid; gap: 14px; margin-bottom: 14px; }
@@ -1903,9 +1908,16 @@ const DOW_FULL = ['일요일','월요일','화요일','수요일','목요일','�
 
 // ===== NAV =====
 function showView(v) {
-  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  const _prevView = currentView;   // 슬라이드 방향 판단용
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active','nd-slide-r','nd-slide-l'));
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-  document.getElementById('view-'+v).classList.add('active');
+  const _tv = document.getElementById('view-'+v);
+  _tv.classList.add('active');
+  // 탭 순서: 홈(1) 근무표(2) 달력(3) 휴가(4) 작성소(5) — 오른쪽 탭이면 오른쪽에서, 왼쪽 탭이면 왼쪽에서 슬라이드
+  const _ord = {home:1,table:2,month:3,leavereq:4,workshop:5};
+  if (_ord[v] && _ord[_prevView] && v!==_prevView) {
+    _tv.classList.add(_ord[v] > _ord[_prevView] ? 'nd-slide-r' : 'nd-slide-l');
+  }
   const labels = {home:'홈',table:'근무표',month:'달력',leavereq:'휴가신청',workshop:'근무표 작성소'};
   document.querySelectorAll('.nav-btn').forEach(el => {
     if (el.textContent.trim() === (labels[v]||v)) el.classList.add('active');
@@ -2446,17 +2458,17 @@ function renderTable() {
   thead+='<tr>';
   const deptColors={vw:'#5d6fb0',cg:'#437d93',project:'#565ba4',sports:'#6f59a3',xr:'#45847a'};
   vwCols.forEach(s=>{
-    thead+=`<th class="name-th" style="color:${deptColors.vw};">${s.name}</th>`;
+    thead+=`<th class="name-th" onclick="openPersonSchedule('${s.id}')" style="cursor:pointer;color:${deptColors.vw};">${s.name}</th>`;
   });
   jogeunCols.forEach(s=>{
-    thead+=`<th class="name-th" style="background:#eef1f9;color:#5d6fb0;">${s.name}</th>`;
+    thead+=`<th class="name-th" onclick="openPersonSchedule('${s.id}')" style="cursor:pointer;background:#eef1f9;color:#5d6fb0;">${s.name}</th>`;
   });
   cgCols.forEach((s,_ci)=>{
     const bg=s._dept==='xr'?'background:#f0fdfa;':'';
     const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;
     let _gb='';
     if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:2px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:2px solid ${_gc}55;`;}
-    thead+=`<th class="name-th" style="${bg}color:${deptColors[s._dept]||'#333'};${_gb}">${s.name}</th>`;
+    thead+=`<th class="name-th" onclick="openPersonSchedule('${s.id}')" style="cursor:pointer;${bg}color:${deptColors[s._dept]||'#333'};${_gb}">${s.name}</th>`;
   });
   thead+='</tr>';
   document.getElementById('excel-thead').innerHTML=thead;
@@ -7037,6 +7049,79 @@ async function _sendNoticePush(text, title) {
       body: JSON.stringify({ mode:'notice', text, title: title||'' })
     });
   } catch(e) { console.warn('notice push failed', e); }
+}
+// 한 사람의 특정 날짜 근무 역할 목록(bg/color/border 포함). 본인근무 카드·근무표 열 팝업 공용.
+function _getPersonRoles(entry, sid) {
+  if (!entry) return [];
+  if (entry.danjik===sid) return [{label:'당직',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'}];
+  const roles = [];
+  if ((entry.vw?.workers||[]).includes(sid)) roles.push({label:'VW 근무',bg:'var(--vw-bg)',color:'var(--vw-light)',border:'var(--vw)'});
+  if (entry.vw?.desk===sid) roles.push({label:'VW 데스크',bg:'var(--vw-bg)',color:'var(--vw-light)',border:'var(--vw)'});
+  if ((entry.cg?.workers||[]).includes(sid)) roles.push({label:'CG 근무',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
+  if (entry.cg?.desk8===sid||entry.cg?.desk===sid) roles.push({label:'CG 8데스크',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
+  if (entry.cg?.desk5===sid) roles.push({label:'CG 5데스크',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
+  if (entry.newsOh===sid) roles.push({label:'뉴.오',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
+  if (entry.newsOh2===sid) roles.push({label:'뉴.오2',bg:'#f3ddc0',color:'#b07d4a',border:'#d9b483'});
+  if (entry.weekend8jin===sid) roles.push({label:'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
+  if (entry.weekday8jin===sid) roles.push({label:'평일 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
+  if (entry.morningDesk===sid) roles.push({label:'오전데스크',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
+  if (entry.satMorning===sid) roles.push({label:'토요 조근',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
+  if (entry.ilgeun===sid) roles.push({label:'일근',bg:'#d1fae5',color:'#45847a',border:'#6ee7b7'});
+  if ((entry.xr||[]).includes(sid)) roles.push({label:'XR 근무',bg:'var(--xr-bg)',color:'var(--xr-light)',border:'var(--xr)'});
+  if (entry.jogeunSubs) { Object.values(entry.jogeunSubs).forEach(subId => { if (subId===sid) roles.push({label:'조근 대체',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'}); }); }
+  const me = staffById(sid);
+  if (me?.dept==='조근') { const subbed = entry.jogeunSubs && Object.keys(entry.jogeunSubs).includes(sid); if (!subbed) roles.push({label:'조근',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'}); }
+  if ((entry.project||[]).includes(sid)) roles.push({label:'P.J',bg:'var(--project-bg)',color:'var(--project-light)',border:'var(--project)'});
+  if ((entry.sports||[]).includes(sid)) roles.push({label:'SPORTS',bg:'var(--sports-bg)',color:'var(--sports-light)',border:'var(--sports)'});
+  return roles;
+}
+// 근무표 열(사람) 클릭 → 그 사람의 기간 내 근무를 표로 보여주는 팝업 (휴가 팝업과 동일 스타일)
+function openPersonSchedule(staffId){
+  const staff = staffById(staffId);
+  if (!staff || !tableRangeStart || !tableRangeEnd) return;
+  const sched = data.schedule || {};
+  const dates=[]; let cur=new Date(tableRangeStart+'T00:00:00'); const end=new Date(tableRangeEnd+'T00:00:00');
+  while(cur<=end){ dates.push(new Date(cur)); cur.setDate(cur.getDate()+1); }
+  const DOW_KR=['일','월','화','수','목','금','토'];
+  const DEPT_COLOR={VW:'#5d6fb0',CG:'#437d93',PROJECT:'#565ba4',SPORTS:'#6f59a3',XR:'#45847a','조근':'#5d6fb0'};
+  const nameColor=DEPT_COLOR[staff.dept]||'#334155';
+  const now=new Date(); const todayStr=toDateStr(now.getFullYear(),now.getMonth()+1,now.getDate());
+  const TD='border:1px solid #e2e8f0;padding:6px 6px;vertical-align:middle;text-align:center;font-size:11px;';
+  const TD_WE='border:1px solid #b6cbed;padding:6px 6px;vertical-align:middle;text-align:center;font-size:11px;background:#eef3fb;';
+  let rows='';
+  dates.forEach(dt=>{
+    const ds=toDateStr(dt.getFullYear(),dt.getMonth()+1,dt.getDate());
+    const dow=dt.getDay(); const isWE=dow===0||dow===6; const isHoli=!!(data.holidays&&data.holidays[ds]);
+    const base=isWE||isHoli?TD_WE:TD;
+    const dowColor=dow===0?'color:#6f59a3;':dow===6?'color:#6366f1;':'';
+    const isToday=ds===todayStr;
+    const onLv=isOnLeave(staffId,ds);
+    const roles=onLv?[{label:'휴가',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'}]:_getPersonRoles(sched[ds],staffId);
+    const chips=roles.length?roles.map(r=>`<span style="display:inline-block;padding:2px 9px;border-radius:6px;background:${r.bg};color:${r.color};font-size:11px;font-weight:700;border:1px solid ${r.border};margin:2px;">${r.label}</span>`).join(''):'<span style="color:#ccc;">-</span>';
+    rows+=`<tr${isToday?' style="background:#fffbe9;"':''}>
+      <td style="${base}font-weight:700;color:#334155;white-space:nowrap;">${dt.getMonth()+1}/${dt.getDate()}</td>
+      <td style="${base}${dowColor}">${DOW_KR[dow]}</td>
+      <td style="${base}text-align:left;padding-left:10px;">${chips}</td>
+    </tr>`;
+  });
+  const TH='border:1px solid #e2e8f0;padding:7px 6px;font-size:11px;font-weight:700;text-align:center;background:#f7f9fc;color:#64748b;position:sticky;top:0;z-index:1;';
+  const html=`
+  <div id="lr-popup-overlay" class="nd-modal" onclick="if(event.target===this)dismissLrPopup()" style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;">
+    <div onclick="event.stopPropagation()" class="nd-pop" style="background:#fff;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,0.3);max-height:84vh;display:flex;flex-direction:column;width:380px;max-width:94vw;">
+      <div style="padding:16px 20px 12px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div><span style="font-size:15px;font-weight:800;color:${nameColor};">${staff.name}</span><span style="font-size:11px;color:#94a3b8;margin-left:6px;">${staff.dept} · 근무</span></div>
+        <button onclick="dismissLrPopup()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;line-height:1;">✕</button>
+      </div>
+      <div id="lr-popup-scroll" style="overflow-y:auto;padding:0 14px 14px;">
+        <table style="border-collapse:collapse;width:100%;">
+          <colgroup><col style="width:52px"><col style="width:36px"><col></colgroup>
+          <thead><tr><th style="${TH}">날짜</th><th style="${TH}">요일</th><th style="${TH}color:${nameColor};">근무</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+  const el=document.createElement('div'); el.id='lr-popup-root'; el.innerHTML=html; document.body.appendChild(el);
 }
 function renderMySchedule() {
   const card = document.getElementById('my-schedule-card');
