@@ -34,32 +34,42 @@ nav { display: flex; gap: 2px; }
 .nav-btn { background: none; border: none; color: var(--muted); padding: 7px 13px; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.12s; white-space: nowrap; }
 .nav-btn:hover { color: var(--text); background: var(--surface2); }
 .nav-btn.active { color: var(--text); background: var(--surface2); }
-/* 모바일 하단 플로팅 탭바 (네이티브 스타일) — 데스크톱에선 숨김 */
-#floating-nav { display: none; }
+/* 모바일 하단 플로팅 탭바 (네이티브 리퀴드 글라스) — 데스크톱에선 숨김 */
+#floating-nav, #fnav-fade { display: none; }
 @media (max-width: 760px) {
   header nav { display: none; }                 /* 모바일에선 상단 메뉴 숨김 */
-  main { padding-bottom: calc(86px + env(safe-area-inset-bottom)); }  /* 바에 안 가리게 */
+  body main { padding-bottom: calc(124px + env(safe-area-inset-bottom)) !important; }  /* 바+페이드에 안 가리게(기본 padding 덮어쓰기) */
+  /* 바 뒤 콘텐츠가 배경색으로 자연스럽게 사라지는 그라디언트 페이드 */
+  #fnav-fade {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 2400;
+    height: calc(118px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--bg) 32%, rgba(241,244,248,0) 100%);
+    pointer-events: none;
+  }
   #floating-nav {
-    display: flex; align-items: stretch; gap: 2px;
+    display: inline-flex; align-items: center; gap: 2px; width: auto;
     position: fixed; left: 50%; transform: translateX(-50%);
-    bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 2500;
-    background: var(--surface); border: 1px solid rgba(0,0,0,0.07);
-    border-radius: 30px; box-shadow: 0 8px 30px rgba(15,23,42,0.18);
-    padding: 6px; max-width: calc(100vw - 20px);
+    bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 2500;
+    padding: 5px 6px; max-width: calc(100vw - 24px);
+    background: rgba(255,255,255,0.44);
+    -webkit-backdrop-filter: blur(30px) saturate(190%); backdrop-filter: blur(30px) saturate(190%);
+    border: 0.5px solid rgba(255,255,255,0.65);
+    border-radius: 999px;                        /* 완전 알약 (iOS 가이드라인) */
+    box-shadow: 0 8px 26px rgba(0,0,0,0.16), 0 1px 2px rgba(0,0,0,0.06);
   }
   .fnav-btn {
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
     background: none; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
-    padding: 7px 13px; border-radius: 24px; min-width: 54px;
-    color: var(--muted); font-size: 10.5px; font-weight: 700;
-    transition: background .2s ease, color .2s ease;
+    padding: 5px 11px; border-radius: 999px; min-width: 48px;
+    color: #1c1c1e; font-size: 9.5px; font-weight: 600; letter-spacing: -0.2px; line-height: 1.15;
+    transition: color .28s ease, background .28s ease;
   }
-  .fnav-btn .fnav-ic { font-size: 19px; line-height: 1; filter: grayscale(0.35) opacity(0.75); transition: filter .2s ease; }
-  .fnav-btn.active { background: var(--vw-bg); color: var(--vw-light); }
-  .fnav-btn.active .fnav-ic { filter: none; }
-  .fnav-btn:active { transform: scale(0.94); }
-  .fnav-btn { position: relative; }
-  .fnav-btn.has-open::after { content: ''; position: absolute; top: 6px; right: 12px; width: 7px; height: 7px; border-radius: 50%; background: #d65a52; box-shadow: 0 0 0 2px var(--surface); }
+  .fnav-btn .fnav-ic { width: 21px; height: 21px; display: block; transition: transform .32s cubic-bezier(.34,1.56,.64,1); }
+  .fnav-btn.active { color: #007aff; background: rgba(120,120,128,0.14); }
+  .fnav-btn.active .fnav-ic { transform: scale(1.05); }
+  .fnav-btn:active .fnav-ic { transform: scale(0.86); }
+  .fnav-btn.has-open::after { content: ''; position: absolute; top: 4px; right: 11px; width: 7px; height: 7px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 0 2px rgba(250,250,252,0.9); }
 }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .date-badge { font-size: 12px; color: var(--muted); white-space: nowrap; }
@@ -212,8 +222,8 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .event-tag button:hover { opacity: 1; }
 
 /* MODAL */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.38);  z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.modal { background: var(--surface); border: 0.5px solid rgba(0,0,0,0.06); border-radius: 22px; padding: 24px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 60px rgba(15,23,42,0.22); }
+.modal-overlay { position: fixed; inset: 0; background: transparent; z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: rgba(255,255,255,0.72); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border: 0.5px solid rgba(255,255,255,0.6); border-radius: 16px; padding: 24px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 60px rgba(15,23,42,0.22); }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .modal-header h3 { font-size: 17px; font-weight: 700; }
 .modal-close { background: var(--surface2); border: none; color: var(--text); width: 30px; height: 30px; border-radius: 7px; cursor: pointer; font-size: 18px; }
@@ -229,12 +239,12 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .staff-modal-overlay.open { animation: ndModalFade .32s ease both; }
 .staff-modal-overlay.open > * { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; }
 /* 인라인 스타일 모달(공지·설정·지난공지 등)에 클래스로 부여 */
-.nd-modal { animation: ndModalFade .32s ease both; background: rgba(0,0,0,0.38) !important;  }
-.nd-modal > div { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 22px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; }
+.nd-modal { animation: ndModalFade .32s ease both; background: transparent !important; }
+.nd-modal > div { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 16px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; background: rgba(255,255,255,0.72) !important; -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
 /* 휴가 팝업 콘텐츠(재생성 시엔 .no-anim으로 애니메이션 생략) */
-.nd-pop { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 22px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; }
+.nd-pop { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 16px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; background: rgba(255,255,255,0.72) !important; -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
 .nd-pop.no-anim { animation: none; }
-#lr-popup-overlay { background: rgba(0,0,0,0.38) !important;  }
+#lr-popup-overlay { background: transparent !important; }
 .staff-modal-overlay.open {  }
 /* iOS풍 버튼 — 모달 안의 주요 버튼을 더 둥글고 큼직하게 */
 .modal .btn-primary, .nd-modal .btn-primary { border-radius: 14px; padding: 13px; font-size: 15px; font-weight: 700; }
@@ -355,9 +365,9 @@ tr.dragging { opacity:0.35; }
 /* 태그 선택기 */
 .tag-sel-pool { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
 /* 직원 편집 모달 */
-.staff-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1200; display:none; align-items:center; justify-content:center; }
+.staff-modal-overlay { position:fixed; inset:0; background:transparent; z-index:1200; display:none; align-items:center; justify-content:center; }
 .staff-modal-overlay.open { display:flex; }
-.staff-modal { background:var(--surface); border-radius:14px; padding:24px 28px; width:560px; max-width:93vw; max-height:88vh; overflow-y:auto; position:relative; box-shadow:0 12px 48px rgba(0,0,0,0.35); animation:modalIn 0.18s ease; }
+.staff-modal { background:rgba(255,255,255,0.72); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border-radius:16px; padding:24px 28px; width:560px; max-width:93vw; max-height:88vh; overflow-y:auto; position:relative; box-shadow:0 12px 48px rgba(0,0,0,0.35); animation:modalIn 0.18s ease; }
 @keyframes modalIn { from{transform:scale(0.94);opacity:0} to{transform:scale(1);opacity:1} }
 .staff-modal h3 { font-size:15px; font-weight:700; margin-bottom:16px; }
 .staff-modal-close { position:absolute; top:14px; right:16px; background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); line-height:1; padding:2px 6px; border-radius:6px; }
@@ -441,13 +451,25 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   </div>
 </header>
 
-<!-- 모바일 하단 플로팅 탭바 (네이티브 스타일) -->
+<!-- 바 뒤 콘텐츠 그라디언트 페이드 (모바일) -->
+<div id="fnav-fade"></div>
+<!-- 모바일 하단 플로팅 탭바 (네이티브 리퀴드 글라스 스타일) -->
 <nav id="floating-nav" aria-label="주요 메뉴">
-  <button class="fnav-btn active" data-view="home" onclick="showView('home')"><span class="fnav-ic">🏠</span><span class="fnav-lb">홈</span></button>
-  <button class="fnav-btn" data-view="table" onclick="showView('table')"><span class="fnav-ic">📋</span><span class="fnav-lb">근무표</span></button>
-  <button class="fnav-btn" data-view="month" onclick="showView('month')"><span class="fnav-ic">📅</span><span class="fnav-lb">달력</span></button>
-  <button class="fnav-btn" data-view="leavereq" id="fnav-leavereq" onclick="showView('leavereq')"><span class="fnav-ic">🌴</span><span class="fnav-lb">휴가</span></button>
-  <button class="fnav-btn" data-view="workshop" id="fnav-workshop" onclick="showView('workshop')" style="display:none;"><span class="fnav-ic">✍️</span><span class="fnav-lb">작성소</span></button>
+  <button class="fnav-btn active" data-view="home" onclick="showView('home')">
+    <svg class="fnav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.7 12 3.5l9 7.2"/><path d="M5.5 9.5V19a1 1 0 0 0 1 1H9v-5.3h6V20h2.5a1 1 0 0 0 1-1V9.5"/></svg>
+    <span class="fnav-lb">홈</span></button>
+  <button class="fnav-btn" data-view="table" onclick="showView('table')">
+    <svg class="fnav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+    <span class="fnav-lb">근무표</span></button>
+  <button class="fnav-btn" data-view="month" onclick="showView('month')">
+    <svg class="fnav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3.3v3M16 3.3v3"/></svg>
+    <span class="fnav-lb">달력</span></button>
+  <button class="fnav-btn" data-view="leavereq" id="fnav-leavereq" onclick="showView('leavereq')">
+    <svg class="fnav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.6"/><path d="M12 2.6v2.3M12 19.1v2.3M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.6 12h2.3M19.1 12h2.3M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+    <span class="fnav-lb">휴가</span></button>
+  <button class="fnav-btn" data-view="workshop" id="fnav-workshop" onclick="showView('workshop')" style="display:none;">
+    <svg class="fnav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M14.6 4.4a2 2 0 0 1 2.9 2.9L8 16.9 4 18l1.1-4z"/></svg>
+    <span class="fnav-lb">작성소</span></button>
 </nav>
 
 <!-- 개인설정 모달 -->
