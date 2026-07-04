@@ -34,6 +34,33 @@ nav { display: flex; gap: 2px; }
 .nav-btn { background: none; border: none; color: var(--muted); padding: 7px 13px; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.12s; white-space: nowrap; }
 .nav-btn:hover { color: var(--text); background: var(--surface2); }
 .nav-btn.active { color: var(--text); background: var(--surface2); }
+/* 모바일 하단 플로팅 탭바 (네이티브 스타일) — 데스크톱에선 숨김 */
+#floating-nav { display: none; }
+@media (max-width: 760px) {
+  header nav { display: none; }                 /* 모바일에선 상단 메뉴 숨김 */
+  main { padding-bottom: calc(86px + env(safe-area-inset-bottom)); }  /* 바에 안 가리게 */
+  #floating-nav {
+    display: flex; align-items: stretch; gap: 2px;
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 2500;
+    background: var(--surface); border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 30px; box-shadow: 0 8px 30px rgba(15,23,42,0.18);
+    padding: 6px; max-width: calc(100vw - 20px);
+  }
+  .fnav-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    background: none; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    padding: 7px 13px; border-radius: 24px; min-width: 54px;
+    color: var(--muted); font-size: 10.5px; font-weight: 700;
+    transition: background .2s ease, color .2s ease;
+  }
+  .fnav-btn .fnav-ic { font-size: 19px; line-height: 1; filter: grayscale(0.35) opacity(0.75); transition: filter .2s ease; }
+  .fnav-btn.active { background: var(--vw-bg); color: var(--vw-light); }
+  .fnav-btn.active .fnav-ic { filter: none; }
+  .fnav-btn:active { transform: scale(0.94); }
+  .fnav-btn { position: relative; }
+  .fnav-btn.has-open::after { content: ''; position: absolute; top: 6px; right: 12px; width: 7px; height: 7px; border-radius: 50%; background: #d65a52; box-shadow: 0 0 0 2px var(--surface); }
+}
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .date-badge { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .admin-link { background: none; border: 1px solid var(--border); color: var(--muted); padding: 5px 11px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.12s; }
@@ -413,6 +440,15 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
     <button class="admin-link" id="admin-toggle" onclick="toggleAdmin()">⚙<span class="btn-label"> 관리자</span></button>
   </div>
 </header>
+
+<!-- 모바일 하단 플로팅 탭바 (네이티브 스타일) -->
+<nav id="floating-nav" aria-label="주요 메뉴">
+  <button class="fnav-btn active" data-view="home" onclick="showView('home')"><span class="fnav-ic">🏠</span><span class="fnav-lb">홈</span></button>
+  <button class="fnav-btn" data-view="table" onclick="showView('table')"><span class="fnav-ic">📋</span><span class="fnav-lb">근무표</span></button>
+  <button class="fnav-btn" data-view="month" onclick="showView('month')"><span class="fnav-ic">📅</span><span class="fnav-lb">달력</span></button>
+  <button class="fnav-btn" data-view="leavereq" id="fnav-leavereq" onclick="showView('leavereq')"><span class="fnav-ic">🌴</span><span class="fnav-lb">휴가</span></button>
+  <button class="fnav-btn" data-view="workshop" id="fnav-workshop" onclick="showView('workshop')" style="display:none;"><span class="fnav-ic">✍️</span><span class="fnav-lb">작성소</span></button>
+</nav>
 
 <!-- 개인설정 모달 -->
 <div id="user-settings-modal" class="nd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
@@ -1762,6 +1798,8 @@ function _renderSpecialDayList() {
 function _setAdminNav(on) {
   const ws = document.getElementById('nav-workshop');
   if (ws) ws.style.display = on ? 'inline-block' : 'none';
+  const fws = document.getElementById('fnav-workshop');
+  if (fws) fws.style.display = on ? '' : 'none';
   const bar = document.getElementById('admin-mode-bar');
   if (bar) bar.style.display = on ? 'block' : 'none';
   document.body.classList.toggle('admin-mode-active', on);
@@ -1790,6 +1828,7 @@ function showView(v) {
   document.querySelectorAll('.nav-btn').forEach(el => {
     if (el.textContent.trim() === (labels[v]||v)) el.classList.add('active');
   });
+  document.querySelectorAll('.fnav-btn').forEach(el => el.classList.toggle('active', el.getAttribute('data-view')===v));
   currentView = v;
   if (v==='home') renderHome();
   else if (v==='table') renderTable();
@@ -1904,6 +1943,7 @@ function updateLeaveReqBadge() {
   } else {
     btn.textContent='휴가신청';
   }
+  const fb=document.getElementById('fnav-leavereq'); if(fb) fb.classList.toggle('has-open', !!data.leaveReq?.isOpen);   // 플로팅바 휴가 탭 점 표시
 }
 function renderHome() {
   _checkLeaveReqDeadline();
