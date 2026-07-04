@@ -2458,17 +2458,17 @@ function renderTable() {
   thead+='<tr>';
   const deptColors={vw:'#5d6fb0',cg:'#437d93',project:'#565ba4',sports:'#6f59a3',xr:'#45847a'};
   vwCols.forEach(s=>{
-    thead+=`<th class="name-th" onclick="openPersonSchedule('${s.id}')" style="cursor:pointer;color:${deptColors.vw};">${s.name}</th>`;
+    thead+=`<th class="name-th" data-sid="${s.id}" style="cursor:pointer;color:${deptColors.vw};">${s.name}</th>`;
   });
   jogeunCols.forEach(s=>{
-    thead+=`<th class="name-th" onclick="openPersonSchedule('${s.id}')" style="cursor:pointer;background:#eef1f9;color:#5d6fb0;">${s.name}</th>`;
+    thead+=`<th class="name-th" data-sid="${s.id}" style="cursor:pointer;background:#eef1f9;color:#5d6fb0;">${s.name}</th>`;
   });
   cgCols.forEach((s,_ci)=>{
     const bg=s._dept==='xr'?'background:#f0fdfa;':'';
     const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;
     let _gb='';
     if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:2px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:2px solid ${_gc}55;`;}
-    thead+=`<th class="name-th" onclick="openPersonSchedule('${s.id}')" style="cursor:pointer;${bg}color:${deptColors[s._dept]||'#333'};${_gb}">${s.name}</th>`;
+    thead+=`<th class="name-th" data-sid="${s.id}" style="cursor:pointer;${bg}color:${deptColors[s._dept]||'#333'};${_gb}">${s.name}</th>`;
   });
   thead+='</tr>';
   document.getElementById('excel-thead').innerHTML=thead;
@@ -2529,7 +2529,7 @@ function renderTable() {
         bg=_custom.bg||'';color=_custom.color||'#333';fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
-        tbody+=`<td ${cl}>${text}</td>`; return;
+        tbody+=`<td data-sid="${s.id}" ${cl}>${text}</td>`; return;
       }
       const hasNL=(data.newLeaves?.[dateStr]||[]).includes(s.id);
       const contractOut=!isContractActive(s,dateStr);
@@ -2560,7 +2560,7 @@ function renderTable() {
       }
       const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};`:'');
       const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}${extraStyle}"`:`style="${st}${extraStyle}"`;
-      tbody+=`<td ${cl}>${text||'<span class="cell-off">-</span>'}</td>`;
+      tbody+=`<td data-sid="${s.id}" ${cl}>${text||'<span class="cell-off">-</span>'}</td>`;
     });
 
     // 조근 dept staff cells
@@ -2571,7 +2571,7 @@ function renderTable() {
         bg=_custom.bg||'';color=_custom.color||'#333';fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
-        tbody+=`<td ${cl}>${text}</td>`; return;
+        tbody+=`<td data-sid="${s.id}" ${cl}>${text}</td>`; return;
       }
       const hasNL=(data.newLeaves?.[dateStr]||[]).includes(s.id);
       if(isDispatched(s,dateStr)){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
@@ -2588,7 +2588,7 @@ function renderTable() {
       else{bg='#8893dc';color='#fff';fw='700';text='조근';workCount[s.id]++;}
       const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};`:'');
       const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}${extraStyle}"`:`style="${st}${extraStyle}"`;
-      tbody+=`<td ${cl}>${text||'<span class="cell-off">-</span>'}</td>`;
+      tbody+=`<td data-sid="${s.id}" ${cl}>${text||'<span class="cell-off">-</span>'}</td>`;
     });
 
     // VW합 cell
@@ -2605,7 +2605,7 @@ function renderTable() {
         bg=_custom.bg||'';color=_custom.color||'#333';fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};${_gb}`:`color:${color};font-weight:${fw};${_gb}`;
         const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
-        tbody+=`<td ${cl}>${text}</td>`; return;
+        tbody+=`<td data-sid="${s.id}" ${cl}>${text}</td>`; return;
       }
       const hasNL=(data.newLeaves?.[dateStr]||[]).includes(s.id);
       const contractOut=!isContractActive(s,dateStr);
@@ -2647,7 +2647,7 @@ function renderTable() {
       }
       const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};`:'');
       const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}${extraStyle}${_gb}"`:`style="${st}${extraStyle}${_gb}"`;
-      tbody+=`<td ${cl}>${text||'<span class="cell-off">-</span>'}</td>`;
+      tbody+=`<td data-sid="${s.id}" ${cl}>${text||'<span class="cell-off">-</span>'}</td>`;
     });
 
     // CG합 cell
@@ -7088,20 +7088,30 @@ function openPersonSchedule(staffId){
   const now=new Date(); const todayStr=toDateStr(now.getFullYear(),now.getMonth()+1,now.getDate());
   const TD='border:1px solid #e2e8f0;padding:6px 6px;vertical-align:middle;text-align:center;font-size:11px;';
   const TD_WE='border:1px solid #b6cbed;padding:6px 6px;vertical-align:middle;text-align:center;font-size:11px;background:#eef3fb;';
+  // 실제 렌더된 근무표 셀을 그대로 가져와 동일한 디자인으로 표시 (없으면 역할 칩으로 대체)
+  const _trs = document.querySelectorAll('#excel-tbody > tr');
   let rows='';
-  dates.forEach(dt=>{
+  dates.forEach((dt,i)=>{
     const ds=toDateStr(dt.getFullYear(),dt.getMonth()+1,dt.getDate());
     const dow=dt.getDay(); const isWE=dow===0||dow===6; const isHoli=!!(data.holidays&&data.holidays[ds]);
     const base=isWE||isHoli?TD_WE:TD;
     const dowColor=dow===0?'color:#6f59a3;':dow===6?'color:#6366f1;':'';
     const isToday=ds===todayStr;
-    const onLv=isOnLeave(staffId,ds);
-    const roles=onLv?[{label:'휴가',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'}]:_getPersonRoles(sched[ds],staffId);
-    const chips=roles.length?roles.map(r=>`<span style="display:inline-block;padding:2px 9px;border-radius:6px;background:${r.bg};color:${r.color};font-size:11px;font-weight:700;border:1px solid ${r.border};margin:2px;">${r.label}</span>`).join(''):'<span style="color:#ccc;">-</span>';
+    let cellHtml='';
+    const _row=_trs[i];
+    const _td=_row?_row.querySelector('td[data-sid="'+staffId+'"]'):null;
+    if(_td){
+      const _st=(_td.getAttribute('style')||'').replace(/cursor:\s*pointer;?/g,'');
+      cellHtml=`<span style="display:inline-block;min-width:54px;padding:3px 12px;border-radius:6px;font-size:12px;${_st}">${_td.innerHTML}</span>`;
+    } else {
+      const onLv=isOnLeave(staffId,ds);
+      const roles=onLv?[{label:'휴가',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'}]:_getPersonRoles(sched[ds],staffId);
+      cellHtml=roles.length?roles.map(r=>`<span style="display:inline-block;padding:2px 9px;border-radius:6px;background:${r.bg};color:${r.color};font-size:11px;font-weight:700;border:1px solid ${r.border};margin:2px;">${r.label}</span>`).join(''):'<span style="color:#ccc;">-</span>';
+    }
     rows+=`<tr${isToday?' style="background:#fffbe9;"':''}>
       <td style="${base}font-weight:700;color:#334155;white-space:nowrap;">${dt.getMonth()+1}/${dt.getDate()}</td>
       <td style="${base}${dowColor}">${DOW_KR[dow]}</td>
-      <td style="${base}text-align:left;padding-left:10px;">${chips}</td>
+      <td style="${base}text-align:center;">${cellHtml}</td>
     </tr>`;
   });
   const TH='border:1px solid #e2e8f0;padding:7px 6px;font-size:11px;font-weight:700;text-align:center;background:#f7f9fc;color:#64748b;position:sticky;top:0;z-index:1;';
@@ -7569,6 +7579,13 @@ document.addEventListener('click', function(e){
   if (!cell) return;
   e.stopPropagation();
   openLrPopup(cell.dataset.sid);
+});
+// 근무표 테이블 — 열(사람) 아무 셀이나 클릭 시 그 사람 근무 팝업 (관리자는 셀 편집 우선이라 제외)
+document.addEventListener('click', function(e){
+  if (isAdmin) return;
+  const cell = e.target.closest('.excel-table [data-sid]');
+  if (!cell || !document.getElementById('view-table')?.classList.contains('active')) return;
+  openPersonSchedule(cell.dataset.sid);
 });
 
 // 열 호버 하이라이트 — getBoundingClientRect 방식으로 colspan/rowspan 무관하게 정확히 동작
