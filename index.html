@@ -5932,48 +5932,74 @@ function showAdminTab(tab) {
   if (tab==='settings') { _initGcalSettings(); _renderBackupList(); }
   if (tab==='loginlog') renderLoginLog();
 }
-// ===== 로그인 기록 (마스터 전용) =====
-// 메인 데이터(schedule)와 분리된 별도 테이블 login_log에 append만 → 근무표에 영향 없음.
+// ===== 로그인 상태 (마스터 전용) =====
+// 메인 데이터(schedule)와 분리된 별도 테이블 login_log에 '기기별 로그인 상태'를 upsert.
+// logged_in=true = 아직 로그아웃 안 함(세션 유지), false = 로그아웃. 근무표 blob엔 영향 없음.
+const LOGINLOG_SQL = `drop table if exists login_log;\ncreate table login_log (\n  device_id text primary key,\n  staff_id text, name text, dept text, ua text,\n  logged_in boolean default true,\n  last_login timestamptz default now(),\n  last_logout timestamptz\n);\nalter table login_log enable row level security;\ncreate policy "anon all login_log" on login_log for all to anon using (true) with check (true);`;
+function _deviceId(){
+  let id=localStorage.getItem('nd_device_id');
+  if(!id){ id='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); localStorage.setItem('nd_device_id', id); }
+  return id;
+}
 function _recordLogin(force){
   try {
     if(!currentUser||!currentUser.staffId) return;
     const key='nd_loginlog_'+_bkToday();
-    if(!force && localStorage.getItem(key)) return;   // 자동로그인은 하루 1회만 기록
+    if(!force && localStorage.getItem(key)) return;   // 자동로그인은 하루 1회만 갱신
     localStorage.setItem(key,'1');
     const st=staffById(currentUser.staffId);
-    fetch(`${SB_URL}/rest/v1/login_log`, {
-      method:'POST', headers:{...SB_HEADERS,'Prefer':'return=minimal'},
-      body: JSON.stringify({ staff_id:currentUser.staffId, name:currentUser.name, dept:(st&&st.dept)||'', ua:(navigator.userAgent||'').slice(0,200) })
+    fetch(`${SB_URL}/rest/v1/login_log?on_conflict=device_id`, {
+      method:'POST', headers:{...SB_HEADERS,'Prefer':'resolution=merge-duplicates,return=minimal'},
+      body: JSON.stringify({ device_id:_deviceId(), staff_id:currentUser.staffId, name:currentUser.name, dept:(st&&st.dept)||'', ua:(navigator.userAgent||'').slice(0,200), logged_in:true, last_login:new Date().toISOString() })
+    }).catch(()=>{});
+  } catch(e){}
+}
+function _recordLogout(){
+  try {
+    localStorage.removeItem('nd_loginlog_'+_bkToday());
+    fetch(`${SB_URL}/rest/v1/login_log?device_id=eq.${encodeURIComponent(_deviceId())}`, {
+      method:'PATCH', headers:{...SB_HEADERS,'Prefer':'return=minimal'},
+      body: JSON.stringify({ logged_in:false, last_logout:new Date().toISOString() })
     }).catch(()=>{});
   } catch(e){}
 }
 async function renderLoginLog(){
   const box=document.getElementById('loginlog-body'); if(!box) return;
   box.innerHTML='불러오는 중…';
-  const SETUP_SQL = `create table if not exists login_log (\n  id bigint generated always as identity primary key,\n  staff_id text, name text, dept text, ua text,\n  at timestamptz default now()\n);\nalter table login_log enable row level security;\ncreate policy "anon insert login_log" on login_log for insert to anon with check (true);\ncreate policy "anon select login_log" on login_log for select to anon using (true);`;
   try {
-    const res=await fetch(`${SB_URL}/rest/v1/login_log?select=name,dept,ua,at&order=at.desc&limit=300`, { headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY } });
+    const res=await fetch(`${SB_URL}/rest/v1/login_log?select=*&order=last_login.desc`, { headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY } });
     if(!res.ok){
-      box.innerHTML = `<div style="color:#d65a52;font-weight:600;margin-bottom:8px;">로그인 기록 테이블이 아직 없습니다. (HTTP ${res.status})</div><div style="color:var(--muted);margin-bottom:8px;">Supabase → SQL Editor에서 아래를 1회 실행하세요:</div><pre style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:11px;line-height:1.5;overflow-x:auto;white-space:pre;">${SETUP_SQL.replace(/</g,'&lt;')}</pre>`;
+      box.innerHTML = `<div style="color:#d65a52;font-weight:600;margin-bottom:8px;">로그인 상태 테이블이 없거나 예전 버전입니다. (HTTP ${res.status})</div><div style="color:var(--muted);margin-bottom:8px;">Supabase → SQL Editor에서 아래를 1회 실행하세요. <b>(기존 login_log는 삭제되고 새 구조로 생성됩니다)</b></div><pre style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:11px;line-height:1.5;overflow-x:auto;white-space:pre;">${LOGINLOG_SQL.replace(/</g,'&lt;')}</pre>`;
       return;
     }
     const rows=await res.json();
-    if(!rows.length){ box.innerHTML='<div style="color:var(--muted);">아직 기록된 로그인이 없습니다. (직원이 이름으로 접속하면 여기에 쌓입니다)</div>'; return; }
-    const dev=ua=>{ ua=ua||''; if(/iPhone|iPad|iPod/.test(ua))return '📱 iOS'; if(/SamsungBrowser/.test(ua))return '📱 삼성인터넷'; if(/Android/.test(ua))return '📱 안드로이드'; if(/Windows/.test(ua))return '💻 PC'; if(/Mac/.test(ua))return '💻 Mac'; return '기타'; };
-    const fmt=iso=>{ try{ const d=new Date(iso); const k=new Date(d.getTime()); const mm=String(k.getMonth()+1).padStart(2,'0'),dd=String(k.getDate()).padStart(2,'0'),hh=String(k.getHours()).padStart(2,'0'),mi=String(k.getMinutes()).padStart(2,'0'); return `${k.getFullYear()}-${mm}-${dd} ${hh}:${mi}`; }catch(e){ return iso; } };
+    if(!rows.length){ box.innerHTML='<div style="color:var(--muted);">아직 로그인한 사람이 없습니다. (직원이 이름으로 접속하면 여기에 표시됩니다)</div>'; return; }
+    const devName=ua=>{ ua=ua||''; if(/iPhone|iPad|iPod/.test(ua))return '📱 iOS'; if(/SamsungBrowser/.test(ua))return '📱 삼성인터넷'; if(/Android/.test(ua))return '📱 안드로이드'; if(/Windows/.test(ua))return '💻 PC'; if(/Mac/.test(ua))return '💻 Mac'; return '기타'; };
+    const fmt=iso=>{ if(!iso)return '-'; try{ const k=new Date(iso); const mm=String(k.getMonth()+1).padStart(2,'0'),dd=String(k.getDate()).padStart(2,'0'),hh=String(k.getHours()).padStart(2,'0'),mi=String(k.getMinutes()).padStart(2,'0'); return `${mm}-${dd} ${hh}:${mi}`; }catch(e){ return iso; } };
     const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-    // 최근 접속 인원 요약(이름 중복 제거)
-    const uniqNames=[...new Set(rows.map(r=>r.name).filter(Boolean))];
-    const head=`<div style="margin-bottom:12px;color:var(--text);"><b>총 ${rows.length}건</b> · 접속자 <b>${uniqNames.length}명</b></div>`;
-    const trs=rows.map(r=>`<tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:7px 10px;font-weight:700;color:var(--text);white-space:nowrap;">${esc(r.name)}</td>
-        <td style="padding:7px 10px;color:var(--muted);white-space:nowrap;">${esc(r.dept)}</td>
-        <td style="padding:7px 10px;color:var(--muted);white-space:nowrap;">${dev(r.ua)}</td>
-        <td style="padding:7px 10px;color:var(--muted);white-space:nowrap;font-family:ui-monospace,monospace;">${fmt(r.at)}</td>
-      </tr>`).join('');
+    // 사람(staff_id)별로 묶기 — 여러 기기 로그인 가능
+    const byStaff={};
+    rows.forEach(r=>{ const k=r.staff_id||r.name; if(!byStaff[k]) byStaff[k]={name:r.name,dept:r.dept,loggedIn:false,lastLogin:r.last_login,devs:[]};
+      const g=byStaff[k]; if(r.logged_in) g.loggedIn=true; if((r.last_login||'')>(g.lastLogin||'')) g.lastLogin=r.last_login; g.devs.push(r); });
+    const list=Object.values(byStaff).sort((a,b)=> (b.loggedIn-a.loggedIn) || ((b.lastLogin||'')>(a.lastLogin||'')?1:-1));
+    const onCnt=list.filter(p=>p.loggedIn).length;
+    const head=`<div style="margin-bottom:12px;color:var(--text);">한번이라도 로그인 <b>${list.length}명</b> · <span style="color:#16a34a;">🟢 로그인 중 <b>${onCnt}명</b></span> · ⚪ 로그아웃 <b>${list.length-onCnt}명</b></div>`;
+    const trs=list.map(p=>{
+      const badge = p.loggedIn
+        ? '<span style="background:#dcfce7;color:#16a34a;font-weight:700;font-size:11px;padding:2px 9px;border-radius:20px;white-space:nowrap;">🟢 로그인 중</span>'
+        : '<span style="background:var(--surface2);color:var(--muted);font-weight:700;font-size:11px;padding:2px 9px;border-radius:20px;white-space:nowrap;">⚪ 로그아웃</span>';
+      const devs=[...new Set(p.devs.map(d=>devName(d.ua)))].join(', ');
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 10px;font-weight:700;color:var(--text);white-space:nowrap;">${esc(p.name)}</td>
+        <td style="padding:8px 10px;color:var(--muted);white-space:nowrap;">${esc(p.dept)}</td>
+        <td style="padding:8px 10px;">${badge}</td>
+        <td style="padding:8px 10px;color:var(--muted);white-space:nowrap;">${devs}</td>
+        <td style="padding:8px 10px;color:var(--muted);white-space:nowrap;font-family:ui-monospace,monospace;">${fmt(p.lastLogin)}</td>
+      </tr>`;
+    }).join('');
     box.innerHTML = head + `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead><tr style="border-bottom:2px solid var(--border);text-align:left;">
-        <th style="padding:7px 10px;color:var(--muted);">이름</th><th style="padding:7px 10px;color:var(--muted);">부서</th><th style="padding:7px 10px;color:var(--muted);">기기</th><th style="padding:7px 10px;color:var(--muted);">접속 시각</th>
+        <th style="padding:7px 10px;color:var(--muted);">이름</th><th style="padding:7px 10px;color:var(--muted);">부서</th><th style="padding:7px 10px;color:var(--muted);">상태</th><th style="padding:7px 10px;color:var(--muted);">기기</th><th style="padding:7px 10px;color:var(--muted);">마지막 로그인</th>
       </tr></thead><tbody>${trs}</tbody></table></div>`;
   } catch(e){ box.innerHTML='<div style="color:#d65a52;">불러오기 실패: '+e.message+'</div>'; }
 }
@@ -6563,6 +6589,7 @@ function loginUser() {
 }
 function logoutUser() {
   if (!confirm(currentUser?.name + '님, 로그아웃 하시겠습니까?')) return;
+  _recordLogout();   // 로그아웃 상태로 기록
   currentUser = null;
   localStorage.removeItem(USER_KEY);
   _updateUserHeader();
