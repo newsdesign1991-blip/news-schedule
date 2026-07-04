@@ -27,7 +27,7 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; }
-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; gap: 24px; height: 50px; position: sticky; top: 0; z-index: 100; }
+header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; gap: 24px; height: 50px; position: sticky; top: 0; z-index: 100; transition: transform .32s cubic-bezier(.4,0,.2,1); }
 .logo { font-size: 15px; font-weight: 700; white-space: nowrap; }
 .logo span { color: var(--vw); }
 nav { display: flex; gap: 2px; }
@@ -35,9 +35,13 @@ nav { display: flex; gap: 2px; }
 .nav-btn:hover { color: var(--text); background: var(--surface2); }
 .nav-btn.active { color: var(--text); background: var(--surface2); }
 /* 모바일 하단 플로팅 탭바 (네이티브 리퀴드 글라스) — 데스크톱에선 숨김 */
-#floating-nav, #fnav-fade { display: none; }
+#floating-nav, #fnav-fade, #hdr-fade { display: none; }
 @media (max-width: 760px) {
   header nav { display: none; }                 /* 모바일에선 상단 메뉴 숨김 */
+  header.hdr-hidden { transform: translateY(-100%); }   /* 아래로 스크롤 시 헤더 숨김 */
+  #hdr-fade { display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 90; pointer-events: none;
+    height: calc(env(safe-area-inset-top) + 22px);
+    background: linear-gradient(to bottom, var(--bg) 45%, rgba(241,244,248,0) 100%); }
   body main { padding-bottom: calc(124px + env(safe-area-inset-bottom)) !important; }  /* 바+페이드에 안 가리게(기본 padding 덮어쓰기) */
   /* 바 뒤 콘텐츠가 배경색으로 자연스럽게 사라지는 그라디언트 페이드 */
   #fnav-fade {
@@ -47,25 +51,25 @@ nav { display: flex; gap: 2px; }
     pointer-events: none;
   }
   #floating-nav {
-    display: inline-flex; align-items: center; gap: 2px; width: auto;
+    display: inline-flex; align-items: center; gap: 3px; width: auto;
     position: fixed; left: 50%; transform: translateX(-50%);
-    bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 2500;
-    padding: 5px 6px; max-width: calc(100vw - 24px);
+    bottom: max(9px, calc(env(safe-area-inset-bottom) - 8px)); z-index: 2500;   /* 조금 더 아래로 */
+    padding: 7px 9px; max-width: calc(100vw - 20px);
     background: rgba(255,255,255,0.44);
     -webkit-backdrop-filter: blur(30px) saturate(190%); backdrop-filter: blur(30px) saturate(190%);
     border: 0.5px solid rgba(255,255,255,0.65);
     border-radius: 999px;                        /* 완전 알약 (iOS 가이드라인) */
-    box-shadow: 0 8px 26px rgba(0,0,0,0.16), 0 1px 2px rgba(0,0,0,0.06);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.06);
   }
   .fnav-btn {
     position: relative;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
     background: none; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
-    padding: 5px 11px; border-radius: 999px; min-width: 48px;
-    color: #1c1c1e; font-size: 9.5px; font-weight: 600; letter-spacing: -0.2px; line-height: 1.15;
+    padding: 8px 15px; border-radius: 999px; min-width: 56px;
+    color: #1c1c1e; font-size: 11px; font-weight: 600; letter-spacing: -0.2px; line-height: 1.15;
     transition: color .28s ease, background .28s ease;
   }
-  .fnav-btn .fnav-ic { width: 21px; height: 21px; display: block; transition: transform .32s cubic-bezier(.34,1.56,.64,1); }
+  .fnav-btn .fnav-ic { width: 25px; height: 25px; display: block; transition: transform .32s cubic-bezier(.34,1.56,.64,1); }
   .fnav-btn.active { color: #007aff; background: rgba(120,120,128,0.14); }
   .fnav-btn.active .fnav-ic { transform: scale(1.05); }
   .fnav-btn:active .fnav-ic { transform: scale(0.86); }
@@ -103,7 +107,8 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .wm-num.sat { color: #6366f1; }
 .wm-num.today.sun, .wm-num.today.sat { color: white; }
 .wm-ev-list { width: 100%; margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
-.wm-ev-card { width: 100%; padding: 6px 8px; border-radius: 7px; cursor: pointer; border-left: 3px solid; box-sizing: border-box; transition: filter 0.1s; overflow: hidden; }
+.wm-ev-card { position: relative; width: 100%; padding: 9px 12px; border-radius: 12px; cursor: pointer; box-sizing: border-box; transition: filter 0.1s; }
+.wm-ev-card::before { content:''; position:absolute; inset:0; border-radius:inherit; padding:1.5px; background:linear-gradient(140deg, var(--evc,#6366f1), var(--evc2,#6366f155)); -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none; }
 .wm-ev-card:hover { filter: brightness(0.95); }
 .wm-ev-time { font-size: 11px; font-weight: 700; margin-bottom: 2px; }
 .wm-ev-title { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -222,8 +227,17 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .event-tag button:hover { opacity: 1; }
 
 /* MODAL */
-.modal-overlay { position: fixed; inset: 0; background: transparent; z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.modal { background: rgba(255,255,255,0.72); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border: 0.5px solid rgba(255,255,255,0.6); border-radius: 16px; padding: 24px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 60px rgba(15,23,42,0.22); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.1); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: rgba(255,255,255,0.9); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border: 0.5px solid rgba(255,255,255,0.6); border-radius: 16px; padding: 24px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 60px rgba(15,23,42,0.22); }
+/* 모바일: 팝업이 화면 폭에 맞고 가로 스크롤 안 생기게 */
+@media (max-width: 760px) {
+  .modal-overlay, .nd-modal, #lr-popup-overlay { padding: 12px !important; }
+  .modal { max-width: 100% !important; padding: 18px !important; max-height: 88vh; }
+  .nd-modal > div { max-width: 100% !important; width: 100% !important; }
+  .modal input, .modal textarea, .modal select, .modal .form-input,
+  .nd-modal input, .nd-modal textarea, .nd-modal select { max-width: 100%; min-width: 0; }
+  .modal-header h3 { font-size: 16px; }
+}
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .modal-header h3 { font-size: 17px; font-weight: 700; }
 .modal-close { background: var(--surface2); border: none; color: var(--text); width: 30px; height: 30px; border-radius: 7px; cursor: pointer; font-size: 18px; }
@@ -239,12 +253,12 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .staff-modal-overlay.open { animation: ndModalFade .32s ease both; }
 .staff-modal-overlay.open > * { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; }
 /* 인라인 스타일 모달(공지·설정·지난공지 등)에 클래스로 부여 */
-.nd-modal { animation: ndModalFade .32s ease both; background: transparent !important; }
-.nd-modal > div { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 16px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; background: rgba(255,255,255,0.72) !important; -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
+.nd-modal { animation: ndModalFade .32s ease both; background: rgba(0,0,0,0.1) !important; }
+.nd-modal > div { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 16px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; background: rgba(255,255,255,0.9) !important; -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
 /* 휴가 팝업 콘텐츠(재생성 시엔 .no-anim으로 애니메이션 생략) */
-.nd-pop { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 16px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; background: rgba(255,255,255,0.72) !important; -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
+.nd-pop { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 16px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; background: rgba(255,255,255,0.9) !important; -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
 .nd-pop.no-anim { animation: none; }
-#lr-popup-overlay { background: transparent !important; }
+#lr-popup-overlay { background: rgba(0,0,0,0.1) !important; }
 .staff-modal-overlay.open {  }
 /* iOS풍 버튼 — 모달 안의 주요 버튼을 더 둥글고 큼직하게 */
 .modal .btn-primary, .nd-modal .btn-primary { border-radius: 14px; padding: 13px; font-size: 15px; font-weight: 700; }
@@ -365,9 +379,9 @@ tr.dragging { opacity:0.35; }
 /* 태그 선택기 */
 .tag-sel-pool { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
 /* 직원 편집 모달 */
-.staff-modal-overlay { position:fixed; inset:0; background:transparent; z-index:1200; display:none; align-items:center; justify-content:center; }
+.staff-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.1); z-index:1200; display:none; align-items:center; justify-content:center; }
 .staff-modal-overlay.open { display:flex; }
-.staff-modal { background:rgba(255,255,255,0.72); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border-radius:16px; padding:24px 28px; width:560px; max-width:93vw; max-height:88vh; overflow-y:auto; position:relative; box-shadow:0 12px 48px rgba(0,0,0,0.35); animation:modalIn 0.18s ease; }
+.staff-modal { background:rgba(255,255,255,0.9); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border-radius:16px; padding:24px 28px; width:560px; max-width:93vw; max-height:88vh; overflow-y:auto; position:relative; box-shadow:0 12px 48px rgba(0,0,0,0.35); animation:modalIn 0.18s ease; }
 @keyframes modalIn { from{transform:scale(0.94);opacity:0} to{transform:scale(1);opacity:1} }
 .staff-modal h3 { font-size:15px; font-weight:700; margin-bottom:16px; }
 .staff-modal-close { position:absolute; top:14px; right:16px; background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); line-height:1; padding:2px 6px; border-radius:6px; }
@@ -415,6 +429,37 @@ body.admin-mode-active { padding-top: 30px; }
 body.admin-mode-active header { top: 30px; }
 #ws-sticky-toolbar { position: sticky; top: 50px; z-index: 95; background: var(--bg); padding-bottom: 2px; }
 body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
+
+/* ===== 상단 통합 메뉴 버튼 + iOS 컨텍스트 메뉴 ===== */
+#hdr-menu-btn { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; font-size:15px; font-weight:800; padding:0; box-shadow:0 2px 6px rgba(0,0,0,0.06); transition:transform .12s; -webkit-tap-highlight-color:transparent; }
+#hdr-menu-btn:active { transform:scale(0.92); }
+#hdr-menu-btn.logged { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; border:none; box-shadow:0 3px 10px rgba(99,102,241,0.4); }
+#hdr-menu { position:fixed; z-index:9500; min-width:224px; padding:6px; border-radius:16px; background:rgba(255,255,255,0.85); -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%); border:0.5px solid rgba(255,255,255,0.6); box-shadow:0 12px 40px rgba(0,0,0,0.22); transform-origin:top right; animation:hmenuIn .18s cubic-bezier(.22,1,.36,1); }
+@keyframes hmenuIn { from{opacity:0;transform:scale(0.9) translateY(-6px);} to{opacity:1;transform:none;} }
+.hmenu-item { display:flex; align-items:center; gap:12px; width:100%; padding:11px 12px; border:none; background:none; cursor:pointer; font-size:15px; font-weight:500; color:var(--text); border-radius:11px; text-align:left; -webkit-tap-highlight-color:transparent; }
+.hmenu-item:hover, .hmenu-item:active { background:rgba(120,120,128,0.14); }
+.hmenu-item svg { width:20px; height:20px; flex-shrink:0; color:#6366f1; }
+.hmenu-div { height:0.5px; background:rgba(0,0,0,0.08); margin:2px 8px; }
+
+/* ===== 바텀 시트(드로어) ===== */
+#sheet-overlay { position:fixed; inset:0; z-index:9600; display:none; align-items:flex-end; justify-content:center; background:rgba(0,0,0,0); transition:background .3s ease; }
+#sheet-overlay.open { background:rgba(0,0,0,0.32); }
+#sheet-panel { width:100%; max-width:520px; max-height:88vh; background:var(--surface); border-radius:24px 24px 0 0; box-shadow:0 -8px 40px rgba(0,0,0,0.22); padding:8px 20px calc(24px + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .36s cubic-bezier(.22,1,.36,1); overflow-y:auto; }
+#sheet-overlay.open #sheet-panel { transform:translateY(0); }
+#sheet-grabber { width:38px; height:5px; border-radius:3px; background:rgba(120,120,128,0.3); margin:6px auto 10px; }
+#sheet-header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px; }
+#sheet-title { font-size:17px; font-weight:800; color:var(--text); flex:1; text-align:center; }
+#sheet-close { width:32px; height:32px; border-radius:50%; border:none; background:rgba(120,120,128,0.14); color:var(--text); font-size:15px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+
+/* ===== 로그인 카드 그라디언트 ===== */
+.login-box { width:100%; max-width:none; margin:0; border-radius:20px; padding:26px 24px; border:none !important; position:relative; overflow:hidden; box-shadow:0 10px 34px rgba(15,23,42,0.09); }
+.login-box.lb-admin { background:linear-gradient(140deg,#eef2ff 0%,#dfe6ff 100%); }
+.login-box.lb-test { background:linear-gradient(140deg,#f6f9fc 0%,#e8eef4 100%); }
+.login-box.lb-master { background:linear-gradient(140deg,#fdf6e3 0%,#fbeac2 100%); }
+.login-box h2 { display:flex; align-items:center; gap:8px; }
+.login-box .btn-primary.lb-btn-admin { background:linear-gradient(135deg,#6366f1,#8b5cf6); }
+.login-box .btn-primary.lb-btn-test { background:linear-gradient(135deg,#64748b,#94a3b8); }
+.login-box .btn-primary.lb-btn-master { background:linear-gradient(135deg,#d9a441,#e8c06a); }
 </style>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.0/dist/dom-to-image-more.min.js"></script>
@@ -445,12 +490,45 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   </nav>
   <div class="header-right">
     <span class="date-badge" id="header-date"></span>
-    <button id="user-name-btn" style="display:none;background:none;border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;" onclick="logoutUser()">👤 <span id="user-name-label" class="btn-label"></span> ✕</button>
-    <button id="user-settings-btn" style="display:none;background:#ede9fe;border:1px solid #c4b5fd;color:#6366f1;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;" onclick="openUserSettings()" title="개인설정">🔔<span class="btn-label"> 설정</span></button>
-    <button class="admin-link" id="admin-toggle" onclick="toggleAdmin()">⚙<span class="btn-label"> 관리자</span></button>
+    <button id="hdr-menu-btn" onclick="toggleHdrMenu(event)" title="메뉴" aria-label="메뉴"><span id="hdr-menu-avatar">☰</span></button>
+    <!-- 관리자 진입 상태 토글용(숨김, 로직 호환) -->
+    <button class="admin-link" id="admin-toggle" onclick="toggleAdmin()" style="display:none;">⚙</button>
   </div>
 </header>
 
+<!-- 상단 통합 메뉴 (iOS 컨텍스트 메뉴) -->
+<div id="hdr-menu" style="display:none;">
+  <button class="hmenu-item" onclick="openAccountSheet()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+    <span>계정 정보</span>
+  </button>
+  <div class="hmenu-div"></div>
+  <button class="hmenu-item" onclick="openNotifySheet()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.5 20a1.8 1.8 0 0 0 3 0"/></svg>
+    <span>알림 설정</span>
+  </button>
+  <div class="hmenu-div"></div>
+  <button class="hmenu-item" onclick="closeHdrMenu();toggleAdmin();">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V22a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8 20.2a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H2a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 3.8 8a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H8a1.7 1.7 0 0 0 1-1.5V2a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V8a1.7 1.7 0 0 0 1.5 1H22a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    <span>관리자 모드</span>
+  </button>
+</div>
+
+<!-- 바텀 시트(드로어) -->
+<div id="sheet-overlay" onclick="if(event.target===this)closeSheet()">
+  <div id="sheet-panel">
+    <div id="sheet-grabber"></div>
+    <div id="sheet-header">
+      <button id="sheet-close" onclick="closeSheet()">✕</button>
+      <div id="sheet-title"></div>
+      <div style="width:32px;flex-shrink:0;"></div>
+    </div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<!-- 상단 그라디언트 페이드 (모바일, 헤더 숨김 시 콘텐츠 상단 정리) -->
+<div id="hdr-fade"></div>
 <!-- 바 뒤 콘텐츠 그라디언트 페이드 (모바일) -->
 <div id="fnav-fade"></div>
 <!-- 모바일 하단 플로팅 탭바 (네이티브 리퀴드 글라스 스타일) -->
@@ -473,27 +551,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 </nav>
 
 <!-- 개인설정 모달 -->
-<div id="user-settings-modal" class="nd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border-radius:16px;padding:28px 24px;width:320px;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-      <div style="font-size:16px;font-weight:700;">⚙ 개인설정</div>
-      <button onclick="closeUserSettings()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">✕</button>
-    </div>
-    <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;">🔔 푸시 알림</div>
-    <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;">
-      <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:12px;">
-        <span style="font-size:13px;">오늘 근무 알림 받기</span>
-        <input type="checkbox" id="us-push-enabled" style="width:18px;height:18px;cursor:pointer;" onchange="saveUserSettings()">
-      </label>
-      <div id="us-push-status" style="font-size:11px;color:var(--muted);"></div>
-      <button id="us-push-toggle-btn" onclick="togglePush()" style="background:none;border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;"></button>
-      <button id="us-push-test-btn" onclick="sendTestPush()" style="background:#6366f1;border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;">🔔 테스트 알림 보내기</button>
-    </div>
-    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-      <button onclick="logoutUser();closeUserSettings();" style="background:none;border:1px solid #f8a0a0;color:#d65a52;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;width:100%;">로그아웃</button>
-    </div>
-  </div>
-</div>
+<!-- 개인설정은 하단 시트(openNotifySheet)로 대체됨 -->
 
 <!-- 공지 작성 모달 (관리자) -->
 <div id="notice-modal" class="nd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
@@ -608,7 +666,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   <div class="summary-row" id="home-summary"></div>
   <div class="panel" style="margin-bottom:14px;">
     <div class="panel-header">
-      <div class="panel-title"><span>📅</span> 이번 주 일정</div>
+      <div class="panel-title"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3.3v3M16 3.3v3"/></svg> 이번 주 일정</div>
       <div style="display:flex;gap:6px;align-items:center;">
         <button class="btn btn-sm btn-outline" style="padding:3px 8px;font-size:11px;" onclick="homeWeekOffset--;renderHome()">‹</button>
         <button class="btn btn-sm btn-outline" style="padding:3px 8px;font-size:11px;" onclick="homeWeekOffset++;renderHome()">›</button>
@@ -653,7 +711,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
       </div>
     </div>
     <div class="panel">
-      <div class="panel-header"><div class="panel-title"><span>📋</span> 이번 주 일별 인원</div></div>
+      <div class="panel-header"><div class="panel-title"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;"><circle cx="9" cy="8" r="3"/><path d="M2.5 20c0-3.2 2.9-5 6.5-5s6.5 1.8 6.5 5"/><path d="M16.5 15.2c2.4.3 4 2 4 4.8"/><path d="M15.5 5.2a3 3 0 0 1 0 5.6"/></svg> 이번 주 일별 인원</div></div>
       <div class="panel-body" style="padding:8px 12px;" id="home-week-summary"></div>
     </div>
   </div>
@@ -839,36 +897,37 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <!-- ADMIN -->
 <div class="view" id="view-admin">
   <div id="login-area">
-    <div style="display:flex;flex-direction:column;gap:16px;max-width:420px;margin:0 auto;">
-      <div class="login-box">
-        <h2>🔐 관리자 로그인</h2>
+    <div style="display:flex;flex-direction:column;gap:18px;max-width:400px;margin:24px auto;">
+      <div style="text-align:center;margin-bottom:2px;">
+        <div style="font-size:22px;font-weight:800;color:var(--text);">관리자 로그인</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px;">권한을 선택해 로그인하세요</div>
+      </div>
+      <div class="login-box lb-admin">
+        <h2>🔐 관리자</h2>
         <p class="login-sub">전체 편집 권한</p>
         <div class="form-group">
-          <label class="form-label">비밀번호</label>
           <input type="password" class="form-input" id="pw-admin" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLoginMode('admin')">
         </div>
-        <button class="btn btn-primary" onclick="doLoginMode('admin')">로그인</button>
+        <button class="btn btn-primary lb-btn-admin" onclick="doLoginMode('admin')">로그인</button>
         <div class="error-msg" id="login-err-admin"></div>
       </div>
-      <div class="login-box">
-        <h2>👁 관리자 테스트 로그인</h2>
+      <div class="login-box lb-test">
+        <h2>👁 관리자 테스트</h2>
         <p class="login-sub">같은 화면 · <b>읽기 전용</b>(수정 저장 안 됨)</p>
         <div class="form-group">
-          <label class="form-label">비밀번호</label>
           <input type="password" class="form-input" id="pw-test" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLoginMode('test')">
         </div>
-        <button class="btn btn-primary" onclick="doLoginMode('test')">로그인</button>
+        <button class="btn btn-primary lb-btn-test" onclick="doLoginMode('test')">로그인</button>
         <div class="error-msg" id="login-err-test"></div>
       </div>
-      <button id="master-secret-btn" onclick="toggleMasterBox()" tabindex="-1" aria-hidden="true" style="display:block;width:100%;height:32px;background:transparent;border:none;cursor:default;padding:0;margin:0;"></button>
-      <div id="master-login-box" class="login-box" style="display:none;">
-        <h2>👑 마스터 로그인</h2>
+      <button id="master-secret-btn" onclick="toggleMasterBox()" tabindex="-1" aria-hidden="true" style="display:block;width:100%;height:28px;background:transparent;border:none;cursor:default;padding:0;margin:0;"></button>
+      <div id="master-login-box" class="login-box lb-master" style="display:none;">
+        <h2>👑 마스터</h2>
         <p class="login-sub">관리자 권한 + 비밀번호 관리</p>
         <div class="form-group">
-          <label class="form-label">비밀번호</label>
           <input type="password" class="form-input" id="pw-master" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLoginMode('master')">
         </div>
-        <button class="btn btn-primary" onclick="doLoginMode('master')">로그인</button>
+        <button class="btn btn-primary lb-btn-master" onclick="doLoginMode('master')">로그인</button>
         <div class="error-msg" id="login-err-master"></div>
       </div>
     </div>
@@ -1270,10 +1329,10 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
       <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;">댓글</div>
       <div id="ev-comments-list"></div>
       <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
-        <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <input type="text" class="form-input" id="ev-cmt-author" placeholder="이름" style="width:90px;flex-shrink:0;font-size:12px;padding:6px 10px;">
-          <input type="text" class="form-input" id="ev-cmt-text" placeholder="댓글을 입력하세요" style="flex:1;font-size:12px;padding:6px 10px;" onkeydown="if(event.key==='Enter')addEventComment()">
-          <button class="btn btn-primary" style="width:auto;font-size:12px;padding:6px 12px;flex-shrink:0;" onclick="addEventComment()">등록</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <input type="text" class="form-input" id="ev-cmt-author" placeholder="이름" style="width:100px;flex-shrink:0;font-size:14px;padding:10px 12px;">
+          <input type="text" class="form-input" id="ev-cmt-text" placeholder="댓글을 입력하세요" style="flex:1;min-width:150px;font-size:14px;padding:10px 12px;" onkeydown="if(event.key==='Enter')addEventComment()">
+          <button class="btn btn-primary" style="width:auto;font-size:14px;padding:10px 18px;flex-shrink:0;" onclick="addEventComment()">등록</button>
         </div>
       </div>
     </div>
@@ -2006,7 +2065,7 @@ function renderHome() {
   const vwOk = vwCnt >= goalVW;
   const cgOk = cgCnt >= goalCG;
   document.getElementById('home-summary').innerHTML = `
-    <div class="sum-card" style="${entry&&!vwOk?'background:linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);border-color:#fca5a5;':''}""><div class="sum-icon vw">👁</div><div class="sum-info"><div class="sum-label">VW</div><div><span class="sum-val vw">${vwCnt}</span><span style="font-size:12px;color:var(--muted)">/${goalVW}명</span>${entry?(vwOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
+    <div class="sum-card" style="${entry&&!vwOk?'background:linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);border-color:#fca5a5;':''}""><div class="sum-icon vw"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--vw-light)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="14" rx="2"/><g fill="var(--vw-light)" stroke="none"><circle cx="7" cy="9" r="0.95"/><circle cx="12" cy="9" r="0.95"/><circle cx="17" cy="9" r="0.95"/><circle cx="7" cy="14" r="0.95"/><circle cx="12" cy="14" r="0.95"/><circle cx="17" cy="14" r="0.95"/></g></svg></div><div class="sum-info"><div class="sum-label">VW</div><div><span class="sum-val vw">${vwCnt}</span><span style="font-size:12px;color:var(--muted)">/${goalVW}명</span>${entry?(vwOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
     <div class="sum-card" style="${entry&&!cgOk?'background:linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);border-color:#fca5a5;':''}"><div class="sum-icon cg">🎨</div><div class="sum-info"><div class="sum-label">CG</div><div><span class="sum-val cg">${cgCnt}</span><span style="font-size:12px;color:var(--muted)">/${goalCG}명</span>${entry?(cgOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
     <div class="sum-card"><div class="sum-icon project">📁</div><div class="sum-info"><div class="sum-label">PROJECT</div><div><span class="sum-val project">${prjCnt}</span><span style="font-size:12px;color:var(--muted)">명</span></div></div></div>
     <div class="sum-card"><div class="sum-icon sports">⚽</div><div class="sum-info"><div class="sum-label">SPORTS</div><div><span class="sum-val sports">${sptCnt}</span><span style="font-size:12px;color:var(--muted)">명</span></div></div></div>
@@ -2024,7 +2083,7 @@ function renderHome() {
     const ptNames = ptIds.map(id=>(data.staff||[]).find(s=>s.id===id)?.name).filter(Boolean);
     const cmtCnt = (ev.comments||[]).length;
     const pills = ptNames.map(n=>`<span class="wm-ev-pt" style="background:${c}22;color:${c};">${n}</span>`).join('');
-    return `<div class="wm-ev-card" onclick="openEventDetail('${ds}','${ev.id}')" style="border-color:${c};background:${c}15;">
+    return `<div class="wm-ev-card" onclick="openEventDetail('${ds}','${ev.id}')" style="background:${c}15;--evc:${c};--evc2:${c}55;">
       ${ev.time?`<div class="wm-ev-time" style="color:${c};">${ev.time}</div>`:''}
       <div class="wm-ev-title">${ev.title}${cmtCnt?` <span style="display:inline-flex;align-items:center;gap:2px;background:${c}22;color:${c};font-size:12px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:6px;border:1px solid ${c}44;">💬${cmtCnt}</span>`:''}</div>
       ${ev.location?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">📍 ${ev.location}</div>`:''}
@@ -2042,7 +2101,7 @@ function renderHome() {
   function _gcalCard(ds, ev){
     const c=ev._color||'#4285f4';
     const t=(ev.title||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-    return `<div class="wm-ev-card" onclick="showGcalDetail('${ds}','${ev._id}')" style="border-color:${c};background:${c}15;cursor:pointer;">${ev.start.time?`<div class="wm-ev-time" style="color:${c};">${ev.start.time}</div>`:''}<div class="wm-ev-title">📆 ${t}</div></div>`;
+    return `<div class="wm-ev-card" onclick="showGcalDetail('${ds}','${ev._id}')" style="background:${c}15;--evc:${c};--evc2:${c}55;cursor:pointer;">${ev.start.time?`<div class="wm-ev-time" style="color:${c};">${ev.start.time}</div>`:''}<div class="wm-ev-title">📆 ${t}</div></div>`;
   }
   // week-mini: 7컬럼 헤더 + 데스크탑용 이벤트 카드
   let mobileEvHtml = '';
@@ -2061,9 +2120,9 @@ function renderHome() {
     // 모바일용 리스트도 동시에 생성
     if (dayEvs.length || dayGcal.length) {
       const dowLbl=['일','월','화','수','목','금','토'][dow];
-      mobileEvHtml += `<div style="margin-bottom:8px;">
-        <div style="font-size:11px;font-weight:700;color:${isToday?'#6366f1':'var(--muted)'};margin-bottom:4px;">${d.getMonth()+1}/${d.getDate()} (${dowLbl})${isToday?' 오늘':''}</div>
-        ${evCards}
+      mobileEvHtml += `<div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;color:${isToday?'#6366f1':'var(--muted)'};margin-bottom:6px;">${d.getMonth()+1}/${d.getDate()} (${dowLbl})${isToday?' 오늘':''}</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">${evCards}</div>
       </div>`;
     }
   });
@@ -6279,18 +6338,8 @@ async function sendTestPush() {
     if (btn) { btn.disabled = false; btn.textContent = orig || '🔔 테스트 알림 보내기'; }
   }
 }
-async function openUserSettings() {
-  const modal = document.getElementById('user-settings-modal');
-  modal.style.display = 'flex';
-  // 개인 알림 설정 로드 (localStorage)
-  const pref = JSON.parse(localStorage.getItem('nd_user_notify')||'{}');
-  const chk = document.getElementById('us-push-enabled');
-  if (chk) chk.checked = pref.enabled !== false;
-  await _refreshUserSettingsModal();
-}
-function closeUserSettings() {
-  _animModalClose(document.getElementById('user-settings-modal'));
-}
+function openUserSettings() { openNotifySheet(); }   // 하위호환: 알림 설정 시트로 연결
+function closeUserSettings() { closeSheet(); }
 async function _refreshUserSettingsModal() {
   const subbed = await isPushSubscribed();
   const btn = document.getElementById('us-push-toggle-btn');
@@ -6660,17 +6709,117 @@ function logoutUser() {
   document.getElementById('login-name-input').value = '';
 }
 function _updateUserHeader() {
-  const btn = document.getElementById('user-name-btn');
-  const settingsBtn = document.getElementById('user-settings-btn');
-  if (currentUser) {
-    document.getElementById('user-name-label').textContent = currentUser.name;
-    btn.style.display = '';
-    if (settingsBtn) settingsBtn.style.display = '';
+  const av = document.getElementById('hdr-menu-avatar');
+  const mb = document.getElementById('hdr-menu-btn');
+  if (!av || !mb) return;
+  if (currentUser && currentUser.name) {
+    av.textContent = currentUser.name.trim().slice(-2);   // 이름 뒤 2글자
+    av.style.fontSize = '13px';
+    mb.classList.add('logged');
   } else {
-    btn.style.display = 'none';
-    if (settingsBtn) settingsBtn.style.display = 'none';
+    av.textContent = '☰'; av.style.fontSize = '';
+    mb.classList.remove('logged');
   }
 }
+// ===== 상단 통합 메뉴 (컨텍스트 메뉴) =====
+function toggleHdrMenu(e){
+  if(e) e.stopPropagation();
+  const m = document.getElementById('hdr-menu');
+  if(m.style.display==='block'){ closeHdrMenu(); return; }
+  const btn = document.getElementById('hdr-menu-btn');
+  const r = btn.getBoundingClientRect();
+  m.style.display='block';
+  // 버튼 우측 정렬로 아래에 배치
+  m.style.top = (r.bottom + 8) + 'px';
+  m.style.right = (window.innerWidth - r.right) + 'px';
+  m.style.left = 'auto';
+  setTimeout(()=>document.addEventListener('click', _hdrMenuOutside), 0);
+}
+function _hdrMenuOutside(ev){
+  const m=document.getElementById('hdr-menu');
+  if(m && !m.contains(ev.target) && ev.target.id!=='hdr-menu-btn' && ev.target.id!=='hdr-menu-avatar') closeHdrMenu();
+}
+function closeHdrMenu(){ const m=document.getElementById('hdr-menu'); if(m) m.style.display='none'; document.removeEventListener('click', _hdrMenuOutside); }
+
+// ===== 바텀 시트(드로어) =====
+function openSheet(title, html){
+  closeHdrMenu();
+  document.getElementById('sheet-title').textContent = title;
+  document.getElementById('sheet-body').innerHTML = html;
+  const ov = document.getElementById('sheet-overlay');
+  ov.style.display='flex';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>ov.classList.add('open')));
+}
+function closeSheet(){
+  const ov = document.getElementById('sheet-overlay');
+  ov.classList.remove('open');
+  setTimeout(()=>{ ov.style.display='none'; }, 360);
+}
+// 계정 정보 시트
+function openAccountSheet(){
+  closeHdrMenu();
+  if(!currentUser || !currentUser.staffId){
+    openSheet('계정 정보', `<div style="text-align:center;padding:20px 0;color:var(--muted);font-size:14px;">이름으로 로그인하면 내 정보가 표시됩니다.</div>`);
+    return;
+  }
+  const s = staffById(currentUser.staffId) || {};
+  const DEPT_COLOR = {VW:'#5a7ec6',CG:'#4a9fbd',PROJECT:'#686dc8',SPORTS:'#8a6ecf',XR:'#4faa9c','조근':'#5a7ec6'};
+  const col = DEPT_COLOR[s.dept] || '#6366f1';
+  const initials = (currentUser.name||'').trim().slice(-2);
+  // 내가 할 수 있는 임무 태그
+  const tags = [];
+  if(s.dept) tags.push({t:s.dept, c:col});
+  if(s.employmentType==='freelancer'||s.employmentType==='프리랜서') tags.push({t:'프리랜서', c:'#c79a5e'});
+  if(s.canVW) tags.push({t:'VW', c:'#5a7ec6'});
+  if(s.canCG) tags.push({t:'CG', c:'#4a9fbd'});
+  if(s.deskPriority>=1) tags.push({t:'데스크', c:'#527dc4'});
+  if(s.morningDeskPriority) tags.push({t:'오전데스크', c:'#527dc4'});
+  if(s.canIlgeun) tags.push({t:'일근', c:'#45847a'});
+  if(s.can3D) tags.push({t:'3D', c:'#8a6ecf'});
+  if(s.canSatMorning) tags.push({t:'토요오전', c:'#5a7ec6'});
+  const tagHtml = tags.length ? tags.map(x=>`<span style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:14px;background:${x.c}18;color:${x.c};">${x.t}</span>`).join('') : '<span style="color:var(--muted);font-size:13px;">지정된 임무 없음</span>';
+  const html = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0 18px;">
+      <div style="width:78px;height:78px;border-radius:50%;background:linear-gradient(135deg,${col},${col}bb);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;box-shadow:0 6px 18px ${col}55;">${initials}</div>
+      <div style="font-size:21px;font-weight:800;color:var(--text);margin-top:8px;">${currentUser.name}</div>
+      <div style="font-size:14px;font-weight:600;color:${col};">${s.dept||''}${s.employmentType==='freelancer'?' · 프리랜서':''}</div>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:16px;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;">내가 할 수 있는 임무</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">${tagHtml}</div>
+    </div>
+    <button onclick="logoutUser();closeSheet();" style="width:100%;margin-top:22px;background:none;border:1px solid #f8a0a0;color:#d65a52;padding:12px;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;">로그아웃</button>`;
+  openSheet('계정 정보', html);
+}
+// 알림 설정 시트
+function openNotifySheet(){
+  closeHdrMenu();
+  const pref = JSON.parse(localStorage.getItem('nd_user_notify')||'{}');
+  const html = `
+    <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;">🔔 푸시 알림</div>
+    <div style="background:var(--surface2);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px;">
+      <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:12px;">
+        <span style="font-size:15px;">오늘 근무 알림 받기</span>
+        <input type="checkbox" id="us-push-enabled" style="width:20px;height:20px;cursor:pointer;" onchange="saveUserSettings()" ${pref.enabled!==false?'checked':''}>
+      </label>
+      <div id="us-push-status" style="font-size:12px;color:var(--muted);"></div>
+      <button id="us-push-toggle-btn" onclick="togglePush()" style="background:none;border:1px solid var(--border);color:var(--muted);padding:11px 12px;border-radius:11px;cursor:pointer;font-size:14px;font-weight:600;"></button>
+      <button id="us-push-test-btn" onclick="sendTestPush()" style="background:#6366f1;border:none;color:#fff;padding:11px 12px;border-radius:11px;cursor:pointer;font-size:14px;font-weight:700;">🔔 테스트 알림 보내기</button>
+    </div>`;
+  openSheet('알림 설정', html);
+  _refreshUserSettingsModal();
+}
+// 모바일: 아래로 스크롤하면 헤더(로고+메뉴버튼) 숨김, 위로 스크롤하면 표시
+let _lastScrollY = 0;
+function _onHeaderScroll(){
+  const hdr = document.querySelector('header'); if(!hdr) return;
+  if (window.innerWidth > 760) { hdr.classList.remove('hdr-hidden'); return; }
+  const y = window.scrollY || document.documentElement.scrollTop || 0;
+  if (y > 70 && y > _lastScrollY + 4) hdr.classList.add('hdr-hidden');          // 아래로
+  else if (y < _lastScrollY - 4 || y < 40) hdr.classList.remove('hdr-hidden');  // 위로 / 최상단
+  _lastScrollY = y;
+}
+window.addEventListener('scroll', _onHeaderScroll, { passive:true });
 
 // ===== 오늘의 공지 =====
 function _todayStr() { const n=new Date(); return toDateStr(n.getFullYear(),n.getMonth()+1,n.getDate()); }
@@ -6968,7 +7117,7 @@ function renderMySchedule() {
   }).join('');
 
   card.style.display='block';
-  card.innerHTML=`<div class="panel" style="border-left:3px solid #6366f1;">
+  card.innerHTML=`<div class="panel">
     <div class="panel-header" style="padding-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
       <div class="panel-title"><span>👤</span> ${currentUser.name}님의 근무</div>
       <button id="push-toggle-btn" onclick="togglePush()" style="background:none;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;">🔔 알림 받기</button>
