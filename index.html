@@ -827,6 +827,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
       <button class="admin-tab" onclick="showAdminTab('edit')">일정 편집</button>
       <button class="admin-tab" onclick="showAdminTab('notify')">🔔 알림 제어</button>
       <button class="admin-tab" onclick="showAdminTab('settings')">설정</button>
+      <button class="admin-tab" id="tab-loginlog" onclick="showAdminTab('loginlog')" style="display:none;">👥 로그인 기록</button>
     </div>
 
     <!-- STAFF -->
@@ -1077,6 +1078,15 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
     <!-- NOTIFY -->
     <div class="admin-panel" id="panel-notify">
       <div id="notify-tab-body"></div>
+    </div>
+
+    <!-- LOGIN LOG (마스터 전용) -->
+    <div class="admin-panel" id="panel-loginlog">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+        <h3 style="font-size:15px;font-weight:700;">👥 로그인 기록 <span style="font-size:12px;color:var(--muted);font-weight:500;">누가 언제 접속했는지</span></h3>
+        <button class="btn btn-sm btn-outline" style="width:auto;" onclick="renderLoginLog()">🔄 새로고침</button>
+      </div>
+      <div id="loginlog-body" style="font-size:13px;color:var(--muted);">불러오는 중…</div>
     </div>
   </div>
 </div>
@@ -1855,6 +1865,7 @@ function _updateAdminModeUI() {
   if (bar) bar.innerHTML = (isAdminTest ? '👁 관리자 테스트 모드 — 읽기 전용(수정 저장 안 됨)' : isMaster ? '👑 마스터 모드' : '🔐 관리자 모드') + ' <button onclick="adminLogout()">로그아웃</button>';
   const ab = document.getElementById('admin-pw-box'); if (ab) ab.style.display = (isAdmin && !isMaster && !isAdminTest) ? '' : 'none';
   const mb = document.getElementById('master-pw-box'); if (mb) mb.style.display = isMaster ? '' : 'none';
+  const lt = document.getElementById('tab-loginlog'); if (lt) lt.style.display = isMaster ? '' : 'none';  // 로그인 기록 탭은 마스터만
 }
 function masterSetPw(which) {
   if (!isMaster) { toast('마스터 모드에서만 변경할 수 있습니다.','error'); return; }
@@ -5919,6 +5930,52 @@ function showAdminTab(tab) {
   if (tab==='leave') { _statsEditMode = false; renderWorkStats(); _updateStatsEditBtn(); }
   if (tab==='notify') renderNotifyTab();
   if (tab==='settings') { _initGcalSettings(); _renderBackupList(); }
+  if (tab==='loginlog') renderLoginLog();
+}
+// ===== 로그인 기록 (마스터 전용) =====
+// 메인 데이터(schedule)와 분리된 별도 테이블 login_log에 append만 → 근무표에 영향 없음.
+function _recordLogin(force){
+  try {
+    if(!currentUser||!currentUser.staffId) return;
+    const key='nd_loginlog_'+_bkToday();
+    if(!force && localStorage.getItem(key)) return;   // 자동로그인은 하루 1회만 기록
+    localStorage.setItem(key,'1');
+    const st=staffById(currentUser.staffId);
+    fetch(`${SB_URL}/rest/v1/login_log`, {
+      method:'POST', headers:{...SB_HEADERS,'Prefer':'return=minimal'},
+      body: JSON.stringify({ staff_id:currentUser.staffId, name:currentUser.name, dept:(st&&st.dept)||'', ua:(navigator.userAgent||'').slice(0,200) })
+    }).catch(()=>{});
+  } catch(e){}
+}
+async function renderLoginLog(){
+  const box=document.getElementById('loginlog-body'); if(!box) return;
+  box.innerHTML='불러오는 중…';
+  const SETUP_SQL = `create table if not exists login_log (\n  id bigint generated always as identity primary key,\n  staff_id text, name text, dept text, ua text,\n  at timestamptz default now()\n);\nalter table login_log enable row level security;\ncreate policy "anon insert login_log" on login_log for insert to anon with check (true);\ncreate policy "anon select login_log" on login_log for select to anon using (true);`;
+  try {
+    const res=await fetch(`${SB_URL}/rest/v1/login_log?select=name,dept,ua,at&order=at.desc&limit=300`, { headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY } });
+    if(!res.ok){
+      box.innerHTML = `<div style="color:#d65a52;font-weight:600;margin-bottom:8px;">로그인 기록 테이블이 아직 없습니다. (HTTP ${res.status})</div><div style="color:var(--muted);margin-bottom:8px;">Supabase → SQL Editor에서 아래를 1회 실행하세요:</div><pre style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:11px;line-height:1.5;overflow-x:auto;white-space:pre;">${SETUP_SQL.replace(/</g,'&lt;')}</pre>`;
+      return;
+    }
+    const rows=await res.json();
+    if(!rows.length){ box.innerHTML='<div style="color:var(--muted);">아직 기록된 로그인이 없습니다. (직원이 이름으로 접속하면 여기에 쌓입니다)</div>'; return; }
+    const dev=ua=>{ ua=ua||''; if(/iPhone|iPad|iPod/.test(ua))return '📱 iOS'; if(/SamsungBrowser/.test(ua))return '📱 삼성인터넷'; if(/Android/.test(ua))return '📱 안드로이드'; if(/Windows/.test(ua))return '💻 PC'; if(/Mac/.test(ua))return '💻 Mac'; return '기타'; };
+    const fmt=iso=>{ try{ const d=new Date(iso); const k=new Date(d.getTime()); const mm=String(k.getMonth()+1).padStart(2,'0'),dd=String(k.getDate()).padStart(2,'0'),hh=String(k.getHours()).padStart(2,'0'),mi=String(k.getMinutes()).padStart(2,'0'); return `${k.getFullYear()}-${mm}-${dd} ${hh}:${mi}`; }catch(e){ return iso; } };
+    const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    // 최근 접속 인원 요약(이름 중복 제거)
+    const uniqNames=[...new Set(rows.map(r=>r.name).filter(Boolean))];
+    const head=`<div style="margin-bottom:12px;color:var(--text);"><b>총 ${rows.length}건</b> · 접속자 <b>${uniqNames.length}명</b></div>`;
+    const trs=rows.map(r=>`<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:7px 10px;font-weight:700;color:var(--text);white-space:nowrap;">${esc(r.name)}</td>
+        <td style="padding:7px 10px;color:var(--muted);white-space:nowrap;">${esc(r.dept)}</td>
+        <td style="padding:7px 10px;color:var(--muted);white-space:nowrap;">${dev(r.ua)}</td>
+        <td style="padding:7px 10px;color:var(--muted);white-space:nowrap;font-family:ui-monospace,monospace;">${fmt(r.at)}</td>
+      </tr>`).join('');
+    box.innerHTML = head + `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="border-bottom:2px solid var(--border);text-align:left;">
+        <th style="padding:7px 10px;color:var(--muted);">이름</th><th style="padding:7px 10px;color:var(--muted);">부서</th><th style="padding:7px 10px;color:var(--muted);">기기</th><th style="padding:7px 10px;color:var(--muted);">접속 시각</th>
+      </tr></thead><tbody>${trs}</tbody></table></div>`;
+  } catch(e){ box.innerHTML='<div style="color:#d65a52;">불러오기 실패: '+e.message+'</div>'; }
 }
 
 // ===== 알림 제어 =====
@@ -6502,6 +6559,7 @@ function loginUser() {
   document.getElementById('login-overlay').style.display = 'none';
   _updateUserHeader();
   renderHome();
+  _recordLogin(true);   // 이름으로 로그인 → 기록
 }
 function logoutUser() {
   if (!confirm(currentUser?.name + '님, 로그아웃 하시겠습니까?')) return;
@@ -6953,6 +7011,8 @@ function _looksEmptyData(d){
   _updateUserHeader();
   if (!currentUser) {
     document.getElementById('login-overlay').style.display = 'flex';
+  } else {
+    _recordLogin(false);   // 자동 로그인(재접속) → 하루 1회 기록
   }
   renderHome();
   _startAutoSync();
