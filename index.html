@@ -40,8 +40,8 @@ nav { display: flex; gap: 2px; }
   header nav { display: none; }                 /* 모바일에선 상단 메뉴 숨김 */
   header.hdr-hidden { transform: translateY(-100%); }   /* 아래로 스크롤 시 헤더 숨김 */
   #hdr-fade { display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 90; pointer-events: none;
-    height: calc(env(safe-area-inset-top) + 22px);
-    background: linear-gradient(to bottom, var(--bg) 45%, rgba(241,244,248,0) 100%); }
+    height: calc(env(safe-area-inset-top) + 52px);
+    background: linear-gradient(to bottom, var(--bg) 0%, var(--bg) 28%, rgba(241,244,248,0.85) 55%, rgba(241,244,248,0) 100%); }
   body main { padding-bottom: calc(124px + env(safe-area-inset-bottom)) !important; }  /* 바+페이드에 안 가리게(기본 padding 덮어쓰기) */
   /* 바 뒤 콘텐츠가 배경색으로 자연스럽게 사라지는 그라디언트 페이드 */
   #fnav-fade {
@@ -54,7 +54,7 @@ nav { display: flex; gap: 2px; }
     display: inline-flex; align-items: center; gap: 3px; width: auto;
     position: fixed; left: 50%; transform: translateX(-50%);
     bottom: max(9px, calc(env(safe-area-inset-bottom) - 8px)); z-index: 2500;   /* 조금 더 아래로 */
-    padding: 7px 9px; max-width: calc(100vw - 20px);
+    padding: 6px 8px; max-width: calc(100vw - 14px);
     background: rgba(255,255,255,0.44);
     -webkit-backdrop-filter: blur(30px) saturate(190%); backdrop-filter: blur(30px) saturate(190%);
     border: 0.5px solid rgba(255,255,255,0.65);
@@ -62,14 +62,15 @@ nav { display: flex; gap: 2px; }
     box-shadow: 0 8px 28px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.06);
   }
   .fnav-btn {
-    position: relative;
+    position: relative; flex-shrink: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
     background: none; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
-    padding: 8px 15px; border-radius: 999px; min-width: 56px;
-    color: #1c1c1e; font-size: 11px; font-weight: 600; letter-spacing: -0.2px; line-height: 1.15;
+    padding: 7px 16px; border-radius: 999px; min-width: 50px;
+    color: #1c1c1e; font-size: 10.5px; font-weight: 600; letter-spacing: -0.2px; line-height: 1.1;
     transition: color .28s ease, background .28s ease;
   }
-  .fnav-btn .fnav-ic { width: 25px; height: 25px; display: block; transition: transform .32s cubic-bezier(.34,1.56,.64,1); }
+  .fnav-btn .fnav-lb { white-space: nowrap; }
+  .fnav-btn .fnav-ic { width: 23px; height: 23px; display: block; transition: transform .32s cubic-bezier(.34,1.56,.64,1); }
   .fnav-btn.active { color: #007aff; background: rgba(120,120,128,0.14); }
   .fnav-btn.active .fnav-ic { transform: scale(1.05); }
   .fnav-btn:active .fnav-ic { transform: scale(0.86); }
@@ -433,7 +434,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 /* ===== 상단 통합 메뉴 버튼 + iOS 컨텍스트 메뉴 ===== */
 #hdr-menu-btn { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; font-size:15px; font-weight:800; padding:0; box-shadow:0 2px 6px rgba(0,0,0,0.06); transition:transform .12s; -webkit-tap-highlight-color:transparent; }
 #hdr-menu-btn:active { transform:scale(0.92); }
-#hdr-menu-btn.logged { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; border:none; box-shadow:0 3px 10px rgba(99,102,241,0.4); }
+#hdr-menu-btn.logged { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
 #hdr-menu { position:fixed; z-index:9500; min-width:224px; padding:6px; border-radius:16px; background:rgba(255,255,255,0.85); -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%); border:0.5px solid rgba(255,255,255,0.6); box-shadow:0 12px 40px rgba(0,0,0,0.22); transform-origin:top right; animation:hmenuIn .18s cubic-bezier(.22,1,.36,1); }
 @keyframes hmenuIn { from{opacity:0;transform:scale(0.9) translateY(-6px);} to{opacity:1;transform:none;} }
 .hmenu-item { display:flex; align-items:center; gap:12px; width:100%; padding:11px 12px; border:none; background:none; cursor:pointer; font-size:15px; font-weight:500; color:var(--text); border-radius:11px; text-align:left; -webkit-tap-highlight-color:transparent; }
