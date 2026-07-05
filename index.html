@@ -7212,11 +7212,15 @@ function renderMySchedule() {
     const dot = onLv ? chipHtml({label:'휴가',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'},'10px')
       : roles.length ? roles.map(r=>chipHtml(r,'10px')).join('<br style="margin:2px 0;">')
       : `<span style="color:var(--muted);font-size:10px;">-</span>`;
-    return `<div style="text-align:center;flex:1;min-width:0;${isToday?'background:#6366f108;border:1.5px solid #6366f155;border-radius:10px;padding:4px 2px;':'padding:4px 2px;'}">
-      <div style="font-size:12px;color:${isToday?'#6366f1':i===5?'#5a7ec6':i===6?'#d65a52':'var(--muted)'};font-weight:${isToday?700:i>=5?600:500};margin-bottom:3px;">${DOW_S[i]}<br>${d.getDate()}</div>
+    return `<div style="text-align:center;flex:1;min-width:0;${isToday?'background:linear-gradient(160deg,rgba(109,139,245,0.13),rgba(155,108,240,0.13));border:1.5px solid rgba(139,120,240,0.45);border-radius:10px;padding:4px 2px;box-shadow:0 2px 7px rgba(124,110,240,0.14);':'padding:4px 2px;'}">
+      <div style="font-size:12px;color:${isToday?'#7c6ae6':i===5?'#5a7ec6':i===6?'#d65a52':'var(--muted)'};font-weight:${isToday?800:i>=5?600:500};margin-bottom:3px;">${DOW_S[i]}<br>${d.getDate()}</div>
       <div style="line-height:1.6;">${dot}</div>
     </div>`;
   }).join('');
+
+  const _tdDate = new Date(todayStr+'T00:00:00');
+  const _dowFull=['일','월','화','수','목','금','토'];
+  const todayLabel = `${_tdDate.getMonth()+1}월 ${_tdDate.getDate()}일 · ${_dowFull[_tdDate.getDay()]}요일`;
 
   card.style.display='block';
   card.innerHTML=`<div class="panel">
@@ -7224,11 +7228,14 @@ function renderMySchedule() {
       <div class="panel-title"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="vertical-align:-2px;margin-right:3px;"><circle cx="12" cy="8" r="4"/><path d="M12 13.6c-4.2 0-7.5 2.3-7.5 5.6 0 .9.6 1.5 1.5 1.5h12c.9 0 1.5-.6 1.5-1.5 0-3.3-3.3-5.6-7.5-5.6z"/></svg> ${currentUser.name}님의 근무</div>
       <button id="push-toggle-btn" onclick="togglePush()" style="background:none;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;"><path d="M17 8a5 5 0 0 0-10 0c0 6-2.5 7-2.5 7h15S17 14 17 8"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>알림 받기</button>
     </div>
-    <div style="padding:0 16px 10px;">
-      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;">오늘</div>
-      <div style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:6px;">${todayHtml}</div>
-      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;">이번 주</div>
-      <div style="display:flex;gap:4px;border-top:1px solid var(--border);padding-top:10px;">${weekHtml}</div>
+    <div style="padding:16px 16px 14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:11px;">
+        <span style="font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,#6d8bf5 0%,#9b6cf0 100%);padding:3px 11px;border-radius:999px;letter-spacing:0.4px;box-shadow:0 2px 7px rgba(124,110,240,0.35);">오늘</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:600;">${todayLabel}</span>
+      </div>
+      <div style="margin-bottom:18px;display:flex;flex-wrap:wrap;gap:6px;">${todayHtml}</div>
+      <div style="font-size:11px;font-weight:800;color:var(--muted);margin-bottom:10px;letter-spacing:0.4px;">이번 주</div>
+      <div style="display:flex;gap:4px;border-top:1px solid var(--border);padding-top:12px;">${weekHtml}</div>
     </div>
   </div>`;
   _refreshPushBtn();
