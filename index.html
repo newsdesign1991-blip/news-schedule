@@ -55,12 +55,28 @@ nav { display: flex; gap: 2px; }
     position: fixed; left: 50%; transform: translateX(-50%);
     bottom: max(9px, calc(env(safe-area-inset-bottom) - 8px)); z-index: 2500;   /* 조금 더 아래로 */
     padding: 6px 8px; max-width: calc(100vw - 14px);
-    background: rgba(255,255,255,0.44);
-    -webkit-backdrop-filter: blur(30px) saturate(190%); backdrop-filter: blur(30px) saturate(190%);
-    border: 0.5px solid rgba(255,255,255,0.65);
+    background: rgba(255,255,255,0.22);          /* 더 투명하게 → 뒤 배경이 굴절되어 비침 */
+    -webkit-backdrop-filter: blur(6px) saturate(180%) brightness(1.08);
+    backdrop-filter: blur(6px) saturate(180%) brightness(1.08);
+    border: 0.5px solid rgba(255,255,255,0.55);
     border-radius: 999px;                        /* 완전 알약 (iOS 가이드라인) */
-    box-shadow: 0 8px 28px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.06);
+    overflow: hidden;                            /* 굴절 레이어를 알약으로 클립 */
+    isolation: isolate;                          /* 자식 z-index 스택 컨텍스트 */
+    box-shadow:
+      0 8px 28px rgba(0,0,0,0.18),
+      0 1px 2px rgba(0,0,0,0.06),
+      inset 0 1px 1.5px rgba(255,255,255,0.95),  /* 상단 하이라이트 림 */
+      inset 0 -4px 10px rgba(255,255,255,0.22),  /* 하단 은은한 빛 */
+      inset 1.5px 0 3px rgba(255,255,255,0.4),   /* 좌우 엣지 굴절광 */
+      inset -1.5px 0 3px rgba(255,255,255,0.4);
   }
+  /* 굴절(변위) 레이어 — 뒤 배경을 SVG 필터로 휘게. iOS 미지원 시 무해하게 무시됨 */
+  #floating-nav::before {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: 0;
+    -webkit-backdrop-filter: blur(0.5px); backdrop-filter: url(#liquidGlass);
+    pointer-events: none;
+  }
+  #floating-nav > * { position: relative; z-index: 1; }
   .fnav-btn {
     position: relative; flex-shrink: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
@@ -134,9 +150,12 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .no-leaves { color: var(--muted); font-size: 12px; padding: 8px 0; text-align: center; }
 .summary-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
 .sum-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
-.sum-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-.sum-icon.vw { background: var(--vw-bg); } .sum-icon.cg { background: var(--cg-bg); }
-.sum-icon.project { background: var(--project-bg); } .sum-icon.sports { background: var(--sports-bg); }
+.sum-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; box-shadow: inset 0 1px 1px rgba(255,255,255,0.45), 0 2px 6px rgba(0,0,0,0.14); }
+.sum-icon.vw, .sum-icon.cg { text-shadow: 0 1px 2px rgba(0,0,0,0.22); }   /* 이모지 또렷하게 */
+.sum-icon.vw { background: linear-gradient(140deg, #7b9be0 0%, #3f5fa0 100%); }
+.sum-icon.cg { background: linear-gradient(140deg, #5cbcda 0%, #3a7186 100%); }
+.sum-icon.project { background: linear-gradient(140deg, #868be8 0%, #4e539a 100%); }
+.sum-icon.sports { background: linear-gradient(140deg, #a488e8 0%, #634f99 100%); }
 .sum-info { flex: 1; min-width: 0; }
 .sum-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
 .sum-val { font-size: 22px; font-weight: 700; line-height: 1.2; }
@@ -537,6 +556,14 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <div id="hdr-fade"></div>
 <!-- 바 뒤 콘텐츠 그라디언트 페이드 (모바일) -->
 <div id="fnav-fade"></div>
+<!-- 리퀴드 글래스 굴절 필터 (배경 변위) -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none;" aria-hidden="true">
+  <filter id="liquidGlass" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.012 0.012" numOctaves="2" seed="7" result="noise"/>
+    <feGaussianBlur in="noise" stdDeviation="1.4" result="blurNoise"/>
+    <feDisplacementMap in="SourceGraphic" in2="blurNoise" scale="26" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
 <!-- 모바일 하단 플로팅 탭바 (네이티브 리퀴드 글라스 스타일) -->
 <nav id="floating-nav" aria-label="주요 메뉴">
   <button class="fnav-btn active" data-view="home" onclick="showView('home')">
@@ -2080,8 +2107,8 @@ function renderHome() {
   document.getElementById('home-summary').innerHTML = `
     <div class="sum-card" style="${entry&&!vwOk?'background:linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);border-color:#fca5a5;':''}""><div class="sum-icon vw">👁</div><div class="sum-info"><div class="sum-label">VW</div><div><span class="sum-val vw">${vwCnt}</span><span style="font-size:12px;color:var(--muted)">/${goalVW}명</span>${entry?(vwOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
     <div class="sum-card" style="${entry&&!cgOk?'background:linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);border-color:#fca5a5;':''}"><div class="sum-icon cg">🎨</div><div class="sum-info"><div class="sum-label">CG</div><div><span class="sum-val cg">${cgCnt}</span><span style="font-size:12px;color:var(--muted)">/${goalCG}명</span>${entry?(cgOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
-    <div class="sum-card"><div class="sum-icon project"><svg viewBox="0 0 24 24" width="21" height="21" fill="var(--project-light)"><path d="M4 5.5a2 2 0 0 1 2-2h3.1a1 1 0 0 1 .8.4l1.2 1.6H18a2 2 0 0 1 2 2V8H4V5.5zM4 9.5h16V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9.5z"/></svg></div><div class="sum-info"><div class="sum-label">PROJECT</div><div><span class="sum-val project">${prjCnt}</span><span style="font-size:12px;color:var(--muted)">명</span></div></div></div>
-    <div class="sum-card"><div class="sum-icon sports"><svg viewBox="0 0 24 24" width="21" height="21" fill="var(--sports-light)" fill-rule="evenodd"><path d="M17 4a1 1 0 0 1 1 1h2.3a.7.7 0 0 1 .7.7V7a3.8 3.8 0 0 1-3.8 3.8h-.3A5 5 0 0 1 13 13.75V16.5h2a1 1 0 1 1 0 2H9a1 1 0 1 1 0-2h2v-2.75A5 5 0 0 1 7.1 10.8h-.3A3.8 3.8 0 0 1 3 7V5.7a.7.7 0 0 1 .7-.7H6a1 1 0 0 1 1-1h10zM6 6.5H4.5V7a2.3 2.3 0 0 0 1.7 2.22A6.5 6.5 0 0 1 6 8V6.5zm12 0V8c0 .42-.04.83-.12 1.22A2.3 2.3 0 0 0 19.5 7v-.5H18zM8 19.5a1 1 0 0 0-1 1V21a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H8z"/></svg></div><div class="sum-info"><div class="sum-label">SPORTS</div><div><span class="sum-val sports">${sptCnt}</span><span style="font-size:12px;color:var(--muted)">명</span></div></div></div>
+    <div class="sum-card"><div class="sum-icon project"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff"><path d="M4 5.5a2 2 0 0 1 2-2h3.1a1 1 0 0 1 .8.4l1.2 1.6H18a2 2 0 0 1 2 2V8H4V5.5zM4 9.5h16V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9.5z"/></svg></div><div class="sum-info"><div class="sum-label">PROJECT</div><div><span class="sum-val project">${prjCnt}</span><span style="font-size:12px;color:var(--muted)">명</span></div></div></div>
+    <div class="sum-card"><div class="sum-icon sports"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff" fill-rule="evenodd"><path d="M17 4a1 1 0 0 1 1 1h2.3a.7.7 0 0 1 .7.7V7a3.8 3.8 0 0 1-3.8 3.8h-.3A5 5 0 0 1 13 13.75V16.5h2a1 1 0 1 1 0 2H9a1 1 0 1 1 0-2h2v-2.75A5 5 0 0 1 7.1 10.8h-.3A3.8 3.8 0 0 1 3 7V5.7a.7.7 0 0 1 .7-.7H6a1 1 0 0 1 1-1h10zM6 6.5H4.5V7a2.3 2.3 0 0 0 1.7 2.22A6.5 6.5 0 0 1 6 8V6.5zm12 0V8c0 .42-.04.83-.12 1.22A2.3 2.3 0 0 0 19.5 7v-.5H18zM8 19.5a1 1 0 0 0-1 1V21a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H8z"/></svg></div><div class="sum-info"><div class="sum-label">SPORTS</div><div><span class="sum-val sports">${sptCnt}</span><span style="font-size:12px;color:var(--muted)">명</span></div></div></div>
   `;
   const monday = new Date(now);
   const curDow = now.getDay()===0?6:now.getDay()-1;
