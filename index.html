@@ -55,26 +55,34 @@ nav { display: flex; gap: 2px; }
     position: fixed; left: 50%; transform: translateX(-50%);
     bottom: max(9px, calc(env(safe-area-inset-bottom) - 8px)); z-index: 2500;   /* 조금 더 아래로 */
     padding: 6px 8px; max-width: calc(100vw - 14px);
-    background: rgba(255,255,255,0.22);          /* 더 투명하게 → 뒤 배경이 굴절되어 비침 */
-    -webkit-backdrop-filter: blur(6px) saturate(180%) brightness(1.08);
-    backdrop-filter: blur(6px) saturate(180%) brightness(1.08);
-    border: 0.5px solid rgba(255,255,255,0.55);
+    background: rgba(255,255,255,0.10);          /* 훨씬 투명 → 뒤가 확 비침 (iOS 유리감) */
+    -webkit-backdrop-filter: blur(3px) saturate(210%) brightness(1.18) contrast(1.06);
+    backdrop-filter: blur(3px) saturate(210%) brightness(1.18) contrast(1.06);
+    border: 0.6px solid rgba(255,255,255,0.7);
     border-radius: 999px;                        /* 완전 알약 (iOS 가이드라인) */
-    overflow: hidden;                            /* 굴절 레이어를 알약으로 클립 */
+    overflow: hidden;                            /* 굴절/광택 레이어를 알약으로 클립 */
     isolation: isolate;                          /* 자식 z-index 스택 컨텍스트 */
     box-shadow:
-      0 8px 28px rgba(0,0,0,0.18),
-      0 1px 2px rgba(0,0,0,0.06),
-      inset 0 1px 1.5px rgba(255,255,255,0.95),  /* 상단 하이라이트 림 */
-      inset 0 -4px 10px rgba(255,255,255,0.22),  /* 하단 은은한 빛 */
-      inset 1.5px 0 3px rgba(255,255,255,0.4),   /* 좌우 엣지 굴절광 */
-      inset -1.5px 0 3px rgba(255,255,255,0.4);
+      0 10px 30px rgba(0,0,0,0.22),
+      0 2px 4px rgba(0,0,0,0.08),
+      inset 0 1.5px 2px rgba(255,255,255,1),        /* 상단 강한 하이라이트 림 */
+      inset 0 -6px 14px rgba(255,255,255,0.32),     /* 하단 반사광 */
+      inset 2.5px 0 5px rgba(255,255,255,0.55),     /* 좌 엣지 굴절광 */
+      inset -2.5px 0 5px rgba(255,255,255,0.55),    /* 우 엣지 굴절광 */
+      inset 0 0 0 0.6px rgba(255,255,255,0.35);     /* 내부 유리 테두리 */
   }
-  /* 굴절(변위) 레이어 — 뒤 배경을 SVG 필터로 휘게. iOS 미지원 시 무해하게 무시됨 */
+  /* 굴절(변위) 레이어 — 뒤 배경을 SVG 필터로 휘게. iOS 미지원 시 무해하게 무시됨(크로미움 전용) */
   #floating-nav::before {
     content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: 0;
     -webkit-backdrop-filter: blur(0.5px); backdrop-filter: url(#liquidGlass);
     pointer-events: none;
+  }
+  /* 상단 곡면 광택(스펙큘러) — 유리에 빛이 미끄러지는 느낌 (iOS 포함 전 브라우저) */
+  #floating-nav::after {
+    content: ''; position: absolute; left: 6%; right: 6%; top: 1px; height: 42%;
+    border-radius: 999px; z-index: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.12) 55%, rgba(255,255,255,0) 100%);
+    filter: blur(0.5px);
   }
   #floating-nav > * { position: relative; z-index: 1; }
   .fnav-btn {
@@ -559,9 +567,9 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <!-- 리퀴드 글래스 굴절 필터 (배경 변위) -->
 <svg width="0" height="0" style="position:absolute;pointer-events:none;" aria-hidden="true">
   <filter id="liquidGlass" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
-    <feTurbulence type="fractalNoise" baseFrequency="0.012 0.012" numOctaves="2" seed="7" result="noise"/>
-    <feGaussianBlur in="noise" stdDeviation="1.4" result="blurNoise"/>
-    <feDisplacementMap in="SourceGraphic" in2="blurNoise" scale="26" xChannelSelector="R" yChannelSelector="G"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.008" numOctaves="2" seed="7" result="noise"/>
+    <feGaussianBlur in="noise" stdDeviation="1.1" result="blurNoise"/>
+    <feDisplacementMap in="SourceGraphic" in2="blurNoise" scale="46" xChannelSelector="R" yChannelSelector="G"/>
   </filter>
 </svg>
 <!-- 모바일 하단 플로팅 탭바 (네이티브 리퀴드 글라스 스타일) -->
