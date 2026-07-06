@@ -7445,10 +7445,10 @@ function _initA2HS(){
     guide.innerHTML='안드로이드는 <b style="color:#d65a52;">반드시 크롬(Chrome)으로 열어야</b> 알림을 받을 수 있어요.<br><span style="color:#d65a52;">삼성 인터넷은 홈 화면 추가·푸시 알림이 지원되지 않습니다.</span><br><br>① 이 주소를 복사해 <b>크롬(Chrome)</b>으로 다시 열기<br>② 크롬 메뉴 <b>⋮</b> → <b>"앱 설치"</b>(또는 "홈 화면에 추가")';
     actions.innerHTML='<button class="btn btn-primary btn-sm" style="width:100%;" onclick="_copyAppUrl()">🔗 주소 복사하기</button><button class="btn btn-sm btn-outline" style="width:100%;" onclick="dismissA2HS(true)">다시 안 보기</button>';
   } else if(_deferredInstall){
-    guide.innerHTML='<b style="color:#d65a52;">홈 화면에 추가</b>하면 앱처럼 쓰고 근무 알림도 받을 수 있어요.<br><span style="color:var(--muted);font-size:12px;">※ 안드로이드는 꼭 <b>크롬(Chrome)</b>으로 추가하세요. (삼성 인터넷 미지원)</span>';
+    guide.innerHTML='안드로이드는 <b style="color:#d65a52;">크롬(Chrome)에서 홈 화면 추가 → 설치</b>해야 알림을 받을 수 있어요.<br><br>① <b>크롬(Chrome)</b>으로 실행<br>② <b>홈 화면에 추가</b> (아래 버튼)<br>③ <b>설치</b><br><span style="color:var(--muted);font-size:12px;">※ 삼성 인터넷 등은 알림 미지원</span>';
     actions.innerHTML='<button class="btn btn-primary btn-sm" style="width:100%;" onclick="installA2HS()">📲 홈 화면에 추가</button><button class="btn btn-sm btn-outline" style="width:100%;" onclick="dismissA2HS(true)">다시 안 보기</button>';
   } else {
-    guide.innerHTML='안드로이드는 <b style="color:#d65a52;">크롬(Chrome)으로 열어</b> 홈 화면에 추가하세요.<br>크롬 메뉴 <b>⋮</b> → <b>"앱 설치"</b>(또는 "홈 화면에 추가")<br><span style="color:var(--muted);font-size:12px;">※ 삼성 인터넷 등 다른 브라우저는 알림 미지원</span>';
+    guide.innerHTML='안드로이드는 <b style="color:#d65a52;">크롬(Chrome)에서 홈 화면 추가 → 설치</b>해야 알림을 받을 수 있어요.<br><br>① <b>크롬(Chrome)</b>으로 실행<br>② 크롬 메뉴 <b>⋮</b> → <b>"홈 화면에 추가"</b><br>③ <b>설치</b> 선택<br><span style="color:var(--muted);font-size:12px;">※ 삼성 인터넷 등 다른 브라우저는 알림 미지원</span>';
     actions.innerHTML='<button class="btn btn-sm btn-outline" style="width:100%;" onclick="dismissA2HS(true)">다시 안 보기</button>';
   }
   banner.style.display='flex';
