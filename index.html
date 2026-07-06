@@ -149,13 +149,18 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .sum-icon.cg { background: linear-gradient(140deg, #5cbcda 0%, #3a7186 100%); }
 .sum-icon.project { background: linear-gradient(140deg, #868be8 0%, #4e539a 100%); }
 .sum-icon.sports { background: linear-gradient(140deg, #a488e8 0%, #634f99 100%); }
-/* 오늘의 8진 강조(19시~21시): 미달 카드색으로 확 켜졌다가 천천히 잦아드는 깜빡임 (빠른 어택 + 긴 디케이) */
-@keyframes duty8Blink {
-  0% { background: var(--surface); border-color: var(--border); }
-  12% { background: linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%); border-color: #fca5a5; }
-  100% { background: var(--surface); border-color: var(--border); }
+/* 오늘의 8진 강조(19시~21시): 미달 카드색 레이어를 확 켜졌다가 천천히 잦아들게(opacity만 애니메이션 → iOS Safari에서도 확실히 동작) */
+@keyframes duty8Blink { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
+.duty8-glow { position: relative; }
+.duty8-glow::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; border-radius: inherit;
+  background: linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);
+  border: 1px solid #fca5a5;
+  opacity: 0; pointer-events: none;
+  animation: duty8Blink 1.7s cubic-bezier(.25,.6,.45,1) infinite;
+  will-change: opacity;
 }
-.duty8-glow { animation: duty8Blink 1.7s cubic-bezier(.25,.6,.45,1) infinite; }
+.duty8-glow > * { position: relative; z-index: 1; }
 .sum-info { flex: 1; min-width: 0; }
 .sum-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
 .sum-val { font-size: 22px; font-weight: 700; line-height: 1.2; }
