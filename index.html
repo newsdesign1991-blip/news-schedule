@@ -236,7 +236,9 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .event-tag button:hover { opacity: 1; }
 
 /* MODAL */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.1); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.1); z-index: 2600; display: flex; align-items: center; justify-content: center; padding: 20px; }
+/* 모달 열려 body 스크롤 잠기면 하단 플로팅바/페이드 숨김(모달 하단 항목 가림 방지) */
+body[style*="overflow: hidden"] #floating-nav, body[style*="overflow: hidden"] #fnav-fade { display: none !important; }
 .modal { background: rgba(255,255,255,0.9); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border: 0.5px solid rgba(255,255,255,0.6); border-radius: 16px; padding: 24px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 60px rgba(15,23,42,0.22); }
 /* 모바일: 팝업이 화면 폭에 맞고 가로 스크롤 안 생기게 */
 @media (max-width: 760px) {
@@ -290,8 +292,10 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .login-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 .form-group { margin-bottom: 14px; }
 .form-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
-.form-input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 9px; font-size: 13px; outline: none; transition: border-color 0.12s; }
+.form-input { width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 9px; font-size: 13px; outline: none; transition: border-color 0.12s; }
 .form-input:focus { border-color: var(--vw); }
+/* iOS Safari에서 date/time 인풋이 내용폭으로 줄어드는 문제 → 다른 인풋과 동일한 전체폭으로 */
+input[type="date"].form-input, input[type="time"].form-input { -webkit-appearance: none; appearance: none; min-height: 38px; text-align: left; }
 .form-select { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 9px; font-size: 13px; outline: none; cursor: pointer; }
 .btn { padding: 9px 16px; border-radius: 9px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.12s; }
 .btn-primary { background: var(--vw); color: white; width: 100%; padding: 11px; }
@@ -1252,7 +1256,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
       </div>
       <div class="form-group">
         <label class="form-label">참여자 <span style="font-size:10px;color:var(--muted);">(선택)</span></label>
-        <div id="ev-participants-wrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;min-height:38px;background:var(--surface2);"></div>
+        <div id="ev-participants-wrap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;min-height:38px;background:var(--surface2);"></div>
       </div>
       <div class="form-group">
         <label class="form-label">색상</label>
@@ -1313,7 +1317,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
       </div>
       <div class="form-group" style="margin-bottom:10px;">
         <label class="form-label">참여자</label>
-        <div id="ev-edit-participants-wrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;min-height:36px;background:var(--bg);"></div>
+        <div id="ev-edit-participants-wrap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;min-height:36px;background:var(--bg);"></div>
       </div>
       <div class="form-group" style="margin-bottom:10px;">
         <label class="form-label">색상</label>
@@ -4413,7 +4417,7 @@ function openEventModal(dateStr) {
   document.getElementById('ev-author').value = '';
   const firstRadio = modal.querySelector('input[name="ev-color"]');
   if (firstRadio) firstRadio.checked = true;
-  _renderParticipantChips('ev-participants-wrap', []);
+  _renderParticipantChips('ev-participants-wrap', [], def);
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
   setTimeout(()=>document.getElementById('ev-title').focus(), 100);
@@ -4937,12 +4941,16 @@ function _doApplyImageSchedule(skipNames) {
 }
 
 // ===== 참여자 칩 =====
-function _renderParticipantChips(wrapperId, selectedIds) {
+function _renderParticipantChips(wrapperId, selectedIds, dateStr) {
   const wrap = document.getElementById(wrapperId); if (!wrap) return;
-  const staff = data.staff||[];
+  const _now = new Date();
+  const _d = dateStr || toDateStr(_now.getFullYear(), _now.getMonth()+1, _now.getDate());
+  const _sel = selectedIds||[];
+  // 현재 계약기간이 아닌 사람은 숨김(단, 이미 선택된 참여자는 유지해 실수로 빠지지 않게)
+  const staff = (data.staff||[]).filter(s => s.active!==false && (isContractActive(s, _d) || _sel.includes(s.id)));
   wrap.innerHTML = staff.map(s => {
     const on = selectedIds.includes(s.id);
-    return `<span onclick="_toggleChip(this,'${wrapperId}','${s.id}')" data-pid="${s.id}" style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;cursor:pointer;border:1.5px solid ${on?'#6366f1':'var(--border)'};background:${on?'#6366f1':'transparent'};color:${on?'#fff':'var(--text)'};transition:all 0.15s;">${s.name}</span>`;
+    return `<span onclick="_toggleChip(this,'${wrapperId}','${s.id}')" data-pid="${s.id}" style="display:block;text-align:center;padding:5px 6px;border-radius:12px;font-size:12px;cursor:pointer;border:1.5px solid ${on?'#6366f1':'var(--border)'};background:${on?'#6366f1':'transparent'};color:${on?'#fff':'var(--text)'};transition:all 0.15s;">${s.name}</span>`;
   }).join('');
 }
 function _toggleChip(el, wrapperId, staffId) {
@@ -5008,7 +5016,7 @@ function openEventEdit() {
   document.getElementById('ev-edit-location').value = ev.location||'';
   const radio = document.querySelector(`input[name="ev-edit-color"][value="${ev.color||'#6366f1'}"]`);
   if (radio) radio.checked = true;
-  _renderParticipantChips('ev-edit-participants-wrap', ev.participants||[]);
+  _renderParticipantChips('ev-edit-participants-wrap', ev.participants||[], _evDetailDate);
   document.getElementById('ev-edit-form').style.display = 'block';
 }
 function saveEventEdit() {
@@ -6744,14 +6752,9 @@ function _updateUserHeader() {
   const av = document.getElementById('hdr-menu-avatar');
   const mb = document.getElementById('hdr-menu-btn');
   if (!av || !mb) return;
-  if (currentUser && currentUser.name) {
-    av.textContent = currentUser.name.trim().slice(-2);   // 이름 뒤 2글자
-    av.style.fontSize = '13px';
-    mb.classList.add('logged');
-  } else {
-    av.textContent = '☰'; av.style.fontSize = '';
-    mb.classList.remove('logged');
-  }
+  // 로그인 여부와 무관하게 항상 흰색 햄버거(☰) 버튼으로 표시
+  av.textContent = '☰'; av.style.fontSize = '';
+  mb.classList.remove('logged');
 }
 // ===== 상단 통합 메뉴 (컨텍스트 메뉴) =====
 function toggleHdrMenu(e){
@@ -7129,10 +7132,13 @@ function openPersonSchedule(staffId){
       const roles=onLv?[{label:'휴가',bg:'#fee2e2',color:'#d65a52'}]:_getPersonRoles(sched[ds],staffId);
       if(roles.length){ const r=roles[0]; _workStyle=base+`font-size:12px;font-weight:700;background:${r.bg};color:${r.color};`; _workContent=roles.map(x=>x.label).join(' '); }
     }
-    rows+=`<tr${isToday?' style="background:#fffbe9;"':''}>
-      <td style="${base}font-weight:700;color:#334155;white-space:nowrap;">${dt.getMonth()+1}/${dt.getDate()}</td>
-      <td style="${base}${dowColor}">${DOW_KR[dow]}</td>
-      <td style="${_workStyle}">${_workContent}</td>
+    const tB = isToday ? 'border-top:2px solid #6d8bf5;border-bottom:2px solid #9b6cf0;' : '';
+    const tL = isToday ? 'border-left:2px solid #6d8bf5;' : '';
+    const tR = isToday ? 'border-right:2px solid #9b6cf0;' : '';
+    rows+=`<tr${isToday?' style="background:#f5f2fe;"':''}>
+      <td style="${base}font-weight:700;color:#334155;white-space:nowrap;${tB}${tL}">${dt.getMonth()+1}/${dt.getDate()}</td>
+      <td style="${base}${dowColor}${tB}">${DOW_KR[dow]}</td>
+      <td style="${_workStyle}${tB}${tR}">${_workContent}</td>
     </tr>`;
   });
   const TH='border:1px solid #e2e8f0;padding:7px 6px;font-size:11px;font-weight:700;text-align:center;background:#f7f9fc;color:#64748b;position:sticky;top:0;z-index:1;';
@@ -7227,7 +7233,7 @@ function renderMySchedule() {
     const dot = onLv ? chipHtml({label:'휴가',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'},'10px')
       : roles.length ? roles.map(r=>chipHtml(r,'10px')).join('<br style="margin:2px 0;">')
       : `<span style="color:var(--muted);font-size:10px;">-</span>`;
-    return `<div style="text-align:center;flex:1;min-width:0;${isToday?'background:linear-gradient(160deg,rgba(109,139,245,0.13),rgba(155,108,240,0.13));border:1.5px solid rgba(139,120,240,0.45);border-radius:10px;padding:4px 2px;box-shadow:0 2px 7px rgba(124,110,240,0.14);':'padding:4px 2px;'}">
+    return `<div style="text-align:center;flex:1;min-width:0;box-sizing:border-box;border:1.5px solid transparent;border-radius:10px;padding:5px 3px;${isToday?'background:linear-gradient(160deg,rgba(109,139,245,0.14),rgba(155,108,240,0.14));border-color:rgba(139,120,240,0.5);box-shadow:0 2px 7px rgba(124,110,240,0.14);':''}">
       <div style="font-size:12px;color:${isToday?'#7c6ae6':i===5?'#5a7ec6':i===6?'#d65a52':'var(--muted)'};font-weight:${isToday?800:i>=5?600:500};margin-bottom:3px;">${DOW_S[i]}<br>${d.getDate()}</div>
       <div style="line-height:1.6;">${dot}</div>
     </div>`;
