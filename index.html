@@ -149,17 +149,13 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .sum-icon.cg { background: linear-gradient(140deg, #5cbcda 0%, #3a7186 100%); }
 .sum-icon.project { background: linear-gradient(140deg, #868be8 0%, #4e539a 100%); }
 .sum-icon.sports { background: linear-gradient(140deg, #a488e8 0%, #634f99 100%); }
-/* 오늘의 8진 강조(19시~20시): 회전하는 빨간 그라디언트 테두리 + 반짝이는 아이콘 */
-@keyframes duty8Spin { to { transform: rotate(360deg); } }
-@keyframes duty8Pulse { 0%,100% { filter: brightness(1) saturate(1); } 50% { filter: brightness(1.45) saturate(1.35); } }
-@keyframes duty8CardGlow { 0%,100% { box-shadow: 0 2px 10px rgba(198,42,32,0.22); } 50% { box-shadow: 0 2px 24px rgba(255,59,48,0.6); } }
-.duty8-glow { position: relative; z-index: 0; animation: duty8CardGlow 1.6s ease-in-out infinite; }
-.duty8-glow::before {
-  content: ''; position: absolute; inset: -3px; border-radius: 13px; z-index: -1;
-  background: conic-gradient(from 0deg, #ff3b30, #ffcfc7, #ff3b30, #b91c1c, #ff3b30);
-  animation: duty8Spin 2.4s linear infinite;
+/* 오늘의 8진 강조(19시~21시): 미달 카드색으로 확 켜졌다가 천천히 잦아드는 깜빡임 (빠른 어택 + 긴 디케이) */
+@keyframes duty8Blink {
+  0% { background: var(--surface); border-color: var(--border); }
+  12% { background: linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%); border-color: #fca5a5; }
+  100% { background: var(--surface); border-color: var(--border); }
 }
-.duty8-glow .sum-icon { animation: duty8Pulse 1.1s ease-in-out infinite; }
+.duty8-glow { animation: duty8Blink 1.7s cubic-bezier(.25,.6,.45,1) infinite; }
 .sum-info { flex: 1; min-width: 0; }
 .sum-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
 .sum-val { font-size: 22px; font-weight: 700; line-height: 1.2; }
@@ -2073,12 +2069,12 @@ function updateLeaveReqBadge() {
   }
   const fb=document.getElementById('fnav-leavereq'); if(fb) fb.classList.toggle('has-open', !!data.leaveReq?.isOpen);   // 플로팅바 휴가 탭 점 표시
 }
-// 오후 7시~8시(19:00~19:59) 동안 "오늘의 8진" 카드를 반짝이는 그라디언트로 강조
+// 오후 7시~9시(19:00~20:59) 동안 "오늘의 8진" 카드를 미달 카드색으로 깜빡이며 강조
 function _updateDuty8Glow(){
   const el = document.getElementById('duty8-card');
   if (!el) return;
   const h = new Date().getHours();
-  el.classList.toggle('duty8-glow', h === 19);
+  el.classList.toggle('duty8-glow', h >= 19 && h < 21);
 }
 function renderHome() {
   _checkLeaveReqDeadline();
