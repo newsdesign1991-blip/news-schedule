@@ -2906,18 +2906,45 @@ function _restartAnim(el){
     n.style.animation='';    // CSS에 정의된 애니메이션으로 되돌려 재생
   });
 }
+// 모달 열려있는 동안 배경(body) 스크롤 잠금 → iOS가 입력창 포커스 시 페이지를 스크롤해 고정 오버레이를 밀어올리는(짤림/번쩍임) 것을 방지. 오버레이 자체는 크롬 검증상 안 짤림.
+let _lockN = 0, _lockY = 0;
+function _bodyLock(on){
+  if(on){
+    if(_lockN===0){
+      _lockY = window.scrollY || window.pageYOffset || 0;
+      document.body.style.position='fixed';
+      document.body.style.top=(-_lockY)+'px';
+      document.body.style.left='0'; document.body.style.right='0'; document.body.style.width='100%';
+    }
+    _lockN++;
+  } else {
+    _lockN=Math.max(0,_lockN-1);
+    if(_lockN===0){
+      document.body.style.position=''; document.body.style.top='';
+      document.body.style.left=''; document.body.style.right=''; document.body.style.width='';
+      window.scrollTo(0, _lockY);
+    }
+  }
+}
 function _watchModalAnim(el){
   if(!el || el.__animWatch) return; el.__animWatch=true;
+  const sync=function(){
+    const shown = getComputedStyle(el).display!=='none' && !el.classList.contains('nd-closing');
+    if(shown && !el.__mOpen){ el.__mOpen=true; _bodyLock(true); }
+    else if(!shown && el.__mOpen){ el.__mOpen=false; _bodyLock(false); }
+  };
   new MutationObserver(function(){
+    sync();
     if(el.__animBusy || el.classList.contains('nd-closing')) return;
     if(getComputedStyle(el).display==='none') return;
     el.__animBusy=true;
     _restartAnim(el);
     setTimeout(function(){ el.__animBusy=false; }, 60);
   }).observe(el, { attributes:true, attributeFilter:['style','class'] });
+  sync();
 }
 (function(){
-  var SEL='.modal-overlay, .nd-modal, .staff-modal-overlay, [id="lr-popup-overlay"]';
+  var SEL='.modal-overlay, .nd-modal, .staff-modal-overlay, [id="lr-popup-overlay"], #login-overlay';
   function scan(root){ (root||document).querySelectorAll(SEL).forEach(_watchModalAnim); }
   scan();
   if(document.body){
