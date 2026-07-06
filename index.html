@@ -38,6 +38,7 @@
   --cg-chip-bg: #d4e8ee; --cg-chip-text: #437d93; --xr-chip-bg: #d4ede8;
   /* 공지 카드(노랑) */
   --notice-bg1: #fffbeb; --notice-bg2: #fef3c7; --notice-border: #fcd97d;
+  --notice-panel: #fffdf5; --notice-stack1: #fdeec1; --notice-stack2: #fbe6a3;
   /* 미달 경고 카드(연빨강) */
   --warn-bg1: #fff5f5; --warn-bg2: #fee2e2; --warn-border: #fca5a5;
 }
@@ -51,7 +52,8 @@
   --sports: #a88ce6; --sports-bg: rgba(168,140,230,0.17); --sports-light: #c8b4f2;
   --desk: #86aae8; --xr: #5cc3b2; --xr-bg: rgba(92,195,178,0.17); --xr-light: #8bd8c8;
   --cg-chip-bg: rgba(91,180,208,0.18); --cg-chip-text: #8bcfe4; --xr-chip-bg: rgba(92,195,178,0.18);
-  --notice-bg1: rgba(250,204,60,0.10); --notice-bg2: rgba(250,204,60,0.06); --notice-border: rgba(250,204,60,0.35);
+  --notice-bg1: rgba(250,204,60,0.11); --notice-bg2: rgba(250,204,60,0.06); --notice-border: rgba(250,204,60,0.32);
+  --notice-panel: #302e27; --notice-stack1: rgba(250,204,60,0.16); --notice-stack2: rgba(250,204,60,0.10);
   --warn-bg1: rgba(239,68,68,0.14); --warn-bg2: rgba(239,68,68,0.08); --warn-border: rgba(239,68,68,0.42);
 }
 body { transition: background-color .25s ease, color .25s ease; }
@@ -64,6 +66,10 @@ body { transition: background-color .25s ease, color .25s ease; }
 [data-theme="dark"] #hdr-fade { background: linear-gradient(to bottom, #262624 0%, #262624 28%, rgba(38,38,36,0.85) 55%, rgba(38,38,36,0) 100%); }
 [data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select, [data-theme="dark"] .form-input { background: #262624; color: var(--text); border-color: var(--border); }
 [data-theme="dark"] .modal-close, [data-theme="dark"] .btn-outline { background: var(--surface2); color: var(--text); }
+/* 다크: 플로팅바 아이콘/라벨 밝게 */
+[data-theme="dark"] .fnav-btn { color: #cfcbc0; }
+[data-theme="dark"] .fnav-btn.active { color: #6aa8ff; background: rgba(255,255,255,0.10); }
+[data-theme="dark"] .fnav-btn.has-open::after { box-shadow: 0 0 0 2px rgba(48,47,45,0.95); }
 /* 라이트/다크 토글 스위치 (헤더) */
 #theme-toggle { position: relative; width: 46px; height: 26px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface2); cursor: pointer; padding: 0; flex-shrink: 0; -webkit-tap-highlight-color: transparent; transition: background .2s, border-color .2s; }
 #theme-toggle .tt-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center; font-size: 11px; line-height: 1; transition: transform .26s cubic-bezier(.34,1.56,.64,1); }
@@ -190,8 +196,8 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .duty8-glow { position: relative; }
 .duty8-glow::before {
   content: ''; position: absolute; inset: 0; z-index: 0; border-radius: inherit;
-  background: linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);
-  border: 1px solid #fca5a5;
+  background: linear-gradient(135deg,var(--warn-bg1) 0%,var(--warn-bg2) 100%);
+  border: 1px solid var(--warn-border);
   opacity: 0; pointer-events: none;
   animation: duty8Blink 1.7s cubic-bezier(.25,.6,.45,1) infinite;
   will-change: opacity;
@@ -7029,13 +7035,13 @@ function renderNoticeBar() {
   const news8 = box.news8Time || '';
   const has = items.length>0 || news8;
   const canWrite = !!(currentUser && currentUser.staffId);   // 로그인한 직원 누구나 작성 가능
-  const writeBtn = canWrite ? `<button onclick="openNoticeModal()" style="background:#fff;border:1px solid #fcd97d;color:#b8860b;padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;"><svg viewBox="0 0 24 24" width="12" height="12" fill="#b8860b" style="vertical-align:-2px;margin-right:3px;"><path d="M4 9v6a1 1 0 0 0 1 1h1v3a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-3l7 4V4L9 8H5a1 1 0 0 0-1 1z"/></svg>공지 작성</button>` : '';
-  const histBtn = canWrite ? `<button onclick="openNoticeHistory()" style="background:#fff;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" fill-rule="evenodd" style="vertical-align:-2px;margin-right:3px;"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4a1 1 0 1 0-2 0v5a1 1 0 0 0 .45.83l3 2a1 1 0 1 0 1.1-1.66L13 11.46V7z"/></svg>지난 공지</button>` : '';
+  const writeBtn = canWrite ? `<button onclick="openNoticeModal()" style="background:var(--surface);border:1px solid var(--notice-border);color:#b8860b;padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;"><svg viewBox="0 0 24 24" width="12" height="12" fill="#b8860b" style="vertical-align:-2px;margin-right:3px;"><path d="M4 9v6a1 1 0 0 0 1 1h1v3a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-3l7 4V4L9 8H5a1 1 0 0 0-1 1z"/></svg>공지 작성</button>` : '';
+  const histBtn = canWrite ? `<button onclick="openNoticeHistory()" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" fill-rule="evenodd" style="vertical-align:-2px;margin-right:3px;"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4a1 1 0 1 0-2 0v5a1 1 0 0 0 .45.83l3 2a1 1 0 1 0 1.1-1.66L13 11.46V7z"/></svg>지난 공지</button>` : '';
   if (!has) {
     wrap.innerHTML = canWrite ? `<div style="display:flex;justify-content:flex-end;gap:6px;">${histBtn}${writeBtn}</div>` : '';
     return;
   }
-  const news8Html = news8 ? `<div style="margin-top:10px;"><span style="font-size:12px;font-weight:700;color:#d65a52;background:#fff;border:1px solid #f4bab6;border-radius:6px;padding:3px 9px;">📺 오늘 8뉴스 진입 ${news8}</span></div>` : '';
+  const news8Html = news8 ? `<div style="margin-top:10px;"><span style="font-size:12px;font-weight:700;color:#d65a52;background:var(--surface);border:1px solid #f4bab6;border-radius:6px;padding:3px 9px;">📺 오늘 8뉴스 진입 ${news8}</span></div>` : '';
   const header = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
       <div style="font-size:13px;font-weight:800;color:#b8860b;">📢 오늘의 공지${items.length>1?` <span style="opacity:0.7;">· ${items.length}건</span>`:''}</div>
       <div style="display:flex;gap:6px;flex-shrink:0;">${histBtn}${writeBtn}</div>
@@ -7067,12 +7073,12 @@ function renderNoticeBar() {
   } else {
     body = `<div onclick="toggleNoticeExpand()" style="position:relative;margin-bottom:20px;cursor:pointer;">
         <div style="position:relative;z-index:3;">${card(items[0])}</div>
-        <div style="position:absolute;left:6px;right:6px;bottom:-6px;height:18px;background:#fdeec1;border:1px solid #fcd97d;border-radius:0 0 12px 12px;z-index:2;"></div>
-        <div style="position:absolute;left:12px;right:12px;bottom:-12px;height:18px;background:#fbe6a3;border:1px solid #fcd97d;border-radius:0 0 12px 12px;z-index:1;"></div>
+        <div style="position:absolute;left:6px;right:6px;bottom:-6px;height:18px;background:var(--notice-stack1);border:1px solid var(--notice-border);border-radius:0 0 12px 12px;z-index:2;"></div>
+        <div style="position:absolute;left:12px;right:12px;bottom:-12px;height:18px;background:var(--notice-stack2);border:1px solid var(--notice-border);border-radius:0 0 12px 12px;z-index:1;"></div>
       </div>
-      <div style="text-align:center;"><button onclick="toggleNoticeExpand()" style="background:#fff;border:1px solid #fcd97d;color:#b8860b;font-size:11px;font-weight:700;cursor:pointer;padding:3px 12px;border-radius:20px;">▾ 공지 ${items.length}건 모두 보기</button></div>`;
+      <div style="text-align:center;"><button onclick="toggleNoticeExpand()" style="background:var(--surface);border:1px solid var(--notice-border);color:#b8860b;font-size:11px;font-weight:700;cursor:pointer;padding:3px 12px;border-radius:20px;">▾ 공지 ${items.length}건 모두 보기</button></div>`;
   }
-  wrap.innerHTML = `<div style="background:#fffdf5;border:1px solid #fcd97d;border-radius:14px;padding:14px 16px;">${header}${body}${news8Html}</div>`;
+  wrap.innerHTML = `<div style="background:var(--notice-panel);border:1px solid var(--notice-border);border-radius:14px;padding:14px 16px;">${header}${body}${news8Html}</div>`;
   _applyNoticeClamp();
 }
 // 각 공지 본문이 접힘 최대높이보다 길면 → 접고 하단 페이드 + '더보기' 노출. 펼침 상태(_noticeTextOpen)면 전문+접기.
