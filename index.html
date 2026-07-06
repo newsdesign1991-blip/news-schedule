@@ -149,6 +149,17 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .sum-icon.cg { background: linear-gradient(140deg, #5cbcda 0%, #3a7186 100%); }
 .sum-icon.project { background: linear-gradient(140deg, #868be8 0%, #4e539a 100%); }
 .sum-icon.sports { background: linear-gradient(140deg, #a488e8 0%, #634f99 100%); }
+/* 오늘의 8진 강조(19시~20시): 회전하는 빨간 그라디언트 테두리 + 반짝이는 아이콘 */
+@keyframes duty8Spin { to { transform: rotate(360deg); } }
+@keyframes duty8Pulse { 0%,100% { filter: brightness(1) saturate(1); } 50% { filter: brightness(1.45) saturate(1.35); } }
+@keyframes duty8CardGlow { 0%,100% { box-shadow: 0 2px 10px rgba(198,42,32,0.22); } 50% { box-shadow: 0 2px 24px rgba(255,59,48,0.6); } }
+.duty8-glow { position: relative; z-index: 0; animation: duty8CardGlow 1.6s ease-in-out infinite; }
+.duty8-glow::before {
+  content: ''; position: absolute; inset: -3px; border-radius: 13px; z-index: -1;
+  background: conic-gradient(from 0deg, #ff3b30, #ffcfc7, #ff3b30, #b91c1c, #ff3b30);
+  animation: duty8Spin 2.4s linear infinite;
+}
+.duty8-glow .sum-icon { animation: duty8Pulse 1.1s ease-in-out infinite; }
 .sum-info { flex: 1; min-width: 0; }
 .sum-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
 .sum-val { font-size: 22px; font-weight: 700; line-height: 1.2; }
@@ -2062,6 +2073,13 @@ function updateLeaveReqBadge() {
   }
   const fb=document.getElementById('fnav-leavereq'); if(fb) fb.classList.toggle('has-open', !!data.leaveReq?.isOpen);   // 플로팅바 휴가 탭 점 표시
 }
+// 오후 7시~8시(19:00~19:59) 동안 "오늘의 8진" 카드를 반짝이는 그라디언트로 강조
+function _updateDuty8Glow(){
+  const el = document.getElementById('duty8-card');
+  if (!el) return;
+  const h = new Date().getHours();
+  el.classList.toggle('duty8-glow', h === 19);
+}
 function renderHome() {
   _checkLeaveReqDeadline();
   updateLeaveReqBadge();
@@ -2229,9 +2247,11 @@ function renderHome() {
   const _duty8Id = entry?.weekday8jin || entry?.weekend8jin || null;
   const _duty8Name = _duty8Id ? (staffById(_duty8Id)?.name || '') : '';
   const _dutyRowHtml = `
-    <div class="sum-card"><div class="sum-icon" style="background:linear-gradient(140deg,#f2867e 0%,#c1483f 100%);"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff"><path d="M20.5 14.6A8.5 8.5 0 1 1 9.4 3.5a7 7 0 0 0 11.1 11.1z"/></svg></div><div class="sum-info"><div class="sum-label">오늘의 당직자</div><div><span class="sum-val" style="font-size:15px;color:#c1483f;">${_dutyName||'<span style="color:#cbd5e1;">-</span>'}</span></div></div></div>
-    <div class="sum-card"><div class="sum-icon" style="background:linear-gradient(140deg,#8891ef 0%,#5a5fc7 100%);"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff" fill-rule="evenodd"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4a1 1 0 1 0-2 0v5a1 1 0 0 0 .45.83l3 2a1 1 0 1 0 1.1-1.66L13 11.46V7z"/></svg></div><div class="sum-info"><div class="sum-label">오늘의 8진</div><div><span class="sum-val" style="font-size:15px;color:#5a5fc7;">${_duty8Name||'<span style="color:#cbd5e1;">-</span>'}</span></div></div></div>`;
+    <div class="sum-card"><div class="sum-icon" style="background:linear-gradient(140deg,#8891ef 0%,#5a5fc7 100%);"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff"><path d="M20.5 14.6A8.5 8.5 0 1 1 9.4 3.5a7 7 0 0 0 11.1 11.1z"/></svg></div><div class="sum-info"><div class="sum-label">오늘의 당직자</div><div><span class="sum-val" style="font-size:15px;color:#5a5fc7;">${_dutyName||'<span style="color:#cbd5e1;">-</span>'}</span></div></div></div>
+    <div class="sum-card" id="duty8-card"><div class="sum-icon" style="background:linear-gradient(140deg,#f2867e 0%,#c1483f 100%);"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff" fill-rule="evenodd"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4a1 1 0 1 0-2 0v5a1 1 0 0 0 .45.83l3 2a1 1 0 1 0 1.1-1.66L13 11.46V7z"/></svg></div><div class="sum-info"><div class="sum-label">오늘의 8진</div><div><span class="sum-val" style="font-size:15px;color:#c1483f;">${_duty8Name||'<span style="color:#cbd5e1;">-</span>'}</span></div></div></div>`;
   document.getElementById('home-duty-row').innerHTML = _dutyRowHtml;
+  _updateDuty8Glow();
+  if (!window._duty8GlowTimer) window._duty8GlowTimer = setInterval(_updateDuty8Glow, 30000);
   document.getElementById('vw-panel-count').textContent=`${vwCnt}명`;
   document.getElementById('cg-panel-count').textContent=`${cgCnt}명`;
   document.getElementById('project-panel-count').textContent=`${prjCnt}명`;
