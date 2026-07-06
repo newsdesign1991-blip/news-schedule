@@ -22,6 +22,8 @@
 ['gesturestart','gesturechange','gestureend'].forEach(function(ev){
   document.addEventListener(ev, function(e){ e.preventDefault(); }, { passive:false });
 });
+// 테마: 저장값을 즉시 적용(깜빡임 방지) — 파싱 시점에 <html>에 표시
+(function(){ try { if (localStorage.getItem('nd_theme')==='dark') document.documentElement.setAttribute('data-theme','dark'); } catch(e){} })();
 </script>
 <style>
 :root {
@@ -32,7 +34,41 @@
   --project: #686dc8; --project-bg: #f3f4fb; --project-light: #565ba4;
   --sports: #8a6ecf; --sports-bg: #f6f4fb; --sports-light: #6f59a3;
   --desk: #527dc4; --xr: #4faa9c; --xr-bg: #f0f8f6; --xr-light: #45847a;
+  /* 홈 CG/XR 근무자 칩 색(라이트=기존 그대로) */
+  --cg-chip-bg: #d4e8ee; --cg-chip-text: #437d93; --xr-chip-bg: #d4ede8;
+  /* 공지 카드(노랑) */
+  --notice-bg1: #fffbeb; --notice-bg2: #fef3c7; --notice-border: #fcd97d;
+  /* 미달 경고 카드(연빨강) */
+  --warn-bg1: #fff5f5; --warn-bg2: #fee2e2; --warn-border: #fca5a5;
 }
+/* ===== 다크 모드 (Claude 느낌의 따뜻한 다크 그레이, 완전 블랙 아님) ===== */
+[data-theme="dark"] {
+  --bg: #262624; --surface: #302f2d; --surface2: #3a3936; --border: #47443d;
+  --text: #e9e6de; --muted: #a49f93;
+  --vw: #6d8fd0; --vw-bg: rgba(109,143,208,0.17); --vw-light: #9fb8e8;
+  --cg: #5bb4d0; --cg-bg: rgba(91,180,208,0.17); --cg-light: #8bcfe4;
+  --project: #8b8fe6; --project-bg: rgba(139,143,230,0.17); --project-light: #b1b4f2;
+  --sports: #a88ce6; --sports-bg: rgba(168,140,230,0.17); --sports-light: #c8b4f2;
+  --desk: #86aae8; --xr: #5cc3b2; --xr-bg: rgba(92,195,178,0.17); --xr-light: #8bd8c8;
+  --cg-chip-bg: rgba(91,180,208,0.18); --cg-chip-text: #8bcfe4; --xr-chip-bg: rgba(92,195,178,0.18);
+  --notice-bg1: rgba(250,204,60,0.10); --notice-bg2: rgba(250,204,60,0.06); --notice-border: rgba(250,204,60,0.35);
+  --warn-bg1: rgba(239,68,68,0.14); --warn-bg2: rgba(239,68,68,0.08); --warn-border: rgba(239,68,68,0.42);
+}
+body { transition: background-color .25s ease, color .25s ease; }
+/* 다크: 하드코딩 흰색/라이트 표면 보정 */
+[data-theme="dark"] .modal, [data-theme="dark"] .nd-modal > div, [data-theme="dark"] .nd-pop, [data-theme="dark"] .staff-modal { background: #302f2d !important; color: var(--text); border-color: var(--border) !important; }
+[data-theme="dark"] #floating-nav { background: rgba(48,47,45,0.72); border-color: rgba(255,255,255,0.10); }
+[data-theme="dark"] #hdr-menu { background: rgba(48,47,45,0.92) !important; border-color: rgba(255,255,255,0.10) !important; }
+[data-theme="dark"] .wm-num.today { color: #1c1b19; }
+[data-theme="dark"] #fnav-fade { background: linear-gradient(to top, rgba(38,38,36,0.85) 22%, rgba(38,38,36,0) 100%); }
+[data-theme="dark"] #hdr-fade { background: linear-gradient(to bottom, #262624 0%, #262624 28%, rgba(38,38,36,0.85) 55%, rgba(38,38,36,0) 100%); }
+[data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select, [data-theme="dark"] .form-input { background: #262624; color: var(--text); border-color: var(--border); }
+[data-theme="dark"] .modal-close, [data-theme="dark"] .btn-outline { background: var(--surface2); color: var(--text); }
+/* 라이트/다크 토글 스위치 (헤더) */
+#theme-toggle { position: relative; width: 46px; height: 26px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface2); cursor: pointer; padding: 0; flex-shrink: 0; -webkit-tap-highlight-color: transparent; transition: background .2s, border-color .2s; }
+#theme-toggle .tt-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center; font-size: 11px; line-height: 1; transition: transform .26s cubic-bezier(.34,1.56,.64,1); }
+[data-theme="dark"] #theme-toggle { background: #514e47; border-color: rgba(255,255,255,0.12); }
+[data-theme="dark"] #theme-toggle .tt-knob { transform: translateX(20px); background: #dcd8ce; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; }
 header { background: transparent; border-bottom: none; padding: 0 20px; display: flex; align-items: center; gap: 24px; height: 50px; position: sticky; top: 0; z-index: 100; transition: transform .32s cubic-bezier(.4,0,.2,1); }
@@ -530,6 +566,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   </nav>
   <div class="header-right">
     <span class="date-badge" id="header-date"></span>
+    <button id="theme-toggle" onclick="toggleTheme()" role="switch" aria-label="라이트/다크 전환" title="라이트/다크 전환"><span class="tt-knob" id="tt-knob">☀</span></button>
     <button id="hdr-menu-btn" onclick="toggleHdrMenu(event)" title="메뉴" aria-label="메뉴"><span id="hdr-menu-avatar">☰</span></button>
     <!-- 관리자 진입 상태 토글용(숨김, 로직 호환) -->
     <button class="admin-link" id="admin-toggle" onclick="toggleAdmin()" style="display:none;">⚙</button>
@@ -2074,6 +2111,22 @@ function updateLeaveReqBadge() {
   }
   const fb=document.getElementById('fnav-leavereq'); if(fb) fb.classList.toggle('has-open', !!data.leaveReq?.isOpen);   // 플로팅바 휴가 탭 점 표시
 }
+// 라이트/다크 테마
+function _applyThemeUI(){
+  const dark = document.documentElement.getAttribute('data-theme')==='dark';
+  const knob = document.getElementById('tt-knob');
+  if (knob) knob.textContent = dark ? '🌙' : '☀';
+  const tt = document.getElementById('theme-toggle');
+  if (tt) tt.setAttribute('aria-checked', dark ? 'true' : 'false');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#262624' : '#f1f4f8');
+}
+function toggleTheme(){
+  const dark = document.documentElement.getAttribute('data-theme')==='dark';
+  if (dark) { document.documentElement.removeAttribute('data-theme'); try{localStorage.setItem('nd_theme','light');}catch(e){} }
+  else { document.documentElement.setAttribute('data-theme','dark'); try{localStorage.setItem('nd_theme','dark');}catch(e){} }
+  _applyThemeUI();
+}
 // 오후 7시~9시(19:00~20:59) 동안 "오늘의 8진" 카드를 미달 카드색으로 깜빡이며 강조
 function _updateDuty8Glow(){
   const el = document.getElementById('duty8-card');
@@ -2124,8 +2177,8 @@ function renderHome() {
   const vwOk = vwCnt >= goalVW;
   const cgOk = cgCnt >= goalCG;
   document.getElementById('home-summary').innerHTML = `
-    <div class="sum-card" style="${entry&&!vwOk?'background:linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);border-color:#fca5a5;':''}""><div class="sum-icon vw"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff"><path d="M8.6 3.2 8.6 8.4 3.6 7.7 3.6 3.9Z M8.6 9.4 8.6 14.6 3.6 13.9 3.6 10.1Z M8.6 15.6 8.6 20.8 3.6 20.1 3.6 16.3Z M15.4 3.2 15.4 8.4 20.4 7.7 20.4 3.9Z M15.4 9.4 15.4 14.6 20.4 13.9 20.4 10.1Z M15.4 15.6 15.4 20.8 20.4 20.1 20.4 16.3Z"/><rect x="9.6" y="3.2" width="4.8" height="5.2" rx="0.8"/><rect x="9.6" y="9.4" width="4.8" height="5.2" rx="0.8"/><rect x="9.6" y="15.6" width="4.8" height="5.2" rx="0.8"/></svg></div><div class="sum-info"><div class="sum-label">VW</div><div><span class="sum-val vw">${vwCnt}</span><span style="font-size:12px;color:var(--muted)">/${goalVW}명</span>${entry?(vwOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
-    <div class="sum-card" style="${entry&&!cgOk?'background:linear-gradient(135deg,#fff5f5 0%,#fee2e2 100%);border-color:#fca5a5;':''}"><div class="sum-icon cg"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff" fill-rule="evenodd"><path d="M12 3a9 9 0 0 0 0 18c1.05 0 1.9-.85 1.9-1.9 0-.5-.2-.9-.5-1.25-.28-.34-.4-.66-.4-1.05 0-.83.67-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.5-4.03-7.3-9-7.3zM7.5 10.3a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM12 7a1.25 1.25 0 1 0 0 2.5A1.25 1.25 0 0 0 12 7zm4.7 3a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5z"/></svg></div><div class="sum-info"><div class="sum-label">CG</div><div><span class="sum-val cg">${cgCnt}</span><span style="font-size:12px;color:var(--muted)">/${goalCG}명</span>${entry?(cgOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
+    <div class="sum-card" style="${entry&&!vwOk?'background:linear-gradient(135deg,var(--warn-bg1) 0%,var(--warn-bg2) 100%);border-color:var(--warn-border);':''}""><div class="sum-icon vw"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff"><path d="M8.6 3.2 8.6 8.4 3.6 7.7 3.6 3.9Z M8.6 9.4 8.6 14.6 3.6 13.9 3.6 10.1Z M8.6 15.6 8.6 20.8 3.6 20.1 3.6 16.3Z M15.4 3.2 15.4 8.4 20.4 7.7 20.4 3.9Z M15.4 9.4 15.4 14.6 20.4 13.9 20.4 10.1Z M15.4 15.6 15.4 20.8 20.4 20.1 20.4 16.3Z"/><rect x="9.6" y="3.2" width="4.8" height="5.2" rx="0.8"/><rect x="9.6" y="9.4" width="4.8" height="5.2" rx="0.8"/><rect x="9.6" y="15.6" width="4.8" height="5.2" rx="0.8"/></svg></div><div class="sum-info"><div class="sum-label">VW</div><div><span class="sum-val vw">${vwCnt}</span><span style="font-size:12px;color:var(--muted)">/${goalVW}명</span>${entry?(vwOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
+    <div class="sum-card" style="${entry&&!cgOk?'background:linear-gradient(135deg,var(--warn-bg1) 0%,var(--warn-bg2) 100%);border-color:var(--warn-border);':''}"><div class="sum-icon cg"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff" fill-rule="evenodd"><path d="M12 3a9 9 0 0 0 0 18c1.05 0 1.9-.85 1.9-1.9 0-.5-.2-.9-.5-1.25-.28-.34-.4-.66-.4-1.05 0-.83.67-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.5-4.03-7.3-9-7.3zM7.5 10.3a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM12 7a1.25 1.25 0 1 0 0 2.5A1.25 1.25 0 0 0 12 7zm4.7 3a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5z"/></svg></div><div class="sum-info"><div class="sum-label">CG</div><div><span class="sum-val cg">${cgCnt}</span><span style="font-size:12px;color:var(--muted)">/${goalCG}명</span>${entry?(cgOk?'<span class="sum-ok">충족</span>':'<span class="sum-warn">미달</span>'):''}</div></div></div>
     <div class="sum-card"><div class="sum-icon project"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff"><path d="M4 5.5a2 2 0 0 1 2-2h3.1a1 1 0 0 1 .8.4l1.2 1.6H18a2 2 0 0 1 2 2V8H4V5.5zM4 9.5h16V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9.5z"/></svg></div><div class="sum-info"><div class="sum-label">PROJECT</div><div><span class="sum-val project">${prjCnt}</span><span style="font-size:12px;color:var(--muted)">명</span></div></div></div>
     <div class="sum-card"><div class="sum-icon sports"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff" fill-rule="evenodd"><path d="M17 4a1 1 0 0 1 1 1h2.3a.7.7 0 0 1 .7.7V7a3.8 3.8 0 0 1-3.8 3.8h-.3A5 5 0 0 1 13 13.75V16.5h2a1 1 0 1 1 0 2H9a1 1 0 1 1 0-2h2v-2.75A5 5 0 0 1 7.1 10.8h-.3A3.8 3.8 0 0 1 3 7V5.7a.7.7 0 0 1 .7-.7H6a1 1 0 0 1 1-1h10zM6 6.5H4.5V7a2.3 2.3 0 0 0 1.7 2.22A6.5 6.5 0 0 1 6 8V6.5zm12 0V8c0 .42-.04.83-.12 1.22A2.3 2.3 0 0 0 19.5 7v-.5H18zM8 19.5a1 1 0 0 0-1 1V21a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-.5a1 1 0 0 0-1-1H8z"/></svg></div><div class="sum-info"><div class="sum-label">SPORTS</div><div><span class="sum-val sports">${sptCnt}</span><span style="font-size:12px;color:var(--muted)">명</span></div></div></div>
   `;
@@ -2233,7 +2286,7 @@ function renderHome() {
           const isDesk5=id===entry.cg?.desk5;
           const _t=tag?` <span style="opacity:.55;font-size:9px;font-weight:700;">${tag}</span>`:'';
           const _mark=isDesk8?'<span class="desk-star">★</span>':isDesk5?'<span class="desk-star">☆</span>':'';
-          return `<span class="wchip" style="${isXr?'background:#d4ede8;color:var(--xr-light);':'background:#d4e8ee;color:#437d93;'}">${_mark}${s.name}${_t}</span>`;
+          return `<span class="wchip" style="${isXr?'background:var(--xr-chip-bg);color:var(--xr-light);':'background:var(--cg-chip-bg);color:var(--cg-chip-text);'}">${_mark}${s.name}${_t}</span>`;
         }).join('')
       : '<div class="no-data">근무자 없음</div>';
     document.getElementById('project-today-chips').innerHTML=makeChips(entry.project||[],'project',null);
@@ -6993,7 +7046,7 @@ function renderNoticeBar() {
     const bell = it.silent ? `<span title="조용한 공지(알림 미발송)" style="font-size:11px;opacity:0.7;margin-left:4px;">🔕</span>` : '';
     const edit = canWrite ? `<button onclick="event.stopPropagation();openNoticeModal('${it.id}')" style="background:transparent;border:none;color:#b8860b;cursor:pointer;font-size:13px;padding:0 2px;flex-shrink:0;" title="수정">✏</button>` : '';
     // 본문은 접힘 상태로 렌더 → 렌더 후 _applyNoticeClamp()가 길이 재서 페이드/더보기 표시. transition으로 펼침 애니메이션.
-    return `<div class="notice-card" style="background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);border:1px solid #fcd97d;border-radius:12px;padding:11px 13px;">
+    return `<div class="notice-card" style="background:linear-gradient(135deg,var(--notice-bg1) 0%,var(--notice-bg2) 100%);border:1px solid var(--notice-border);border-radius:12px;padding:11px 13px;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
           <div style="flex:1;min-width:0;">
             <div class="notice-text" data-nid="${it.id}" style="overflow:hidden;transition:max-height .38s cubic-bezier(.4,0,.2,1);">
@@ -7460,6 +7513,7 @@ function _looksEmptyData(d){
     }
   }
   _updateUserHeader();
+  _applyThemeUI();   // 토글 아이콘을 저장된 테마와 동기화
   if (!currentUser) {
     document.getElementById('login-overlay').style.display = 'flex';
   } else {
