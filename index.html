@@ -286,8 +286,6 @@ body[style*="overflow: hidden"] #floating-nav {
 .nd-pop.no-anim { animation: none; }
 #lr-popup-overlay { background: rgba(0,0,0,0.3) !important; animation: ndModalFade .32s ease both; }
 .staff-modal-overlay.open {  }
-/* 키보드가 뜰 때 카드만 위로 부드럽게 이동(오버레이/딤은 전체 그대로) */
-.modal-overlay > .modal, .nd-modal > div, #lr-popup-overlay > .nd-pop, .staff-modal-overlay > .staff-modal, #login-overlay > div { transition: margin-bottom .28s cubic-bezier(.22,1,.36,1); }
 /* iOS풍 버튼 — 모달 안의 주요 버튼을 더 둥글고 큼직하게 */
 .modal .btn-primary, .nd-modal .btn-primary { border-radius: 14px; padding: 13px; font-size: 15px; font-weight: 700; }
 .modal .btn, .nd-modal .btn { border-radius: 12px; }
@@ -2906,45 +2904,18 @@ function _restartAnim(el){
     n.style.animation='';    // CSS에 정의된 애니메이션으로 되돌려 재생
   });
 }
-// 모달 열려있는 동안 배경(body) 스크롤 잠금 → iOS가 입력창 포커스 시 페이지를 스크롤해 고정 오버레이를 밀어올리는(짤림/번쩍임) 것을 방지. 오버레이 자체는 크롬 검증상 안 짤림.
-let _lockN = 0, _lockY = 0;
-function _bodyLock(on){
-  if(on){
-    if(_lockN===0){
-      _lockY = window.scrollY || window.pageYOffset || 0;
-      document.body.style.position='fixed';
-      document.body.style.top=(-_lockY)+'px';
-      document.body.style.left='0'; document.body.style.right='0'; document.body.style.width='100%';
-    }
-    _lockN++;
-  } else {
-    _lockN=Math.max(0,_lockN-1);
-    if(_lockN===0){
-      document.body.style.position=''; document.body.style.top='';
-      document.body.style.left=''; document.body.style.right=''; document.body.style.width='';
-      window.scrollTo(0, _lockY);
-    }
-  }
-}
 function _watchModalAnim(el){
   if(!el || el.__animWatch) return; el.__animWatch=true;
-  const sync=function(){
-    const shown = getComputedStyle(el).display!=='none' && !el.classList.contains('nd-closing');
-    if(shown && !el.__mOpen){ el.__mOpen=true; _bodyLock(true); }
-    else if(!shown && el.__mOpen){ el.__mOpen=false; _bodyLock(false); }
-  };
   new MutationObserver(function(){
-    sync();
     if(el.__animBusy || el.classList.contains('nd-closing')) return;
     if(getComputedStyle(el).display==='none') return;
     el.__animBusy=true;
     _restartAnim(el);
     setTimeout(function(){ el.__animBusy=false; }, 60);
   }).observe(el, { attributes:true, attributeFilter:['style','class'] });
-  sync();
 }
 (function(){
-  var SEL='.modal-overlay, .nd-modal, .staff-modal-overlay, [id="lr-popup-overlay"], #login-overlay';
+  var SEL='.modal-overlay, .nd-modal, .staff-modal-overlay, [id="lr-popup-overlay"]';
   function scan(root){ (root||document).querySelectorAll(SEL).forEach(_watchModalAnim); }
   scan();
   if(document.body){
@@ -2956,24 +2927,6 @@ function _watchModalAnim(el){
       }); });
     }).observe(document.body, { childList:true, subtree:true });
   }
-})();
-// iOS 키보드: 오버레이/딤은 전체 그대로 두고, 가운데 카드만 위로 부드럽게 이동(margin-bottom + CSS 트랜지션). body는 절대 건드리지 않음
-(function(){
-  var vv = window.visualViewport; if(!vv) return;
-  var SEL = '.modal-overlay, .nd-modal, #lr-popup-overlay, .staff-modal-overlay, #login-overlay';
-  var raf = 0;
-  function fit(){
-    raf = 0;
-    var kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);   // 키보드 높이
-    var mb = kb > 90 ? (kb + 'px') : '';
-    document.querySelectorAll(SEL).forEach(function(ov){
-      var card = ov.firstElementChild;
-      if(!card) return;
-      if(getComputedStyle(ov).display==='none'){ if(card.style.marginBottom) card.style.marginBottom=''; return; }
-      card.style.marginBottom = mb;   // flex 세로중앙 → margin-bottom만큼 카드가 위로(kb/2) 이동
-    });
-  }
-  vv.addEventListener('resize', function(){ if(!raf) raf = requestAnimationFrame(fit); });
 })();
 // ── 구글 캘린더 관리 (관리자 패널 설정 탭에 인라인) ──
 let _gcalEdit=[];
