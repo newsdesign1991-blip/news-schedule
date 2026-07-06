@@ -245,9 +245,7 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .event-tag button:hover { opacity: 1; }
 
 /* MODAL */
-/* absolute + 스크롤 위치 보정(JS) → fixed backdrop-root를 피해 카드 자체 backdrop-filter가 크롬에서도 동작 */
-.modal-overlay { position: absolute; inset: 0; background: transparent; z-index: 2600; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.modal-overlay, .nd-modal, #lr-popup-overlay, .staff-modal-overlay { position: absolute !important; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 2600; display: flex; align-items: center; justify-content: center; padding: 20px; }
 /* 모달 열려 body 스크롤 잠기면 하단 플로팅바/페이드 숨김(모달 하단 항목 가림 방지) */
 /* 어떤 팝업이든 열리면 플로팅바만 아래로 슬라이드+페이드(하단 그라디언트는 유지) */
 body:has(.modal-overlay:not([style*="display:none"]):not([style*="display: none"])) #floating-nav,
@@ -256,7 +254,7 @@ body:has(.staff-modal-overlay.open) #floating-nav,
 body[style*="overflow: hidden"] #floating-nav {
   transform: translateX(-50%) translateY(180%) !important; opacity: 0 !important; pointer-events: none !important;
 }
-.modal { background: rgba(255,255,255,0.62); -webkit-backdrop-filter: blur(26px) saturate(180%); backdrop-filter: blur(26px) saturate(180%); border: 0.5px solid rgba(255,255,255,0.7); border-radius: 16px; padding: 24px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 60px rgba(15,23,42,0.22); }
+.modal { background: rgba(255,255,255,0.98); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border: 0.5px solid rgba(255,255,255,0.6); border-radius: 16px; padding: 24px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 60px rgba(15,23,42,0.22); }
 /* 모바일: 팝업이 화면 폭에 맞고 가로 스크롤 안 생기게 */
 @media (max-width: 760px) {
   .modal-overlay, .nd-modal, #lr-popup-overlay { padding: 12px !important; }
@@ -281,12 +279,12 @@ body[style*="overflow: hidden"] #floating-nav {
 .staff-modal-overlay.open { animation: ndModalFade .32s ease both; }
 .staff-modal-overlay.open > * { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; }
 /* 인라인 스타일 모달(공지·설정·지난공지 등)에 클래스로 부여 */
-.nd-modal { animation: ndModalFade .32s ease both; background: transparent !important; }
-.nd-modal > div { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 16px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; background: rgba(255,255,255,0.9) !important; -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
+.nd-modal { animation: ndModalFade .32s ease both; background: rgba(0,0,0,0.3) !important; }
+.nd-modal > div { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 16px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; background: rgba(255,255,255,0.98) !important; -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
 /* 휴가 팝업 콘텐츠(재생성 시엔 .no-anim으로 애니메이션 생략) */
-.nd-pop { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 16px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; background: rgba(255,255,255,0.9) !important; -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
+.nd-pop { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 16px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; background: rgba(255,255,255,0.98) !important; -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
 .nd-pop.no-anim { animation: none; }
-#lr-popup-overlay { background: transparent !important; }
+#lr-popup-overlay { background: rgba(0,0,0,0.3) !important; }
 .staff-modal-overlay.open {  }
 /* iOS풍 버튼 — 모달 안의 주요 버튼을 더 둥글고 큼직하게 */
 .modal .btn-primary, .nd-modal .btn-primary { border-radius: 14px; padding: 13px; font-size: 15px; font-weight: 700; }
@@ -409,9 +407,9 @@ tr.dragging { opacity:0.35; }
 /* 태그 선택기 */
 .tag-sel-pool { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
 /* 직원 편집 모달 */
-.staff-modal-overlay { position:absolute; inset:0; background:transparent; z-index:1200; display:none; align-items:center; justify-content:center; }
+.staff-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:1200; display:none; align-items:center; justify-content:center; }
 .staff-modal-overlay.open { display:flex; }
-.staff-modal { background:rgba(255,255,255,0.9); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border-radius:16px; padding:24px 28px; width:560px; max-width:93vw; max-height:88vh; overflow-y:auto; position:relative; box-shadow:0 12px 48px rgba(0,0,0,0.35); animation:modalIn 0.18s ease; }
+.staff-modal { background:rgba(255,255,255,0.98); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border-radius:16px; padding:24px 28px; width:560px; max-width:93vw; max-height:88vh; overflow-y:auto; position:relative; box-shadow:0 12px 48px rgba(0,0,0,0.35); animation:modalIn 0.18s ease; }
 @keyframes modalIn { from{transform:scale(0.94);opacity:0} to{transform:scale(1);opacity:1} }
 .staff-modal h3 { font-size:15px; font-weight:700; margin-bottom:16px; }
 .staff-modal-close { position:absolute; top:14px; right:16px; background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); line-height:1; padding:2px 6px; border-radius:6px; }
@@ -2906,36 +2904,15 @@ function _restartAnim(el){
     n.style.animation='';    // CSS에 정의된 애니메이션으로 되돌려 재생
   });
 }
-// 오버레이가 position:absolute라서, 열릴 때 현재 스크롤 위치에 맞춰 뷰포트를 덮도록 top/height 지정 + 배경 스크롤 잠금
-let _openModalN = 0;
-function _modalScrollLock(lock){
-  if(lock){ if(_openModalN===0) document.body.style.overflow='hidden'; _openModalN++; }
-  else { _openModalN=Math.max(0,_openModalN-1); if(_openModalN===0) document.body.style.overflow=''; }
-}
-function _syncModalPosition(el){
-  var shown = getComputedStyle(el).display!=='none' && !el.classList.contains('nd-closing');
-  if(shown && !el.__mOpen){
-    el.__mOpen=true;
-    el.style.top = window.scrollY + 'px';
-    el.style.bottom = 'auto';
-    el.style.height = window.innerHeight + 'px';
-    _modalScrollLock(true);
-  } else if(!shown && el.__mOpen){
-    el.__mOpen=false;
-    _modalScrollLock(false);
-  }
-}
 function _watchModalAnim(el){
   if(!el || el.__animWatch) return; el.__animWatch=true;
   new MutationObserver(function(){
-    _syncModalPosition(el);
     if(el.__animBusy || el.classList.contains('nd-closing')) return;
     if(getComputedStyle(el).display==='none') return;
     el.__animBusy=true;
     _restartAnim(el);
     setTimeout(function(){ el.__animBusy=false; }, 60);
   }).observe(el, { attributes:true, attributeFilter:['style','class'] });
-  _syncModalPosition(el);
 }
 (function(){
   var SEL='.modal-overlay, .nd-modal, .staff-modal-overlay, [id="lr-popup-overlay"]';
