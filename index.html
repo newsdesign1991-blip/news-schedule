@@ -692,6 +692,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   <div id="my-schedule-card" style="display:none;margin-bottom:14px;"></div>
   <div id="home-notice" style="margin-bottom:14px;"></div>
   <div class="summary-row" id="home-summary"></div>
+  <div class="summary-row" id="home-duty-row" style="grid-template-columns:1fr 1fr;"></div>
   <div class="panel" style="margin-bottom:14px;">
     <div class="panel-header">
       <div class="panel-title"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" fill-rule="evenodd" style="vertical-align:-2px;margin-right:3px;"><path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3V3a1 1 0 0 1 1-1zM4.5 10v8A1.5 1.5 0 0 0 6 19.5h12a1.5 1.5 0 0 0 1.5-1.5v-8h-15zM8 12.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm4 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm4 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg> 이번 주 일정</div>
@@ -2171,16 +2172,24 @@ function renderHome() {
   // 모바일 전용 리스트 영역 (CSS로 데스크탑에선 숨김)
   const mobileListEl = document.getElementById('home-mobile-ev-list');
   if (mobileListEl) mobileListEl.innerHTML = mobileEvHtml;
+  // 직원 먼저(프리랜서 나중) + 그 안에서는 근무표에 표시되는 순서(data.staff 배열 순서, 왼쪽부터)
+  const _staffIdx=new Map((data.staff||[]).map((st,i)=>[st.id,i]));
+  const _byStaffOrder=(a,b)=>{
+    const sa=staffById(a),sb=staffById(b);
+    const fa=(sa?.employmentType==='freelancer')?1:0, fb=(sb?.employmentType==='freelancer')?1:0;
+    if(fa!==fb) return fa-fb;
+    return (_staffIdx.get(a)??9999)-(_staffIdx.get(b)??9999);
+  };
   function makeChips(ids, dept, deskId) {
     if (!ids.length) return '<div class="no-data">근무자 없음</div>';
-    return ids.map(id => {
+    return [...ids].sort(_byStaffOrder).map(id => {
       const s=staffById(id); const isDesk=id===deskId;
       return s?`<span class="wchip ${dept.toLowerCase()}">${isDesk?'<span class="desk-star">★</span>':''}${s.name}</span>`:'';
     }).join('');
   }
   if (entry) {
     const _vwSeen=new Set();
-    const _vwAll=[...(entry.vw?.workers||[]).map(id=>({id,tag:''})),..._h8vwIds.map(id=>({id,tag:'8진'})),..._hNoVwIds.map(id=>({id,tag:'뉴.오'})),...(_ilVwAdd?[{id:entry.ilgeun,tag:'일근'}]:[])].filter(x=>x.id&&!_vwSeen.has(x.id)&&(_vwSeen.add(x.id),true));
+    const _vwAll=[...(entry.vw?.workers||[]).map(id=>({id,tag:''})),..._h8vwIds.map(id=>({id,tag:'8진'})),..._hNoVwIds.map(id=>({id,tag:'뉴.오'})),...(_ilVwAdd?[{id:entry.ilgeun,tag:'일근'}]:[])].filter(x=>x.id&&!_vwSeen.has(x.id)&&(_vwSeen.add(x.id),true)).sort((a,b)=>_byStaffOrder(a.id,b.id));
     document.getElementById('vw-today-chips').innerHTML=_vwAll.length
       ? _vwAll.map(({id,tag})=>{const s=staffById(id);if(!s)return '';const isDesk=id===entry.vw?.desk;const _t=tag?` <span style="opacity:.55;font-size:9px;font-weight:700;">${tag}</span>`:'';return `<span class="wchip vw">${isDesk?'<span class="desk-star">★</span>':''}${s.name}${_t}</span>`}).join('')
       : '<div class="no-data">근무자 없음</div>';
@@ -2191,9 +2200,16 @@ function renderHome() {
       ..._h8cgIds.map(id=>({id,isXr:(staffById(id)?.dept||'').toLowerCase()==='xr',tag:'8진'})),
       ..._hNoCgIds.map(id=>({id,isXr:(staffById(id)?.dept||'').toLowerCase()==='xr',tag:'뉴.오'})),
       ...(_ilCgAdd?[{id:entry.ilgeun,isXr:(staffById(entry.ilgeun)?.dept||'').toLowerCase()==='xr',tag:'일근'}]:[])
-    ].filter(x=>x.id&&!_cgSeen.has(x.id)&&(_cgSeen.add(x.id),true));
+    ].filter(x=>x.id&&!_cgSeen.has(x.id)&&(_cgSeen.add(x.id),true)).sort((a,b)=>_byStaffOrder(a.id,b.id));
     document.getElementById('cg-today-chips').innerHTML=_cgAndXr.length
-      ? _cgAndXr.map(({id,isXr,tag})=>{const s=staffById(id);if(!s)return '';const isDesk=id===entry.cg?.desk;const _t=tag?` <span style="opacity:.55;font-size:9px;font-weight:700;">${tag}</span>`:'';return `<span class="wchip" style="${isXr?'background:#d4ede8;color:var(--xr-light);':'background:#d4e8ee;color:#437d93;'}">${isDesk?'<span class="desk-star">★</span>':''}${s.name}${_t}</span>`}).join('')
+      ? _cgAndXr.map(({id,isXr,tag})=>{
+          const s=staffById(id);if(!s)return '';
+          const isDesk8=id===(entry.cg?.desk8||entry.cg?.desk);
+          const isDesk5=id===entry.cg?.desk5;
+          const _t=tag?` <span style="opacity:.55;font-size:9px;font-weight:700;">${tag}</span>`:'';
+          const _mark=isDesk8?'<span class="desk-star">★</span>':isDesk5?'<span class="desk-star">●</span>':'';
+          return `<span class="wchip" style="${isXr?'background:#d4ede8;color:var(--xr-light);':'background:#d4e8ee;color:#437d93;'}">${_mark}${s.name}${_t}</span>`;
+        }).join('')
       : '<div class="no-data">근무자 없음</div>';
     document.getElementById('project-today-chips').innerHTML=makeChips(entry.project||[],'project',null);
     document.getElementById('sports-today-chips').innerHTML=makeChips(entry.sports||[],'sports',null);
@@ -2202,6 +2218,14 @@ function renderHome() {
       document.getElementById(id).innerHTML='<div class="no-data">근무표 없음</div>';
     });
   }
+  // 오늘의 당직자 / 오늘의 8진
+  const _dutyName = entry?.danjik ? (staffById(entry.danjik)?.name || '') : '';
+  const _duty8Id = entry?.weekday8jin || entry?.weekend8jin || null;
+  const _duty8Name = _duty8Id ? (staffById(_duty8Id)?.name || '') : '';
+  const _dutyRowHtml = `
+    <div class="sum-card"><div class="sum-icon" style="background:linear-gradient(140deg,#f2867e 0%,#c1483f 100%);"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff"><path d="M20.5 14.6A8.5 8.5 0 1 1 9.4 3.5a7 7 0 0 0 11.1 11.1z"/></svg></div><div class="sum-info"><div class="sum-label">오늘의 당직자</div><div><span class="sum-val" style="color:#c1483f;">${_dutyName||'<span style="color:#cbd5e1;">-</span>'}</span></div></div></div>
+    <div class="sum-card"><div class="sum-icon" style="background:linear-gradient(140deg,#8891ef 0%,#5a5fc7 100%);"><svg viewBox="0 0 24 24" width="21" height="21" fill="#fff" fill-rule="evenodd"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4a1 1 0 1 0-2 0v5a1 1 0 0 0 .45.83l3 2a1 1 0 1 0 1.1-1.66L13 11.46V7z"/></svg></div><div class="sum-info"><div class="sum-label">오늘의 8진</div><div><span class="sum-val" style="color:#5a5fc7;">${_duty8Name||'<span style="color:#cbd5e1;">-</span>'}</span></div></div></div>`;
+  document.getElementById('home-duty-row').innerHTML = _dutyRowHtml;
   document.getElementById('vw-panel-count').textContent=`${vwCnt}명`;
   document.getElementById('cg-panel-count').textContent=`${cgCnt}명`;
   document.getElementById('project-panel-count').textContent=`${prjCnt}명`;
