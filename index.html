@@ -284,7 +284,7 @@ body[style*="overflow: hidden"] #floating-nav {
 /* 휴가 팝업 콘텐츠(재생성 시엔 .no-anim으로 애니메이션 생략) */
 .nd-pop { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 16px !important; box-shadow: 0 16px 60px rgba(15,23,42,0.22) !important; background: rgba(255,255,255,0.98) !important; -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
 .nd-pop.no-anim { animation: none; }
-#lr-popup-overlay { background: rgba(0,0,0,0.3) !important; }
+#lr-popup-overlay { background: rgba(0,0,0,0.3) !important; animation: ndModalFade .32s ease both; }
 .staff-modal-overlay.open {  }
 /* iOS풍 버튼 — 모달 안의 주요 버튼을 더 둥글고 큼직하게 */
 .modal .btn-primary, .nd-modal .btn-primary { border-radius: 14px; padding: 13px; font-size: 15px; font-weight: 700; }
@@ -2904,18 +2904,45 @@ function _restartAnim(el){
     n.style.animation='';    // CSS에 정의된 애니메이션으로 되돌려 재생
   });
 }
+// iOS: 입력창 포커스 시 페이지가 스크롤되며 고정 오버레이가 밀려 올라가는 문제 → 모달 열리는 동안 body 스크롤 완전 잠금
+let _scrollLockN = 0, _scrollLockY = 0;
+function _bodyScrollLock(on){
+  if(on){
+    if(_scrollLockN===0){
+      _scrollLockY = window.scrollY || window.pageYOffset || 0;
+      document.body.style.position='fixed';
+      document.body.style.top=(-_scrollLockY)+'px';
+      document.body.style.left='0'; document.body.style.right='0'; document.body.style.width='100%';
+    }
+    _scrollLockN++;
+  } else {
+    _scrollLockN=Math.max(0,_scrollLockN-1);
+    if(_scrollLockN===0){
+      document.body.style.position=''; document.body.style.top='';
+      document.body.style.left=''; document.body.style.right=''; document.body.style.width='';
+      window.scrollTo(0, _scrollLockY);
+    }
+  }
+}
 function _watchModalAnim(el){
   if(!el || el.__animWatch) return; el.__animWatch=true;
+  const sync=function(){
+    const shown = getComputedStyle(el).display!=='none' && !el.classList.contains('nd-closing');
+    if(shown && !el.__mOpen){ el.__mOpen=true; _bodyScrollLock(true); }
+    else if(!shown && el.__mOpen){ el.__mOpen=false; _bodyScrollLock(false); }
+  };
   new MutationObserver(function(){
+    sync();
     if(el.__animBusy || el.classList.contains('nd-closing')) return;
     if(getComputedStyle(el).display==='none') return;
     el.__animBusy=true;
     _restartAnim(el);
     setTimeout(function(){ el.__animBusy=false; }, 60);
   }).observe(el, { attributes:true, attributeFilter:['style','class'] });
+  sync();
 }
 (function(){
-  var SEL='.modal-overlay, .nd-modal, .staff-modal-overlay, [id="lr-popup-overlay"]';
+  var SEL='.modal-overlay, .nd-modal, .staff-modal-overlay, [id="lr-popup-overlay"], #login-overlay';
   function scan(root){ (root||document).querySelectorAll(SEL).forEach(_watchModalAnim); }
   scan();
   if(document.body){
@@ -5393,6 +5420,45 @@ function setLeaveReqUser(id) {
   if (id) openLrPopup(id);
 }
 
+// 신휴가 팝업 표 행 HTML (셀 클릭 시 팝업 재생성 없이 이 부분만 갱신 → 번쩍임 방지)
+function _lrRowsHtml(staffId){
+  const lr = data.leaveReq || {};
+  const entries = lr.entries || {};
+  const rs = lr.rangeStart, re = lr.rangeEnd;
+  const staff = staffById(staffId);
+  if(!staff || !rs || !re) return '';
+  const isOpen = !!lr.isOpen;
+  const canEdit = isAdmin || (isOpen && leaveReqUserId === staffId);
+  const DOW_KR = ['일','월','화','수','목','금','토'];
+  const todayStr = toDateStr(new Date().getFullYear(), new Date().getMonth()+1, new Date().getDate());
+  const TD = 'border:1px solid #e2e8f0;height:28px;vertical-align:middle;text-align:center;white-space:nowrap;font-size:11px;';
+  const TD_WE = 'border:1px solid #b6cbed;height:28px;vertical-align:middle;text-align:center;white-space:nowrap;font-size:11px;background:#d6e2f6;';
+  const dates=[]; let cur=new Date(rs+'T00:00:00'), end=new Date(re+'T00:00:00');
+  while(cur<=end){ dates.push(new Date(cur)); cur.setDate(cur.getDate()+1); }
+  let rows='';
+  dates.forEach(dt=>{
+    const dow=dt.getDay();
+    const dateStr=toDateStr(dt.getFullYear(),dt.getMonth()+1,dt.getDate());
+    const isWE=dow===0||dow===6;
+    const isHoli=!!(data.holidays && data.holidays[dateStr]);
+    const base=isWE||isHoli?TD_WE:TD;
+    const dowColor=dow===0?'color:#6f59a3;':dow===6?'color:#6366f1;':'';
+    const todayExtra=dateStr===todayStr?'color:#5d6fb0;font-weight:800;':'font-weight:700;';
+    const hasLeave=(entries[dateStr]||[]).includes(staffId);
+    const dayCount=(entries[dateStr]||[]).length;
+    const over=dayCount>=4;
+    const leaveBg=hasLeave?'background:#FFE0B2;color:#c79a5e;font-weight:700;':'';
+    const clickAttr=canEdit?`onclick="lrPopupCellClick('${staffId}','${dateStr}')" style="cursor:pointer;${base}${leaveBg}"`:`style="${base}${leaveBg}"`;
+    const warnCell=over?`<td style="${base}color:#dc2626;font-weight:800;background:#fef2f2;border:1px solid #fca5a5;padding:0 8px;">⚠ ${dayCount}명</td>`:`<td style="${base}color:#94a3b8;padding:0 8px;">${dayCount||''}</td>`;
+    rows+=`<tr>
+      <td style="${base}${todayExtra}padding:0 8px;color:#334155;">${dt.getMonth()+1}/${dt.getDate()}</td>
+      <td style="${base}${dowColor}padding:0 6px;">${DOW_KR[dow]}</td>
+      <td ${clickAttr}>${hasLeave?'신휴가':'<span style="color:#ccc;">-</span>'}</td>
+      ${warnCell}
+    </tr>`;
+  });
+  return rows;
+}
 function openLrPopup(staffId, noAnim) {
   const lr = data.leaveReq || {};
   const entries = lr.entries || {};
@@ -5417,30 +5483,7 @@ function openLrPopup(staffId, noAnim) {
   const TD = 'border:1px solid #e2e8f0;height:28px;vertical-align:middle;text-align:center;white-space:nowrap;font-size:11px;';
   const TD_WE = 'border:1px solid #b6cbed;height:28px;vertical-align:middle;text-align:center;white-space:nowrap;font-size:11px;background:#d6e2f6;';
 
-  let rows = '';
-  dates.forEach(dt => {
-    const dow = dt.getDay();
-    const dateStr = toDateStr(dt.getFullYear(), dt.getMonth()+1, dt.getDate());
-    const isWE = dow===0||dow===6;
-    const isHoli = !!(data.holidays && data.holidays[dateStr]);
-    const base = isWE||isHoli ? TD_WE : TD;
-    const dowColor = dow===0 ? 'color:#6f59a3;' : dow===6 ? 'color:#6366f1;' : '';
-    const todayExtra = dateStr===todayStr ? 'color:#5d6fb0;font-weight:800;' : 'font-weight:700;';
-    const hasLeave = (entries[dateStr]||[]).includes(staffId);
-    const dayCount = (entries[dateStr]||[]).length;
-    const over = dayCount >= 4;
-    const leaveBg = hasLeave ? 'background:#FFE0B2;color:#c79a5e;font-weight:700;' : '';
-    const clickAttr = canEdit ? `onclick="lrPopupCellClick('${staffId}','${dateStr}')" style="cursor:pointer;${base}${leaveBg}"` : `style="${base}${leaveBg}"`;
-    const warnCell = over
-      ? `<td style="${base}color:#dc2626;font-weight:800;background:#fef2f2;border:1px solid #fca5a5;padding:0 8px;">⚠ ${dayCount}명</td>`
-      : `<td style="${base}color:#94a3b8;padding:0 8px;">${dayCount||''}</td>`;
-    rows += `<tr>
-      <td style="${base}${todayExtra}padding:0 8px;color:#334155;">${dt.getMonth()+1}/${dt.getDate()}</td>
-      <td style="${base}${dowColor}padding:0 6px;">${DOW_KR[dow]}</td>
-      <td ${clickAttr}>${hasLeave?'신휴가':'<span style="color:#ccc;">-</span>'}</td>
-      ${warnCell}
-    </tr>`;
-  });
+  const rows = _lrRowsHtml(staffId);
 
   const TH = 'border:1px solid #e2e8f0;padding:6px 8px;font-size:11px;font-weight:700;text-align:center;background:#f7f9fc;position:sticky;top:0;z-index:1;';
   const html = `
@@ -5495,14 +5538,11 @@ function dismissLrPopup() {
 }
 
 function lrPopupCellClick(staffId, dateStr) {
-  // 팝업 스크롤 위치 보존 (재생성 시 맨 위로 튀는 문제 방지)
-  const sc = document.getElementById('lr-popup-scroll');
-  const top = sc ? sc.scrollTop : 0;
   lrCellClick(staffId, dateStr);   // 토글 + 저장 + 배경 갱신
-  closeLrPopup();
-  openLrPopup(staffId, true);   // 재생성 시엔 애니메이션 생략(깜빡임 방지)
-  const sc2 = document.getElementById('lr-popup-scroll');
-  if (sc2) { sc2.scrollTop = top; requestAnimationFrame(()=>{ sc2.scrollTop = top; }); }
+  // 팝업을 재생성하지 않고 표(tbody)만 교체 → 번쩍임 없음, 스크롤 위치 유지
+  const tb = document.querySelector('#lr-popup-overlay tbody');
+  if (tb) tb.innerHTML = _lrRowsHtml(staffId);
+  else { closeLrPopup(); openLrPopup(staffId, true); }   // 폴백
 }
 function lrSaveAndClose() {
   saveData(data);          // 셀 클릭 시 이미 저장되지만, 명시적 저장 + 확인 토스트
