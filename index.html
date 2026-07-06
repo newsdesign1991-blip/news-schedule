@@ -7236,7 +7236,10 @@ function renderMySchedule() {
     return roles;
   }
   function chipHtml(r, size='13px') {
-    return `<span style="display:inline-block;padding:3px 10px;border-radius:6px;background:${r.bg};color:${r.color};font-size:${size};font-weight:600;border:1px solid ${r.border};">${r.label}</span>`;
+    const small = parseFloat(size) <= 11;   // 주간 셀 등 좁은 칩은 패딩 축소
+    const pad = small ? '2px 6px' : '3px 10px';
+    // word-break:keep-all → 한글 단어(근무)는 안 쪼개고 띄어쓰기에서만 줄바꿈("CG"/"근무")
+    return `<span style="display:inline-block;word-break:keep-all;padding:${pad};border-radius:6px;background:${r.bg};color:${r.color};font-size:${size};font-weight:600;border:1px solid ${r.border};line-height:1.25;">${r.label}</span>`;
   }
 
   // 오늘 근무
@@ -7259,8 +7262,8 @@ function renderMySchedule() {
     const isToday=ds===todayStr;
     const onLv=isOnLeave(sid,ds);
     const roles=getRoles(sched[ds],sid);
-    const dot = onLv ? chipHtml({label:'휴가',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'},'10px')
-      : roles.length ? roles.map(r=>chipHtml(r,'10px')).join('<br style="margin:2px 0;">')
+    const dot = onLv ? chipHtml({label:'휴가',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'},'11px')
+      : roles.length ? roles.map(r=>chipHtml(r,'11px')).join('<br style="margin:2px 0;">')
       : `<span style="color:var(--muted);font-size:10px;">-</span>`;
     return `<div style="text-align:center;flex:1;min-width:0;box-sizing:border-box;border:1.5px solid transparent;border-radius:10px;padding:5px 3px;${isToday?'background:linear-gradient(160deg,rgba(109,139,245,0.14),rgba(155,108,240,0.14));border-color:rgba(139,120,240,0.5);box-shadow:0 2px 7px rgba(124,110,240,0.14);':''}">
       <div style="font-size:12px;color:${isToday?'#7c6ae6':i===5?'#5a7ec6':i===6?'#d65a52':'var(--muted)'};font-weight:${isToday?800:i>=5?600:500};margin-bottom:3px;">${DOW_S[i]}<br>${d.getDate()}</div>
