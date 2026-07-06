@@ -2904,45 +2904,18 @@ function _restartAnim(el){
     n.style.animation='';    // CSS에 정의된 애니메이션으로 되돌려 재생
   });
 }
-// iOS: 입력창 포커스 시 페이지가 스크롤되며 고정 오버레이가 밀려 올라가는 문제 → 모달 열리는 동안 body 스크롤 완전 잠금
-let _scrollLockN = 0, _scrollLockY = 0;
-function _bodyScrollLock(on){
-  if(on){
-    if(_scrollLockN===0){
-      _scrollLockY = window.scrollY || window.pageYOffset || 0;
-      document.body.style.position='fixed';
-      document.body.style.top=(-_scrollLockY)+'px';
-      document.body.style.left='0'; document.body.style.right='0'; document.body.style.width='100%';
-    }
-    _scrollLockN++;
-  } else {
-    _scrollLockN=Math.max(0,_scrollLockN-1);
-    if(_scrollLockN===0){
-      document.body.style.position=''; document.body.style.top='';
-      document.body.style.left=''; document.body.style.right=''; document.body.style.width='';
-      window.scrollTo(0, _scrollLockY);
-    }
-  }
-}
 function _watchModalAnim(el){
   if(!el || el.__animWatch) return; el.__animWatch=true;
-  const sync=function(){
-    const shown = getComputedStyle(el).display!=='none' && !el.classList.contains('nd-closing');
-    if(shown && !el.__mOpen){ el.__mOpen=true; _bodyScrollLock(true); }
-    else if(!shown && el.__mOpen){ el.__mOpen=false; _bodyScrollLock(false); }
-  };
   new MutationObserver(function(){
-    sync();
     if(el.__animBusy || el.classList.contains('nd-closing')) return;
     if(getComputedStyle(el).display==='none') return;
     el.__animBusy=true;
     _restartAnim(el);
     setTimeout(function(){ el.__animBusy=false; }, 60);
   }).observe(el, { attributes:true, attributeFilter:['style','class'] });
-  sync();
 }
 (function(){
-  var SEL='.modal-overlay, .nd-modal, .staff-modal-overlay, [id="lr-popup-overlay"], #login-overlay';
+  var SEL='.modal-overlay, .nd-modal, .staff-modal-overlay, [id="lr-popup-overlay"]';
   function scan(root){ (root||document).querySelectorAll(SEL).forEach(_watchModalAnim); }
   scan();
   if(document.body){
@@ -2954,24 +2927,6 @@ function _watchModalAnim(el){
       }); });
     }).observe(document.body, { childList:true, subtree:true });
   }
-})();
-// iOS: 키보드가 뜰 때 오버레이/딤은 전체화면 그대로 두고, 가운데 카드만 키보드 위로 올라오게(하단 패딩). rAF로 스로틀해 깜빡임 방지
-(function(){
-  var vv = window.visualViewport; if(!vv) return;
-  var SEL = '.modal-overlay, .nd-modal, #lr-popup-overlay, .staff-modal-overlay, #login-overlay';
-  var raf = 0;
-  function fit(){
-    raf = 0;
-    var kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);   // 키보드 높이
-    var kbUp = kb > 90;
-    document.querySelectorAll(SEL).forEach(function(ov){
-      if(getComputedStyle(ov).display==='none'){ ov.style.removeProperty('padding-bottom'); return; }
-      if(kbUp) ov.style.setProperty('padding-bottom', kb + 'px', 'important');   // 모바일 !important padding 덮기
-      else ov.style.removeProperty('padding-bottom');
-    });
-  }
-  function schedule(){ if(!raf) raf = requestAnimationFrame(fit); }
-  vv.addEventListener('resize', schedule);
 })();
 // ── 구글 캘린더 관리 (관리자 패널 설정 탭에 인라인) ──
 let _gcalEdit=[];
