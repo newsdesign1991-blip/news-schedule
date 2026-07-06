@@ -2063,13 +2063,17 @@ function renderHome() {
   const _hIlVw=(entry?.ilgeun?staffById(entry.ilgeun)?.dept?.toUpperCase():'')==='VW';
   const _hIlOk=entry?.ilgeun&&!_hLv.has(entry.ilgeun)&&!_hSpEx.has(entry.ilgeun);
   const _h8=[entry?.weekend8jin,entry?.weekday8jin].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
-  const _h8vw=_h8.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
-  const _h8cg=_h8.filter(id=>{if(_hVwS.has(id)||_hCgW.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).length;
+  const _isVwDept=id=>(staffById(id)?.dept||'').toLowerCase()==='vw';
+  const _isCgDept=id=>{const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';};
+  const _h8vwIds=_h8.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isVwDept(id));
+  const _h8cgIds=_h8.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isCgDept(id));
   const _hNo=[entry?.newsOh,entry?.newsOh2].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
-  const _hNoVw=_hNo.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
-  const _hNoCg=_hNo.filter(id=>{if(_hVwS.has(id)||_hCgW.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).length;
-  const vwCnt=_hVwS.size+(_hIlVw&&!_hCgW.has(entry?.ilgeun)&&_hIlOk?1:0)+_h8vw+_hNoVw;
-  const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_hEx(id)&&!_hVwS.has(id)).length+(entry?.xr||[]).filter(id=>!_hEx(id)).length+(!_hIlVw&&_hIlOk&&!_hVwS.has(entry?.ilgeun)?1:0)+_h8cg+_hNoCg;
+  const _hNoVwIds=_hNo.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isVwDept(id));
+  const _hNoCgIds=_hNo.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isCgDept(id));
+  const _ilVwAdd=(_hIlVw&&!_hCgW.has(entry?.ilgeun)&&_hIlOk);
+  const _ilCgAdd=(!_hIlVw&&_hIlOk&&!_hVwS.has(entry?.ilgeun));
+  const vwCnt=_hVwS.size+(_ilVwAdd?1:0)+_h8vwIds.length+_hNoVwIds.length;
+  const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_hEx(id)&&!_hVwS.has(id)).length+(entry?.xr||[]).filter(id=>!_hEx(id)).length+(_ilCgAdd?1:0)+_h8cgIds.length+_hNoCgIds.length;
   const prjCnt = (entry?.project||[]).length;
   const sptCnt = (entry?.sports||[]).length;
   // 오늘 요일/공휴일에 맞는 목표 인원 (작성소 설정 반영)
@@ -2156,10 +2160,21 @@ function renderHome() {
     }).join('');
   }
   if (entry) {
-    document.getElementById('vw-today-chips').innerHTML=makeChips(entry.vw?.workers||[],'vw',entry.vw?.desk);
-    const _cgAndXr=[...(entry.cg?.workers||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:false})),...(entry.xr||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:true}))];
+    const _vwSeen=new Set();
+    const _vwAll=[...(entry.vw?.workers||[]).map(id=>({id,tag:''})),..._h8vwIds.map(id=>({id,tag:'8진'})),..._hNoVwIds.map(id=>({id,tag:'뉴.오'})),...(_ilVwAdd?[{id:entry.ilgeun,tag:'일근'}]:[])].filter(x=>x.id&&!_vwSeen.has(x.id)&&(_vwSeen.add(x.id),true));
+    document.getElementById('vw-today-chips').innerHTML=_vwAll.length
+      ? _vwAll.map(({id,tag})=>{const s=staffById(id);if(!s)return '';const isDesk=id===entry.vw?.desk;const _t=tag?` <span style="opacity:.55;font-size:9px;font-weight:700;">${tag}</span>`:'';return `<span class="wchip vw">${isDesk?'<span class="desk-star">★</span>':''}${s.name}${_t}</span>`}).join('')
+      : '<div class="no-data">근무자 없음</div>';
+    const _cgSeen=new Set();
+    const _cgAndXr=[
+      ...(entry.cg?.workers||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:false,tag:''})),
+      ...(entry.xr||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:true,tag:''})),
+      ..._h8cgIds.map(id=>({id,isXr:(staffById(id)?.dept||'').toLowerCase()==='xr',tag:'8진'})),
+      ..._hNoCgIds.map(id=>({id,isXr:(staffById(id)?.dept||'').toLowerCase()==='xr',tag:'뉴.오'})),
+      ...(_ilCgAdd?[{id:entry.ilgeun,isXr:(staffById(entry.ilgeun)?.dept||'').toLowerCase()==='xr',tag:'일근'}]:[])
+    ].filter(x=>x.id&&!_cgSeen.has(x.id)&&(_cgSeen.add(x.id),true));
     document.getElementById('cg-today-chips').innerHTML=_cgAndXr.length
-      ? _cgAndXr.map(({id,isXr})=>{const s=staffById(id);const isDesk=id===entry.cg?.desk;return s?`<span class="wchip" style="${isXr?'background:#d4ede8;color:var(--xr-light);':'background:#d4e8ee;color:#437d93;'}">${isDesk?'<span class="desk-star">★</span>':''}${s.name}</span>`:''}).join('')
+      ? _cgAndXr.map(({id,isXr,tag})=>{const s=staffById(id);if(!s)return '';const isDesk=id===entry.cg?.desk;const _t=tag?` <span style="opacity:.55;font-size:9px;font-weight:700;">${tag}</span>`:'';return `<span class="wchip" style="${isXr?'background:#d4ede8;color:var(--xr-light);':'background:#d4e8ee;color:#437d93;'}">${isDesk?'<span class="desk-star">★</span>':''}${s.name}${_t}</span>`}).join('')
       : '<div class="no-data">근무자 없음</div>';
     document.getElementById('project-today-chips').innerHTML=makeChips(entry.project||[],'project',null);
     document.getElementById('sports-today-chips').innerHTML=makeChips(entry.sports||[],'sports',null);
