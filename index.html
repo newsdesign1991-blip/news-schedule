@@ -704,6 +704,19 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
     </div>
     <label class="form-label">공지 내용</label>
     <textarea id="notice-text" class="form-input" rows="4" style="width:100%;resize:vertical;font-size:13px;line-height:1.5;" placeholder="전 직원에게 전달할 공지를 입력하세요"></textarea>
+    <label class="form-label" style="margin-top:14px;display:block;">게시 기간</label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select id="notice-period" class="form-input" style="width:auto;flex:0 0 auto;cursor:pointer;" onchange="_onNoticePeriodChange()">
+        <option value="0">오늘 하루만</option>
+        <option value="2">3일간</option>
+        <option value="6">1주일간</option>
+        <option value="13">2주일간</option>
+        <option value="29">한 달간</option>
+        <option value="custom">직접 선택…</option>
+      </select>
+      <input type="date" id="notice-until" class="form-input" style="width:auto;display:none;" onchange="_onNoticePeriodChange()">
+    </div>
+    <p id="notice-period-hint" style="font-size:11px;color:var(--muted);margin:6px 0 0;line-height:1.5;"></p>
     <label class="form-label" style="margin-top:14px;display:block;">오늘의 8뉴스 진입시간 <span style="color:var(--muted);font-weight:400;">(선택)</span></label>
     <input type="time" id="notice-news8" class="form-input" style="width:140px;">
     <p style="font-size:11px;color:var(--muted);margin:6px 0 0;line-height:1.5;">입력하면 그 시각 <b style="color:#d65a52;">15분 전</b>에 오늘 8진 근무자에게 알림이 갑니다. 비우면 기본 알림 시각을 사용합니다.</p>
@@ -7073,6 +7086,40 @@ function _ensureNoticeBox(ds){
   data.notices[ds] = box;
   return box;
 }
+// ── 게시 기간(until) 유틸 ──
+function _noticeEnd(ds, it){ return (it && it.until && it.until > ds) ? it.until : ds; }   // 공지 게시 종료일(없으면 게시일 당일)
+function _noticeActiveItems(today){   // 오늘이 게시기간 안인 공지를 모든 날짜 박스에서 수집
+  const out = [];
+  Object.keys(data.notices||{}).forEach(ds => {
+    if (ds > today) return;                       // 미래 게시분 제외
+    (_getNoticeBox(ds).items||[]).forEach(it => { if (_noticeEnd(ds, it) >= today) out.push({ ds, it }); });
+  });
+  out.sort((a,b) => b.ds.localeCompare(a.ds) || String(b.it.postedAt||'').localeCompare(String(a.it.postedAt||'')));
+  return out;
+}
+function _findNoticeItem(id){   // id로 공지 항목이 들어있는 박스 찾기(과거 게시분도 수정/삭제 가능)
+  for (const ds of Object.keys(data.notices||{})) {
+    const box = _ensureNoticeBox(ds);
+    const it = (box.items||[]).find(i=>i.id===id);
+    if (it) return { ds, box, it };
+  }
+  return null;
+}
+function _onNoticePeriodChange(){
+  const sel = document.getElementById('notice-period'), dateEl = document.getElementById('notice-until'), hint = document.getElementById('notice-period-hint');
+  if (!sel) return;
+  const today = _todayStr();
+  let until;
+  if (sel.value === 'custom') {
+    dateEl.style.display = ''; dateEl.min = today;
+    if (!dateEl.value || dateEl.value < today) dateEl.value = today;
+    until = dateEl.value;
+  } else { dateEl.style.display = 'none'; until = addDays(today, parseInt(sel.value)||0); }
+  if (hint) {
+    if (until <= today) hint.textContent = '오늘 하루만 홈 화면에 표시됩니다.';
+    else { const p = until.split('-'); hint.textContent = (+p[1]) + '월 ' + (+p[2]) + '일까지 홈 화면에 계속 표시됩니다. (8뉴스 진입시간은 항상 당일만 적용)'; }
+  }
+}
 function toggleNoticeExpand(){ _noticeExpanded = !_noticeExpanded; renderNoticeBar(); }
 function _updateNoticeSaveBtn(){
   const b=document.getElementById('notice-save-btn'), s=document.getElementById('notice-silent');
@@ -7082,16 +7129,21 @@ function renderNoticeBar() {
   const wrap = document.getElementById('home-notice');
   if (!wrap) return;
   const ds = _todayStr();
-  // 한 달(30일)이 지난 공지는 자동 삭제 (날짜 키 단위)
+  // 한 달(30일)이 지난 공지는 자동 삭제 — 단 게시기간(until)이 아직 유효한 항목이 있는 박스는 보존
   if (data.notices) {
     const cutoff = addDays(ds, -30);
     let pruned = false;
-    Object.keys(data.notices).forEach(d => { if (d < cutoff) { delete data.notices[d]; pruned = true; } });
+    Object.keys(data.notices).forEach(d => {
+      if (d >= cutoff) return;
+      const bx = _getNoticeBox(d);
+      const anyActive = (bx.items||[]).some(it => _noticeEnd(d, it) >= ds);
+      if (!anyActive) { delete data.notices[d]; pruned = true; }
+    });
     if (pruned) saveData(data);
   }
-  const box = _getNoticeBox(ds);
-  const items = box.items || [];
-  const news8 = box.news8Time || '';
+  const todayBox = _getNoticeBox(ds);
+  const items = _noticeActiveItems(ds).map(a => a.it);   // 오늘 게시기간에 해당하는 공지 전부(과거 게시분 포함)
+  const news8 = todayBox.news8Time || '';
   const has = items.length>0 || news8;
   const canWrite = !!(currentUser && currentUser.staffId);   // 로그인한 직원 누구나 작성 가능
   const writeBtn = canWrite ? `<button onclick="openNoticeModal()" style="background:var(--surface);border:1px solid var(--notice-border);color:#b8860b;padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;"><svg viewBox="0 0 24 24" width="12" height="12" fill="#b8860b" style="vertical-align:-2px;margin-right:3px;"><path d="M4 9v6a1 1 0 0 0 1 1h1v3a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-3l7 4V4L9 8H5a1 1 0 0 0-1 1z"/></svg>공지 작성</button>` : '';
@@ -7110,6 +7162,7 @@ function renderNoticeBar() {
     const txt = (it.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
     const bell = it.silent ? `<span title="조용한 공지(알림 미발송)" style="font-size:11px;opacity:0.7;margin-left:4px;">🔕</span>` : '';
     const edit = canWrite ? `<button onclick="event.stopPropagation();openNoticeModal('${it.id}')" style="background:transparent;border:none;color:#b8860b;cursor:pointer;font-size:13px;padding:0 2px;flex-shrink:0;" title="수정">✏</button>` : '';
+    const span = (it.until && it.until > ds) ? (function(){ const p=it.until.split('-'); return `<span title="게시 기간" style="font-size:10px;font-weight:700;color:#b8860b;background:var(--surface);border:1px solid var(--notice-border);border-radius:5px;padding:1px 6px;white-space:nowrap;">📌 ~${+p[1]}/${+p[2]}</span>`; })() : '';
     // 본문은 접힘 상태로 렌더 → 렌더 후 _applyNoticeClamp()가 길이 재서 페이드/더보기 표시. transition으로 펼침 애니메이션.
     return `<div class="notice-card" style="background:linear-gradient(135deg,var(--notice-bg1) 0%,var(--notice-bg2) 100%);border:1px solid var(--notice-border);border-radius:12px;padding:11px 13px;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
@@ -7120,7 +7173,7 @@ function renderNoticeBar() {
             <div class="notice-more" data-nid="${it.id}" style="display:none;margin-top:3px;">
               <button onclick="event.stopPropagation();toggleNoticeText('${it.id}')" style="background:transparent;border:none;color:#b8860b;font-size:11px;font-weight:700;cursor:pointer;padding:2px 0;">▼ 더보기</button>
             </div>
-          </div>${edit}
+          </div><div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">${span}${edit}</div>
         </div></div>`;
   };
   let body;
@@ -7175,13 +7228,26 @@ function toggleNoticeText(id){
 }
 function openNoticeModal(editId) {
   if (!currentUser || !currentUser.staffId) { toast('이름으로 로그인 후 작성할 수 있습니다.','error'); return; }
-  const box = _getNoticeBox(_todayStr());
   _noticeEditId = (typeof editId==='string') ? editId : null;
-  const it = _noticeEditId ? (box.items||[]).find(i=>i.id===_noticeEditId) : null;
+  const found = _noticeEditId ? _findNoticeItem(_noticeEditId) : null;
+  const it = found ? found.it : null;
+  const today = _todayStr();
+  const box = _getNoticeBox(today);
   document.getElementById('notice-modal-title').textContent = it ? '✏ 공지 수정' : '📢 공지 작성';
   document.getElementById('notice-text').value = it ? (it.text||'') : '';
   document.getElementById('notice-news8').value = box.news8Time || '';
   const silentEl = document.getElementById('notice-silent'); if (silentEl) silentEl.checked = it ? !!it.silent : false;
+  // 게시 기간 셀렉트 초기화
+  const _psel = document.getElementById('notice-period'), _pdate = document.getElementById('notice-until');
+  if (_psel) {
+    const baseDs = found ? found.ds : today;
+    const until = (it && it.until && it.until > baseDs) ? it.until : baseDs;
+    let matched = (until <= today) ? '0' : null;
+    if (!matched) { ['0','2','6','13','29'].forEach(k => { if (!matched && addDays(today, parseInt(k)) === until) matched = k; }); }
+    if (matched) { _psel.value = matched; if (_pdate) _pdate.style.display = 'none'; }
+    else { _psel.value = 'custom'; if (_pdate) { _pdate.style.display = ''; _pdate.min = today; _pdate.value = until; } }
+  }
+  _onNoticePeriodChange();
   _updateNoticeSaveBtn();
   document.getElementById('notice-delete-btn').style.display = it ? '' : 'none';
   document.getElementById('notice-modal').style.display = 'flex';
@@ -7196,15 +7262,24 @@ async function saveNotice() {
   const news8 = document.getElementById('notice-news8').value || '';
   const silent = !!(document.getElementById('notice-silent')||{}).checked;
   if (!text && !news8) { toast('공지 내용 또는 8뉴스 진입시간을 입력하세요.','error'); return; }
+  // 게시 종료일(until) 계산
+  const _psel = document.getElementById('notice-period'), _pdate = document.getElementById('notice-until');
+  let until = ds;
+  if (_psel) {
+    if (_psel.value === 'custom') until = (_pdate && _pdate.value && _pdate.value >= ds) ? _pdate.value : ds;
+    else until = addDays(ds, parseInt(_psel.value)||0);
+  }
   const box = _ensureNoticeBox(ds);
-  box.news8Time = news8;   // 8뉴스 진입시간은 날짜당 1개(공지와 분리)
+  box.news8Time = news8;   // 8뉴스 진입시간은 날짜당 1개(공지와 분리, 당일 전용)
   let isEdit = false;
   if (_noticeEditId) {
-    const it = (box.items||[]).find(i=>i.id===_noticeEditId);
-    if (it) { it.text = text; it.silent = silent; isEdit = true; }
+    const found = _findNoticeItem(_noticeEditId);
+    if (found) { found.it.text = text; found.it.silent = silent; if (until > found.ds) found.it.until = until; else delete found.it.until; isEdit = true; }
   }
   if (!isEdit && text) {
-    box.items.unshift({ id:_genNoticeId(), text, postedBy:currentUser.name||'', postedAt:new Date().toISOString(), silent });  // 새 공지는 맨 앞(최신)
+    const nit = { id:_genNoticeId(), text, postedBy:currentUser.name||'', postedAt:new Date().toISOString(), silent };  // 새 공지는 맨 앞(최신)
+    if (until > ds) nit.until = until;
+    box.items.unshift(nit);
   }
   saveData(data);
   closeNoticeModal();
@@ -7251,10 +7326,13 @@ function closeNoticeHistory() {
 }
 function deleteNotice() {
   if (!currentUser || !currentUser.staffId) return;
-  const ds = _todayStr();
-  const box = _ensureNoticeBox(ds);
-  if (_noticeEditId) box.items = (box.items||[]).filter(i=>i.id!==_noticeEditId);   // 개별 공지만 삭제
-  if ((!box.items || !box.items.length) && !box.news8Time) delete data.notices[ds];  // 공지 0건 + 8뉴스 없으면 정리
+  if (_noticeEditId) {
+    const found = _findNoticeItem(_noticeEditId);
+    if (found) {
+      found.box.items = (found.box.items||[]).filter(i=>i.id!==_noticeEditId);   // 게시일 박스에서 개별 공지 삭제
+      if ((!found.box.items || !found.box.items.length) && !found.box.news8Time) delete data.notices[found.ds];  // 0건+8뉴스없음이면 박스 정리
+    }
+  }
   saveData(data);
   closeNoticeModal();
   renderNoticeBar();
