@@ -45,7 +45,20 @@
   --wk-bg: #d6e2f6; --wk-bd: #b6cbed;
   /* 근무표 역할 칩(밝은 배경 계열) */
   --r-exit-bg:#faf6dd; --r-exit-fg:#9c7b4a; --r-edu-bg:#d4edda; --r-edu-fg:#276c3e;
-  --r-news-bg:#f5e2cc; --r-news-fg:#9c6b4a; --r-news2-bg:#f3ddc0; --r-news2-fg:#b07d4a; --r-ilgeun-bg:#f3e3b0; --r-ilgeun-fg:#8c6a3f;
+  --r-news-bg:#f5e2cc; --r-news-fg:#9c6b4a; --r-news2-bg:#f3ddc0; --r-news2-fg:#b07d4a; --r-ilgeun-bg:#f6e0ea; --r-ilgeun-fg:#a34873;
+  /* 근무표 헤더(합계/부서그룹 밝은 배경) */
+  --th-jogeun-bg:#eef1f9; --th-jogeun-fg:#5d6fb0; --th-jogeun-bd:#c5cce8;
+  --th-xr-bg:#e1f1ed; --th-xr-fg:#45847a; --th-xr-bd:#bce0d7;
+  --th-cgsum-bg:#e3eef2; --th-cgsum-fg:#437d93;
+  --th-daysum-bg:#f4f7fc; --th-daysum-fg:#436bb5;
+  --th-remark-bg:#f5f0ff; --th-remark-fg:#7c5cbf;
+  /* 근무표 범례 스와치 */
+  --lg-vwdesk:#6366f1; --lg-cg8:#4a9fbd; --lg-cg5:#bcdde6; --lg-duty:#d65a52;
+  --lg-exit:#faf6dd; --lg-jogeun:#8893dc; --lg-weekend:#f1f3fa; --lg-holiday:#ffc8c8;
+  /* 조근 셀 배지(solid) + XR 이름칸 배경 */
+  --r-jogeun-bg:#8893dc; --r-jogeun-fg:#fff; --th-xr-namebg:#f0fdfa;
+  /* 인물 근무 팝업(openPersonSchedule) 오늘행·요일색 */
+  --pop-today-bg:#f5f2fe; --pop-dow-sun:#6f59a3; --pop-dow-sat:#6366f1;
 }
 /* ===== 다크 모드 (Claude 느낌의 따뜻한 다크 그레이, 완전 블랙 아님) ===== */
 [data-theme="dark"] {
@@ -62,7 +75,16 @@
   --warn-bg1: rgba(239,68,68,0.14); --warn-bg2: rgba(239,68,68,0.08); --warn-border: rgba(239,68,68,0.42);
   --wk-bg: #2f3440; --wk-bd: #3d4657;
   --r-exit-bg:rgba(214,192,120,0.16); --r-exit-fg:#e0c98a; --r-edu-bg:rgba(90,190,120,0.16); --r-edu-fg:#84d89b;
-  --r-news-bg:rgba(210,150,95,0.16); --r-news-fg:#e2b48a; --r-news2-bg:rgba(210,150,95,0.16); --r-news2-fg:#e2b48a; --r-ilgeun-bg:rgba(214,180,100,0.16); --r-ilgeun-fg:#e2ca90;
+  --r-news-bg:rgba(210,150,95,0.16); --r-news-fg:#e2b48a; --r-news2-bg:rgba(210,150,95,0.16); --r-news2-fg:#e2b48a; --r-ilgeun-bg:rgba(200,110,150,0.17); --r-ilgeun-fg:#e2a3c0;
+  --th-jogeun-bg:#33344a; --th-jogeun-fg:#a9b3e0; --th-jogeun-bd:#454864;
+  --th-xr-bg:rgba(92,195,178,0.15); --th-xr-fg:#8bd8c8; --th-xr-bd:#3a5a52;
+  --th-cgsum-bg:rgba(91,180,208,0.14); --th-cgsum-fg:#8bcfe4;
+  --th-daysum-bg:#34364d; --th-daysum-fg:#9fb0e0;
+  --th-remark-bg:rgba(150,120,210,0.15); --th-remark-fg:#c3aef0;
+  --lg-vwdesk:#86aae8; --lg-cg8:#5bb4d0; --lg-cg5:#3f5c68; --lg-duty:#d06b64;
+  --lg-exit:#57503a; --lg-jogeun:#474b76; --lg-weekend:#2f3440; --lg-holiday:#4a323b;
+  --r-jogeun-bg:#474b76; --r-jogeun-fg:#d0d5f0; --th-xr-namebg:rgba(92,195,178,0.13);
+  --pop-today-bg:#353651; --pop-dow-sun:#b39ddb; --pop-dow-sat:#8ea2ff;
 }
 body { transition: background-color .25s ease, color .25s ease; }
 /* 다크: 하드코딩 흰색/라이트 표면 보정 */
@@ -111,6 +133,7 @@ body { transition: background-color .25s ease, color .25s ease; }
 [data-theme="dark"] .cal-day.holiday .cal-date-num { color:#e0a8c2 !important; }
 [data-theme="dark"] .cal-holiday-name { color:#e0a8c2; }
 [data-theme="dark"] .cal-date-num.sat { color:#8ea2ff; }
+[data-theme="dark"] .legend-dot { border-color: rgba(255,255,255,0.14); }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; }
 header { background: transparent; border-bottom: none; padding: 0 20px; display: flex; align-items: center; gap: 24px; height: 50px; position: sticky; top: 0; z-index: 100; transition: transform .32s cubic-bezier(.4,0,.2,1); }
@@ -862,14 +885,14 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
     </div>
   </div>
   <div class="excel-legend">
-    <span class="legend-item"><span class="legend-dot" style="background:#6366f1;"></span>VW데스크</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#4a9fbd;"></span>CG 8데스</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#bcdde6;"></span>CG 5데스</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#d65a52;"></span>당직</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#faf6dd;"></span>당직퇴근</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#8893dc;"></span>조근</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#f1f3fa;"></span>주말</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#ffc8c8;"></span>공휴일</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--lg-vwdesk);"></span>VW데스크</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--lg-cg8);"></span>CG 8데스</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--lg-cg5);"></span>CG 5데스</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--lg-duty);"></span>당직</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--lg-exit);"></span>당직퇴근</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--lg-jogeun);"></span>조근</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--lg-weekend);"></span>주말</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--lg-holiday);"></span>공휴일</span>
   </div>
   <div class="excel-wrap">
     <table class="excel-table" id="excel-table">
@@ -989,7 +1012,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
     <button class="ws-brush-btn" data-brush="jogeun"   onclick="setWsBrush('jogeun')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #8893dc;border-radius:5px;background:#eef0f9;color:#5d6fb0;cursor:pointer;">조근</button>
     <button class="ws-brush-btn" data-brush="ojende"   onclick="setWsBrush('ojende')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #436bb5;border-radius:5px;background:#dfe9f8;color:#436bb5;cursor:pointer;">오전데</button>
     <button class="ws-brush-btn" data-brush="8jin"     onclick="setWsBrush('8jin')"     style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #f4bab6;border-radius:5px;background:#fff5f0;color:#d65a52;cursor:pointer;">8진</button>
-    <button class="ws-brush-btn" data-brush="ilgeun"   onclick="setWsBrush('ilgeun')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #d4c49a;border-radius:5px;background:#fdf5e4;color:#8c6a3f;cursor:pointer;">일근</button>
+    <button class="ws-brush-btn" data-brush="ilgeun"   onclick="setWsBrush('ilgeun')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #e3bdd0;border-radius:5px;background:#fbeef4;color:#a34873;cursor:pointer;">일근</button>
     <button class="ws-brush-btn" data-brush="newsoh"   onclick="setWsBrush('newsoh')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #e2c9a8;border-radius:5px;background:#fdf0e3;color:#9c6b4a;cursor:pointer;">뉴.오</button>
     <button class="ws-brush-btn" data-brush="newsoh2"  onclick="setWsBrush('newsoh2')"  style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #d9b483;border-radius:5px;background:#f7e6cf;color:#b07d4a;cursor:pointer;">뉴.오2</button>
     <button class="ws-brush-btn" data-brush="vw-sub"   onclick="setWsBrush('vw-sub')"   style="padding:3px 9px;font-size:11px;font-weight:700;border:1px solid #c5cce8;border-radius:5px;background:#eef1f9;color:#5d6fb0;cursor:pointer;">VW대체</button>
@@ -2627,15 +2650,15 @@ function renderTable() {
   thead+=`<th class="date-th" rowspan="2">날짜</th>`;
   thead+=`<th class="dow-th" rowspan="2">요일</th>`;
   if(vwCols.length) thead+=`<th class="dept-group vw" colspan="${vwCols.length}">VW (${vwCols.length}명)</th>`;
-  if(jogeunCols.length) thead+=`<th class="dept-group" colspan="${jogeunCols.length}" style="background:#eef1f9;color:#5d6fb0;border-color:#c5cce8;">조근 (${jogeunCols.length}명)</th>`;
+  if(jogeunCols.length) thead+=`<th class="dept-group" colspan="${jogeunCols.length}" style="background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);border-color:var(--th-jogeun-bd);">조근 (${jogeunCols.length}명)</th>`;
   thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;">VW</th>`;
   if(cgStaff.length) thead+=`<th class="dept-group cg" colspan="${cgStaff.length}">CG (${cgStaff.length}명)</th>`;
-  if(xrStaff.length) thead+=`<th class="dept-group" colspan="${xrStaff.length}" style="background:#e1f1ed;color:#45847a;border-color:#bce0d7;">XR</th>`;
+  if(xrStaff.length) thead+=`<th class="dept-group" colspan="${xrStaff.length}" style="background:var(--th-xr-bg);color:var(--th-xr-fg);border-color:var(--th-xr-bd);">XR</th>`;
   if(projectStaff.length) thead+=`<th class="dept-group project" colspan="${projectStaff.length}">PROJECT</th>`;
   if(sportsStaff.length) thead+=`<th class="dept-group sports" colspan="${sportsStaff.length}">SPORTS</th>`;
-  thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:#e3eef2;color:#437d93;">CG</th>`;
-  thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:#f4f7fc;color:#436bb5;">당일</th>`;
-  thead+=`<th rowspan="2" style="font-size:10px;font-weight:800;background:#f5f0ff;color:#7c5cbf;padding:4px 6px;white-space:nowrap;">비고</th>`;
+  thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:var(--th-cgsum-bg);color:var(--th-cgsum-fg);">CG</th>`;
+  thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:var(--th-daysum-bg);color:var(--th-daysum-fg);">당일</th>`;
+  thead+=`<th rowspan="2" style="font-size:10px;font-weight:800;background:var(--th-remark-bg);color:var(--th-remark-fg);padding:4px 6px;white-space:nowrap;">비고</th>`;
   thead+='</tr>';
   // thead row 2 — names (조근/VW합/CG합/당일 은 rowspan=2이므로 생략)
   thead+='<tr>';
@@ -2644,10 +2667,10 @@ function renderTable() {
     thead+=`<th class="name-th" data-sid="${s.id}" style="cursor:pointer;color:${deptColors.vw};">${s.name}</th>`;
   });
   jogeunCols.forEach(s=>{
-    thead+=`<th class="name-th" data-sid="${s.id}" style="cursor:pointer;background:#eef1f9;color:#5d6fb0;">${s.name}</th>`;
+    thead+=`<th class="name-th" data-sid="${s.id}" style="cursor:pointer;background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);">${s.name}</th>`;
   });
   cgCols.forEach((s,_ci)=>{
-    const bg=s._dept==='xr'?'background:#f0fdfa;':'';
+    const bg=s._dept==='xr'?'background:var(--th-xr-namebg);':'';
     const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;
     let _gb='';
     if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:2px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:2px solid ${_gc}55;`;}
@@ -2721,7 +2744,7 @@ function renderTable() {
       else if(dispatched){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(s.id===danjikExitId){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';fw='700';text='퇴근';workCount[s.id]++;}
       else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
-      else if(entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
+      else if(entry?.satMorning===s.id){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
       else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
@@ -2729,7 +2752,7 @@ function renderTable() {
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
-      else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
+      else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(entry){
         const workers=entry.vw?.workers||[],deskId=entry.vw?.desk;
         if(workers.includes(s.id)||s.id===ilgeunId){
@@ -2768,7 +2791,7 @@ function renderTable() {
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if((entry?.vw?.workers||[]).includes(s.id)){workCount[s.id]++;bg='var(--vw-bg)';color='var(--vw-light)';fw='700';text='VW';}
       else if((entry?.cg?.workers||[]).includes(s.id)){workCount[s.id]++;bg='var(--cg-bg)';color='var(--cg-light)';fw='700';text='CG';}
-      else{bg='#8893dc';color='#fff';fw='700';text='조근';workCount[s.id]++;}
+      else{bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';workCount[s.id]++;}
       const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};`:'');
       const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}${extraStyle}"`:`style="${st}${extraStyle}"`;
       tbody+=`<td data-sid="${s.id}" ${cl}>${text||'<span class="cell-off">-</span>'}</td>`;
@@ -2797,7 +2820,7 @@ function renderTable() {
       else if(dispatched){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(s.id===danjikExitId){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';fw='700';text='퇴근';workCount[s.id]++;}
       else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
-      else if(entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
+      else if(entry?.satMorning===s.id){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
       else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
@@ -2805,7 +2828,7 @@ function renderTable() {
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
-      else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
+      else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(entry){
         const dept=s._dept;
         let workers=[];
@@ -2849,7 +2872,7 @@ function renderTable() {
       if(jin8) _addRole(jin8,'8진','#d65a52','#fce8e8');
       if(entry.newsOh) _addRole(entry.newsOh,'뉴.오','#9c6b4a','#f5e2cc');
       if(entry.newsOh2) _addRole(entry.newsOh2,'뉴.오2','#b07d4a','#f3ddc0');
-      if(ilgeunId) _addRole(ilgeunId,'일근','#8c6a3f','#f3e3b0');
+      if(ilgeunId) _addRole(ilgeunId,'일근','#a34873','#f6e0ea');
       (entry.vw?.workers||[]).forEach(id=>{
         const sx=staffById(id); if(!sx)return;
         const dx=(sx.dept||'').toUpperCase();
@@ -4065,19 +4088,19 @@ function renderWorkshopTable() {
   const deptColors={vw:'var(--vw-light)',cg:'var(--cg-light)',project:'var(--project-light)',sports:'var(--sports-light)',xr:'var(--xr-light)'};
   let thead='<tr class="dept-row"><th class="date-th" rowspan="2">날짜</th><th class="dow-th" rowspan="2">요일</th>';
   if(vwCols.length)thead+=`<th class="dept-group vw" colspan="${vwCols.length}">VW (${vwCols.length}명)</th>`;
-  if(jogeunCols.length)thead+=`<th class="dept-group" colspan="${jogeunCols.length}" style="background:#eef1f9;color:#5d6fb0;border-color:#c5cce8;">조근 (${jogeunCols.length}명)</th>`;
+  if(jogeunCols.length)thead+=`<th class="dept-group" colspan="${jogeunCols.length}" style="background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);border-color:var(--th-jogeun-bd);">조근 (${jogeunCols.length}명)</th>`;
   thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;">VW</th>`;
   if(cgStaff.length)thead+=`<th class="dept-group cg" colspan="${cgStaff.length}">CG (${cgStaff.length}명)</th>`;
-  if(xrStaff.length)thead+=`<th class="dept-group" colspan="${xrStaff.length}" style="background:#e1f1ed;color:#45847a;border-color:#bce0d7;">XR</th>`;
+  if(xrStaff.length)thead+=`<th class="dept-group" colspan="${xrStaff.length}" style="background:var(--th-xr-bg);color:var(--th-xr-fg);border-color:var(--th-xr-bd);">XR</th>`;
   if(projectStaff.length)thead+=`<th class="dept-group project" colspan="${projectStaff.length}">PROJECT</th>`;
   if(sportsStaff.length)thead+=`<th class="dept-group sports" colspan="${sportsStaff.length}">SPORTS</th>`;
-  thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:#e3eef2;color:#437d93;">CG</th>`;
-  thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:#f4f7fc;color:#436bb5;">당일</th>`;
+  thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:var(--th-cgsum-bg);color:var(--th-cgsum-fg);">CG</th>`;
+  thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:var(--th-daysum-bg);color:var(--th-daysum-fg);">당일</th>`;
   thead+=`<th rowspan="2" class="sum-col check-sticky" style="font-size:10px;background:#fff0f0;color:#c06b66;min-width:80px;">확인</th>`;
   thead+=`<th rowspan="2" style="font-size:10px;background:#f8f4ff;color:#7c3aed;min-width:160px;white-space:nowrap;">비고</th></tr><tr>`;
   vwCols.forEach(s=>{thead+=`<th class="name-th" style="color:${deptColors.vw};">${s.name}</th>`;});
-  jogeunCols.forEach(s=>{thead+=`<th class="name-th" style="background:#eef1f9;color:#5d6fb0;">${s.name}</th>`;});
-  cgCols.forEach((s,_ci)=>{const bg=s._dept==='xr'?'background:#f0fdfa;':'';const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;let _gb='';if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:2px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:2px solid ${_gc}55;`;}thead+=`<th class="name-th" style="${bg}color:${deptColors[s._dept]||'var(--text)'};${_gb}">${s.name}</th>`;});
+  jogeunCols.forEach(s=>{thead+=`<th class="name-th" style="background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);">${s.name}</th>`;});
+  cgCols.forEach((s,_ci)=>{const bg=s._dept==='xr'?'background:var(--th-xr-namebg);':'';const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;let _gb='';if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:2px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:2px solid ${_gc}55;`;}thead+=`<th class="name-th" style="${bg}color:${deptColors[s._dept]||'var(--text)'};${_gb}">${s.name}</th>`;});
   thead+='</tr>';
   document.getElementById('ws-thead').innerHTML=thead;
 
@@ -4141,7 +4164,7 @@ function renderWorkshopTable() {
       else if(dispatched){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(s.id===danjikExitId){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';fw='700';text='퇴근';workCount[s.id]++;}
       else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
-      else if(entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
+      else if(entry?.satMorning===s.id){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
       else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
@@ -4149,7 +4172,7 @@ function renderWorkshopTable() {
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
-      else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
+      else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(entry){
         const workers=entry.vw?.workers||[],deskId=entry.vw?.desk;
         if(workers.includes(s.id)||s.id===ilgeunId){
@@ -4187,7 +4210,7 @@ function renderWorkshopTable() {
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if((entry?.vw?.workers||[]).includes(s.id)){workCount[s.id]++;bg='var(--vw-bg)';color='var(--vw-light)';fw='700';text='VW';}
       else if((entry?.cg?.workers||[]).includes(s.id)){workCount[s.id]++;bg='var(--cg-bg)';color='var(--cg-light)';fw='700';text='CG';}
-      else{bg='#8893dc';color='#fff';fw='700';text='조근';workCount[s.id]++;}
+      else{bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';workCount[s.id]++;}
       const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};`:'');
       tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="cursor:pointer;${st}${extraStyle}">${text||'<span class="cell-off">-</span>'}</td>`;
     });
@@ -4214,7 +4237,7 @@ function renderWorkshopTable() {
       else if(dispatched){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(s.id===danjikExitId){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';fw='700';text='퇴근';workCount[s.id]++;}
       else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
-      else if(entry?.satMorning===s.id){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
+      else if(entry?.satMorning===s.id){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
       else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
       else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
@@ -4222,7 +4245,7 @@ function renderWorkshopTable() {
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
-      else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='#8893dc';color='#fff';fw='700';text='조근';}
+      else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(entry){
         const dept=s._dept;
         let workers=[];
@@ -5543,7 +5566,7 @@ function _lrRowsHtml(staffId){
     const isWE=dow===0||dow===6;
     const isHoli=!!(data.holidays && data.holidays[dateStr]);
     const base=isWE||isHoli?TD_WE:TD;
-    const dowColor=dow===0?'color:#6f59a3;':dow===6?'color:#6366f1;':'';
+    const dowColor=dow===0?'color:var(--pop-dow-sun);':dow===6?'color:var(--pop-dow-sat);':'';
     const todayExtra=dateStr===todayStr?'color:#5d6fb0;font-weight:800;':'font-weight:700;';
     const hasLeave=(entries[dateStr]||[]).includes(staffId);
     const dayCount=(entries[dateStr]||[]).length;
@@ -5707,7 +5730,7 @@ function _tagDefs(dept, employmentType) {
   }
   if (dept==='VW'||dept==='CG'||dept==='XR') {
     tags.push({val:'satMorning', label:'토요일 조근', bg:'#8893dc'});
-    tags.push({val:'ilgeun', label:'일근 가능', bg:'#f3e3b0', dark:true});
+    tags.push({val:'ilgeun', label:'일근 가능', bg:'#f6e0ea', dark:true});
   }
   if (dept==='CG'||dept==='XR') {
     tags.push({val:'can3D', label:'3D 가능', bg:'#b69bd6'});
@@ -5852,7 +5875,7 @@ function renderStaffTable() {
       <td>${s.canDanjik ? yesHtml : noHtml}</td>
       <td><div style="display:flex;flex-wrap:wrap;gap:3px;min-width:80px;">${[
         s.canSatMorning && `<span style="background:#8893dc;color:#fff;font-size:11px;padding:2px 7px;border-radius:4px;font-weight:700;">토조근</span>`,
-        s.canIlgeun    && `<span style="background:#f3e3b0;color:#8c6a3f;font-size:11px;padding:2px 7px;border-radius:4px;font-weight:700;">일근</span>`,
+        s.canIlgeun    && `<span style="background:#f6e0ea;color:#a34873;font-size:11px;padding:2px 7px;border-radius:4px;font-weight:700;">일근</span>`,
         s.canVW        && `<span style="background:#6366f1;color:#fff;font-size:11px;padding:2px 7px;border-radius:4px;font-weight:700;">VW지원</span>`,
         s.canCG        && `<span style="background:#4a9fbd;color:#fff;font-size:11px;padding:2px 7px;border-radius:4px;font-weight:700;">CG지원</span>`,
         s.can3D        && `<span style="background:#b69bd6;color:#fff;font-size:11px;padding:2px 7px;border-radius:4px;font-weight:700;">3D</span>`,
@@ -6042,7 +6065,7 @@ function renderWorkStats() {
   }
   const t1 = buildStatTable('토요 숙직근무', 'sat', employees, satA, '#dfe4f2', '#565ba4');
   const t2 = buildStatTable('토요 조근 근무', 'jsub', employees, jsubA, '#e1f1ed', '#45847a');
-  const t3 = buildStatTable('일근 근무', 'ilgeun', employees, ilgeunA, '#f3e3b0', '#8c6a3f');
+  const t3 = buildStatTable('일근 근무', 'ilgeun', employees, ilgeunA, '#f6e0ea', '#a34873');
   const t4 = jflPool.length ? buildStatTable('프리랜서 조근근무', 'jfl', jflPool, jflA, '#fce8e8', '#c06b66') : '';
   area.innerHTML = `<div class="stats-grid">${t1}${t2}${t3}${t4}</div>`;
 }
@@ -7284,7 +7307,7 @@ function openPersonSchedule(staffId){
   const nameColor=DEPT_COLOR[staff.dept]||'var(--text)';
   const now=new Date(); const todayStr=toDateStr(now.getFullYear(),now.getMonth()+1,now.getDate());
   const TD='border:1px solid var(--border);padding:6px 6px;vertical-align:middle;text-align:center;font-size:11px;';
-  const TD_WE='border:1px solid #b6cbed;padding:6px 6px;vertical-align:middle;text-align:center;font-size:11px;background:#eef3fb;';
+  const TD_WE='border:1px solid var(--wk-bd);padding:6px 6px;vertical-align:middle;text-align:center;font-size:11px;background:var(--wk-bg);';
   // 실제 렌더된 근무표 셀을 그대로 가져와 동일한 디자인으로 표시 (없으면 역할 칩으로 대체)
   const _trs = document.querySelectorAll('#excel-tbody > tr');
   let rows='';
@@ -7292,10 +7315,10 @@ function openPersonSchedule(staffId){
     const ds=toDateStr(dt.getFullYear(),dt.getMonth()+1,dt.getDate());
     const dow=dt.getDay(); const isWE=dow===0||dow===6; const isHoli=!!(data.holidays&&data.holidays[ds]);
     const base=isWE||isHoli?TD_WE:TD;
-    const dowColor=dow===0?'color:#6f59a3;':dow===6?'color:#6366f1;':'';
+    const dowColor=dow===0?'color:var(--pop-dow-sun);':dow===6?'color:var(--pop-dow-sat);':'';
     const isToday=ds===todayStr;
     // 근무표 셀 형식 그대로: 셀 전체를 색으로 칠하고 글씨(칩 아님)
-    let _workStyle = base + 'font-size:12px;', _workContent = '<span style="color:#cbd5e1;">-</span>';
+    let _workStyle = base + 'font-size:12px;', _workContent = '<span style="color:var(--muted);">-</span>';
     const _row=_trs[i];
     const _td=_row?_row.querySelector('td[data-sid="'+staffId+'"]'):null;
     if(_td){
@@ -7310,7 +7333,7 @@ function openPersonSchedule(staffId){
     const tB = isToday ? 'border-top:2px solid #6d8bf5;border-bottom:2px solid #9b6cf0;' : '';
     const tL = isToday ? 'border-left:2px solid #6d8bf5;' : '';
     const tR = isToday ? 'border-right:2px solid #9b6cf0;' : '';
-    rows+=`<tr${isToday?' style="background:#f5f2fe;"':''}>
+    rows+=`<tr${isToday?' style="background:var(--pop-today-bg);"':''}>
       <td style="${base}font-weight:700;color:var(--text);white-space:nowrap;${tB}${tL}">${dt.getMonth()+1}/${dt.getDate()}</td>
       <td style="${base}${dowColor}${tB}">${DOW_KR[dow]}</td>
       <td style="${_workStyle}${tB}${tR}">${_workContent}</td>
