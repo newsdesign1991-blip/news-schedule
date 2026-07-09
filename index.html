@@ -7490,6 +7490,7 @@ function _loginIntro(name){
   setTimeout(function(){ intro.style.display='none'; intro.classList.remove('on','leaving'); }, (typeEnd+hold+0.62)*1000);
 }
 function _homeReveal(){
+  window.scrollTo(0,0);   // 로그인 후 홈 진입 시 항상 스크롤 최상단에서 시작
   var ovb=document.getElementById('login-overlay');
   if(ovb){ ovb.classList.add('bg-leaving'); setTimeout(function(){ ovb.style.display='none'; ovb.classList.remove('leaving','bg-leaving'); }, 680); }
   var vh=document.getElementById('view-home');
