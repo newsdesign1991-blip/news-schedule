@@ -91,7 +91,7 @@ body { transition: background-color .25s ease, color .25s ease; }
 [data-theme="dark"] .modal, [data-theme="dark"] .nd-modal > div, [data-theme="dark"] .nd-pop, [data-theme="dark"] .staff-modal { background: #302f2d !important; color: var(--text); border-color: var(--border) !important; }
 [data-theme="dark"] .nd-pop.nd-pop { border: 1px solid transparent !important; background: linear-gradient(#302f2d,#302f2d) padding-box, linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.05) 40%, rgba(0,0,0,.32) 100%) border-box !important; box-shadow: 0 1px 2px rgba(0,0,0,.28), 0 22px 55px -14px rgba(0,0,0,.6) !important; }
 [data-theme="dark"] .modal, [data-theme="dark"] .nd-modal > div { background: rgba(44,43,41,0.96) !important; border-color: rgba(255,255,255,0.10) !important; }
-[data-theme="dark"] #sheet-panel { background: rgba(44,43,41,0.97) !important; }
+[data-theme="dark"] #sheet-panel { background:linear-gradient(#302f2d,#302f2d) padding-box, linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.04) 45%, rgba(0,0,0,.3)) border-box !important; }
 [data-theme="dark"] #floating-nav { background: rgba(48,47,45,0.72); border-color: rgba(255,255,255,0.10); }
 [data-theme="dark"] #hdr-menu { background: rgba(48,47,45,0.72) !important; border-color: rgba(255,255,255,0.10) !important; }
 [data-theme="dark"] .wm-num.today { color: #1c1b19; }
@@ -369,6 +369,11 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 #a2hs-banner .btn { border-radius: 14px !important; padding: 14px !important; font-size: 14px; font-weight: 800; }
 #a2hs-banner .btn-primary { background: linear-gradient(135deg,#4a94ff,#2f77f6) !important; color: #fff; }
 #a2hs-banner .btn-outline { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+#login-overlay > div { border: 1px solid transparent !important; border-radius: 22px !important; background: linear-gradient(#f8fafd,#f8fafd) padding-box, linear-gradient(135deg, #ffffff, rgba(255,255,255,.5) 58%, rgba(15,23,42,.13) 100%) border-box !important; box-shadow: 0 1px 2px rgba(20,24,40,.05), 0 24px 60px -14px rgba(20,24,40,.34) !important; }
+[data-theme="dark"] #login-overlay > div { background: linear-gradient(#302f2d,#302f2d) padding-box, linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.05) 40%, rgba(0,0,0,.32) 100%) border-box !important; }
+#login-overlay .form-input { border-radius: 16px; background: #ffffff; min-height: 50px; }
+[data-theme="dark"] #login-overlay .form-input { background: #262624; }
+#login-overlay .btn-primary { background: linear-gradient(135deg,#4a94ff,#2f77f6) !important; border-radius: 16px !important; padding: 15px !important; font-weight: 800; }
 #event-add-modal .form-input { min-height: 48px !important; padding: 13px 16px; box-sizing: border-box; }
 #event-add-modal .ev-actions .btn { border-radius: 20px; padding: 15px; font-size: 15px; font-weight: 800; }
 #event-add-modal .ev-actions .btn-primary { background: linear-gradient(135deg,#4a94ff,#2f77f6); color: #fff; }
@@ -772,7 +777,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 /* ===== 바텀 시트(드로어) ===== */
 #sheet-overlay { position:fixed; inset:0; z-index:9600; display:none; align-items:flex-end; justify-content:center; background:rgba(0,0,0,0); transition:background .3s ease; }
 #sheet-overlay.open { background:rgba(0,0,0,0.32); }
-#sheet-panel { width:100%; max-width:520px; max-height:88vh; background:rgba(255,255,255,0.97); -webkit-backdrop-filter:blur(32px) saturate(180%); backdrop-filter:blur(32px) saturate(180%); border-radius:26px 26px 0 0; border-top:1px solid rgba(255,255,255,0.6); box-shadow:0 -10px 44px rgba(15,23,42,0.24); padding:8px 20px calc(24px + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .36s cubic-bezier(.22,1,.36,1); overflow-y:auto; }
+#sheet-panel { width:100%; max-width:520px; max-height:88vh; position:relative; background:linear-gradient(#f8fafd,#f8fafd) padding-box, linear-gradient(135deg,#ffffff,rgba(255,255,255,.5) 55%,rgba(15,23,42,.1)) border-box; border:1px solid transparent; border-bottom:none; border-radius:26px 26px 0 0; box-shadow:0 -10px 44px rgba(15,23,42,0.24); padding:8px 20px calc(24px + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .36s cubic-bezier(.22,1,.36,1); overflow-y:auto; }
 #sheet-overlay.open #sheet-panel { transform:translateY(0); }
 #sheet-grabber { width:38px; height:5px; border-radius:3px; background:rgba(120,120,128,0.3); margin:6px auto 10px; }
 #sheet-header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px; }
