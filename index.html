@@ -414,6 +414,19 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .poll-band-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
 .poll-band-names { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 13.5px; font-weight: 600; }
 .poll-band-empty { font-size: 12px; color: var(--muted); }
+.poll-card-hd .poll-hd-sp { flex: 1; }
+.poll-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 2px 5px; line-height: 1; opacity: .55; border-radius: 8px; }
+.poll-del:hover { opacity: 1; background: rgba(224,72,60,.1); color: #e0483c; }
+.poll-choices { display: flex; flex-direction: column; gap: 9px; }
+.poll-choice { width: 100%; padding: 13px 15px; border-radius: 14px; font-size: 14px; font-weight: 800; letter-spacing: -.01em; cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent; transition: transform .1s ease, filter .12s ease; }
+.poll-choice:hover { filter: brightness(.97); }
+.poll-choice:active { transform: scale(.98); }
+.poll-edit-btn { margin-top: 12px; width: 100%; padding: 11px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.poll-edit-btn:hover { background: var(--border); color: var(--text); }
+.poll-body { position: relative; }
+.poll-body.poll-swap-out { filter: blur(7px); opacity: 0; transform: scale(.98); transition: filter .2s ease, opacity .2s ease, transform .2s ease; }
+@keyframes pollSwapIn { from { filter: blur(9px); opacity: 0; transform: scale(.98); } to { filter: blur(0); opacity: 1; transform: none; } }
+.poll-body.poll-swap-in { animation: pollSwapIn .4s cubic-bezier(.22,1,.36,1); }
 #notice-modal .form-input { background: #ffffff; border-radius: 20px; height: 48px; padding: 13px 16px; box-sizing: border-box; }
 [data-theme="dark"] #notice-modal .form-input { background: #262624; }
 #notice-modal textarea.form-input { height: auto; min-height: 96px; }
@@ -8072,7 +8085,26 @@ function renderPolls(){
   host.innerHTML=active.map(p=>_pollCardHtml(p)).join('');
   host.style.marginBottom=active.length?'14px':'0';
 }
-function _pollCardHtml(p){
+function _pollIsMine(p){ return !!(currentUser && p && ((p.createdById && p.createdById===currentUser.staffId) || (p.createdBy && currentUser.name && p.createdBy===currentUser.name))); }
+function _pollState(p){
+  if(_pollEnded(p)) return 'results';
+  const myId=(currentUser&&currentUser.staffId)||null;
+  const voted = myId!=null && (p.votes||{})[myId]!==undefined;
+  const editing = !!(window._pollEdit && window._pollEdit[p.id]);
+  return (voted && !editing) ? 'results' : 'choices';
+}
+function _pollChoicesHtml(p){
+  const esc=_pEsc;
+  const myId=(currentUser&&currentUser.staffId)||null;
+  const myVote=myId!=null?(p.votes||{})[myId]:undefined;
+  return `<div class="poll-choices">${(p.options||[]).map((o,i)=>{
+    const c=POLL_COLORS[i%POLL_COLORS.length];
+    const sel=myVote===i;
+    const st=sel?`background:${c};color:#fff;border:1.5px solid ${c};`:`background:${c}12;color:${c};border:1.5px solid ${c}55;`;
+    return `<button class="poll-choice" style="${st}" onclick="_pollVote('${p.id}',${i})">${sel?'✓ ':''}${esc(o.label)}</button>`;
+  }).join('')}</div>`;
+}
+function _pollResultsHtml(p){
   const esc=_pEsc, votes=p.votes||{}, total=Object.keys(votes).length;
   const myId=(currentUser&&currentUser.staffId)||null;
   const myVote=myId!=null?votes[myId]:undefined;
@@ -8082,17 +8114,55 @@ function _pollCardHtml(p){
     const cnt=Object.values(votes).filter(v=>v===i).length;
     const pct=total?Math.round(cnt/total*100):0;
     const mine=myVote===i;
-    return `<div class="poll-opt${mine?' mine':''}${ended?' ended':''}" style="--pc:${c};"${ended?'':` onclick="_pollVote('${p.id}',${i})"`}>
+    return `<div class="poll-opt${mine?' mine':''} ended" style="--pc:${c};">
       <div class="poll-opt-top"><span class="poll-opt-label">${mine?'✓ ':''}${esc(o.label)}</span><span class="poll-opt-cnt">${cnt}명</span></div>
-      <div class="poll-bar"><div class="poll-bar-fill" style="width:${pct}%;background:${c};"></div></div>
+      <div class="poll-bar"><div class="poll-bar-fill" data-w="${pct}" style="width:${pct}%;background:${c};"></div></div>
     </div>`;
   }).join('');
-  return `<div class="poll-card">
-    <div class="poll-card-hd"><span class="poll-badge">오늘의 투표</span>${ended?`<span class="poll-ended-tag">종료됨</span>`:''}</div>
+  return `<div class="poll-opts">${bars}</div>${ended?'':`<button class="poll-edit-btn" onclick="_pollEditAnswer('${p.id}')">답변 수정</button>`}`;
+}
+function _pollBodyHtml(p){ return _pollState(p)==='results' ? _pollResultsHtml(p) : _pollChoicesHtml(p); }
+function _pollSwapBody(pollId, toResults){
+  const card=document.querySelector('.poll-card[data-pid="'+pollId+'"]');
+  const p=(data.polls||[]).find(x=>x.id===pollId);
+  if(!card||!p){ renderPolls(); return; }
+  const body=card.querySelector('.poll-body');
+  if(!body){ renderPolls(); return; }
+  body.classList.add('poll-swap-out');
+  setTimeout(function(){
+    body.innerHTML = toResults ? _pollResultsHtml(p) : _pollChoicesHtml(p);
+    body.classList.remove('poll-swap-out'); body.classList.add('poll-swap-in');
+    if(toResults){ body.querySelectorAll('.poll-bar-fill').forEach(function(fl){ const w=fl.getAttribute('data-w')||'0'; fl.style.width='0%'; setTimeout(function(){ fl.style.width=w+'%'; }, 30); }); }
+    const tot=card.querySelector('.poll-total'); if(tot) tot.textContent=(Object.keys(p.votes||{}).length)+'명 참여';
+    setTimeout(function(){ body.classList.remove('poll-swap-in'); }, 430);
+  }, 210);
+}
+function _pollEditAnswer(pollId){ window._pollEdit=window._pollEdit||{}; window._pollEdit[pollId]=true; _pollSwapBody(pollId, false); }
+function _pollRefreshResults(pollId){
+  const p=(data.polls||[]).find(x=>x.id===pollId); if(!p) return;
+  if(_pollState(p)!=='results') return;
+  const card=document.querySelector('.poll-card[data-pid="'+pollId+'"]'); if(!card) return;
+  const body=card.querySelector('.poll-body'); if(!body) return;
+  const opts=body.querySelectorAll('.poll-opt'); if(!opts.length) return;
+  const votes=p.votes||{}, total=Object.keys(votes).length;
+  (p.options||[]).forEach(function(o,i){
+    const cnt=Object.values(votes).filter(v=>v===i).length; const pct=total?Math.round(cnt/total*100):0;
+    const el=opts[i]; if(!el) return;
+    const ce=el.querySelector('.poll-opt-cnt'); if(ce) ce.textContent=cnt+'명';
+    const fl=el.querySelector('.poll-bar-fill'); if(fl){ fl.style.width=pct+'%'; fl.setAttribute('data-w',pct); }
+  });
+  const tot=card.querySelector('.poll-total'); if(tot) tot.textContent=total+'명 참여';
+}
+function _pollCardHtml(p){
+  const esc=_pEsc, total=Object.keys(p.votes||{}).length, ended=_pollEnded(p);
+  const canDel=(isAdmin||isMaster||_pollIsMine(p));
+  const delBtn=canDel?`<button class="poll-del" onclick="event.stopPropagation();deletePoll('${p.id}')" title="투표 삭제">🗑</button>`:'';
+  return `<div class="poll-card" data-pid="${p.id}">
+    <div class="poll-card-hd"><span class="poll-badge">오늘의 투표</span>${ended?`<span class="poll-ended-tag">종료됨</span>`:''}<span class="poll-hd-sp"></span>${delBtn}</div>
     ${p.desc?`<div class="poll-desc">${esc(p.desc)}</div>`:''}
     <div class="poll-endinfo">🕐 ${_pollFmtEnd(p.endAt)} ${ended?'종료됨':'종료'}</div>
     <div class="poll-title">${esc(p.title)}</div>
-    <div class="poll-opts">${bars}</div>
+    <div class="poll-body">${_pollBodyHtml(p)}</div>
     <div class="poll-foot"><span class="poll-total">${total}명 참여</span><button class="poll-detail-btn" onclick="openPollDetail('${p.id}')">자세히 보기 ›</button></div>
   </div>`;
 }
@@ -8133,12 +8203,12 @@ function _pollVote(pollId, optIdx){
   if(_pollEnded(p)){ toast('종료된 투표입니다.','error'); return; }
   const myId=currentUser.staffId;
   if(!p.votes) p.votes={};
-  const choice=(p.votes[myId]===optIdx)?null:optIdx;   // 같은 항목 재클릭 = 취소
-  if(choice===null) delete p.votes[myId]; else p.votes[myId]=choice;
+  p.votes[myId]=optIdx;   // 선택 = 설정
+  if(window._pollEdit) delete window._pollEdit[pollId];
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){}
-  renderPolls();
-  _pollCommit((polls)=>{ const q=polls.find(x=>x.id===pollId); if(!q) return; if(!q.votes) q.votes={}; if(choice===null) delete q.votes[myId]; else q.votes[myId]=choice; })
-    .then(ok=>{ if(ok) renderPolls(); });
+  _pollSwapBody(pollId, true);   // 버튼 블러아웃 -> 그래프 등장
+  _pollCommit((polls)=>{ const q=polls.find(x=>x.id===pollId); if(!q) return; if(!q.votes) q.votes={}; q.votes[myId]=optIdx; })
+    .then(ok=>{ if(ok) _pollRefreshResults(pollId); });
 }
 
 // 자세히 보기: 항목별 배경색 밴드 + 투표자 이름
@@ -8222,7 +8292,7 @@ async function submitPoll(){
   if(opts.length<2){ toast('선택지를 2개 이상 입력하세요.','error'); return; }
   if(!endAt){ toast('종료 일시를 선택하세요.','error'); return; }
   if(new Date(endAt).getTime() < Date.now()){ toast('종료 일시가 이미 지났습니다.','error'); return; }
-  const poll={ id:'pl'+Date.now().toString(36)+Math.floor(Math.random()*1e5).toString(36), title, desc, options:opts.map(l=>({label:l})), votes:{}, endAt, createdAt:new Date().toISOString(), createdBy:(currentUser.name||'') };
+  const poll={ id:'pl'+Date.now().toString(36)+Math.floor(Math.random()*1e5).toString(36), title, desc, options:opts.map(l=>({label:l})), votes:{}, endAt, createdAt:new Date().toISOString(), createdBy:(currentUser.name||''), createdById:(currentUser.staffId||'') };
   const ok=await _pollCommit((polls)=>{ _pollPurgeInPlace(polls); polls.unshift(poll); });
   if(!ok){ toast('저장에 실패했습니다. 네트워크 확인 후 다시 시도하세요.','error'); return; }
   const silent=!!(document.getElementById('poll-silent')&&document.getElementById('poll-silent').checked);
@@ -8243,7 +8313,7 @@ function _pollPastHtml(){
     const counts=(p.options||[]).map((o,i)=>Object.values(votes).filter(v=>v===i).length);
     let topI=0; counts.forEach((c,i)=>{ if(c>counts[topI]) topI=i; });
     const tc=POLL_COLORS[topI%POLL_COLORS.length];
-    const del=canDel?`<button onclick="event.stopPropagation();deletePoll('${p.id}')" style="flex-shrink:0;background:none;border:none;color:#e0483c;cursor:pointer;font-size:12px;font-weight:700;padding:4px 6px;">삭제</button>`:'';
+    const del=(canDel||_pollIsMine(p))?`<button onclick="event.stopPropagation();deletePoll('${p.id}')" style="flex-shrink:0;background:none;border:none;color:#e0483c;cursor:pointer;font-size:12px;font-weight:700;padding:4px 6px;">삭제</button>`:'';
     return `<div onclick="openPollDetail('${p.id}')" style="border-radius:14px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);box-shadow:0 1px 3px rgba(20,24,40,.05);cursor:pointer;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div style="font-size:14px;font-weight:800;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_pEsc(p.title)}</div>${del}
@@ -8255,10 +8325,11 @@ function _pollPastHtml(){
   <div class="poll-scroll" style="padding:14px 18px 20px;display:flex;flex-direction:column;gap:9px;">${rows}</div>`;
 }
 async function deletePoll(id){
-  if(!(isAdmin||isMaster)){ toast('관리자·마스터만 삭제할 수 있습니다.','error'); return; }
+  const p=(data.polls||[]).find(x=>x.id===id);
+  if(!(isAdmin||isMaster||(p&&_pollIsMine(p)))){ toast('올린 사람 또는 관리자·마스터만 삭제할 수 있습니다.','error'); return; }
   if(!confirm('이 투표를 삭제할까요? 되돌릴 수 없습니다.')) return;
   const ok=await _pollCommit((polls)=>{ const i=polls.findIndex(x=>x.id===id); if(i>=0) polls.splice(i,1); });
-  if(ok){ openPollPast(); renderPolls(); toast('삭제했습니다.','success'); }
+  if(ok){ renderPolls(); const pm=document.getElementById('poll-modal'); if(pm && pm.style.display==='flex') openPollPast(); toast('삭제했습니다.','success'); }
   else toast('삭제에 실패했습니다. 다시 시도하세요.','error');
 }
 function deleteNotice() {
