@@ -365,8 +365,8 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 #notice-modal .ev-sect .form-label { color: #b8860b; font-weight: 700; font-size: 12.5px; margin: 0 0 7px; display: block; }
 [data-theme="dark"] #notice-modal .ev-sect .form-label { color: #e6c14d; }
 /* ===== 투표(오늘의 투표) ===== */
-.poll-card { position: relative; padding: 16px 17px 15px; border: 1px solid transparent; border-radius: 20px; background: linear-gradient(var(--surface),var(--surface)) padding-box, linear-gradient(155deg, rgba(255,255,255,.95), rgba(255,255,255,.28) 32%, rgba(15,23,42,.06)) border-box; box-shadow: 0 1px 2px rgba(20,24,40,.04), 0 12px 28px -16px rgba(20,24,40,.17); margin-bottom: 12px; }
-[data-theme="dark"] .poll-card { background: linear-gradient(var(--surface),var(--surface)) padding-box, linear-gradient(155deg, rgba(255,255,255,.2), rgba(255,255,255,.05) 35%, rgba(0,0,0,.3)) border-box; box-shadow: 0 1px 2px rgba(0,0,0,.28), 0 12px 28px -16px rgba(0,0,0,.55); }
+.poll-card { position: relative; padding: 16px 17px 15px; border: 1px solid transparent; border-radius: 20px; background: linear-gradient(#f1f6ff,#f1f6ff) padding-box, linear-gradient(155deg, rgba(200,224,255,.92), rgba(200,224,255,.32) 32%, rgba(49,130,246,.16)) border-box; box-shadow: 0 1px 2px rgba(20,24,40,.04), 0 12px 28px -16px rgba(30,80,180,.16); margin-bottom: 12px; }
+[data-theme="dark"] .poll-card { background: linear-gradient(#242a34,#242a34) padding-box, linear-gradient(155deg, rgba(150,190,255,.22), rgba(150,190,255,.05) 35%, rgba(0,0,0,.3)) border-box; box-shadow: 0 1px 2px rgba(0,0,0,.28), 0 12px 28px -16px rgba(0,0,0,.55); }
 .poll-card-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .poll-badge { font-size: 12px; font-weight: 800; letter-spacing: -.01em; color: #3182f6; background: rgba(49,130,246,.1); padding: 4px 11px; border-radius: 999px; }
 .poll-ended-tag { font-size: 11px; font-weight: 700; color: var(--muted); background: var(--surface2); padding: 3px 9px; border-radius: 999px; }
@@ -415,8 +415,12 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .poll-band-names { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 13.5px; font-weight: 600; }
 .poll-band-empty { font-size: 12px; color: var(--muted); }
 .poll-card-hd .poll-hd-sp { flex: 1; }
-.poll-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 2px 5px; line-height: 1; opacity: .55; border-radius: 8px; }
-.poll-del:hover { opacity: 1; background: rgba(224,72,60,.1); color: #e0483c; }
+.poll-hd-title { display: inline-flex; align-items: center; gap: 4px; font-size: 16px; font-weight: 800; letter-spacing: -.02em; color: #3182f6; }
+[data-theme="dark"] .poll-hd-title { color: #6aa8ff; }
+.poll-hd-title svg { flex-shrink: 0; }
+.poll-x { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.72); color: var(--muted); font-size: 14px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 6px rgba(15,23,42,.1); -webkit-tap-highlight-color: transparent; }
+[data-theme="dark"] .poll-x { background: rgba(60,59,56,.6); border-color: rgba(255,255,255,.14); }
+.poll-x:hover { color: #e0483c; }
 .poll-choices { display: flex; flex-direction: column; gap: 9px; }
 .poll-choice { width: 100%; padding: 13px 15px; border-radius: 14px; font-size: 14px; font-weight: 800; letter-spacing: -.01em; cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent; transition: transform .1s ease, filter .12s ease; }
 .poll-choice:hover { filter: brightness(.97); }
@@ -8156,9 +8160,9 @@ function _pollRefreshResults(pollId){
 function _pollCardHtml(p){
   const esc=_pEsc, total=Object.keys(p.votes||{}).length, ended=_pollEnded(p);
   const canDel=(isAdmin||isMaster||_pollIsMine(p));
-  const delBtn=canDel?`<button class="poll-del" onclick="event.stopPropagation();deletePoll('${p.id}')" title="투표 삭제">🗑</button>`:'';
+  const delBtn=canDel?`<button class="poll-x" onclick="event.stopPropagation();deletePoll('${p.id}')" title="투표 삭제">✕</button>`:'';
   return `<div class="poll-card" data-pid="${p.id}">
-    <div class="poll-card-hd"><span class="poll-badge">오늘의 투표</span>${ended?`<span class="poll-ended-tag">종료됨</span>`:''}<span class="poll-hd-sp"></span>${delBtn}</div>
+    <div class="poll-card-hd"><span class="poll-hd-title"><svg viewBox="0 0 24 24" width="17" height="17" fill="#3182f6" style="vertical-align:-3px;margin-right:2px;"><rect x="3" y="10" width="4.2" height="10" rx="1.2"/><rect x="9.9" y="5" width="4.2" height="15" rx="1.2"/><rect x="16.8" y="13" width="4.2" height="7" rx="1.2"/></svg>오늘의 투표</span>${ended?`<span class="poll-ended-tag">종료됨</span>`:''}<span class="poll-hd-sp"></span>${delBtn}</div>
     ${p.desc?`<div class="poll-desc">${esc(p.desc)}</div>`:''}
     <div class="poll-endinfo">🕐 ${_pollFmtEnd(p.endAt)} ${ended?'종료됨':'종료'}</div>
     <div class="poll-title">${esc(p.title)}</div>
