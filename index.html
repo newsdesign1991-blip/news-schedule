@@ -365,7 +365,11 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 #notice-modal .ev-sect .form-label { color: #b8860b; font-weight: 700; font-size: 12.5px; margin: 0 0 7px; display: block; }
 [data-theme="dark"] #notice-modal .ev-sect .form-label { color: #e6c14d; }
 /* ===== 투표(오늘의 투표) ===== */
-.poll-card { position: relative; padding: 16px 17px 15px; border: 1px solid transparent; border-radius: 20px; background: linear-gradient(#f1f6ff,#f1f6ff) padding-box, linear-gradient(155deg, rgba(200,224,255,.92), rgba(200,224,255,.32) 32%, rgba(49,130,246,.16)) border-box; box-shadow: 0 1px 2px rgba(20,24,40,.04), 0 12px 28px -16px rgba(30,80,180,.16); margin-bottom: 12px; }
+.poll-card { position: relative; overflow: hidden; padding: 16px 17px 15px; border: 1px solid transparent; border-radius: 20px; background: linear-gradient(#f1f6ff,#f1f6ff) padding-box, linear-gradient(155deg, rgba(200,224,255,.92), rgba(200,224,255,.32) 32%, rgba(49,130,246,.16)) border-box; box-shadow: 0 1px 2px rgba(20,24,40,.04), 0 12px 28px -16px rgba(30,80,180,.16); margin-bottom: 12px; }
+.poll-card > * { position: relative; z-index: 1; }
+.poll-card::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 55%; z-index: 0; pointer-events: none; background: linear-gradient(105deg, transparent, rgba(150,190,255,.14) 30%, rgba(255,255,255,.5) 50%, rgba(150,190,255,.14) 70%, transparent); transform: translateX(-160%) skewX(-12deg); animation: pollSheen 5.5s ease-in-out infinite; }
+[data-theme="dark"] .poll-card::after { background: linear-gradient(105deg, transparent, rgba(120,160,255,.12) 30%, rgba(200,220,255,.22) 50%, rgba(120,160,255,.12) 70%, transparent); }
+@keyframes pollSheen { 0% { transform: translateX(-160%) skewX(-12deg); } 32% { transform: translateX(320%) skewX(-12deg); } 100% { transform: translateX(320%) skewX(-12deg); } }
 [data-theme="dark"] .poll-card { background: linear-gradient(#242a34,#242a34) padding-box, linear-gradient(155deg, rgba(150,190,255,.22), rgba(150,190,255,.05) 35%, rgba(0,0,0,.3)) border-box; box-shadow: 0 1px 2px rgba(0,0,0,.28), 0 12px 28px -16px rgba(0,0,0,.55); }
 .poll-card-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .poll-badge { font-size: 12px; font-weight: 800; letter-spacing: -.01em; color: #3182f6; background: rgba(49,130,246,.1); padding: 4px 11px; border-radius: 999px; }
@@ -1226,9 +1230,9 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 
 <!-- HOME -->
 <div class="view active" id="view-home">
+  <div id="home-polls"></div>
   <div id="my-schedule-card" style="display:none;margin-bottom:10px;"></div>
   <div id="home-notice" style="margin-bottom:14px;"></div>
-  <div id="home-polls"></div>
   <div class="home-summary-duty">
   <div class="summary-row" id="home-summary"></div>
   <div class="summary-row" id="home-duty-row" style="grid-template-columns:1fr 1fr;"></div>
@@ -8084,10 +8088,14 @@ function _pollPurgeInPlace(polls){ const cut=Date.now()-365*24*3600*1000; for(le
 
 // 홈: 진행중 투표 카드들
 function renderPolls(){
-  const host=document.getElementById('home-polls'); if(!host) return;
+  const vh=document.getElementById('view-home'); if(!vh) return;
+  let host=document.getElementById('home-polls');
   const active=(data.polls||[]).filter(p=>p && !_pollEnded(p) && !_pollTooOld(p)).sort((a,b)=>((b.createdAt||'')<(a.createdAt||'')?-1:1));
+  if(!active.length){ if(host) host.remove(); return; }   // 투표 없으면 DOM에서 제거(등장 애니메이션 슬롯 차지 방지)
+  if(!host){ host=document.createElement('div'); host.id='home-polls'; }
+  if(vh.firstElementChild!==host) vh.insertBefore(host, vh.firstElementChild);   // 항상 최상단
+  host.style.marginBottom='14px';
   host.innerHTML=active.map(p=>_pollCardHtml(p)).join('');
-  host.style.marginBottom=active.length?'14px':'0';
 }
 function _pollIsMine(p){ return !!(currentUser && p && ((p.createdById && p.createdById===currentUser.staffId) || (p.createdBy && currentUser.name && p.createdBy===currentUser.name))); }
 function _pollState(p){
