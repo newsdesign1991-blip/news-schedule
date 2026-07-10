@@ -317,6 +317,10 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .home-summary-duty > .summary-row { margin-bottom: 0; }
 @media (max-width: 700px) { .home-summary-duty { display: block; } .home-summary-duty > #home-summary { margin-bottom: 14px; } }
 .dept-list, .today-work { background: var(--surface); border-radius: 20px; box-shadow: 0 1px 3px rgba(20,24,40,.05); overflow: hidden; }
+/* 부서 근무현황 카드만 애플식 스퀘어클(연속 곡률) — 미지원 브라우저는 기존 둥근 모서리로 폴백 */
+#home-summary .dept-list { border-radius: 40px !important; corner-shape: squircle; -webkit-corner-shape: squircle; }
+#home-summary .dept-ic { border-radius: 20px; corner-shape: squircle; -webkit-corner-shape: squircle; }
+#home-summary .dept-tag { border-radius: 20px; corner-shape: squircle; -webkit-corner-shape: squircle; }
 .dept-list .dept-row, .today-work .tw-row { display: flex; align-items: center; gap: 13px; padding: 13px 16px; }
 .dept-list .dept-row, .today-work .tw-row { position: relative; }
 .dept-list .dept-row:not(:last-child)::after, .today-work .tw-row:not(:last-child)::after { content: ''; position: absolute; left: 63px; right: 16px; bottom: 0; height: 1px; background: var(--border); }
