@@ -217,6 +217,13 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 #view-home.home-anim > * { animation: homeRise .7s cubic-bezier(.28,0,.05,1) both; }
 #view-home.home-anim > #home-polls { animation: none !important; }
 #view-home.home-anim > *:nth-child(1){animation-delay:.03s} #view-home.home-anim > *:nth-child(2){animation-delay:.10s} #view-home.home-anim > *:nth-child(3){animation-delay:.17s} #view-home.home-anim > *:nth-child(4){animation-delay:.24s} #view-home.home-anim > *:nth-child(5){animation-delay:.31s} #view-home.home-anim > *:nth-child(6){animation-delay:.38s} #view-home.home-anim > *:nth-child(7){animation-delay:.45s} #view-home.home-anim > *:nth-child(8){animation-delay:.52s}
+/* 넓은 화면: grid order로 시각 순서가 바뀌므로 nth-child 스태거를 없애고, 평탄화된 카드까지 모두 균일하게 상승 */
+@media (min-width: 1120px) {
+  #view-home.home-anim > *,
+  #view-home.home-anim > .home-row > *,
+  #view-home.home-anim > .home-row > div[style*="grid-template-columns"] > * { animation: homeRise .6s cubic-bezier(.28,0,.05,1) both !important; animation-delay: 0s !important; }
+  #view-home.home-anim > #home-polls { animation: none !important; }
+}
 @keyframes ndViewFromL { from { opacity: 0; transform: translateX(-44px); } to { opacity: 1; transform: none; } }
 .view.nd-slide-r { animation: ndViewFromR .3s cubic-bezier(.22,1,.36,1); }
 .view.nd-slide-l { animation: ndViewFromL .3s cubic-bezier(.22,1,.36,1); }
@@ -400,6 +407,13 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 [data-theme="dark"] #notice-modal .ev-sect { border-top-color: rgba(251,191,36,.22); }
 #notice-modal .ev-sect.ev-tint { background: rgba(251,191,36,.12); }
 [data-theme="dark"] #notice-modal .ev-sect.ev-tint { background: rgba(251,191,36,.10); }
+/* 큰 화면: 공지 작성 모달을 전체적으로 크게(폭·패딩·내용칸 높이) */
+@media (min-width: 900px) {
+  #notice-modal .modal { max-width: 660px !important; }
+  #notice-modal .modal-header { padding: 24px 32px 17px; }
+  #notice-modal .ev-sect { padding: 17px 32px 18px; }
+  #notice-modal #notice-text { min-height: 240px; }
+}
 #notice-modal .ev-sect .form-label { color: #b8860b; font-weight: 700; font-size: 12.5px; margin: 0 0 7px; display: block; }
 [data-theme="dark"] #notice-modal .ev-sect .form-label { color: #e6c14d; }
 /* ===== 투표(오늘의 투표) ===== */
@@ -1055,6 +1069,29 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 #sheet-header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px; }
 #sheet-title { font-size:17px; font-weight:800; color:var(--text); flex:1; text-align:center; }
 #sheet-close { width:32px; height:32px; border-radius:50%; border:none; background:rgba(120,120,128,0.14); color:var(--text); font-size:15px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+/* 큰 화면: 바텀시트를 중앙 팝업으로 */
+@media (min-width: 900px) {
+  #sheet-overlay { align-items: center; }
+  #sheet-panel { max-width: 460px; border-radius: 24px; border-bottom: 1px solid transparent; box-shadow: 0 22px 60px -12px rgba(15,23,42,0.34); padding: 22px 26px 26px; transform: translateY(14px) scale(.96); opacity: 0; transition: transform .34s cubic-bezier(.16,1,.3,1), opacity .26s ease; }
+  #sheet-overlay.open #sheet-panel { transform: none; opacity: 1; }
+  #sheet-grabber { display: none; }
+}
+/* 토글 스위치(우리 스타일) */
+.nd-switch { position: relative; width: 46px; height: 27px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); cursor: pointer; flex-shrink: 0; transition: background .2s, border-color .2s; -webkit-tap-highlight-color: transparent; }
+.nd-switch.on { background: #3182f6; border-color: #3182f6; }
+[data-theme="dark"] .nd-switch.on { background: #4a94ff; border-color: #4a94ff; }
+.nd-switch-knob { position: absolute; top: 2px; left: 2px; width: 21px; height: 21px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.28); transition: transform .24s cubic-bezier(.34,1.5,.64,1); }
+.nd-switch.on .nd-switch-knob { transform: translateX(19px); }
+/* 알림 설정 시트 내부 */
+.ns-sec-title { font-size: 13px; font-weight: 800; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; }
+.ns-card { background: var(--surface2); border-radius: 16px; padding: 2px 16px; margin-bottom: 14px; }
+.ns-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; cursor: pointer; border-top: 1px solid var(--border); }
+.ns-row:first-child { border-top: none; }
+.ns-label { font-size: 15px; font-weight: 600; color: var(--text); }
+.ns-status { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.ns-btn { width: 100%; background: none; border: 1px solid var(--border); color: var(--muted); padding: 12px; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 700; margin-bottom: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.ns-btn svg { flex-shrink: 0; }
+.ns-btn-primary { background: #6366f1; border-color: #6366f1; color: #fff; }
 
 /* ===== 로그인 카드 그라디언트 ===== */
 .login-box { width:100%; max-width:none; margin:0; border-radius:20px; padding:26px 24px; border:1px solid transparent !important; position:relative; overflow:hidden; box-shadow:0 1px 2px rgba(20,24,40,.04), 0 12px 28px -16px rgba(20,24,40,.17); }
@@ -1145,7 +1182,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   <div id="sheet-panel">
     <div id="sheet-grabber"></div>
     <div id="sheet-header">
-      <button id="sheet-close" onclick="closeSheet()">✕</button>
+      <button id="sheet-close" onclick="closeSheet()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
       <div id="sheet-title"></div>
       <div style="width:32px;flex-shrink:0;"></div>
     </div>
@@ -3028,18 +3065,27 @@ function _hmItems(grid){
   return out;
 }
 var _hmRO=null, _hmT=null;
-// span 계산 + FLIP 이동만 수행. (ResizeObserver/resize가 호출 — 여기서 observe 하지 않음 → 재관찰 무한루프/스크롤 먹통 방지)
+function _hmSpans(items){ items.forEach(function(it){ var h=it.getBoundingClientRect().height; if(h>0) it.style.gridRowEnd='span '+Math.max(1, Math.ceil((h+16)/8)); }); }
+// RO 콜백: 디바운스 없이 즉시 span만 갱신(FLIP 없음) → 카드가 커지는 동안 아래 카드가 곧바로 따라 내려가 '겹침' 방지.
+// (grid 셀만 바꾸므로 관찰 대상 content-box는 그대로 → RO 재발생/루프 없음)
+function _hmApplySpans(){
+  var grid=document.getElementById('view-home'); if(!grid) return;
+  if(getComputedStyle(grid).display!=='grid'){ grid.classList.remove('hm-on'); return; }
+  grid.classList.add('hm-on');
+  _hmSpans(_hmItems(grid));
+}
+// 재배치 + FLIP(부드러운 이동). renderHome/renderPolls가 호출.
 function _hmApply(){
   var grid=document.getElementById('view-home'); if(!grid) return null;
   var isGrid=getComputedStyle(grid).display==='grid';
   var items=_hmItems(grid);
   if(!isGrid){ grid.classList.remove('hm-on'); items.forEach(function(it){ it.style.gridRowEnd=''; }); return items; }
   grid.classList.add('hm-on');
-  var rowH=8, gap=16;
-  var first=new Map(); items.forEach(function(it){ first.set(it, it.getBoundingClientRect()); });   // FLIP: 이전 위치 기록
-  items.forEach(function(it){ it.style.gridRowEnd=''; });               // 자연 높이 측정 위해 리셋
-  items.forEach(function(it){ var h=it.getBoundingClientRect().height; if(h>0) it.style.gridRowEnd='span '+Math.max(1, Math.ceil((h+gap)/rowH)); });
-  items.forEach(function(it){                                           // FLIP: 이전→새 위치로 부드럽게 이동(투둑 방지)
+  var doFlip = !grid.classList.contains('home-anim');   // 초기 등장(home-anim) 중엔 FLIP 생략(homeRise와 충돌/순서 꼬임 방지)
+  var first = doFlip ? new Map() : null;
+  if(doFlip) items.forEach(function(it){ first.set(it, it.getBoundingClientRect()); });   // FLIP: 이전 위치
+  _hmSpans(items);
+  if(doFlip) items.forEach(function(it){                                // FLIP: 이전→새 위치로 부드럽게 이동(투둑 방지)
     var o=first.get(it); if(!o) return; var n=it.getBoundingClientRect();
     var dx=o.left-n.left, dy=o.top-n.top;
     if(Math.abs(dx)<1 && Math.abs(dy)<1) return;
@@ -3047,11 +3093,11 @@ function _hmApply(){
   });
   return items;
 }
-// renderHome/renderPolls가 호출: span 적용 + 아이템 재관찰(1회). RO 콜백은 _hmApply만 부르므로 루프 없음.
+// renderHome/renderPolls가 호출: 재배치+FLIP + 아이템 재관찰(1회). RO 콜백은 _hmApplySpans(즉시)만 부르므로 루프 없음.
 function layoutHomeMasonry(){
   var items=_hmApply();
   if(window.ResizeObserver){
-    if(!_hmRO){ _hmRO=new ResizeObserver(function(){ clearTimeout(_hmT); _hmT=setTimeout(_hmApply, 110); }); }
+    if(!_hmRO){ _hmRO=new ResizeObserver(function(){ _hmApplySpans(); }); }
     else { _hmRO.disconnect(); }
     if(items) items.forEach(function(it){ _hmRO.observe(it); });
   }
@@ -7439,11 +7485,11 @@ async function _refreshUserSettingsModal() {
   btn.style.display = '';
   if (testBtn) testBtn.style.display = subbed ? '' : 'none';   // 구독된 기기에서만 테스트 버튼 노출
   if (subbed) {
-    btn.textContent = '🔕 이 기기 알림 끄기';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg> 이 기기 알림 끄기'; btn.style.display='inline-flex'; btn.style.alignItems='center'; btn.style.justifyContent='center'; btn.style.gap='6px';
     btn.style.borderColor = '#f8a0a0'; btn.style.color = '#d65a52';
     if (status) { status.textContent = '✓ 이 기기에서 알림이 켜져 있습니다.'; status.style.color = '#45847a'; }
   } else {
-    btn.textContent = '🔔 이 기기 알림 켜기';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> 이 기기 알림 켜기'; btn.style.display='inline-flex'; btn.style.alignItems='center'; btn.style.justifyContent='center'; btn.style.gap='6px';
     btn.style.borderColor = 'var(--border)'; btn.style.color = 'var(--muted)';
     if (status) { status.textContent = '이 기기에서 알림이 꺼져 있습니다.'; status.style.color = 'var(--muted)'; }
   }
@@ -7909,21 +7955,41 @@ function openAccountSheet(){
     <button onclick="logoutUser();closeSheet();" style="width:100%;margin-top:22px;background:none;border:1px solid #f8a0a0;color:#d65a52;padding:12px;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;">로그아웃</button>`;
   openSheet('계정 정보', html);
 }
-// 알림 설정 시트
+// 알림 설정 시트 — 근무/공지/투표 알림을 각각 토글. 공지·투표는 기본 켜짐, 끄면 확인.
+function getUserNotify(){
+  var p; try{ p=JSON.parse(localStorage.getItem('nd_user_notify')||'{}'); }catch(e){ p={}; }
+  return { work:(p.work!==false && p.enabled!==false), notice:(p.notice!==false), poll:(p.poll!==false) };
+}
+function setUserNotify(key, val){
+  var p=getUserNotify(); p[key]=val;
+  try{ localStorage.setItem('nd_user_notify', JSON.stringify({ work:p.work, notice:p.notice, poll:p.poll, enabled:p.work })); }catch(e){}
+}
+function _nsToggle(id, el, ev){
+  if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+  var n=getUserNotify();
+  var nv=!n[id];
+  if(!nv && (id==='notice'||id==='poll')){
+    if(!confirm('이 알림을 끄면 팀의 공지와 투표 소식을 받지 못할 수 있습니다.\n정말 끄시겠어요?')) return;
+  }
+  setUserNotify(id, nv);
+  if(el) el.classList.toggle('on', nv);
+  toast(nv?'알림 켜짐':'알림 꺼짐','success');
+}
 function openNotifySheet(){
   closeHdrMenu();
-  const pref = JSON.parse(localStorage.getItem('nd_user_notify')||'{}');
-  const html = `
-    <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;">🔔 푸시 알림</div>
-    <div style="background:var(--surface2);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px;">
-      <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:12px;">
-        <span style="font-size:15px;">오늘 근무 알림 받기</span>
-        <input type="checkbox" id="us-push-enabled" style="width:20px;height:20px;cursor:pointer;" onchange="saveUserSettings()" ${pref.enabled!==false?'checked':''}>
-      </label>
-      <div id="us-push-status" style="font-size:12px;color:var(--muted);"></div>
-      <button id="us-push-toggle-btn" onclick="togglePush()" style="background:none;border:1px solid var(--border);color:var(--muted);padding:11px 12px;border-radius:11px;cursor:pointer;font-size:14px;font-weight:600;"></button>
-      <button id="us-push-test-btn" onclick="sendTestPush()" style="background:#6366f1;border:none;color:#fff;padding:11px 12px;border-radius:11px;cursor:pointer;font-size:14px;font-weight:700;">🔔 테스트 알림 보내기</button>
-    </div>`;
+  const n=getUserNotify();
+  const BELL='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
+  const row=(id,label,on)=>`<label class="ns-row"><span class="ns-label">${label}</span><span class="nd-switch${on?' on':''}" onclick="_nsToggle('${id}',this,event)"><span class="nd-switch-knob"></span></span></label>`;
+  const html=`
+    <div class="ns-sec-title" style="gap:5px;">${BELL} 푸시 알림</div>
+    <div class="ns-card">
+      ${row('work','근무 알림', n.work)}
+      ${row('notice','오늘의 공지 알림', n.notice)}
+      ${row('poll','오늘의 투표 알림', n.poll)}
+    </div>
+    <div id="us-push-status" class="ns-status"></div>
+    <button id="us-push-toggle-btn" onclick="togglePush()" class="ns-btn"></button>
+    <button id="us-push-test-btn" onclick="sendTestPush()" class="ns-btn ns-btn-primary">${BELL} 테스트 알림 보내기</button>`;
   openSheet('알림 설정', html);
   _refreshUserSettingsModal();
 }
@@ -8067,7 +8133,7 @@ function renderNoticeBar() {
               <div class="ntc-title" style="font-size:15px;font-weight:800;line-height:1.4;word-break:break-word;">${_pEsc(title)}${bell}</div>
               <div style="display:flex;align-items:center;gap:6px;margin-top:6px;"><span style="font-size:11.5px;color:#b8860b;font-weight:800;">눌러서 전체 보기 ›</span>${by}</div>
             </div>
-            <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">${span}${edit}</div>
+            <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">${span}</div>
           </div>
         ${_noticeReactBar(it, false)}</div>`;
   };
@@ -8183,15 +8249,21 @@ function openReactDetail(itemId){
   ov.style.display='flex';
   const notice=document.getElementById('poll-modal-card');
   const gap=16;
-  // 좁은 화면 기준: 두 카드가 나란히 들어갈 여유가 없으면 '위에 덮기'
+  // ★ 공지 카드의 이전 transform/애니(모프·직전 shift)를 먼저 완전히 정리 → 항상 '원위치(중앙)'에서 측정.
+  //   (남은 transform 상태로 측정하면 계산이 어긋나 '가끔 겹쳐서' 생성되던 문제 방지)
+  if(notice){
+    notice.getAnimations().forEach(function(a){ try{a.cancel();}catch(e){} });
+    notice.style.transition='none';
+    notice.style.transform='none';
+    void notice.offsetWidth;   // 리플로우로 원위치 확정
+  }
   const cwEst = 400;
   const wide = notice && (window.innerWidth >= (notice.getBoundingClientRect().width + gap + cwEst + 24));
   if(wide){
     // 넓은 화면: 공지 팝업 카드 옆에 나란히 (쌍을 화면 중앙에 배치되게 공지 카드를 왼쪽으로 이동)
     ov.classList.add('r2-side');   // 배경 투명 + 카드 position:fixed
     const cw=card.offsetWidth||cwEst, ch=card.offsetHeight||400;
-    if(notice) notice.getAnimations().forEach(function(a){ try{a.cancel();}catch(e){} });  // 모프 애니 제거 → inline transform 적용 가능
-    const nr=notice.getBoundingClientRect();
+    const nr=notice.getBoundingClientRect();   // 원위치(중앙)에서 측정
     const shift=Math.round((cw+gap)/2);   // 공지 카드를 왼쪽으로 이동시켜 쌍을 중앙 정렬
     notice.style.transition='transform .32s cubic-bezier(.5,0,.35,1)';
     notice.style.transform='translateX(-'+shift+'px)';
@@ -8258,11 +8330,34 @@ function openNoticeDetail(itemId){
     }
   }catch(e){ if(pm) pm.classList.remove('nc-morph'); }
 }
+function _noticeIsMine(it){
+  if(!it) return false;
+  if(typeof isMaster!=='undefined' && isMaster) return true;   // 마스터는 항상 가능
+  var u=currentUser||{};
+  if(it.postedById) return it.postedById===u.staffId;
+  return !!(it.postedBy && u.name && it.postedBy===u.name);     // 구버전(작성자ID 없음) 이름 매칭
+}
+// 상세 팝업 → 수정창: 블러+오파시티로 팝업 사라지고, 수정 팝업도 블러+오파시티로 등장
+function _noticeEditFromDetail(id){
+  var pc=document.getElementById('poll-modal-card'), pm=document.getElementById('poll-modal');
+  try{ if(pc) pc.animate([{opacity:1,filter:'blur(0px)'},{opacity:0,filter:'blur(14px)'}],{duration:280,easing:'cubic-bezier(.4,0,.5,1)',fill:'forwards'}); }catch(e){}
+  try{ if(pm) pm.animate([{opacity:1},{opacity:0}],{duration:280,easing:'ease',fill:'forwards'}); }catch(e){}
+  setTimeout(function(){
+    try{ if(pc) pc.getAnimations().forEach(function(a){a.cancel();}); }catch(e){}
+    try{ if(pm) pm.getAnimations().forEach(function(a){a.cancel();}); }catch(e){}
+    if(pm){ pm.style.display='none'; pm.classList.remove('nc-yellow','nc-morph'); }
+    window._noticeDetailId=null;
+    openNoticeModal(id);
+    var nc=document.querySelector('#notice-modal .modal');
+    try{ if(nc) nc.animate([{opacity:0,filter:'blur(14px)',transform:'scale(.97)'},{opacity:1,filter:'blur(0px)',transform:'scale(1)'}],{duration:360,easing:'cubic-bezier(.16,1,.3,1)'}); }catch(e){}
+  }, 275);
+}
 function _noticeDetailHtml(it){
   const title=(it.title||'').trim() || (it.text||'').split('\n')[0] || '공지';
   const body=(it.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const by=it.postedBy?`<div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:13px;">${_pEsc(it.postedBy)}님이 올림</div>`:'';
-  return `<div class="modal-header"><div class="mh-title">${_pEsc(title)}</div><button class="modal-close" onclick="closePollModal()">✕</button></div>
+  const _edit = _noticeIsMine(it) ? `<button class="modal-close" onclick="_noticeEditFromDetail('${it.id}')" title="수정" style="color:#b8860b;"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>` : '';
+  return `<div class="modal-header"><div class="mh-title">${_pEsc(title)}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">${_edit}<button class="modal-close" onclick="closePollModal()">✕</button></div></div>
     <div class="poll-scroll" style="padding:16px 20px 18px;">
       ${by}
       <div style="font-size:14.5px;color:var(--text);line-height:1.75;white-space:pre-wrap;word-break:break-word;">${body}</div>
@@ -8400,7 +8495,7 @@ async function saveNotice() {
     if (found) { found.it.text = text; found.it.title = title; found.it.silent = silent; if (until > found.ds) found.it.until = until; else delete found.it.until; isEdit = true; }
   }
   if (!isEdit && text) {
-    const nit = { id:_genNoticeId(), text, title, postedBy:currentUser.name||'', postedAt:new Date().toISOString(), silent };  // 새 공지는 맨 앞(최신)
+    const nit = { id:_genNoticeId(), text, title, postedBy:currentUser.name||'', postedById:(currentUser.staffId||''), postedAt:new Date().toISOString(), silent };  // 새 공지는 맨 앞(최신)
     if (until > ds) nit.until = until;
     box.items.unshift(nit);
   }
