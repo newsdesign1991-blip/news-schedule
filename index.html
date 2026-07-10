@@ -23,7 +23,7 @@
   document.addEventListener(ev, function(e){ e.preventDefault(); }, { passive:false });
 });
 // 테마: 저장값을 즉시 적용(깜빡임 방지) — 파싱 시점에 <html>에 표시
-(function(){ try { if (localStorage.getItem('nd_theme')==='dark') document.documentElement.setAttribute('data-theme','dark'); } catch(e){} })();
+(function(){ try { var t=localStorage.getItem('nd_theme'); var sysDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches; if (t==='dark' || (!t && sysDark)) document.documentElement.setAttribute('data-theme','dark'); } catch(e){} })();
 </script>
 <style>
 :root {
@@ -109,6 +109,7 @@ body { transition: background-color .25s ease, color .25s ease; }
 #theme-toggle .tt-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center; font-size: 11px; line-height: 1; transition: transform .26s cubic-bezier(.34,1.56,.64,1); }
 [data-theme="dark"] #theme-toggle { background: #514e47; border-color: rgba(255,255,255,0.12); }
 [data-theme="dark"] #theme-toggle .tt-knob { transform: translateX(20px); background: #dcd8ce; }
+#theme-toggle .tt-knob { color: #475569; }
 /* ===== 다크 모드 화면별 보정: 로그인/근무표/달력/작성소 ===== */
 /* 관리자 로그인 카드 */
 [data-theme="dark"] .login-box.lb-admin { background: linear-gradient(140deg,#33324a 0%,#2b2a3d 100%); }
@@ -224,6 +225,36 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .home-row { display: grid; gap: 14px; margin-bottom: 14px; }
 .home-row.cols-3 { grid-template-columns: 300px 1fr 1fr; }
 .home-row.cols-2 { grid-template-columns: 340px 1fr; }
+/* ===== 넓은 화면: 홈을 다단(2~3열) 그리드로. 기존 행 래퍼는 display:contents로 평탄화해 패널이 개별 배치 ===== */
+@media (min-width: 1120px) {
+  #view-home.active { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; row-gap: 16px; align-items: start; grid-auto-flow: row dense; max-width: 1180px; margin-left: auto; margin-right: auto; }
+  #view-home.hm-on { grid-auto-rows: 8px; row-gap: 0; }   /* 벽돌쌓기: JS가 각 카드 span 계산(실패 시 이 클래스 미부여로 일반 그리드 폴백) */
+  #view-home > .home-row { display: contents; }
+  #view-home > .home-row > div[style*="grid-template-columns"] { display: contents !important; }
+  #view-home > *,
+  #view-home > .home-row > *,
+  #view-home > .home-row > div[style*="grid-template-columns"] > * { margin: 0 !important; min-width: 0; align-self: start; }
+  #my-schedule-card { grid-column: 1 / -1; }          /* 이번주 내 근무(가로 스트립) 전체폭 */
+  #home-week-panel { grid-column: 1 / -1; }            /* 이번 주 일정: 넓게(2열일 땐 전체=2칸) */
+  .home-summary-duty { grid-column: 1 / -1; }          /* 부서 근무 현황: 넓게 */
+  /* C안 + 그룹핑: 이번 주 일정을 상단에, 부서 패널(VW·CG·PRJ·SPT)을 인접 배치 */
+  #my-schedule-card { order: 0; }   /* 넓은 화면: '투표가 위' 규칙 없이 이번주 내 근무를 최상단 */
+  #home-polls { order: 1; }
+  #home-week-panel { order: 2; }
+  #home-notice { order: 3; }
+  #view-home .panel:has(#vw-today-chips) { order: 4; }
+  #view-home .panel:has(#cg-today-chips) { order: 5; }
+  #view-home .panel:has(#project-today-chips) { order: 6; }
+  #view-home .panel:has(#sports-today-chips) { order: 7; }
+  .home-summary-duty { order: 8; }
+  #view-home .panel:has(#home-week-summary) { order: 9; }
+  #view-home .panel:has(.quick-links) { order: 10; }
+}
+@media (min-width: 1560px) {
+  #view-home.active { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1720px; }
+  #home-week-panel { grid-column: span 2; }            /* 3열일 땐 이번 주 일정 2칸(2개행까지) */
+  .home-summary-duty { grid-column: span 2; }
+}
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 10px; border-bottom: 1px solid var(--border); }
 .panel-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
@@ -417,19 +448,21 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .react-emo { width: 40px; height: 40px; border: none; background: none; border-radius: 12px; font-size: 22px; cursor: pointer; line-height: 1; -webkit-tap-highlight-color: transparent; }
 .react-emo:hover { background: rgba(120,120,128,.14); }
 /* 투표 모달 (event-add 스타일, 블루 틴트) */
-#poll-modal .modal { padding: 0 !important; overflow: hidden; border: 1px solid transparent; border-radius: 20px; background: linear-gradient(#f8fafd,#f8fafd) padding-box, linear-gradient(135deg,#ffffff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13) 100%) border-box; }
-[data-theme="dark"] #poll-modal .modal { background: linear-gradient(#212121,#212121) padding-box, linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.05) 40%, rgba(0,0,0,.32) 100%) border-box; }
-#poll-modal .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 15px; margin: 0; flex-shrink: 0; background: rgba(49,130,246,.07); }
-[data-theme="dark"] #poll-modal .modal-header { background: rgba(106,168,255,.08); }
+#poll-modal .modal, #react2-modal .modal { padding: 0 !important; overflow: hidden; border: 1px solid transparent; border-radius: 20px; background: linear-gradient(#f8fafd,#f8fafd) padding-box, linear-gradient(135deg,#ffffff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13) 100%) border-box; }
+[data-theme="dark"] #poll-modal .modal, [data-theme="dark"] #react2-modal .modal { background: linear-gradient(#212121,#212121) padding-box, linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.05) 40%, rgba(0,0,0,.32) 100%) border-box; }
+#poll-modal .modal-header, #react2-modal .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 15px; margin: 0; flex-shrink: 0; background: rgba(49,130,246,.07); }
+[data-theme="dark"] #poll-modal .modal-header, [data-theme="dark"] #react2-modal .modal-header { background: rgba(106,168,255,.08); }
 #poll-modal.nc-yellow .modal-header { background: rgba(232,137,12,.12); }
 [data-theme="dark"] #poll-modal.nc-yellow .modal-header { background: rgba(255,190,80,.1); }
 #poll-modal.nc-yellow .mh-title { color: #b8860b; }
 [data-theme="dark"] #poll-modal.nc-yellow .mh-title { color: #e9c063; }
 #poll-modal.nc-morph:not(.nd-closing) > .modal { animation: none !important; }
-#poll-modal .mh-title { font-size: 17px; font-weight: 800; letter-spacing: -.02em; color: var(--text); }
-#poll-modal .modal-close { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.55); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.65); color: var(--text); font-size: 17px; box-shadow: 0 2px 8px rgba(15,23,42,0.12); cursor: pointer; flex-shrink: 0; }
-[data-theme="dark"] #poll-modal .modal-close { background: rgba(50,50,50,0.55); border-color: rgba(255,255,255,0.12); }
-#poll-modal .poll-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+#poll-modal .mh-title, #react2-modal .mh-title { font-size: 17px; font-weight: 800; letter-spacing: -.02em; color: var(--text); }
+#poll-modal .modal-close, #react2-modal .modal-close { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.55); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.65); color: var(--text); font-size: 17px; box-shadow: 0 2px 8px rgba(15,23,42,0.12); cursor: pointer; flex-shrink: 0; }
+[data-theme="dark"] #poll-modal .modal-close, [data-theme="dark"] #react2-modal .modal-close { background: rgba(50,50,50,0.55); border-color: rgba(255,255,255,0.12); }
+#poll-modal .poll-scroll, #react2-modal .poll-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+#react2-modal.r2-side { background: transparent; }
+#react2-modal.r2-side .modal { position: fixed; }
 /* 팝업 내부 스크롤이 배경으로 전파되지 않게(스크롤 체이닝 차단) */
 .modal-overlay, #lr-popup-overlay, .nd-modal, .staff-modal-overlay { overscroll-behavior: contain; }
 .modal, .nd-modal > div, .nd-pop, .poll-scroll, #poll-modal .poll-scroll { overscroll-behavior: contain; }
@@ -596,7 +629,7 @@ button, input, select, textarea { font-family: inherit; }
 .mysched-head { display: flex; align-items: center; justify-content: space-between; padding: 22.5px 2px 6px 0; gap: 8px; }
 .mysched-title { font-size: 17px; font-weight: 700; letter-spacing: -.02em; color: var(--text); padding-left: 3px; }
 .mysched-push { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 999px; cursor: pointer; font-size: 12px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
-.mw-strip { display: flex; gap: 8px; overflow-x: auto; padding: 6px 20px 12px; margin-left: -20px; margin-right: -20px; align-items: flex-start; scrollbar-width: none; -webkit-mask: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); mask: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); }
+.mw-strip { display: flex; gap: 8px; overflow-x: auto; padding: 8px 20px 20px; margin-left: -20px; margin-right: -20px; align-items: flex-start; scrollbar-width: none; -webkit-mask: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); mask: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); }
 .mw-strip::-webkit-scrollbar { height: 0; }
 @media (max-width: 700px) { .mw-strip { padding-left: 12px; padding-right: 12px; margin-left: -12px; margin-right: -12px; } }
 .mw-day { flex: 0 0 auto; width: 62px; background: var(--surface); border-radius: 16px; padding: 12px 7px 7px; text-align: center; box-shadow: 0 1px 3px rgba(20,24,40,.05); }
@@ -608,6 +641,9 @@ button, input, select, textarea { font-family: inherit; }
 .mw-role { font-size: 13.5px; font-weight: 700; padding: 6px 4px; border-radius: 9px; display: block; line-height: 1.15; word-break: keep-all; }
 .mw-role.mw-none { color: var(--muted); background: transparent; }
 [data-theme="dark"] .mw-day { box-shadow: 0 1px 3px rgba(0,0,0,.22); }
+/* 스트립(가로스크롤 overflow로 세로가 클립됨)에 맞춰 그림자를 여백 안에 들어오는 크기로 — 싹둑 잘림 방지 */
+.mw-strip .mw-day:not(.today) { box-shadow: 0 4px 13px -5px rgba(20,24,40,.20), 0 1px 2px rgba(20,24,40,.05) !important; }
+[data-theme="dark"] .mw-strip .mw-day:not(.today) { box-shadow: 0 4px 13px -5px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.3) !important; }
 /* 헤더: 로고 제거 → 로그인 이름 */
 .logo#hdr-user { font-size: 21px; font-weight: 800; letter-spacing: -.03em; padding-left: 3px; }
 #hdr-user b { color: #3182f6; font-weight: 800; }
@@ -1061,7 +1097,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   </nav>
   <div class="header-right">
     <span class="date-badge" id="header-date"></span>
-    <button id="theme-toggle" onclick="toggleTheme()" role="switch" aria-label="라이트/다크 전환" title="라이트/다크 전환"><span class="tt-knob" id="tt-knob">☀</span></button>
+    <button id="theme-toggle" onclick="toggleTheme()" role="switch" aria-label="라이트/다크 전환" title="라이트/다크 전환"><span class="tt-knob" id="tt-knob"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.5 12h2M19.5 12h2M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg></span></button>
     <button id="hdr-menu-btn" onclick="toggleHdrMenu(event)" title="메뉴" aria-label="메뉴"><span id="hdr-menu-avatar">☰</span></button>
     <!-- 관리자 진입 상태 토글용(숨김, 로직 호환) -->
     <button class="admin-link" id="admin-toggle" onclick="toggleAdmin()" style="display:none;">⚙</button>
@@ -1267,6 +1303,10 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <div id="poll-modal" class="modal-overlay" style="display:none;z-index:9999;" onclick="if(event.target===this)closePollModal()">
   <div class="modal" id="poll-modal-card" style="max-width:440px;max-height:86vh;display:flex;flex-direction:column;"></div>
 </div>
+<!-- 공감 현황(공지 팝업 위/옆에 뜨는 보조 팝업) -->
+<div id="react2-modal" class="modal-overlay" style="display:none;z-index:10011;" onclick="if(event.target===this)closeReact2()">
+  <div class="modal" id="react2-card" style="max-width:400px;max-height:80vh;display:flex;flex-direction:column;"></div>
+</div>
 
 <!-- 로그인 모달 -->
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;overflow:hidden;">
@@ -1278,6 +1318,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
     <input type="text" id="login-name-input" class="form-input" placeholder="이름 입력 (예: 홍길동)" maxlength="10" style="text-align:center;font-size:16px;padding:10px;margin-bottom:6px;" onkeydown="if(event.key==='Enter')loginUser()">
     <div id="login-name-error" style="font-size:12px;color:#d65a52;margin-bottom:4px;min-height:0;"></div>
     <button class="btn btn-primary" style="width:100%;font-size:15px;padding:10px;" onclick="loginUser()">입장</button>
+    <div style="margin-top:14px;font-size:11.5px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px;line-height:1.5;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" style="flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>라이트·다크 모드는 앱 안에서 바꿀 수 있어요</div>
   </div>
 </div>
 
@@ -1292,7 +1333,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   <div class="summary-row" id="home-summary"></div>
   <div class="summary-row" id="home-duty-row" style="grid-template-columns:1fr 1fr;"></div>
   </div>
-  <div class="panel" style="margin-bottom:14px;">
+  <div class="panel" id="home-week-panel" style="margin-bottom:14px;">
     <div class="panel-header">
       <div class="panel-title">이번 주 일정</div>
       <div style="display:flex;gap:6px;align-items:center;">
@@ -2664,7 +2705,7 @@ function updateLeaveReqBadge() {
 function _applyThemeUI(){
   const dark = document.documentElement.getAttribute('data-theme')==='dark';
   const knob = document.getElementById('tt-knob');
-  if (knob) knob.textContent = dark ? '🌙' : '☀';
+  if (knob) knob.innerHTML = dark ? '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" stroke="none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>' : '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.5 12h2M19.5 12h2M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg>';
   const tt = document.getElementById('theme-toggle');
   if (tt) tt.setAttribute('aria-checked', dark ? 'true' : 'false');
   const meta = document.querySelector('meta[name="theme-color"]');
@@ -2968,7 +3009,54 @@ function renderHome() {
   });
   wsHtml+='</table></div>';
   document.getElementById('home-week-summary').innerHTML=wsHtml;
+  try{ layoutHomeMasonry(); }catch(e){}
 }
+// ===== 넓은 화면 벽돌쌓기(masonry): 각 카드가 자기 높이만큼 grid 행을 차지하게 해 세로 빈틈 제거 =====
+// display:contents로 평탄화된 래퍼(.home-row, 내부 그리드)를 뚫고 실제 그리드 아이템만 수집
+function _hmItems(grid){
+  var out=[];
+  Array.prototype.forEach.call(grid.children, function(ch){
+    var d=getComputedStyle(ch).display; if(d==='none') return;
+    if(d==='contents'){
+      Array.prototype.forEach.call(ch.children, function(g){
+        var gd=getComputedStyle(g).display; if(gd==='none') return;
+        if(gd==='contents'){ Array.prototype.forEach.call(g.children, function(x){ if(getComputedStyle(x).display!=='none') out.push(x); }); }
+        else out.push(g);
+      });
+    } else out.push(ch);
+  });
+  return out;
+}
+var _hmRO=null, _hmT=null;
+// span 계산 + FLIP 이동만 수행. (ResizeObserver/resize가 호출 — 여기서 observe 하지 않음 → 재관찰 무한루프/스크롤 먹통 방지)
+function _hmApply(){
+  var grid=document.getElementById('view-home'); if(!grid) return null;
+  var isGrid=getComputedStyle(grid).display==='grid';
+  var items=_hmItems(grid);
+  if(!isGrid){ grid.classList.remove('hm-on'); items.forEach(function(it){ it.style.gridRowEnd=''; }); return items; }
+  grid.classList.add('hm-on');
+  var rowH=8, gap=16;
+  var first=new Map(); items.forEach(function(it){ first.set(it, it.getBoundingClientRect()); });   // FLIP: 이전 위치 기록
+  items.forEach(function(it){ it.style.gridRowEnd=''; });               // 자연 높이 측정 위해 리셋
+  items.forEach(function(it){ var h=it.getBoundingClientRect().height; if(h>0) it.style.gridRowEnd='span '+Math.max(1, Math.ceil((h+gap)/rowH)); });
+  items.forEach(function(it){                                           // FLIP: 이전→새 위치로 부드럽게 이동(투둑 방지)
+    var o=first.get(it); if(!o) return; var n=it.getBoundingClientRect();
+    var dx=o.left-n.left, dy=o.top-n.top;
+    if(Math.abs(dx)<1 && Math.abs(dy)<1) return;
+    try{ it.animate([{transform:'translate('+dx+'px,'+dy+'px)'},{transform:'none'}],{duration:460,easing:'cubic-bezier(.34,.02,.2,1)'}); }catch(e){}
+  });
+  return items;
+}
+// renderHome/renderPolls가 호출: span 적용 + 아이템 재관찰(1회). RO 콜백은 _hmApply만 부르므로 루프 없음.
+function layoutHomeMasonry(){
+  var items=_hmApply();
+  if(window.ResizeObserver){
+    if(!_hmRO){ _hmRO=new ResizeObserver(function(){ clearTimeout(_hmT); _hmT=setTimeout(_hmApply, 110); }); }
+    else { _hmRO.disconnect(); }
+    if(items) items.forEach(function(it){ _hmRO.observe(it); });
+  }
+}
+window.addEventListener('resize', function(){ clearTimeout(_hmT); _hmT=setTimeout(layoutHomeMasonry, 140); });
 
 // ===== EXCEL TABLE VIEW =====
 function setThisMonth() {
@@ -8086,9 +8174,42 @@ function closeReactPicker(){ const p=document.getElementById('react-picker'); if
 function openReactDetail(itemId){
   const found=_findNoticeItem(itemId); if(!found) return;
   closeReactPicker();
-  _pollShow(_reactDetailHtml(found.it));
-  const c=document.getElementById('poll-modal-card');
-  if(c){ try{ c.animate([{opacity:0,filter:'blur(12px)'},{opacity:1,filter:'blur(0px)'}],{duration:360,easing:'cubic-bezier(.5,0,.35,1)'}); }catch(e){} }
+  const ov=document.getElementById('react2-modal'); const card=document.getElementById('react2-card');
+  if(!ov||!card){ _pollShow(_reactDetailHtml(found.it)); return; }
+  card.innerHTML=_reactDetailHtml(found.it);
+  // 위치 초기화
+  card.style.position=''; card.style.left=''; card.style.top=''; card.style.margin='';
+  ov.classList.remove('r2-side');
+  ov.style.display='flex';
+  const notice=document.getElementById('poll-modal-card');
+  const gap=16;
+  // 좁은 화면 기준: 두 카드가 나란히 들어갈 여유가 없으면 '위에 덮기'
+  const cwEst = 400;
+  const wide = notice && (window.innerWidth >= (notice.getBoundingClientRect().width + gap + cwEst + 24));
+  if(wide){
+    // 넓은 화면: 공지 팝업 카드 옆에 나란히 (쌍을 화면 중앙에 배치되게 공지 카드를 왼쪽으로 이동)
+    ov.classList.add('r2-side');   // 배경 투명 + 카드 position:fixed
+    const cw=card.offsetWidth||cwEst, ch=card.offsetHeight||400;
+    if(notice) notice.getAnimations().forEach(function(a){ try{a.cancel();}catch(e){} });  // 모프 애니 제거 → inline transform 적용 가능
+    const nr=notice.getBoundingClientRect();
+    const shift=Math.round((cw+gap)/2);   // 공지 카드를 왼쪽으로 이동시켜 쌍을 중앙 정렬
+    notice.style.transition='transform .32s cubic-bezier(.5,0,.35,1)';
+    notice.style.transform='translateX(-'+shift+'px)';
+    let left=(nr.right - shift) + gap;
+    if(left+cw>window.innerWidth-10) left=window.innerWidth-cw-10;
+    if(left<10) left=10;
+    let top=nr.top; if(top+ch>window.innerHeight-10) top=Math.max(10, window.innerHeight-ch-10);
+    card.style.left=Math.round(left)+'px'; card.style.top=Math.round(Math.max(10,top))+'px';
+  } else if(notice){
+    notice.style.transform='none';   // 좁은 화면: 공지 카드 이동 없음(위에 덮기)
+  }
+  // 등장: 블러+오파시티
+  try{ card.animate([{opacity:0,filter:'blur(12px)',transform:'scale(.97)'},{opacity:1,filter:'blur(0px)',transform:'scale(1)'}],{duration:340,easing:'cubic-bezier(.5,0,.35,1)'}); }catch(e){}
+}
+function closeReact2(){
+  const notice=document.getElementById('poll-modal-card');
+  if(notice){ notice.style.transition='transform .3s cubic-bezier(.5,0,.35,1)'; notice.style.transform='none'; }
+  _animModalClose(document.getElementById('react2-modal'));
 }
 function _reactDetailHtml(it){
   const rx=it.reactions||{};
@@ -8103,7 +8224,7 @@ function _reactDetailHtml(it){
   const notYet=(data.staff||[]).filter(st=>st.active!==false && !reacted.has(st.id)).map(st=>st.name);
   const notHtml=`<div class="poll-band" style="background:var(--surface2);"><div class="poll-band-hd" style="color:var(--muted);">아직 확인 안 함 · ${notYet.length}명</div><div class="poll-band-names" style="color:var(--muted);">${notYet.length?notYet.map(n=>`<span>${_pEsc(n)}</span>`).join(''):'<span>모두 확인했어요</span>'}</div></div>`;
   const preview=(it.text||'').replace(/\n/g,' ').slice(0,28);
-  return `<div class="modal-header"><div class="mh-title">공감 현황</div><button class="modal-close" onclick="closePollModal()">✕</button></div>
+  return `<div class="modal-header"><div class="mh-title">공감 현황</div><button class="modal-close" onclick="closeReact2()">✕</button></div>
     <div class="poll-scroll" style="padding:15px 20px 20px;">
       <div style="font-size:12px;color:var(--muted);margin-bottom:13px;line-height:1.5;">“${_pEsc(preview)}${(it.text||'').length>28?'…':''}”</div>
       ${rxHtml}${notHtml}
@@ -8363,6 +8484,7 @@ function renderPolls(){
   window._pollRenderedIds=nowIds;
   if(willAnim) _pollEnterAnim(host, doFlip?flipEls:null, firstTop);
   window._pollSeen=nowIds;
+  try{ if(typeof layoutHomeMasonry==='function') layoutHomeMasonry(); }catch(e){}   // 넓은 화면: 투표 등장/제거 시 다단 재배치
 }
 function _pollEnterAnim(host, flipEls, firstTop){
   try{
