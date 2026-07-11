@@ -1008,7 +1008,7 @@ input[type="date"].form-input, input[type="time"].form-input { -webkit-appearanc
 .btn-danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .btn-generate { background: var(--accent-grad); color: white; border-radius: var(--tw-radius-btn); font-weight: 700; }
 .error-msg { color: #d65a52; font-size: 12px; margin-top: 6px; }
-.admin-tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; background: var(--surface2); padding: 4px; border-radius: var(--tw-radius-btn); }
+.admin-tabs { display: flex; justify-content: center; gap: 4px 6px; margin-bottom: 20px; flex-wrap: wrap; background: var(--surface2); padding: 5px; border-radius: var(--tw-radius-btn); }
 .admin-tab { background: none; border: none; color: var(--muted); padding: 8px 14px; cursor: pointer; font-size: 13px; font-weight: 600; border-radius: var(--tw-radius-sm); transition: all 0.14s; }
 .admin-tab:hover { color: var(--text); }
 .admin-tab.active { color: var(--accent); background: var(--surface); box-shadow: 0 1px 3px rgba(20,24,40,.12); }
@@ -1798,11 +1798,11 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
       <button class="admin-tab active" onclick="showAdminTab('staff')">직원 관리</button>
       <button class="admin-tab" onclick="showAdminTab('leave')">근무 통계</button>
       <button class="admin-tab" onclick="showAdminTab('edit')">일정 편집</button>
-      <button class="admin-tab" onclick="showAdminTab('avoid')">🚫 특수근무 제외</button>
-      <button class="admin-tab" onclick="showAdminTab('guide')">📖 근무 안내</button>
-      <button class="admin-tab" onclick="showAdminTab('notify')">🔔 알림 제어</button>
+      <button class="admin-tab" onclick="showAdminTab('avoid')">특수근무 제외</button>
+      <button class="admin-tab" onclick="showAdminTab('guide')">근무 안내</button>
+      <button class="admin-tab" onclick="showAdminTab('notify')">알림 제어</button>
       <button class="admin-tab" onclick="showAdminTab('settings')">설정</button>
-      <button class="admin-tab" id="tab-loginlog" onclick="showAdminTab('loginlog')" style="display:none;">👥 로그인 기록</button>
+      <button class="admin-tab" id="tab-loginlog" onclick="showAdminTab('loginlog')" style="display:none;">로그인 기록</button>
     </div>
 
     <!-- STAFF -->
