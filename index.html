@@ -192,12 +192,33 @@ nav { display: flex; gap: 2px; }
     background: none; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
     padding: 7px 16px; border-radius: 999px; min-width: 50px;
     color: #1c1c1e; font-size: 10.5px; font-weight: 600; letter-spacing: -0.2px; line-height: 1.1;
-    transition: color .28s ease, background .28s ease;
+    transition: color .28s ease, background .28s ease, padding .55s cubic-bezier(.22,1,.36,1), min-width .55s cubic-bezier(.22,1,.36,1);
   }
   .fnav-btn .fnav-lb { white-space: nowrap; }
   .fnav-btn .fnav-ic { width: 23px; height: 23px; display: block; transition: transform .32s cubic-bezier(.34,1.56,.64,1); }
   .fnav-btn.active { color: #007aff; background: rgba(120,120,128,0.14); }
-  body.admin-mode-active #floating-nav .fnav-btn { padding: 7px 8px; min-width: 46px; }
+  /* 관리자 모드: 바를 살짝 더 넉넉하게(6버튼, 좁은 폰까지 안전) */
+  body.admin-mode-active #floating-nav { gap: 2px; }
+  body.admin-mode-active #floating-nav .fnav-btn { padding: 7px 8px; min-width: 44px; }
+  /* 관리자 전용 탭(작성소·관리자): 평소 접힘 → 관리자 진입 시 슈우욱 펼쳐지며 블러+페이드 인 */
+  #floating-nav .fnav-admin-only {
+    max-width: 0; min-width: 0; padding-left: 0; padding-right: 0;
+    opacity: 0; filter: blur(8px); transform: scale(.55);
+    overflow: hidden; pointer-events: none; white-space: nowrap;
+    transition: max-width .6s cubic-bezier(.22,1,.36,1), min-width .6s cubic-bezier(.22,1,.36,1), padding .6s cubic-bezier(.22,1,.36,1), opacity .5s ease, filter .55s ease, transform .6s cubic-bezier(.34,1.4,.5,1);
+  }
+  body.admin-mode-active #floating-nav .fnav-admin-only {
+    max-width: 56px; min-width: 44px; padding-left: 8px; padding-right: 8px;
+    opacity: 1; filter: blur(0); transform: scale(1); pointer-events: auto;
+  }
+  body.admin-mode-active #floating-nav #fnav-admin { transition-delay: .09s; }
+  /* 진입 인트로: 액센트 링 글로우 1회 */
+  @keyframes fnavModeIn {
+    0%   { box-shadow: 0 8px 28px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.06), 0 0 0 0 rgba(0,122,255,0.45); }
+    55%  { box-shadow: 0 8px 28px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.06), 0 0 0 11px rgba(0,122,255,0); }
+    100% { box-shadow: 0 8px 28px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.06), 0 0 0 0 rgba(0,122,255,0); }
+  }
+  #floating-nav.fnav-mode-in { animation: fnavModeIn .95s ease-out; }
   .fnav-btn.active .fnav-ic { transform: scale(1.05); }
   .fnav-btn:active .fnav-ic { transform: scale(0.86); }
   .fnav-btn.has-open::after { content: ''; position: absolute; top: 4px; right: 11px; width: 7px; height: 7px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 0 2px rgba(250,250,252,0.9); }
@@ -1302,10 +1323,10 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   <button class="fnav-btn" data-view="leavereq" id="fnav-leavereq" onclick="showView('leavereq')">
     <svg class="fnav-ic" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4.5"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></g></svg>
     <span class="fnav-lb">휴가</span></button>
-  <button class="fnav-btn" data-view="workshop" id="fnav-workshop" onclick="showView('workshop')" style="display:none;">
+  <button class="fnav-btn fnav-admin-only" data-view="workshop" id="fnav-workshop" onclick="showView('workshop')">
     <svg class="fnav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
     <span class="fnav-lb">작성소</span></button>
-  <button class="fnav-btn" data-view="admin" id="fnav-admin" onclick="showView('admin')" style="display:none;">
+  <button class="fnav-btn fnav-admin-only" data-view="admin" id="fnav-admin" onclick="showView('admin')">
     <svg class="fnav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M19.43 12.98c.04-.32.07-.64.07-.98 0-.34-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
     <span class="fnav-lb">관리자</span></button>
 </nav>
@@ -2799,10 +2820,8 @@ function _setAdminNav(on) {
   if (ws) ws.style.display = on ? 'inline-block' : 'none';
   const na = document.getElementById('nav-admin');
   if (na) na.style.display = on ? 'inline-block' : 'none';
-  const fws = document.getElementById('fnav-workshop');
-  if (fws) fws.style.display = on ? '' : 'none';
-  const fna = document.getElementById('fnav-admin');
-  if (fna) fna.style.display = on ? '' : 'none';
+  // 플로팅바 작성소·관리자 탭은 CSS(body.admin-mode-active)로 슈우욱 펼침 — display 토글 대신 애니메이션
+  if (on) { const _fn=document.getElementById('floating-nav'); if(_fn){ _fn.classList.remove('fnav-mode-in'); void _fn.offsetWidth; _fn.classList.add('fnav-mode-in'); setTimeout(function(){ _fn.classList.remove('fnav-mode-in'); }, 950); } }
   const bar = document.getElementById('admin-mode-bar');
   if (bar) bar.style.display = on ? 'block' : 'none';
   document.body.classList.toggle('admin-mode-active', on);
