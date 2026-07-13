@@ -23,7 +23,7 @@
   document.addEventListener(ev, function(e){ e.preventDefault(); }, { passive:false });
 });
 // 테마: 저장값을 즉시 적용(깜빡임 방지) — 파싱 시점에 <html>에 표시
-(function(){ try { var t=localStorage.getItem('nd_theme'); var sysDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches; if (t==='dark' || (!t && sysDark)) document.documentElement.setAttribute('data-theme','dark'); } catch(e){} })();
+(function(){ try { var t=localStorage.getItem('nd_theme'); var sysDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches; var isDark=(t==='dark' || (!t && sysDark)); if (isDark) document.documentElement.setAttribute('data-theme','dark'); var mc=document.querySelector('meta[name="theme-color"]'); if(mc) mc.setAttribute('content', isDark?'#0f0f0f':'#f1f4f8'); } catch(e){} })();
 </script>
 <style>
 :root {
@@ -3259,7 +3259,7 @@ function _applyThemeUI(){
   const tt = document.getElementById('theme-toggle');
   if (tt) tt.setAttribute('aria-checked', dark ? 'true' : 'false');
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) { const m=document.createElement('meta'); m.setAttribute('name','theme-color'); m.setAttribute('content', dark ? '#212121' : '#f1f4f8'); meta.replaceWith(m); }
+  if (meta) meta.setAttribute('content', dark ? '#0f0f0f' : '#f1f4f8');
 }
 function toggleTheme(){
   const dark = document.documentElement.getAttribute('data-theme')==='dark';
