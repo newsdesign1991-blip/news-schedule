@@ -186,8 +186,8 @@ nav { display: flex; gap: 2px; }
 #floating-nav, #fnav-fade, #hdr-fade, #statusbar-scrim, #hdr-fab { display: none; }
 @media (max-width: 760px) {
   header nav { display: none; }                 /* 모바일에선 상단 메뉴 숨김 */
-  header { position:fixed; left:0; right:0; }
-  #hdr-fab { display:flex; align-items:center; justify-content:center; position:fixed; top:calc(env(safe-area-inset-top) + 8px); right:12px; z-index:150; width:42px; height:42px; border-radius:50%; border:1px solid rgba(255,255,255,.65); background:rgba(255,255,255,.62); -webkit-backdrop-filter:blur(16px) saturate(180%); backdrop-filter:blur(16px) saturate(180%); box-shadow:0 4px 14px -4px rgba(20,24,40,.28); font-size:18px; line-height:1; color:var(--text); cursor:pointer; opacity:0; transform:translateY(-4px) scale(.9); pointer-events:none; transition:opacity .25s ease, transform .25s cubic-bezier(.34,1.4,.5,1); }
+  header { position:static; }
+  #hdr-fab { display:flex; align-items:center; justify-content:center; position:fixed; top:calc(env(safe-area-inset-top) + 8px); right:12px; z-index:150; width:42px; height:42px; border-radius:50%; border:1px solid rgba(255,255,255,.65); background:rgba(255,255,255,.62); -webkit-backdrop-filter:blur(16px) saturate(180%); backdrop-filter:blur(16px) saturate(180%); box-shadow:0 4px 14px -4px rgba(20,24,40,.28); font-size:18px; line-height:1; color:var(--text); cursor:pointer; opacity:0; transform:translateY(-4px); pointer-events:none; transition:opacity .25s ease, transform .25s ease; }
   body.hdr-scrolled #hdr-fab { opacity:1; transform:none; pointer-events:auto; }
   [data-theme="dark"] #hdr-fab { background:rgba(40,40,40,.62); border-color:rgba(255,255,255,.14); }
   header.hdr-hidden { opacity:0; transform:translateY(-6px); filter:blur(3px); pointer-events:none; }   /* 아래로 스크롤 시 블러+페이드로 사라짐 */
@@ -1268,7 +1268,7 @@ tr.staff-row-clickable:hover td { background:var(--surface2); cursor:pointer; }
 .dept-badge.조근 { background:#eef1f9; color:#5d6fb0; border-color:#c5cce8; }
 .excel-table thead th.dept-group.jogeun { background:#eef1f9; color:#5d6fb0; border-color:#c5cce8; }
 @media (max-width: 1000px) { .home-row.cols-3 { grid-template-columns: 1fr 1fr; } .home-row.cols-3 > :last-child { grid-column: 1/-1; } .staff-split { grid-template-columns: 1fr; } }
-@media (max-width: 700px) { main { padding: calc(env(safe-area-inset-top) + 52px) 12px 10px; } header { padding: env(safe-area-inset-top) 12px 0; } .home-row.cols-3, .home-row.cols-2 { grid-template-columns: 1fr; } .summary-row { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 700px) { main { padding: 10px 12px; } header { padding: env(safe-area-inset-top) 12px 0; } .home-row.cols-3, .home-row.cols-2 { grid-template-columns: 1fr; } .summary-row { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 900px) { .stats-grid { grid-template-columns: 1fr !important; } }
 @media (max-width: 600px), (orientation: landscape) and (max-height: 500px) {
   header { height: auto; padding: calc(env(safe-area-inset-top) + 6px) 12px 6px; gap: 0; flex-wrap: wrap; }
@@ -8752,12 +8752,14 @@ function openNotifySheet(){
 let _lastScrollY = 0;
 function _onHeaderScroll(){
   const hdr = document.querySelector('header'); if(!hdr) return;
-  if (window.innerWidth > 760) { hdr.classList.remove('hdr-hidden'); document.body.classList.remove('hdr-scrolled'); return; }
+  const _fade = document.getElementById('hdr-fade'); if (_fade) _fade.classList.remove('on');
+  if (window.innerWidth > 760) { hdr.style.opacity=''; hdr.style.filter=''; hdr.style.pointerEvents=''; document.body.classList.remove('hdr-scrolled'); _lastScrollY=window.scrollY||0; return; }
   const y = window.scrollY || document.documentElement.scrollTop || 0;
-  if (y > 70 && y > _lastScrollY + 4) { hdr.classList.add('hdr-hidden'); document.body.classList.add('hdr-scrolled'); }          // 아래로
-  else if (y < _lastScrollY - 4 || y < 40) { hdr.classList.remove('hdr-hidden'); document.body.classList.remove('hdr-scrolled'); }  // 위로 / 최상단
-  const _fade = document.getElementById('hdr-fade');
-  if (_fade) _fade.classList.remove('on');   // 콘텐츠가 상태바 뒤까지 선명히 보이도록 상단 블러막 비활성
+  const t = Math.min(1, y/60);                       // 0~60px 스크롤 동안 서서히
+  hdr.style.opacity = String(1 - t);
+  hdr.style.filter = t>0 ? ('blur('+(t*4).toFixed(1)+'px)') : '';
+  hdr.style.pointerEvents = t>0.6 ? 'none' : '';
+  document.body.classList.toggle('hdr-scrolled', y > 44);   // 헤더 거의 사라지면 플로팅 등장
   _lastScrollY = y;
 }
 window.addEventListener('scroll', _onHeaderScroll, { passive:true });
