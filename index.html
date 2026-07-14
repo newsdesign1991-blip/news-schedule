@@ -5777,12 +5777,11 @@ function renderWorkshopTable() {
         if(dow===0&&!entry?.ilgeun) missing.push('일근');
       }
       if(missing.length){
-        // 셀 세로 길이 고정: 최대 3줄까지만. 항목이 많으면 앞 2개 + "+N개"로 접고 전체는 title(hover)로 보존
-        const _MAXM=3;
-        const _mhtml = missing.length<=_MAXM
-          ? missing.join('<br>')
-          : missing.slice(0,_MAXM-1).join('<br>')+`<br><span style="color:#b58a86;font-weight:800;">+${missing.length-(_MAXM-1)}개</span>`;
-        tbody+=`<td class="check-sticky" title="${missing.join(', ')}" style="background:#f7e4e2;color:#c06b66;font-size:10px;font-weight:700;text-align:center;line-height:1.6;padding:2px 3px;">${_mhtml}</td>`;
+        // 한 줄만: 첫 항목 + 나머지는 "+N" (전체는 title hover로 보존)
+        const _mhtml = missing.length===1
+          ? missing[0]
+          : `${missing[0]} <span style="color:#b58a86;font-weight:800;">+${missing.length-1}</span>`;
+        tbody+=`<td class="check-sticky" title="${missing.join(', ')}" style="background:#f7e4e2;color:#c06b66;font-size:10px;font-weight:700;text-align:center;line-height:1.6;padding:2px 5px;white-space:nowrap;">${_mhtml}</td>`;
       } else {
         tbody+=`<td style="text-align:center;font-size:11px;color:#4a9fbd;">✓</td>`;
       }
@@ -5942,23 +5941,6 @@ function _applyBrush(staffId, ds, skipRender) {
     if (!data.draft.newLeaves) data.draft.newLeaves = {};
     if (!data.draft.newLeaves[ds]) data.draft.newLeaves[ds] = [];
     if (!data.draft.newLeaves[ds].includes(staffId)) data.draft.newLeaves[ds].push(staffId);
-    // 조근 부서원 신휴가 → 즉시 대체자 배정
-    const _jogeunPool = getStaff('조근', ds);
-    const _dowDs = new Date(ds+'T00:00:00').getDay();
-    const _isWkdayDs = _dowDs >= 1 && _dowDs <= 5 && !(data.holidays && data.holidays[ds]);
-    if (_jogeunPool.some(jp => jp.id === staffId) && _isWkdayDs) {
-      const entry2 = _ensureDraftEntry(ds);
-      if (!entry2.jogeunSubs) entry2.jogeunSubs = {};
-      if (!entry2.jogeunSubs[staffId]) {
-        const _alreadySub = new Set(Object.values(entry2.jogeunSubs));
-        const _freelancers = data.staff.filter(p =>
-          p.employmentType === 'freelancer' && p.active !== false &&
-          !isOnLeave(p.id, ds) && !_alreadySub.has(p.id)
-        ).sort((a,b) => (a.name||'').localeCompare(b.name||''));
-        const _subCand = _freelancers;
-        if (_subCand.length) entry2.jogeunSubs[staffId] = _subCand[0].id;
-      }
-    }
     saveData(data); renderWorkshopTable(); return;
   }
 
@@ -6935,7 +6917,6 @@ function importLeaveToWorkshop() {
   const wsStart=wsRangeStart?new Date(wsRangeStart+'T00:00:00'):null;
   const wsEnd=wsRangeEnd?new Date(wsRangeEnd+'T00:00:00'):null;
   let cnt=0;
-  const jogeunPool=getStaff('조근', wsRangeStart);
   Object.entries(entries).forEach(([dateStr,ids])=>{
     if(wsStart&&wsEnd){
       const d=new Date(dateStr+'T00:00:00');
@@ -6944,23 +6925,6 @@ function importLeaveToWorkshop() {
     // 기존 데이터 완전 교체 (취소된 휴가도 반영)
     data.draft.newLeaves[dateStr]=[...ids];
     cnt+=ids.length;
-    // 조근 부서원이 신휴가면 대체자 자동 배정 (평일만)
-    const dow=new Date(dateStr+'T00:00:00').getDay();
-    const isWkday=dow>=1&&dow<=5&&!(data.holidays&&data.holidays[dateStr]);
-    if(isWkday&&jogeunPool.length){
-      const entry2=_ensureDraftEntry(dateStr);
-      if(!entry2.jogeunSubs) entry2.jogeunSubs={};
-      jogeunPool.forEach(jp=>{
-        if(!ids.includes(jp.id)) return; // 신휴가 아닌 경우 스킵
-        if(entry2.jogeunSubs[jp.id]) return; // 이미 대체자 있으면 스킵
-        const alreadySub=new Set(Object.values(entry2.jogeunSubs));
-        const subCand=data.staff.filter(p=>
-          p.employmentType==='freelancer'&&p.active!==false&&
-          !ids.includes(p.id)&&!alreadySub.has(p.id)&&isContractActive(p,dateStr)
-        ).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-        if(subCand.length) entry2.jogeunSubs[jp.id]=subCand[0].id;
-      });
-    }
   });
   saveData(data);
   renderWorkshopTable();
