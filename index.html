@@ -8645,7 +8645,7 @@ function toggleHdrMenu(e){
   if(e) e.stopPropagation();
   const m = document.getElementById('hdr-menu');
   if(m.style.display==='block'){ closeHdrMenu(); return; }
-  const btn = document.getElementById('hdr-menu-btn');
+  const btn = (document.body.classList.contains('hdr-scrolled') ? document.getElementById('hdr-fab') : null) || document.getElementById('hdr-menu-btn');
   const r = btn.getBoundingClientRect();
   m.style.display='block';
   // 버튼 우측 정렬로 아래에 배치
@@ -8656,7 +8656,7 @@ function toggleHdrMenu(e){
 }
 function _hdrMenuOutside(ev){
   const m=document.getElementById('hdr-menu');
-  if(m && !m.contains(ev.target) && ev.target.id!=='hdr-menu-btn' && ev.target.id!=='hdr-menu-avatar') closeHdrMenu();
+  if(m && !m.contains(ev.target) && ev.target.id!=='hdr-menu-btn' && ev.target.id!=='hdr-menu-avatar' && ev.target.id!=='hdr-fab' && !(ev.target.closest&&ev.target.closest('#hdr-fab'))) closeHdrMenu();
 }
 function closeHdrMenu(){ const m=document.getElementById('hdr-menu'); if(m) m.style.display='none'; document.removeEventListener('click', _hdrMenuOutside); }
 
