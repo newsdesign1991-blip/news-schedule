@@ -1216,6 +1216,15 @@ tr.dragging { opacity:0.35; }
 .pj-day-cell { flex-shrink:0; text-align:center; padding:4px 0; border-left:1px solid var(--pj-line,rgba(15,23,42,.05)); box-sizing:border-box; }
 .pj-day-cell.pj-we { background:rgba(0,0,0,.035); }
 [data-theme="dark"] .pj-day-cell.pj-we { background:rgba(255,255,255,.04); }
+.pj-day-cell.pj-hol { background:rgba(168,101,127,.13); }
+.pj-day-cell.pj-hol .pj-dow, .pj-day-cell.pj-hol .pj-dnum { color:#a8657f; }
+[data-theme="dark"] .pj-day-cell.pj-hol { background:rgba(224,168,194,.13); }
+[data-theme="dark"] .pj-day-cell.pj-hol .pj-dow, [data-theme="dark"] .pj-day-cell.pj-hol .pj-dnum { color:#e0a8c2; }
+.pj-off-col { position:absolute; top:0; bottom:0; z-index:0; pointer-events:none; }
+.pj-off-col.we { background:rgba(0,0,0,.04); }
+.pj-off-col.hol { background:rgba(168,101,127,.13); }
+[data-theme="dark"] .pj-off-col.we { background:rgba(255,255,255,.045); }
+[data-theme="dark"] .pj-off-col.hol { background:rgba(224,168,194,.13); }
 .pj-dow { font-size:9px; color:var(--muted); line-height:1.2; }
 .pj-dnum { font-size:11px; font-weight:700; color:var(--text); line-height:1.2; }
 .pj-bar { position:absolute; top:50%; transform:translateY(-50%); height:26px; border-radius:7px; display:flex; align-items:center; padding:0 9px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.12); z-index:1; }
@@ -3045,9 +3054,13 @@ function renderProject(){
   const nd=new Date(), todayN=dnum(toDateStr(nd.getFullYear(),nd.getMonth()+1,nd.getDate()));
   const todayInRange=(todayN>=minS&&todayN<=maxE), todayColLeft=(todayN-minS)*colW;
   const todayX=todayInRange?((todayN-minS)*colW+colW/2):null;
-  let dayCells='';
+  let dayCells='', offStrips='';
   for(let i=0;i<numDays;i++){ const n=minS+i, d=new Date(n*86400000), dow=d.getDay(), we=(dow===0||dow===6);
-    dayCells+='<div class="pj-day-cell'+(we?' pj-we':'')+(n===todayN?' pj-today':'')+'" style="width:'+colW+'px;"><div class="pj-dow">'+DOWK[dow]+'</div><div class="pj-dnum">'+d.getDate()+'</div></div>';
+    const _ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
+    const hol=!!(data.holidays&&data.holidays[_ds]);
+    const cls=hol?'pj-hol':(we?'pj-we':'');
+    dayCells+='<div class="pj-day-cell'+(cls?' '+cls:'')+(n===todayN?' pj-today':'')+'" style="width:'+colW+'px;"><div class="pj-dow">'+DOWK[dow]+'</div><div class="pj-dnum">'+d.getDate()+'</div></div>';
+    if(cls) offStrips+='<div class="pj-off-col '+(hol?'hol':'we')+'" style="left:'+((n-minS)*colW)+'px;width:'+colW+'px;"></div>';
   }
   const rows=projects.map((p,idx)=>{
     const sN=dnum(p.start), eN=dnum(p.end);
@@ -3064,6 +3077,7 @@ function renderProject(){
       +'<div class="pj-c-days">'+days+'</div>'+'<div class="pj-c-pct">'+pct+'%</div>'
       +'</div>'
       +'<div class="pj-timeline" style="width:'+timelineW+'px;--pj-colw:'+colW+'px;">'
+      +offStrips
       +(todayInRange?'<div class="pj-today-col'+(idx===projects.length-1?' pj-today-col-end':'')+'" style="left:'+todayColLeft+'px;width:'+colW+'px;"></div>':'')
       +'<div class="pj-bar" style="left:'+barLeft+'px;width:'+barW+'px;background:'+color+'59;border:1.5px solid '+color+'aa;"></div>'
       +'</div></div>';
