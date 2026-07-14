@@ -7070,7 +7070,7 @@ function renderLeaveReqView() {
     const DEPT_BG={XR:'var(--xr-bg)','조근':'var(--vw-bg)'};
     const cols=[];
     DEPT_ORDER.forEach(dept=>{
-      const members=data.staff.filter(s=>s.dept===dept&&s.active!==false&&_freelancerActiveInRange(s,dates))
+      const members=data.staff.filter(s=>deptOn(s,rs)===dept&&s.active!==false&&_freelancerActiveInRange(s,dates))
         .sort((a,b)=>(a.employmentType==='freelancer'?1:0)-(b.employmentType==='freelancer'?1:0));
       members.forEach(s=>cols.push({...s,_dept:dept}));
     });
