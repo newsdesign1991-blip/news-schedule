@@ -2062,6 +2062,15 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
           </div>
 
         </div>
+        <div id="probation-group" style="margin-top:8px;">
+          <label class="form-label" style="margin-bottom:4px;">수습기간 <span style="font-weight:500;color:var(--muted);font-size:11px;">(이 기간 동안 주말·휴일 근무 및 인원 카운트 제외)</span></label>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input type="date" class="form-input" id="staff-probation-start" style="width:150px;">
+            <span style="color:var(--muted);font-size:12px;">~</span>
+            <input type="date" class="form-input" id="staff-probation-end" style="width:150px;">
+            <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;" onclick="document.getElementById('staff-probation-start').value='';document.getElementById('staff-probation-end').value='';">초기화</button>
+          </div>
+        </div>
         <div id="staff-tags-section" style="margin-top:8px;">
           <label class="form-label" id="staff-tags-label" style="margin-bottom:4px;">근무 속성</label>
           <div class="tag-sel-pool" id="staff-tag-pool"></div>
@@ -2776,6 +2785,14 @@ function isDispatched(s, dateStr) {
   if (s.dispatchEnd   && dateStr > s.dispatchEnd)   return false;
   return true;
 }
+// 수습기간: probationStart~End 사이면 true (주말/휴일 근무·인원 카운트 제외)
+function isProbation(s, dateStr) {
+  if (!s) return false;
+  if (!s.probationStart && !s.probationEnd) return false;
+  if (s.probationStart && dateStr < s.probationStart) return false;
+  if (s.probationEnd   && dateStr > s.probationEnd)   return false;
+  return true;
+}
 
 // ===== STATE =====
 let currentView = 'home';
@@ -3357,7 +3374,7 @@ function renderHome() {
   const _hJIds=new Set(getStaff('조근').map(x=>x.id));
   const _hSpEx=new Set([entry?.satMorning,entry?.morningDesk].filter(Boolean));
   const _hLv=new Set((data.newLeaves?.[todayStr])||[]);
-  const _hEx=id=>_hCgEx.has(id)||_hJIds.has(id)||_hSpEx.has(id)||_hLv.has(id);
+  const _hEx=id=>_hCgEx.has(id)||_hJIds.has(id)||_hSpEx.has(id)||_hLv.has(id)||isProbation(staffById(id),todayStr);
   const _hCgW=new Set(entry?.cg?.workers||[]);
   const _hVwS=new Set((entry?.vw?.workers||[]).filter(id=>!_hEx(id)&&!(_hCgW.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
   const _hIlVw=(entry?.ilgeun?staffById(entry.ilgeun)?.dept?.toUpperCase():'')==='VW';
@@ -4930,6 +4947,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     if (isOnLeave(p.id,date)) return false;
     if (!isContractActive(p,date)) return false;
     if (isDispatched(p,date)) return false;
+    if (isHoliOrWE && isProbation(p,date)) return false; // 수습기간: 주말/휴일 근무 배제
     if (getWC(p.id,wk)>=5) return false; // 주5일 상한 (전원 동일)
     if (consecBlocked(p.id,prevDS)) return false; // 연속 6일 방지
     if (!isHoliOrWE && reservedForWeekend(p.id,wk)) return false; // 주말 데스크 예약자 평일 휴식
@@ -5077,7 +5095,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     if (existingDanjik) { blockedIds.push(existingDanjik); _addIv(existingDanjik,'danjik',dateStr); }
     // VW 데스크: WC<5 전용 풀 사용 (sortPool의 WC<4 캡에 막히지 않게)
     const sVW=sortPool(vwPool,dateStr,wk,blockedIds,isHoliOrWE);
-    const vwDeskPool=vwPool.filter(p=>!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&getWC(p.id,wk)<5&&!consecBlocked(p.id,_prevDay1)&&(isHoliOrWE||!reservedForWeekend(p.id,wk)));
+    const vwDeskPool=vwPool.filter(p=>!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&getWC(p.id,wk)<5&&!consecBlocked(p.id,_prevDay1)&&(isHoliOrWE||!reservedForWeekend(p.id,wk))&&!(isHoliOrWE&&isProbation(p,dateStr)));
     let vwDeskCand=null;
     // 주말: 예약 1순위 → 백업 2순위 → 우선순위 탐색
     if(isHoliOrWE){
@@ -5101,7 +5119,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     // VW 부족 시 canVW 교차 지원 인원 보충
     if (vwPicked.length < vwTarget) {
       const crossVW = data.staff
-        .filter(p=>p.canVW&&p.dept!=='VW'&&p.active!==false&&!isOnLeave(p.id,dateStr)&&!vwPicked.includes(p.id)&&!blockedIds.includes(p.id))
+        .filter(p=>p.canVW&&p.dept!=='VW'&&p.active!==false&&!isOnLeave(p.id,dateStr)&&!vwPicked.includes(p.id)&&!blockedIds.includes(p.id)&&!(isHoliOrWE&&isProbation(p,dateStr)))
         .sort((a,b)=>(workDays[a.id]||0)-(workDays[b.id]||0));
       for (const p of crossVW) { if(vwPicked.length>=vwTarget) break; if(isHoliOrWE&&_meets(p.id,'work',dateStr))continue; vwPicked.push(p.id); if(isHoliOrWE)_addIv(p.id,'work',dateStr); }
     }
@@ -5121,8 +5139,8 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       cgDesk5=(deskCands[1]||deskCandsFull[1])||null;
     } else {
       // 주말: 2/3순위 WC<5 우선, 없으면 전체 풀
-      let wkDeskCands=cgPool.filter(p=>p.deskPriority>=2&&p.deskPriority<=5&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&getWC(p.id,wk)<5&&!consecBlocked(p.id,_prevDay1));
-      if(!wkDeskCands.length) wkDeskCands=cgPool.filter(p=>p.deskPriority>=2&&p.deskPriority<=5&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id));
+      let wkDeskCands=cgPool.filter(p=>p.deskPriority>=2&&p.deskPriority<=5&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&getWC(p.id,wk)<5&&!consecBlocked(p.id,_prevDay1)&&!isProbation(p,dateStr));
+      if(!wkDeskCands.length) wkDeskCands=cgPool.filter(p=>p.deskPriority>=2&&p.deskPriority<=5&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&!isProbation(p,dateStr));
       if(wkDeskCands.length){
         const plan=weekendDeskPlan[wk]||{};
         cgDesk8=wkDeskCands.find(p=>p.id===plan.cg)||wkDeskCands.find(p=>p.id===plan.cg2)||shuffleSort(wkDeskCands,p=>(weekendDeskCount[p.id]||0))[0];
@@ -5150,7 +5168,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     let xrPicked;
     if(isHoliOrWE){
       const plan=weekendDeskPlan[wk]?.xr||[];
-      const avail=plan.filter(id=>!isOnLeave(id,dateStr)&&getWC(id,wk)<5&&!blockedIds.includes(id)&&!weekendBlock.includes(id)&&!_meets(id,'work',dateStr));
+      const avail=plan.filter(id=>!isOnLeave(id,dateStr)&&getWC(id,wk)<5&&!blockedIds.includes(id)&&!weekendBlock.includes(id)&&!_meets(id,'work',dateStr)&&!isProbation(staffById(id),dateStr));
       // 토요일엔 예약 XR 절반, 일요일엔 나머지(토요일 근무자는 weekendBlock으로 자동 제외)
       xrPicked = (dow===6) ? avail.slice(0, Math.ceil(avail.length/2)) : avail;
       xrPicked.forEach(id=>_addIv(id,'work',dateStr));
@@ -7417,6 +7435,8 @@ function clearStaffForm() {
   document.getElementById('staff-dept').value='VW';
   document.getElementById('staff-desk-priority').value='';
   document.getElementById('staff-employment-type').value='employee';
+  document.getElementById('staff-probation-start').value='';
+  document.getElementById('staff-probation-end').value='';
   updateStaffForm();
 }
 
@@ -7447,12 +7467,14 @@ function saveStaff() {
   const editId=document.getElementById('edit-staff-id').value;
   const employmentType=document.getElementById('staff-employment-type').value;
   const {canDanjik, canSatMorning, canIlgeun, canVW, canCG, can3D, canNewsOh, canWeekend8jin, canWeekday8jin, availableDays}=_readTags();
+  const probationStart=document.getElementById('staff-probation-start').value||null;
+  const probationEnd=document.getElementById('staff-probation-end').value||null;
   if (editId) {
     const p=data.staff.find(x=>x.id===editId);
-    if (p) { p.name=name; p.dept=dept; p.deskPriority=deskPriority; p.morningDeskPriority=morningDeskPriority; p.canDanjik=canDanjik; p.canSatMorning=canSatMorning; p.canIlgeun=canIlgeun; p.canVW=canVW; p.canCG=canCG; p.can3D=can3D; p.canNewsOh=canNewsOh; p.canWeekend8jin=canWeekend8jin; p.canWeekday8jin=canWeekday8jin; p.availableDays=availableDays; p.employmentType=employmentType; }
+    if (p) { p.name=name; p.dept=dept; p.deskPriority=deskPriority; p.morningDeskPriority=morningDeskPriority; p.canDanjik=canDanjik; p.canSatMorning=canSatMorning; p.canIlgeun=canIlgeun; p.canVW=canVW; p.canCG=canCG; p.can3D=can3D; p.canNewsOh=canNewsOh; p.canWeekend8jin=canWeekend8jin; p.canWeekday8jin=canWeekday8jin; p.availableDays=availableDays; p.employmentType=employmentType; p.probationStart=probationStart; p.probationEnd=probationEnd; }
     toast(`${name} 수정됨`,'success');
   } else {
-    data.staff.push({id:Date.now().toString(36)+Math.random().toString(36).substr(2,4),name,dept,deskPriority,morningDeskPriority,canDanjik,canSatMorning,canIlgeun,canVW,canCG,can3D,canNewsOh,canWeekend8jin,canWeekday8jin,active:true,availableDays,employmentType});
+    data.staff.push({id:Date.now().toString(36)+Math.random().toString(36).substr(2,4),name,dept,deskPriority,morningDeskPriority,canDanjik,canSatMorning,canIlgeun,canVW,canCG,can3D,canNewsOh,canWeekend8jin,canWeekday8jin,active:true,availableDays,employmentType,probationStart,probationEnd});
     toast(`${name} 추가됨`,'success');
   }
   saveData(data); clearStaffForm(); renderStaffTable();
@@ -10093,6 +10115,15 @@ document.body.insertAdjacentHTML('beforeend', `
         <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;" onclick="document.getElementById('modal-dispatch-start').value='';document.getElementById('modal-dispatch-end').value='';">초기화</button>
       </div>
     </div>
+    <div id="modal-probation-group" style="margin-top:10px;">
+      <label class="form-label" style="margin-bottom:4px;">수습기간 <span style="font-weight:500;color:var(--muted);font-size:11px;">(주말·휴일 근무·인원 카운트 제외)</span></label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="date" class="form-input" id="modal-probation-start" style="width:140px;">
+        <span style="color:var(--muted);font-size:12px;">~</span>
+        <input type="date" class="form-input" id="modal-probation-end" style="width:140px;">
+        <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;" onclick="document.getElementById('modal-probation-start').value='';document.getElementById('modal-probation-end').value='';">초기화</button>
+      </div>
+    </div>
     <div style="margin-top:10px;">
       <label class="form-label" style="margin-bottom:4px;">근무 속성</label>
       <div class="tag-sel-pool" id="modal-staff-tag-pool"></div>
@@ -10165,6 +10196,8 @@ function openStaffModal(id) {
   ov.querySelector('#modal-contract-end').value = p.contractEnd || '';
   ov.querySelector('#modal-dispatch-start').value = p.dispatchStart || '';
   ov.querySelector('#modal-dispatch-end').value = p.dispatchEnd || '';
+  ov.querySelector('#modal-probation-start').value = p.probationStart || '';
+  ov.querySelector('#modal-probation-end').value = p.probationEnd || '';
   ov.querySelectorAll('.modal-tag-sel-item').forEach(el => {
     const v = el.dataset.val; let on = false;
     if (v==='danjik') on=!!p.canDanjik;
@@ -10238,6 +10271,8 @@ function saveStaffModal() {
   p.contractEnd   = p.employmentType==='freelancer' ? (ov.querySelector('#modal-contract-end').value||null)   : null;
   p.dispatchStart = p.employmentType==='employee'   ? (ov.querySelector('#modal-dispatch-start').value||null) : null;
   p.dispatchEnd   = p.employmentType==='employee'   ? (ov.querySelector('#modal-dispatch-end').value||null)   : null;
+  p.probationStart = ov.querySelector('#modal-probation-start').value||null;
+  p.probationEnd   = ov.querySelector('#modal-probation-end').value||null;
   Object.assign(p, tags);
   const _ds=_modalDeptSched.filter(h=>h.start&&h.dept).sort((a,b)=>a.start<b.start?-1:1);
   if(_ds.length) p.deptSchedule=_ds; else delete p.deptSchedule;
