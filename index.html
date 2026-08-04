@@ -439,8 +439,8 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 #view-home .week-day-mini:has(.wm-num.today) { background: linear-gradient(135deg,#4a94ff 0%,#2f77f6 100%); box-shadow: 0 4px 12px -5px rgba(49,130,246,.45); }
 #view-home .week-day-mini:has(.wm-num.today) .wm-label { color: #dbeafe; }
 #view-home .week-day-mini:has(.wm-num.today) .wm-num { color: #fff !important; }
-#view-home .week-day-mini:has(.wm-num.today) .wm-ev-card { background: rgba(255,255,255,.94) !important; }
-[data-theme="dark"] #view-home .week-day-mini:has(.wm-num.today) .wm-ev-card { background: rgba(28,32,40,.94) !important; }
+#view-home .week-day-mini:has(.wm-num.today) .wm-ev-card { background: color-mix(in srgb, var(--evc,#6366f1) 13%, #fff) !important; }
+[data-theme="dark"] #view-home .week-day-mini:has(.wm-num.today) .wm-ev-card { background: color-mix(in srgb, var(--evc,#6366f1) 26%, #1c2028) !important; }
 [data-theme="dark"] #view-home .week-day-mini { box-shadow: 0 4px 13px -5px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.3); }
 /* #4 일정(이벤트) 카드 토스 스타일 */
 #view-home .wm-ev-card::before { display: none !important; }
