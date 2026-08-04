@@ -439,6 +439,8 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 #view-home .week-day-mini:has(.wm-num.today) { background: linear-gradient(135deg,#4a94ff 0%,#2f77f6 100%); box-shadow: 0 4px 12px -5px rgba(49,130,246,.45); }
 #view-home .week-day-mini:has(.wm-num.today) .wm-label { color: #dbeafe; }
 #view-home .week-day-mini:has(.wm-num.today) .wm-num { color: #fff !important; }
+#view-home .week-day-mini:has(.wm-num.today) .wm-ev-card { background: rgba(255,255,255,.94) !important; }
+[data-theme="dark"] #view-home .week-day-mini:has(.wm-num.today) .wm-ev-card { background: rgba(28,32,40,.94) !important; }
 [data-theme="dark"] #view-home .week-day-mini { box-shadow: 0 4px 13px -5px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.3); }
 /* #4 일정(이벤트) 카드 토스 스타일 */
 #view-home .wm-ev-card::before { display: none !important; }
@@ -3379,7 +3381,7 @@ function renderHome() {
   const _hVwS=new Set((entry?.vw?.workers||[]).filter(id=>!_hEx(id)&&!(_hCgW.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
   const _hIlVw=(entry?.ilgeun?staffById(entry.ilgeun)?.dept?.toUpperCase():'')==='VW';
   const _hIlOk=entry?.ilgeun&&!_hLv.has(entry.ilgeun)&&!_hSpEx.has(entry.ilgeun);
-  const _h8=[entry?.weekend8jin,entry?.weekday8jin].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
+  const _h8=[entry?.weekend8jin,entry?.weekday8jin,entry?.weekend8jin2,entry?.weekday8jin2].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
   const _isVwDept=id=>(staffById(id)?.dept||'').toLowerCase()==='vw';
   const _isCgDept=id=>{const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';};
   const _h8vwIds=_h8.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isVwDept(id));
@@ -3596,7 +3598,7 @@ function renderHome() {
       const _wExcl=id=>_wCgExcl.has(id)||_wJIds.has(id)||_wSpExcl.has(id)||_wLv.has(id);
       const _wCgWorkers=new Set(e2.cg?.workers||[]);
       const _wVwSet=new Set((e2.vw?.workers||[]).filter(id=>!_wExcl(id)&&!(_wCgWorkers.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
-      const _w8Ids=[e2.weekend8jin,e2.weekday8jin].filter(id=>id&&!_wSpExcl.has(id)&&!_wLv.has(id));
+      const _w8Ids=[e2.weekend8jin,e2.weekday8jin,e2.weekend8jin2,e2.weekday8jin2].filter(id=>id&&!_wSpExcl.has(id)&&!_wLv.has(id));
       const _w8VwAdd=_w8Ids.filter(id=>!_wVwSet.has(id)&&!_wCgWorkers.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
       const _w8CgAdd=_w8Ids.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(staffById(id)?.dept||'').toLowerCase();return dd==='cg'||dd==='xr';}).length;
       const _wNoIds=[e2.newsOh,e2.newsOh2].filter(id=>id&&!_wSpExcl.has(id)&&!_wLv.has(id));
@@ -3978,7 +3980,7 @@ function renderTable() {
     const _specialExclude=new Set([entry?.satMorning,entry?.morningDesk].filter(Boolean));
     const _excl=id=>{const _p=staffById(id);return _cgExclude.has(id)||jogeunIds.has(id)||_specialExclude.has(id)||_leaveSet.has(id)||(_p&&!isContractActive(_p,dateStr));};
     const _vwSet=new Set((entry?.vw?.workers||[]).filter(id=>!_excl(id)&&!(_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
-    const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
+    const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin,entry?.weekend8jin2,entry?.weekday8jin2].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _8jinVwAdd=_8jinIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
     const _8jinCgAdd=_8jinIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).length;
     // 뉴.오/뉴.오2도 부서별로 일일 총계에 포함 (CG부서→CG총계, VW부서→VW총계). 이미 workers에 있으면 중복 제외
@@ -4023,6 +4025,7 @@ function renderTable() {
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
+      else if(entry?.weekend8jin2===s.id||entry?.weekday8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
       else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(entry){
         const workers=entry.vw?.workers||[],deskId=entry.vw?.desk;
@@ -4054,6 +4057,7 @@ function renderTable() {
       if(isDispatched(s,dateStr)){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(isWeekend){
         if(entry?.weekend8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
+        else if(entry?.weekend8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
       } else if(hasNL){
         color='#c79a5e';fw='700';text='신휴가';
       } else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
@@ -4099,6 +4103,7 @@ function renderTable() {
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
+      else if(entry?.weekend8jin2===s.id||entry?.weekday8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
       else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(entry){
         const dept=s._dept;
@@ -4805,7 +4810,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     // 수동 편집(셀 직접입력·조근 교육/추가·뉴오2·메모)만 보존하고 나머지 자동 필드는 스냅샷에서 제거.
     if (opts.phase==='desk' && _prevSnap[ds]) {
       const _pv=_prevSnap[ds];
-      _prevSnap[ds] = { customCells:_pv.customCells, jogeunEdu:_pv.jogeunEdu, jogeunExtra:_pv.jogeunExtra, newsOh2:_pv.newsOh2, notes:_pv.notes };
+      _prevSnap[ds] = { customCells:_pv.customCells, jogeunEdu:_pv.jogeunEdu, jogeunExtra:_pv.jogeunExtra, newsOh2:_pv.newsOh2, weekend8jin2:_pv.weekend8jin2, weekday8jin2:_pv.weekday8jin2, notes:_pv.notes };
     }
     const draftSports = targetSchedule[ds]?.sports||[];
     const publishedSports = isDraftTarget ? (data.schedule[ds]?.sports||[]) : [];
@@ -5355,6 +5360,8 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       newsOh2:_prevSnap[dateStr]?.newsOh2||null,
       weekend8jin:weekend8jinAssign,
       weekday8jin:weekday8jinAssign,
+      weekend8jin2:_prevSnap[dateStr]?.weekend8jin2||null,
+      weekday8jin2:_prevSnap[dateStr]?.weekday8jin2||null,
       restWorkers:restDays[dateStr]?[...restDays[dateStr]]:[],
       // 수동 입력 필드 보존
       customCells:_prevSnap[dateStr]?.customCells||undefined,
@@ -5607,7 +5614,7 @@ function renderWorkshopTable() {
     const _specialExclude=new Set([entry?.satMorning,entry?.morningDesk].filter(Boolean));
     const _excl=id=>{const _p=staffById(id);return _cgExclude.has(id)||jogeunIds.has(id)||_specialExclude.has(id)||_leaveSet.has(id)||(_p&&!isContractActive(_p,dateStr));};
     const _vwSet=new Set((entry?.vw?.workers||[]).filter(id=>!_excl(id)&&!(_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
-    const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
+    const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin,entry?.weekend8jin2,entry?.weekday8jin2].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _8jinVwAdd=_8jinIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
     const _8jinCgAdd=_8jinIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';}).length;
     // 뉴.오/뉴.오2도 부서별로 일일 총계에 포함 (CG부서→CG총계, VW부서→VW총계). 이미 workers에 있으면 중복 제외
@@ -5650,6 +5657,7 @@ function renderWorkshopTable() {
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
+      else if(entry?.weekend8jin2===s.id||entry?.weekday8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
       else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(entry){
         const workers=entry.vw?.workers||[],deskId=entry.vw?.desk;
@@ -5680,6 +5688,7 @@ function renderWorkshopTable() {
       if(isDispatched(s,dateStr)){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(isWeekend){
         if(entry?.weekend8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
+        else if(entry?.weekend8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
       } else if(hasNL){
         color='#c79a5e';fw='700';text='신휴가';
       } else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
@@ -5723,6 +5732,7 @@ function renderWorkshopTable() {
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
+      else if(entry?.weekend8jin2===s.id||entry?.weekday8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
       else if(!isWeekend&&!isHoliday&&(jogeunSubReverse[s.id]||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(entry){
         const dept=s._dept;
@@ -6532,7 +6542,7 @@ const WORK_TYPE_MAP = {
   'CG대': 'cg-sub', 'CG대체': 'cg-sub', 'CG대체자': 'cg-sub',
   '8데스크': 'desk8', '8데스': 'desk8', '5데스크': 'desk5', '5데스': 'desk5',
   '오전데스크': 'ojende', '오전데': 'ojende', '오데': 'ojende', '오데/반차': 'ojende',
-  '조근': 'jogeun', '8진': '8jin',
+  '조근': 'jogeun', '8진': '8jin', '8진2': '8jin2', '8진②': '8jin2',
   '뉴오': 'newsoh', '뉴.오': 'newsoh', '뉴오1': 'newsoh', '뉴.오1': 'newsoh',
   '뉴오2': 'newsoh2', '뉴.오2': 'newsoh2', '뉴오②': 'newsoh2',
   '일근': 'ilgeun',
@@ -6661,8 +6671,12 @@ function _doApplyImageSchedule(skipNames) {
         entry.newsOh2 = s.id;
       } else if (wt === '8jin') {
         const dow = new Date(ds+'T00:00:00').getDay();
-        if (dow===0||dow===6) entry.weekend8jin = s.id;
-        else entry.weekday8jin = s.id;
+        if (dow===0||dow===6) { if(!entry.weekend8jin) entry.weekend8jin=s.id; else if(entry.weekend8jin!==s.id&&!entry.weekend8jin2) entry.weekend8jin2=s.id; }
+        else { if(!entry.weekday8jin) entry.weekday8jin=s.id; else if(entry.weekday8jin!==s.id&&!entry.weekday8jin2) entry.weekday8jin2=s.id; }
+      } else if (wt === '8jin2') {
+        const dow = new Date(ds+'T00:00:00').getDay();
+        if (dow===0||dow===6) entry.weekend8jin2 = s.id;
+        else entry.weekday8jin2 = s.id;
       } else if (wt === 'work') {
         // 부서에 맞는 배열로 배정 (XR→entry.xr, PROJECT→entry.project 등; 브러쉬와 동일 처리)
         _brushAddWorker(entry, s.id, s.dept || '');
