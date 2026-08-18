@@ -323,9 +323,10 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .panel-title-dot { width: 7px; height: 7px; border-radius: 50%; }
 .panel-count { font-size: 12px; color: var(--muted); background: var(--surface2); padding: 2px 8px; border-radius: 10px; }
 .panel-body { padding: 12px 16px; }
-.pj-hstat { display:flex; align-items:baseline; gap:6px; }
-.pj-hstat-n { font-size:22px; font-weight:800; letter-spacing:-.02em; min-width:18px; }
-.pj-hstat-l { font-size:12px; color:var(--muted); font-weight:600; }
+.pj-gauge-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:10px 6px; padding:6px 2px 2px; }
+.pj-gauge-item { text-align:center; min-width:0; }
+.pj-gauge-name { font-size:12px; font-weight:700; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
+.pj-gauge-st { font-size:10.5px; font-weight:700; }
 .week-mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 12px 16px 19px; align-items: start; }
 .week-day-mini { display: flex; flex-direction: column; align-items: center; min-width: 0; }
 .wm-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
@@ -1296,7 +1297,7 @@ tr.staff-row-clickable:hover td { background:var(--surface2); cursor:pointer; }
   .date-badge { display: none; }
   .admin-link { padding: 4px 8px; font-size: 11px; }
   /* 모바일 테이블 - 가로 스크롤 */
-  .excel-wrap { border-radius: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
+  .excel-wrap { border-radius: 14px; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: calc(100vh - 155px); max-height: calc(100dvh - 155px); }
   .excel-table { width: max-content; min-width: max-content; table-layout: auto; }
   .excel-table thead th.name-th { font-size: 12px; padding: 5px 5px; min-width: 28px; }
   .excel-table tbody td { font-size: 12px; height: 28px; }
@@ -3591,26 +3592,28 @@ function renderHome() {
     if(!_pjs.length){ _pjBody.innerHTML='<div style="padding:22px 0;text-align:center;color:var(--muted);font-size:13px;">등록된 프로젝트가 없습니다.</div>'; return; }
     var _dn=function(ds){return Math.round(new Date(ds+'T00:00:00').getTime()/86400000);};
     var _nd=new Date(), _tN=_dn(toDateStr(_nd.getFullYear(),_nd.getMonth()+1,_nd.getDate()));
-    var _on=0,_up=0,_do=0,_ps=0;
-    _pjs.forEach(function(p){var s=_dn(p.start),e=_dn(p.end); if(_tN<s)_up++; else if(_tN>e)_do++; else {_on++; _ps+=(e<=s?100:Math.max(0,Math.min(100,Math.round((_tN-s)/(e-s)*100))));}});
-    var _avg=_on?Math.round(_ps/_on):0;
-    var _al=Math.PI*94, _off=(_al*(1-_avg/100)).toFixed(1);
-    _pjBody.innerHTML='<div style="display:flex;align-items:center;gap:14px;padding:4px 2px 8px;">'
-      +'<div style="display:flex;flex-direction:column;gap:11px;min-width:84px;">'
-      +'<div class="pj-hstat"><span class="pj-hstat-n" style="color:#2f77f6;">'+_on+'</span><span class="pj-hstat-l">진행중</span></div>'
-      +'<div class="pj-hstat"><span class="pj-hstat-n" style="color:#e6a817;">'+_up+'</span><span class="pj-hstat-l">예정</span></div>'
-      +'<div class="pj-hstat"><span class="pj-hstat-n" style="color:#94a3b8;">'+_do+'</span><span class="pj-hstat-l">완료</span></div>'
-      +'</div>'
-      +'<div style="flex:1;position:relative;min-width:0;">'
-      +'<svg viewBox="0 0 220 124" style="width:100%;height:auto;display:block;">'
-      +'<defs><linearGradient id="pjGaugeGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8ec5ff"/><stop offset="1" stop-color="#2f77f6"/></linearGradient></defs>'
-      +'<path d="M18 110 A94 94 0 0 1 202 110" fill="none" stroke="var(--surface2)" stroke-width="20" stroke-linecap="round"/>'
-      +'<path d="M18 110 A94 94 0 0 1 202 110" fill="none" stroke="url(#pjGaugeGrad)" stroke-width="15" stroke-linecap="round" stroke-dasharray="'+_al.toFixed(1)+'" stroke-dashoffset="'+_off+'"/>'
-      +'</svg>'
-      +'<div style="position:absolute;left:0;right:0;bottom:2px;text-align:center;">'
-      +'<div style="font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1;">'+_avg+'<span style="font-size:15px;font-weight:700;color:var(--muted);">%</span></div>'
-      +'<div style="font-size:11px;color:var(--muted);margin-top:3px;">진행중 평균 경과</div>'
-      +'</div></div></div>';
+    var _esc=function(t){return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');};
+    var _al=Math.PI*46;
+    var _items=_pjs.map(function(p){
+      var s=_dn(p.start),e=_dn(p.end);
+      var st=_tN<s?'예정':(_tN>e?'완료':'진행중');
+      var pct=_tN<s?0:(_tN>e?100:(e<=s?100:Math.max(0,Math.min(100,Math.round((_tN-s)/(e-s)*100)))));
+      var c=p.color||'#3182f6';
+      var off=(_al*(1-pct/100)).toFixed(1);
+      return '<div class="pj-gauge-item">'
+        +'<div style="position:relative;width:100%;max-width:112px;margin:0 auto;">'
+        +'<svg viewBox="0 0 110 62" style="width:100%;height:auto;display:block;">'
+        +'<path d="M9 56 A46 46 0 0 1 101 56" fill="none" stroke="var(--surface2)" stroke-width="11" stroke-linecap="round"/>'
+        +'<path d="M9 56 A46 46 0 0 1 101 56" fill="none" stroke="'+c+'" stroke-width="8" stroke-linecap="round" stroke-dasharray="'+_al.toFixed(1)+'" stroke-dashoffset="'+off+'"/>'
+        +'</svg>'
+        +'<div style="position:absolute;left:0;right:0;bottom:0;text-align:center;">'
+        +'<div style="font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1;">'+pct+'<span style="font-size:10px;font-weight:700;color:var(--muted);">%</span></div>'
+        +'</div></div>'
+        +'<div class="pj-gauge-name" title="'+_esc(p.name)+'">'+_esc(p.name)+'</div>'
+        +'<div class="pj-gauge-st" style="color:'+(st==='진행중'?c:'var(--muted)')+';">'+st+'</div>'
+        +'</div>';
+    }).join('');
+    _pjBody.innerHTML='<div class="pj-gauge-grid">'+_items+'</div>';
   })();
   document.getElementById('vw-panel-count').textContent=`${vwCnt}명`;
   document.getElementById('cg-panel-count').textContent=`${cgCnt}명`;
