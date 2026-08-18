@@ -327,6 +327,8 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .pj-gauge-item { text-align:center; min-width:0; }
 .pj-gauge-name { font-size:12px; font-weight:700; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
 .pj-gauge-st { font-size:10.5px; font-weight:700; }
+.pj-gauge-pts { display:flex; flex-wrap:wrap; gap:3px; justify-content:center; margin-top:5px; }
+.pj-gpt-chip { padding:1px 6px !important; border-radius:6px !important; font-size:10px !important; font-weight:700; }
 .week-mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 12px 16px 19px; align-items: start; }
 .week-day-mini { display: flex; flex-direction: column; align-items: center; min-width: 0; }
 .wm-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
@@ -3600,6 +3602,7 @@ function renderHome() {
       var pct=_tN<s?0:(_tN>e?100:(e<=s?100:Math.max(0,Math.min(100,Math.round((_tN-s)/(e-s)*100)))));
       var c=p.color||'#3182f6';
       var off=(_al*(1-pct/100)).toFixed(1);
+      var _pts=(p.participants||[]).map(function(id){var st2=(data.staff||[]).find(function(x){return x.id===id;});if(!st2)return '';var d=(st2.dept||'').toLowerCase();var dc=['vw','cg','project','sports','xr'].indexOf(d)>=0?d:'';return '<span class="wchip pj-gpt-chip'+(dc?' '+dc:'')+'">'+_esc(st2.name)+'</span>';}).join('');
       return '<div class="pj-gauge-item">'
         +'<div style="position:relative;width:100%;max-width:112px;margin:0 auto;">'
         +'<svg viewBox="0 0 110 62" style="width:100%;height:auto;display:block;">'
@@ -3611,6 +3614,7 @@ function renderHome() {
         +'</div></div>'
         +'<div class="pj-gauge-name" title="'+_esc(p.name)+'">'+_esc(p.name)+'</div>'
         +'<div class="pj-gauge-st" style="color:'+(st==='진행중'?c:'var(--muted)')+';">'+st+'</div>'
+        +(_pts?'<div class="pj-gauge-pts">'+_pts+'</div>':'')
         +'</div>';
     }).join('');
     _pjBody.innerHTML='<div class="pj-gauge-grid">'+_items+'</div>';
