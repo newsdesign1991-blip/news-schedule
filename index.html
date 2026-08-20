@@ -198,7 +198,7 @@ nav { display: flex; gap: 2px; }
     -webkit-mask: linear-gradient(to bottom, #000 0, #000 calc(env(safe-area-inset-top) + 50px), rgba(0,0,0,0.55) calc(env(safe-area-inset-top) + 74px), rgba(0,0,0,0.18) calc(env(safe-area-inset-top) + 90px), transparent calc(env(safe-area-inset-top) + 104px));
     mask: linear-gradient(to bottom, #000 0, #000 calc(env(safe-area-inset-top) + 50px), rgba(0,0,0,0.55) calc(env(safe-area-inset-top) + 74px), rgba(0,0,0,0.18) calc(env(safe-area-inset-top) + 90px), transparent calc(env(safe-area-inset-top) + 104px)); }
   #hdr-fade.on { opacity: 1; }
-  #statusbar-scrim { display: block; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); z-index: 200; pointer-events: none; background: linear-gradient(to bottom, rgba(20,24,34,0.12), rgba(20,24,34,0.01)); }
+  #statusbar-scrim { display: none; }
   body main { padding-bottom: calc(124px + env(safe-area-inset-bottom)) !important; }  /* 바+페이드에 안 가리게(기본 padding 덮어쓰기) */
   /* 바 뒤 콘텐츠가 배경색으로 자연스럽게 사라지는 그라디언트 페이드 */
   #fnav-fade {
@@ -4245,6 +4245,7 @@ function renderTable() {
   tbody+='</tr>';
 
   document.getElementById('excel-tbody').innerHTML=tbody;
+  (function(){ var dr=document.querySelector('.excel-table thead tr.dept-row'); if(dr){ var h=dr.getBoundingClientRect().height; document.querySelectorAll('.excel-table thead th.name-th').forEach(function(el){ el.style.top=h+'px'; }); } })();
   if(!allCols.length){
     document.getElementById('excel-tbody').innerHTML=`<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--muted);">직원을 먼저 등록해 주세요.</td></tr>`;
   }
