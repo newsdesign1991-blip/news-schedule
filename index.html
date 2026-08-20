@@ -345,6 +345,7 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 .wm-ev-card:hover { filter: brightness(0.95); }
 .wm-ev-time { font-size: 11px; font-weight: 700; margin-bottom: 2px; }
 .wm-ev-title { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wm-ev-cmt { position: absolute; top: 6px; right: 7px; display: inline-flex; align-items: center; gap: 1px; background: var(--evc,#6366f1); color: #fff; font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 9px; z-index: 1; line-height: 1.5; }
 .wm-ev-pts { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .wm-ev-pt { font-size: 11px; padding: 1px 7px; border-radius: 9px; font-weight: 600; }
 /* 모바일: 컬럼 카드 숨기고 아래 리스트 표시 */
@@ -3455,8 +3456,9 @@ function renderHome() {
     const cmtCnt = (ev.comments||[]).length;
     const pills = ptNames.map(n=>`<span class="wm-ev-pt" style="background:${c}22;color:${c};">${n}</span>`).join('');
     return `<div class="wm-ev-card" onclick="openEventDetail('${ds}','${ev.id}')" style="background:${c}15;--evc:${c};--evc2:${c}55;">
+      ${cmtCnt?`<span class="wm-ev-cmt">💬${cmtCnt}</span>`:''}
       ${ev.time?`<div class="wm-ev-time" style="color:${c};">${ev.time}</div>`:''}
-      <div class="wm-ev-title">${ev.title}${cmtCnt?` <span style="display:inline-flex;align-items:center;gap:2px;background:${c}22;color:${c};font-size:12px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:6px;border:1px solid ${c}44;">💬${cmtCnt}</span>`:''}</div>
+      <div class="wm-ev-title">${ev.title}</div>
       ${ev.location?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">📍 ${ev.location}</div>`:''}
       ${pills?`<div class="wm-ev-pts">${pills}</div>`:''}
     </div>`;
@@ -3479,8 +3481,9 @@ function renderHome() {
     const pills=ptNames.map(n=>`<span class="wm-ev-pt" style="background:${c}22;color:${c};">${n}</span>`).join('');
     const cmtCnt=(meta.comments||[]).length;
     return `<div class="wm-ev-card" onclick="showGcalDetail('${ds}','${ev._id}')" style="background:${c}15;--evc:${c};--evc2:${c}55;cursor:pointer;">
+      ${cmtCnt?`<span class="wm-ev-cmt">💬${cmtCnt}</span>`:''}
       ${ev.start.time?`<div class="wm-ev-time" style="color:${c};">${ev.start.time}</div>`:''}
-      <div class="wm-ev-title">${t}${cmtCnt?` <span style="display:inline-flex;align-items:center;gap:2px;background:${c}22;color:${c};font-size:12px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:6px;border:1px solid ${c}44;">💬${cmtCnt}</span>`:''}</div>
+      <div class="wm-ev-title">${t}</div>
       ${_tl.loc?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">📍 ${locEsc}</div>`:''}
       ${pills?`<div class="wm-ev-pts">${pills}</div>`:''}
     </div>`;
