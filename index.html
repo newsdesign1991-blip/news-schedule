@@ -7,6 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>뉴스디자인 근무 대시보드</title>
+<link rel="icon" href="icon.svg">
 <link rel="icon" type="image/png" href="favicon.png">
 <!-- PWA: 홈화면 추가 시 주소창 없는 독립 실행(standalone) -->
 <link rel="manifest" href="manifest.json">
@@ -293,12 +294,13 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
   #view-home.hm-on { grid-auto-rows: 8px; row-gap: 0; }   /* 벽돌쌓기: JS가 각 카드 span 계산(실패 시 이 클래스 미부여로 일반 그리드 폴백) */
   #view-home > .home-row { display: contents; }
   #view-home > .home-row > div[style*="grid-template-columns"] { display: contents !important; }
+  #view-home > .home-summary-duty { display: contents; }   /* 부서 근무 현황·오늘의 근무를 각각 독립 단칸 아이템으로 평탄화 → 제 폭 확보 + masonry 균형 */
   #view-home > *,
   #view-home > .home-row > *,
+  #view-home > .home-summary-duty > *,
   #view-home > .home-row > div[style*="grid-template-columns"] > * { margin: 0 !important; min-width: 0; align-self: start; }
   #my-schedule-card { grid-column: 1 / -1; }          /* 이번주 내 근무(가로 스트립) 전체폭 */
   #home-week-panel { grid-column: 1 / -1; }            /* 이번 주 일정: 넓게(2열일 땐 전체=2칸) */
-  .home-summary-duty { grid-column: 1 / -1; }          /* 부서 근무 현황: 넓게 */
   /* C안 + 그룹핑: 이번 주 일정을 상단에, 부서 패널(VW·CG·PRJ·SPT)을 인접 배치 */
   #my-schedule-card { order: 0; }   /* 넓은 화면: '투표가 위' 규칙 없이 이번주 내 근무를 최상단 */
   #home-polls { order: 1; }
@@ -308,14 +310,14 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
   #view-home .panel:has(#cg-today-chips) { order: 5; }
   #view-home .panel:has(#project-today-chips) { order: 6; }
   #view-home .panel:has(#sports-today-chips) { order: 7; }
-  .home-summary-duty { order: 8; }
-  #view-home .panel:has(#home-week-summary) { order: 9; }
-  #view-home .panel:has(.quick-links) { order: 10; }
+  #home-summary { order: 8; }              /* 부서 근무 현황 */
+  #home-duty-row { order: 9; }             /* 오늘의 근무 */
+  #view-home .panel:has(#home-week-summary) { order: 10; }
+  #view-home .panel:has(.quick-links) { order: 11; }
 }
 @media (min-width: 1560px) {
   #view-home.active { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1720px; }
   #home-week-panel { grid-column: span 2; }            /* 3열일 땐 이번 주 일정 2칸(2개행까지) */
-  .home-summary-duty { grid-column: span 2; }
 }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 10px; border-bottom: 1px solid var(--border); }
@@ -3456,10 +3458,10 @@ function renderHome() {
     const cmtCnt = (ev.comments||[]).length;
     const pills = ptNames.map(n=>`<span class="wm-ev-pt" style="background:${c}22;color:${c};">${n}</span>`).join('');
     return `<div class="wm-ev-card" onclick="openEventDetail('${ds}','${ev.id}')" style="background:${c}15;--evc:${c};--evc2:${c}55;">
-      ${cmtCnt?`<span class="wm-ev-cmt">💬${cmtCnt}</span>`:''}
+      ${cmtCnt?`<span class="wm-ev-cmt"><svg viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 2.5c-3.1 0-5.7 1.9-5.7 4.2 0 1.3.8 2.5 2 3.3-.1.6-.4 1.2-.8 1.7-.2.2 0 .5.3.4.9-.1 1.8-.5 2.5-.9.5.1 1.1.2 1.7.2 3.1 0 5.7-1.9 5.7-4.2S11.1 2.5 8 2.5z"/></svg>${cmtCnt}</span>`:''}
       ${ev.time?`<div class="wm-ev-time" style="color:${c};">${ev.time}</div>`:''}
       <div class="wm-ev-title">${ev.title}</div>
-      ${ev.location?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">📍 ${ev.location}</div>`:''}
+      ${ev.location?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${ev.location}</div>`:''}
       ${pills?`<div class="wm-ev-pts">${pills}</div>`:''}
     </div>`;
   }
@@ -3481,10 +3483,10 @@ function renderHome() {
     const pills=ptNames.map(n=>`<span class="wm-ev-pt" style="background:${c}22;color:${c};">${n}</span>`).join('');
     const cmtCnt=(meta.comments||[]).length;
     return `<div class="wm-ev-card" onclick="showGcalDetail('${ds}','${ev._id}')" style="background:${c}15;--evc:${c};--evc2:${c}55;cursor:pointer;">
-      ${cmtCnt?`<span class="wm-ev-cmt">💬${cmtCnt}</span>`:''}
+      ${cmtCnt?`<span class="wm-ev-cmt"><svg viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 2.5c-3.1 0-5.7 1.9-5.7 4.2 0 1.3.8 2.5 2 3.3-.1.6-.4 1.2-.8 1.7-.2.2 0 .5.3.4.9-.1 1.8-.5 2.5-.9.5.1 1.1.2 1.7.2 3.1 0 5.7-1.9 5.7-4.2S11.1 2.5 8 2.5z"/></svg>${cmtCnt}</span>`:''}
       ${ev.start.time?`<div class="wm-ev-time" style="color:${c};">${ev.start.time}</div>`:''}
       <div class="wm-ev-title">${t}</div>
-      ${_tl.loc?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">📍 ${locEsc}</div>`:''}
+      ${_tl.loc?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${locEsc}</div>`:''}
       ${pills?`<div class="wm-ev-pts">${pills}</div>`:''}
     </div>`;
   }
@@ -3684,7 +3686,58 @@ function _hmItems(grid){
   return out;
 }
 var _hmRO=null, _hmT=null;
-function _hmSpans(items){ items.forEach(function(it){ var h=it.getBoundingClientRect().height; if(h>0) it.style.gridRowEnd='span '+Math.max(1, Math.ceil((h+16)/8)); }); }
+// 진짜 균형 배치: 각 아이템을 '현재 가장 짧은 열'에 직접 배치(열 높이 추적). span2는 인접 2열, full은 전체폭.
+// grid-auto-flow(row dense)의 행 우선 채움 대신 열 최소높이 기준으로 놓아 바닥 정렬을 최대한 맞춤.
+function _hmSpans(items){
+  var grid=document.getElementById('view-home'); if(!grid) return;
+  items.forEach(function(it){ it.style.gridColumn=''; it.style.gridRowStart=''; it.style.gridRowEnd=''; });  // 이전 배치 제거 → 암묵적 열이 사라져 정확한 열 수 측정(3열→2열 전환 시 3번째 열 잔존 버그 방지)
+  var cols=(getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length)||1;
+  var ordered=items.map(function(it,i){return {it:it,o:parseFloat(getComputedStyle(it).order)||0,i:i};})
+                   .sort(function(a,b){return a.o-b.o||a.i-b.i;}).map(function(x){return x.it;});
+  // 균형 보정: 유독 큰 단칸 패널 1개를 '넓은 패널 바로 다음'으로 끌어올려 열을 일찍 안정 → 정돈 순서는 유지하면서 바닥 균형 개선.
+  if(cols>1 && ordered.length>3){
+    var info=ordered.map(function(it){ var h=it.getBoundingClientRect().height; var gc=getComputedStyle(it).gridColumn; return {it:it,h:h,wide:/\/\s*-1/.test(gc)||/span\s*2/.test(gc)}; });
+    var singles=info.filter(function(m){return m.h>0 && !m.wide;});
+    if(singles.length>=4){
+      var tall=singles.reduce(function(a,b){return b.h>a.h?b:a;});
+      var avgOther=(singles.reduce(function(s,m){return s+m.h;},0)-tall.h)/(singles.length-1);
+      if(tall.h > avgOther*1.5){                 // 확실히 큰 이상치일 때만 승격
+        var lastWide=-1; for(var w=0;w<info.length;w++){ if(info[w].wide && info[w].h>0) lastWide=w; }
+        var cur=ordered.indexOf(tall.it);
+        var ins=lastWide+1; if(ins<1) ins=1;
+        if(cur>ins){ ordered.splice(cur,1); ordered.splice(ins,0,tall.it); }
+      }
+    }
+  }
+  var colH=[]; for(var k=0;k<cols;k++) colH.push(0);
+  ordered.forEach(function(it){
+    var h=it.getBoundingClientRect().height;
+    if(h<=0){ it.style.gridColumn=''; it.style.gridRowStart=''; it.style.gridRowEnd=''; return; }
+    var span=Math.max(1, Math.ceil((h+16)/8));
+    var gc=getComputedStyle(it).gridColumn;
+    var full=/\/\s*-1/.test(gc);
+    var wide=/span\s*2/.test(gc);
+    if(cols<=1){ it.style.gridColumn=''; it.style.gridRowStart=''; it.style.gridRowEnd='span '+span; colH[0]+=span; return; }
+    var c, s, best, bh;
+    if(full){
+      s=Math.max.apply(null,colH);
+      it.style.gridColumn='1 / -1'; it.style.gridRowStart=(s+1); it.style.gridRowEnd='span '+span;
+      for(c=0;c<cols;c++) colH[c]=s+span;
+    } else if(wide && cols>=2){
+      best=0; bh=Infinity;
+      for(c=0;c+1<cols;c++){ var mh=Math.max(colH[c],colH[c+1]); if(mh<bh){bh=mh;best=c;} }
+      s=Math.max(colH[best],colH[best+1]);
+      it.style.gridColumn=(best+1)+' / span 2'; it.style.gridRowStart=(s+1); it.style.gridRowEnd='span '+span;
+      colH[best]=s+span; colH[best+1]=s+span;
+    } else {
+      best=0; bh=Infinity;
+      for(c=0;c<cols;c++){ if(colH[c]<bh){bh=colH[c];best=c;} }
+      s=colH[best];
+      it.style.gridColumn=(best+1); it.style.gridRowStart=(s+1); it.style.gridRowEnd='span '+span;
+      colH[best]=s+span;
+    }
+  });
+}
 // RO 콜백: 디바운스 없이 즉시 span만 갱신(FLIP 없음) → 카드가 커지는 동안 아래 카드가 곧바로 따라 내려가 '겹침' 방지.
 // (grid 셀만 바꾸므로 관찰 대상 content-box는 그대로 → RO 재발생/루프 없음)
 function _hmApplySpans(){
@@ -3698,7 +3751,7 @@ function _hmApply(){
   var grid=document.getElementById('view-home'); if(!grid) return null;
   var isGrid=getComputedStyle(grid).display==='grid';
   var items=_hmItems(grid);
-  if(!isGrid){ grid.classList.remove('hm-on'); items.forEach(function(it){ it.style.gridRowEnd=''; }); return items; }
+  if(!isGrid){ grid.classList.remove('hm-on'); items.forEach(function(it){ it.style.gridRowEnd=''; it.style.gridColumn=''; it.style.gridRowStart=''; }); return items; }
   grid.classList.add('hm-on');
   var doFlip = !grid.classList.contains('home-anim');   // 초기 등장(home-anim) 중엔 FLIP 생략(homeRise와 충돌/순서 꼬임 방지)
   var first = doFlip ? new Map() : null;
@@ -4419,7 +4472,7 @@ function showGcalDetail(dateStr, id){
         </div>
       </div>
       <div style="margin-top:9px;font-size:12.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        ${_tl.loc?`<span>📍 ${esc(_tl.loc)}</span>`:''}
+        ${_tl.loc?`<span>${esc(_tl.loc)}</span>`:''}
         <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:2px;background:${c};flex-shrink:0;"></span>${esc(ev._calName||'구글 캘린더')}</span>
       </div>
       <div id="gcal-detail-participants" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;"></div>
@@ -4641,8 +4694,8 @@ function _dayEvCard(ds, ev){
   const cmt=(ev.comments||[]).length;
   return `<div class="wm-ev-card" onclick="closeModal();openEventDetail('${ds}','${ev.id}')" style="background:${c}15;--evc:${c};--evc2:${c}55;">
     ${ev.time?`<div class="wm-ev-time" style="color:${c};">${ev.time}</div>`:''}
-    <div class="wm-ev-title">${esc(ev.title)}${cmt?` <span style="display:inline-flex;align-items:center;gap:2px;background:${c}22;color:${c};font-size:12px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:4px;border:1px solid ${c}44;">💬${cmt}</span>`:''}</div>
-    ${ev.location?`<div style="font-size:11px;color:var(--muted);margin-top:3px;">📍 ${esc(ev.location)}</div>`:''}
+    <div class="wm-ev-title">${esc(ev.title)}${cmt?` <span style="display:inline-flex;align-items:center;gap:2px;background:${c}22;color:${c};font-size:12px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:4px;border:1px solid ${c}44;"><svg viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="flex:none;vertical-align:-1px;"><path d="M8 2.5c-3.1 0-5.7 1.9-5.7 4.2 0 1.3.8 2.5 2 3.3-.1.6-.4 1.2-.8 1.7-.2.2 0 .5.3.4.9-.1 1.8-.5 2.5-.9.5.1 1.1.2 1.7.2 3.1 0 5.7-1.9 5.7-4.2S11.1 2.5 8 2.5z"/></svg>${cmt}</span>`:''}</div>
+    ${ev.location?`<div style="font-size:11px;color:var(--muted);margin-top:3px;">${esc(ev.location)}</div>`:''}
     ${pills?`<div class="wm-ev-pts">${pills}</div>`:''}
   </div>`;
 }
@@ -4656,8 +4709,8 @@ function _dayGcalCard(ds, ev){
   const cmt=(meta.comments||[]).length;
   return `<div class="wm-ev-card" onclick="closeModal();showGcalDetail('${ds}','${ev._id}')" style="background:${c}15;--evc:${c};--evc2:${c}55;cursor:pointer;">
     ${ev.start.time?`<div class="wm-ev-time" style="color:${c};">${ev.start.time}</div>`:''}
-    <div class="wm-ev-title">${esc(tl.title)} <span style="font-size:10px;font-weight:700;color:${c};opacity:.65;">· ${esc(ev._calName||'구글')}</span>${cmt?` <span style="display:inline-flex;align-items:center;gap:2px;background:${c}22;color:${c};font-size:12px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:4px;border:1px solid ${c}44;">💬${cmt}</span>`:''}</div>
-    ${tl.loc?`<div style="font-size:11px;color:var(--muted);margin-top:3px;">📍 ${esc(tl.loc)}</div>`:''}
+    <div class="wm-ev-title">${esc(tl.title)} <span style="font-size:10px;font-weight:700;color:${c};opacity:.65;">· ${esc(ev._calName||'구글')}</span>${cmt?` <span style="display:inline-flex;align-items:center;gap:2px;background:${c}22;color:${c};font-size:12px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:4px;border:1px solid ${c}44;"><svg viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="flex:none;vertical-align:-1px;"><path d="M8 2.5c-3.1 0-5.7 1.9-5.7 4.2 0 1.3.8 2.5 2 3.3-.1.6-.4 1.2-.8 1.7-.2.2 0 .5.3.4.9-.1 1.8-.5 2.5-.9.5.1 1.1.2 1.7.2 3.1 0 5.7-1.9 5.7-4.2S11.1 2.5 8 2.5z"/></svg>${cmt}</span>`:''}</div>
+    ${tl.loc?`<div style="font-size:11px;color:var(--muted);margin-top:3px;">${esc(tl.loc)}</div>`:''}
     ${pills?`<div class="wm-ev-pts">${pills}</div>`:''}
   </div>`;
 }
@@ -6802,7 +6855,7 @@ function openEventDetail(dateStr, id) {
   document.getElementById('ev-detail-date-label').style.color = color;
   document.getElementById('ev-detail-date-label').textContent = `${m}월 ${d}일 (${dowLbl})${ev.time?' · '+ev.time:''}`;
   document.getElementById('ev-detail-title').textContent = ev.title;
-  document.getElementById('ev-detail-meta').textContent = [ev.location?'📍 '+ev.location:'', ev.author?'작성자: '+ev.author:''].filter(Boolean).join('  ·  ');
+  document.getElementById('ev-detail-meta').textContent = [ev.location?''+ev.location:'', ev.author?'작성자: '+ev.author:''].filter(Boolean).join('  ·  ');
   _renderDetailParticipants(ev);
   document.getElementById('ev-edit-form').style.display = 'none';
   _renderEventComments(ev);
