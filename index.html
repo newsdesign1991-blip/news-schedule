@@ -4279,7 +4279,9 @@ function renderTable() {
       sorted.slice(1).forEach(r=>bigoItems.push({name:sx.name,...r}));
     });
     const bigoHtml=bigoItems.map(b=>`<span style="display:inline-block;font-size:10px;padding:1px 5px;border-radius:4px;background:${b.bg};color:${b.color};font-weight:700;white-space:nowrap;margin:1px;">${b.name}: ${b.note}</span>`).join('');
-    tbody+=`<td style="padding:3px 6px;white-space:normal;text-align:left;">${bigoHtml||'<span style="color:var(--muted);font-size:10px;">-</span>'}</td>`;
+    const _nesc2=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const _ntHtml2 = entry?.notes ? `<span style="display:block;font-size:10px;color:#7c3aed;font-weight:600;margin-top:2px;white-space:nowrap;">${_nesc2(entry.notes)}</span>` : '';
+    tbody+=`<td style="padding:3px 6px;white-space:normal;text-align:left;">${(bigoHtml||_ntHtml2)?(bigoHtml+_ntHtml2):'<span style="color:var(--muted);font-size:10px;">-</span>'}</td>`;
 
     tbody+='</tr>';
   }
@@ -6026,7 +6028,10 @@ function renderWorkshopTable() {
         if(_isVwSub(_id)) _addBigo(_id, _id===_vwDesk?'VW데스크':'VW');
         else if(_isCgSub(_id)) _addBigo(_id,'CG');
       }
-      tbody+=_bigo.length?`<td style="font-size:10px;padding:2px 5px;line-height:1.8;vertical-align:middle;">${_bigo.join('<br>')}</td>`:`<td></td>`;
+      const _nesc=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+      const _ntHtml = entry?.notes ? `<span style="color:#7c3aed;font-weight:600;">${_nesc(entry.notes)}</span>` : '';
+      const _bg = [..._bigo, _ntHtml].filter(Boolean);
+      tbody+=_bg.length?`<td style="font-size:10px;padding:2px 5px;line-height:1.8;vertical-align:middle;text-align:left;white-space:nowrap;">${_bg.join('<br>')}</td>`:`<td></td>`;
     }
     tbody+='</tr>';
   }
@@ -6547,13 +6552,27 @@ function parseExcelSchedule() {
       colMap.push({name:nm,colIdx:c});
     });
 
+    // 비고 열 감지: 이름행 위(병합 헤더행) 또는 이름행 헤더에 '8뉴스/진입/편성/길이/비고' 포함 → 날짜별 메모로 수집
+    const _noteHdr = nameRowIdx>0 ? (rows[nameRowIdx-1]||[]) : [];
+    const noteCols = [];
+    const _hdrMaxC = Math.max(nameRow.length, _noteHdr.length);
+    for (let c=0; c<_hdrMaxC; c++) {
+      if (c===dateColIdx || c===dowColIdx) continue;
+      const h = (String(_noteHdr[c]||'')+String(nameRow[c]||'')).replace(/\s+/g,'');
+      let label=null;
+      if (/8뉴스|뉴스진입|진입/.test(h)) label='8뉴스';
+      else if (/편성|길이/.test(h)) label='편성';
+      else if (/비고/.test(h)) label='';
+      if (label!==null) noteCols.push({colIdx:c, label});
+    }
+
     const unknown = new Set();
     colMap.forEach(({name})=>{ if(!knownStaffByName[name]) unknown.add(name); });
 
     // 날짜별 근무 파싱 — 근무표는 월~일 주 단위라 시트가 월을 넘어감(예: 6월 끝에 7월 첫 주).
     // 날짜 열에는 '일'만 있으므로, 날짜가 역행하면(예: 30→1) 자동으로 다음 달로 이어서 인식한다.
     const schedule = [];
-    let _prevDay = 0, _curMon = month, _curYear = year;
+    let _prevDay = 0, _curMon = month, _curYear = year, _seenDays = new Set();
     for (let r=nameRowIdx+1; r<rows.length; r++) {
       const row = rows[r];
       let dayNum=null, explicitMon=null;   // explicitMon: col0에서 '월'이 직접 적힌 경우만
@@ -6581,16 +6600,20 @@ function parseExcelSchedule() {
       if (explicitMon !== null) {
         // 월이 직접 적힌 경우 그대로 사용 + 추적값 동기화
         useMon = explicitMon; useYear = year;
-        _curMon = explicitMon; _curYear = year;
+        if (explicitMon !== _curMon) { _curMon = explicitMon; _curYear = year; _seenDays.clear(); }
       } else {
-        // 날짜 열(일만): 역행하면(30→1) 다음 달로 넘어감
-        if (_prevDay && dayNum < _prevDay) {
+        // 날짜 열(일만): 역행(예 30→1) 시 — 이번 달에 '이미 본 날'이면 다음 달로,
+        //  '아직 안 본 날'이면 이번 달의 빠진 앞날 채우기로 보고 월을 넘기지 않음
+        //  (전체월 시트에서 1~6일이 하단에 배치된 경우 9월 유지, 6월 전체+7월 첫주 같은 경우는 정상 롤오버)
+        if (_prevDay && dayNum < _prevDay && _seenDays.has(dayNum)) {
           _curMon++;
           if (_curMon > 12) { _curMon = 1; _curYear++; }
+          _seenDays.clear();
         }
         useMon = _curMon; useYear = _curYear;
       }
       _prevDay = dayNum;
+      _seenDays.add(dayNum);
 
       const dateStr=`${useYear}-${String(useMon).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
       const entries=[];
@@ -6599,7 +6622,20 @@ function parseExcelSchedule() {
         const val=String(row[colIdx]||'').replace(/\s+/g,'').trim();
         if(val&&val!=='-'&&val!=='0') entries.push({name,workType:val});
       });
-      if(entries.length) schedule.push({date:dateStr,entries});
+      // 비고 열 값 수집(8뉴스 진입 시간·편성 길이 등) → 날짜별 note
+      let _note='';
+      if (noteCols.length) {
+        const _parts=[];
+        noteCols.forEach(nc=>{
+          let v=row[nc.colIdx], sv='';
+          if (typeof v==='number' && v>0 && v<1) {         // 시간 셀(하루의 분수) → HH:MM
+            const _tm=Math.round(v*24*60); sv=String(Math.floor(_tm/60)%24).padStart(2,'0')+':'+String(_tm%60).padStart(2,'0');
+          } else { sv=String(v==null?'':v).trim(); }   // 텍스트(복수시간 '21:40/22:00' 등)는 그대로
+          if (sv && sv!=='-' && sv!=='0') _parts.push(nc.label? `${nc.label} ${sv}` : sv);
+        });
+        _note=_parts.join(' · ');
+      }
+      if(entries.length||_note) schedule.push({date:dateStr,entries,note:_note});
     }
 
     if (!schedule.length) { toast('파싱된 근무 데이터가 없습니다. 엑셀 구조를 확인해주세요.','error'); return; }
@@ -6795,6 +6831,7 @@ function _doApplyImageSchedule(skipNames) {
     data.draft.schedule[ds] = { vw:{workers:[],desk:null}, cg:{workers:[],desk8:null,desk5:null}, danjik:null, jogeunSubs:{}, satMorning:null, ilgeun:null, project:[], sports:[], xr:[], notes:'' };
     delete data.draft.newLeaves[ds];
     const entry = data.draft.schedule[ds];
+    if (day.note) entry.notes = day.note;   // 엑셀 비고(8뉴스 진입·편성 길이)
     day.entries.forEach(({name, workType}) => {
       if (skipSet.has(name)) return;
       const s = (data.staff||[]).find(x=>x.name===name);
