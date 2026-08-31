@@ -6716,6 +6716,7 @@ function _doApplyImageSchedule(skipNames) {
       if (skipSet.has(name)) return;
       const s = (data.staff||[]).find(x=>x.name===name);
       if (!s) return;
+      const dOn = (typeof deptOn==='function') ? deptOn(s, ds) : (s.dept||'');   // 시점부서(부서이동 예약 반영) — 기준부서 s.dept 대신 사용
       const wt = WORK_TYPE_MAP[workType];
       if (wt === 'skip') return;   // 당직퇴근·비번 등 자동 계산 항목은 가져오지 않음
       if (wt === undefined) {      // 매핑 안 된 표기(면접관 등) → 자동 배정 않고 메모에 '수동입력 필요' 기록
@@ -6739,7 +6740,7 @@ function _doApplyImageSchedule(skipNames) {
         entry.vw.desk = s.id;
       } else if (wt === 'desk-auto') {
         // 그냥 '데스크' — 직원 부서로 판별: VW 직원이면 VW데스크, 그 외(CG 등)는 8데스 (토·일 포함)
-        if ((s.dept||'').toUpperCase()==='VW') {
+        if ((dOn||'').toUpperCase()==='VW') {
           if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id);
           entry.vw.desk = s.id;
         } else {
@@ -6748,7 +6749,7 @@ function _doApplyImageSchedule(skipNames) {
         }
       } else if (wt === 'ojende') {
         entry.morningDesk = s.id;
-        _brushAddWorker(entry, s.id, s.dept || '');   // cg.workers에 넣어야 렌더에서 '오전데'로 표시됨
+        _brushAddWorker(entry, s.id, dOn || '');   // cg.workers에 넣어야 렌더에서 '오전데'로 표시됨
       } else if (wt === 'cg-sub') {
         // CG 대체자(타부서 사람이 CG 자리) → cg.workers에만 추가(데스크 건드리지 않음). 렌더가 자동으로 'CG'/'CG대' 표시
         if (!entry.cg.workers.includes(s.id)) entry.cg.workers.push(s.id);
@@ -6760,7 +6761,7 @@ function _doApplyImageSchedule(skipNames) {
         const _dow = new Date(ds+'T00:00:00').getDay();
         if (_dow===6) {
           entry.satMorning = s.id;
-        } else if (_dow>=1 && _dow<=5 && s.dept!=='조근') {
+        } else if (_dow>=1 && _dow<=5 && dOn!=='조근') {
           if (!entry.jogeunExtra) entry.jogeunExtra = [];
           if (!entry.jogeunExtra.includes(s.id)) entry.jogeunExtra.push(s.id);
         }
@@ -6781,7 +6782,7 @@ function _doApplyImageSchedule(skipNames) {
         else entry.weekday8jin2 = s.id;
       } else if (wt === 'work') {
         // 부서에 맞는 배열로 배정 (XR→entry.xr, PROJECT→entry.project 등; 브러쉬와 동일 처리)
-        _brushAddWorker(entry, s.id, s.dept || '');
+        _brushAddWorker(entry, s.id, dOn || '');
       }
       applied++;
     });
