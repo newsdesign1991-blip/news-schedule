@@ -385,6 +385,18 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
   will-change: opacity;
 }
 .duty8-glow > * { position: relative; z-index: 1; }
+/* 오늘의 뉴오 강조(16:00~17:30): 보라색 펄스 — duty8Blink 재사용 */
+.newsoh-glow { position: relative; }
+.newsoh-glow::before {
+  content: ''; position: absolute; inset: 4px; z-index: 0; border-radius: 20px;
+  background: linear-gradient(135deg, rgba(99,102,241,.14) 0%, rgba(99,102,241,.05) 100%);
+  box-shadow: inset 0 0 0 1.5px rgba(99,102,241,.42), inset 0 0 16px rgba(99,102,241,.18);
+  opacity: 0; pointer-events: none;
+  animation: duty8Blink 1.9s ease-in-out infinite;
+  will-change: opacity;
+}
+.newsoh-glow > * { position: relative; z-index: 1; }
+.dept-ic.newsoh { background: linear-gradient(135deg,#8b8ff6,#6366f1); }
 .sum-info { flex: 1; min-width: 0; }
 .sum-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
 .sum-val { font-size: 22px; font-weight: 700; line-height: 1.2; }
@@ -2350,7 +2362,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.08.31 16:05';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.08.31 16:40';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -3076,6 +3088,9 @@ let _noticeTextOpen = new Set();  // 개별 공지 본문 펼침 상태(id) — 
 let _noticeEditId = null;     // 공지 수정 중인 항목 id (없으면 새 공지)
 let tableRangeStart = null; // 'YYYY-MM-DD'
 let tableRangeEnd = null;   // 'YYYY-MM-DD'
+// 근무표 기간을 기기에 저장/복원 — 사용자가 바꾸지 않으면 앱 재실행에도 유지
+(function(){ try{ const _r=JSON.parse(localStorage.getItem('nd_table_range')||'null'); if(_r&&_r.start&&_r.end){ tableRangeStart=_r.start; tableRangeEnd=_r.end; } }catch(e){} })();
+function _saveTableRange(){ try{ if(tableRangeStart&&tableRangeEnd) localStorage.setItem('nd_table_range', JSON.stringify({start:tableRangeStart,end:tableRangeEnd})); }catch(e){} }
 let isAdmin = false;
 let isMaster = false;     // 마스터 모드: 관리자와 동일 + 관리자/관리자테스트 비번 변경 가능
 let isAdminTest = false;  // 관리자 테스트 모드: 관리자와 동일 화면, 읽기 전용(저장 안 됨)
@@ -3367,6 +3382,15 @@ function _updateDuty8Glow(){
   const _forced = Date.now() < _fu;
   el.classList.toggle('duty8-glow', _forced || (h >= 19 && h < 21));
 }
+// 오후 4시~5시반(16:00~17:30) 동안 "오늘의 뉴오" 행을 보라색으로 깜빡이며 강조
+function _updateNewsOhGlow(){
+  const els = document.querySelectorAll('.noh-card');
+  if (!els.length) return;
+  const now = new Date();
+  const mins = now.getHours()*60 + now.getMinutes();
+  const on = mins >= 16*60 && mins < 17*60+30;   // 16:00 ~ 17:30
+  els.forEach(el => el.classList.toggle('newsoh-glow', on));
+}
 function _bezierEase(x1,y1,x2,y2){
   const cx=3*x1, bx=3*(x2-x1)-cx, ax=1-cx-bx;
   const cy=3*y1, by=3*(y2-y1)-cy, ay=1-cy-by;
@@ -3590,23 +3614,40 @@ function renderHome() {
   const _dutyName = entry?.danjik ? (staffById(entry.danjik)?.name || '') : '';
   const _duty8Id = entry?.weekday8jin || entry?.weekend8jin || null;
   const _duty8Name = _duty8Id ? (staffById(_duty8Id)?.name || '') : '';
+  // 오늘의 뉴오(뉴스 진행): 1명이면 1행, 2명이면 각각 1행씩
+  const _miss = '<span style="color:var(--muted);font-weight:600;">미정</span>';
+  const _mic = '<svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M6.4 11a5.6 5.6 0 0 0 11.2 0h-1.6a4 4 0 0 1-8 0z"/><path d="M11.2 17.3V21H8.6a.8.8 0 0 0 0 1.6h6.8a.8.8 0 0 0 0-1.6h-2.6v-3.7z"/></svg>';
+  const _nohRow = (label, nameHtml) => `
+      <div class="tw-row noh-card">
+        <div class="dept-ic newsoh">${_mic}</div>
+        <div class="dept-nm"><span>${label}</span><b>${nameHtml}</b></div>
+        <span class="dept-tag" style="color:#5b5ef0;background:rgba(99,102,241,.14);">뉴오</span>
+      </div>`;
+  const _nohIds = [entry?.newsOh, entry?.newsOh2].filter(Boolean);
+  let _nohRowsHtml;
+  if (_nohIds.length >= 2) {
+    _nohRowsHtml = _nohRow('오늘의 뉴오 ①', staffById(_nohIds[0])?.name || _miss) + _nohRow('오늘의 뉴오 ②', staffById(_nohIds[1])?.name || _miss);
+  } else {
+    _nohRowsHtml = _nohRow('오늘의 뉴오', _nohIds.length ? (staffById(_nohIds[0])?.name || _miss) : _miss);
+  }
   const _dutyRowHtml = `
     <div class="today-work">
       <div class="card-hd">오늘의 근무</div>
       <div class="tw-row">
         <div class="dept-ic duty"><svg viewBox="0 0 24 24" fill="#fff"><path d="M20.5 14.6A8.5 8.5 0 1 1 9.4 3.5a7 7 0 0 0 11.1 11.1z"/></svg></div>
-        <div class="dept-nm"><span>오늘의 당직</span><b>${_dutyName||'<span style="color:var(--muted);font-weight:600;">미정</span>'}</b></div>
+        <div class="dept-nm"><span>오늘의 당직</span><b>${_dutyName||_miss}</b></div>
         <span class="dept-tag" style="color:#e8890c;background:rgba(255,159,28,.16);">당직</span>
       </div>
       <div class="tw-row" id="duty8-card">
         <div class="dept-ic jin8"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6z"/></svg></div>
-        <div class="dept-nm"><span>오늘의 8진</span><b>${_duty8Name||'<span style="color:var(--muted);font-weight:600;">미정</span>'}</b></div>
+        <div class="dept-nm"><span>오늘의 8진</span><b>${_duty8Name||_miss}</b></div>
         <span class="dept-tag" style="color:#e23744;background:rgba(240,68,82,.14);">8진</span>
       </div>
+      ${_nohRowsHtml}
     </div>`;
   document.getElementById('home-duty-row').innerHTML = _dutyRowHtml;
-  _updateDuty8Glow();
-  if (!window._duty8GlowTimer) window._duty8GlowTimer = setInterval(_updateDuty8Glow, 30000);
+  _updateDuty8Glow(); _updateNewsOhGlow();
+  if (!window._duty8GlowTimer) window._duty8GlowTimer = setInterval(function(){ _updateDuty8Glow(); _updateNewsOhGlow(); }, 30000);
   (function(){
     var _pjBody=document.getElementById('home-project-body'); if(!_pjBody) return;
     var _pjs=(data.projects||[]);
@@ -3797,6 +3838,7 @@ function setThisMonth() {
   const y=now.getFullYear(), m=now.getMonth()+1;
   tableRangeStart = toDateStr(y,m,1);
   tableRangeEnd = toDateStr(y,m,new Date(y,m,0).getDate());
+  _saveTableRange();
   renderTable();
 }
 function applyDateRange() {
@@ -3805,6 +3847,7 @@ function applyDateRange() {
   if (!s||!e) { toast('시작일과 종료일을 모두 입력하세요.','error'); return; }
   if (s>e) { toast('종료일이 시작일보다 빠릅니다.','error'); return; }
   tableRangeStart=s; tableRangeEnd=e;
+  _saveTableRange();
   renderTable();
 }
 // 좌우 화살표 페이징: 4주(28일) 단위, 월요일 정렬 (월~금 한세트로 4주 기반 편성용)
@@ -3818,6 +3861,7 @@ function tableRangeNav(dir) {
   tableRangeEnd   = toDateStr(end.getFullYear(),  end.getMonth()+1,  end.getDate());
   const rs=document.getElementById('range-start'), re=document.getElementById('range-end');
   if(rs) rs.value=tableRangeStart; if(re) re.value=tableRangeEnd;
+  _saveTableRange();
   renderTable();
 }
 function importNewLeaves(input) {
@@ -8959,7 +9003,7 @@ function openAccountSheet(){
   if(s.canVW) tags.push({t:'VW', c:'#5a7ec6'});
   if(s.canCG) tags.push({t:'CG', c:'#4a9fbd'});
   if(s.deskPriority>=1) tags.push({t:'데스크', c:'#527dc4'});
-  if(s.morningDeskPriority) tags.push({t:'오전데스크', c:'#527dc4'});
+  if(s.morningDeskPriority) tags.push({t:'오데', c:'#527dc4'});
   if(s.canIlgeun) tags.push({t:'일근', c:'#45847a'});
   if(s.can3D) tags.push({t:'3D', c:'#8a6ecf'});
   if(s.canSatMorning) tags.push({t:'토요오전', c:'#5a7ec6'});
@@ -9935,7 +9979,7 @@ function _getPersonRoles(entry, sid) {
   if (entry.newsOh2===sid) roles.push({label:'뉴.오2',bg:'#f3ddc0',color:'#b07d4a',border:'#d9b483'});
   if (entry.weekend8jin===sid) roles.push({label:'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
   if (entry.weekday8jin===sid) roles.push({label:'평일 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
-  if (entry.morningDesk===sid) roles.push({label:'오전데스크',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
+  if (entry.morningDesk===sid) roles.push({label:'오데',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
   if (entry.satMorning===sid) roles.push({label:'토요 조근',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
   if (entry.ilgeun===sid) roles.push({label:'일근',bg:'#d1fae5',color:'#45847a',border:'#6ee7b7'});
   if ((entry.xr||[]).includes(sid)) roles.push({label:'XR 근무',bg:'var(--xr-bg)',color:'var(--xr-light)',border:'var(--xr)'});
@@ -10038,7 +10082,7 @@ function renderMySchedule() {
     if (entry.newsOh2===sid) roles.push({label:'뉴.오2',bg:'#f3ddc0',color:'#b07d4a',border:'#d9b483'});
     if (entry.weekend8jin===sid) roles.push({label:'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
     if (entry.weekday8jin===sid) roles.push({label:'평일 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
-    if (entry.morningDesk===sid) roles.push({label:'오전데스크',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
+    if (entry.morningDesk===sid) roles.push({label:'오데',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
     if (entry.satMorning===sid) roles.push({label:'토요 조근',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
     if (entry.ilgeun===sid) roles.push({label:'일근',bg:'#d1fae5',color:'#45847a',border:'#6ee7b7'});
     if ((entry.xr||[]).includes(sid)) roles.push({label:'XR 근무',bg:'var(--xr-bg)',color:'var(--xr-light)',border:'var(--xr)'});
