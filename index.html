@@ -80,7 +80,7 @@
   --r-exit-bg:rgba(214,192,120,0.16); --r-exit-fg:#e0c98a; --r-edu-bg:rgba(90,190,120,0.16); --r-edu-fg:#84d89b;
   --r-news-bg:rgba(210,150,95,0.16); --r-news-fg:#e2b48a; --r-news2-bg:rgba(210,150,95,0.16); --r-news2-fg:#e2b48a; --r-ilgeun-bg:rgba(200,110,150,0.17); --r-ilgeun-fg:#e2a3c0;
   --th-jogeun-bg:#33344a; --th-jogeun-fg:#a9b3e0; --th-jogeun-bd:#454864;
-  --th-xr-bg:rgba(92,195,178,0.15); --th-xr-fg:#8bd8c8; --th-xr-bd:#3a5a52;
+  --th-xr-bg:#2f3e3c; --th-xr-fg:#8bd8c8; --th-xr-bd:#3a5a52;
   --th-cgsum-bg:rgba(91,180,208,0.14); --th-cgsum-fg:#8bcfe4;
   --th-daysum-bg:#34364d; --th-daysum-fg:#9fb0e0;
   --th-remark-bg:rgba(150,120,210,0.15); --th-remark-fg:#c3aef0;
@@ -134,8 +134,11 @@ body { transition: background-color .25s ease, color .25s ease; }
 [data-theme="dark"] .excel-table tbody tr.today-row.holiday td.date-td { background:#4a2f3d; }
 [data-theme="dark"] .excel-table tbody tr.sum-row td { background:#33322f; border-top-color:#303030; }
 [data-theme="dark"] .excel-table thead th.sum-col { background:#3a3548; color:#a9b3e0; }
-[data-theme="dark"] .excel-table thead th.dept-group.vw { color:var(--vw-light); border-color:var(--vw); background:var(--vw-bg); }
-[data-theme="dark"] .excel-table thead th.dept-group.cg { color:var(--cg-light); border-color:var(--cg); background:var(--cg-bg); }
+/* 다크모드 부서그룹 헤더: 반투명 틴트가 sticky 헤더 밑으로 비쳐 뚫려 보이던 버그 → 불투명 surface2를 밑에 깔아 불투명화 */
+[data-theme="dark"] .excel-table thead th.dept-group.vw { color:var(--vw-light); border-color:var(--vw); background: linear-gradient(var(--vw-bg),var(--vw-bg)), var(--surface2); }
+[data-theme="dark"] .excel-table thead th.dept-group.cg { color:var(--cg-light); border-color:var(--cg); background: linear-gradient(var(--cg-bg),var(--cg-bg)), var(--surface2); }
+[data-theme="dark"] .excel-table thead th.dept-group.project { background: linear-gradient(var(--project-bg),var(--project-bg)), var(--surface2); }
+[data-theme="dark"] .excel-table thead th.dept-group.sports { background: linear-gradient(var(--sports-bg),var(--sports-bg)), var(--surface2); }
 [data-theme="dark"] .excel-table thead th.dept-group.jogeun { background:#33344a; color:#a9b3e0; border-color:#454864; }
 [data-theme="dark"] .cell-off { color: var(--muted); }
 [data-theme="dark"] .dow-td.sun { color:#b39ddb; } [data-theme="dark"] .dow-td.sat { color:#8ea2ff; }
@@ -397,6 +400,8 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 }
 .newsoh-glow > * { position: relative; z-index: 1; }
 .dept-ic.newsoh { background: linear-gradient(135deg,#8b8ff6,#6366f1); }
+.today-work .dept-ic svg { width: 23px; height: 23px; }   /* 오늘의 근무 아이콘 크게 */
+.today-work .dept-ic.jin8 svg { width: 29px; height: 29px; }   /* 8진 아이콘은 내부 여백 있어 더 크게 */
 .sum-info { flex: 1; min-width: 0; }
 .sum-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
 .sum-val { font-size: 22px; font-weight: 700; line-height: 1.2; }
@@ -2362,7 +2367,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.08.31 16:40';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.08.31 17:04';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -3616,7 +3621,7 @@ function renderHome() {
   const _duty8Name = _duty8Id ? (staffById(_duty8Id)?.name || '') : '';
   // 오늘의 뉴오(뉴스 진행): 1명이면 1행, 2명이면 각각 1행씩
   const _miss = '<span style="color:var(--muted);font-weight:600;">미정</span>';
-  const _mic = '<svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M6.4 11a5.6 5.6 0 0 0 11.2 0h-1.6a4 4 0 0 1-8 0z"/><path d="M11.2 17.3V21H8.6a.8.8 0 0 0 0 1.6h6.8a.8.8 0 0 0 0-1.6h-2.6v-3.7z"/></svg>';
+  const _mic = '<svg viewBox="0 0 240 240"><defs><linearGradient id="nohGrad" x1="191.9" y1="172.4" x2="44.7" y2="72" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe3f7"/></linearGradient></defs><path fill="url(#nohGrad)" d="M120,212.4c-49.1,0-89.1-40-89.1-89.1S70.9,34.2,120,34.2s89.1,40,89.1,89.1-40,89.1-89.1,89.1ZM120,65.8c-31.7,0-57.5,25.8-57.5,57.5s25.8,57.5,57.5,57.5,57.5-25.8,57.5-57.5-25.8-57.5-57.5-57.5Z"/></svg>';
   const _nohRow = (label, nameHtml) => `
       <div class="tw-row noh-card">
         <div class="dept-ic newsoh">${_mic}</div>
@@ -3639,7 +3644,7 @@ function renderHome() {
         <span class="dept-tag" style="color:#e8890c;background:rgba(255,159,28,.16);">당직</span>
       </div>
       <div class="tw-row" id="duty8-card">
-        <div class="dept-ic jin8"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6z"/></svg></div>
+        <div class="dept-ic jin8"><svg viewBox="0 0 240 240" fill="#fff"><path d="M163.7,105.9c7.4-9.4,10.6-19.6,10.6-30.6,0-28.5-24.4-52.1-54-52.1s-53.7,22.7-53.7,52.1,3.6,22.2,10.2,31.1c-16,13.3-24.8,31.3-24.8,51,0,37.9,30.6,66.1,68.3,66.1s67.8-29.6,67.8-66-9.4-39-24.4-51.6ZM120.2,41.1c19.4,0,34.7,15.6,34.7,34.2s-3.8,16.4-8.4,21.1c-7.2-3.2-15.7-5.3-26.5-5.2v18.2c-19.4-.2-34.4-15.4-34.4-34.1s15.2-34.2,34.6-34.2ZM120.2,205.2c-27.2,0-48.8-21.4-48.8-47.7s8.9-30.2,19.2-37.9c8.6,5.6,18.7,8.5,29.8,8.5v-18.2c27.2.2,48.6,21.5,48.6,47.7s-21.6,47.7-48.8,47.7Z"/></svg></div>
         <div class="dept-nm"><span>오늘의 8진</span><b>${_duty8Name||_miss}</b></div>
         <span class="dept-tag" style="color:#e23744;background:rgba(240,68,82,.14);">8진</span>
       </div>
