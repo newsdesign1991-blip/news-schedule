@@ -1439,7 +1439,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   <button class="snav-btn snav-admin-only" data-view="admin" onclick="showView('admin')"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M19.43 12.98c.04-.32.07-.64.07-.98 0-.34-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg><span>관리자</span></button>
   <div class="snav-bottom"><button class="snav-btn" onclick="openAccountSheet()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4.2"/><path d="M12 14c-4.4 0-8 2.6-8 6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1c0-3.4-3.6-6-8-6z"/></svg><span>계정 정보</span></button><button class="snav-btn" onclick="openNotifySheet()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6c0 4.5-1.5 6-2.4 6.8A1 1 0 0 0 4.3 17h15.4a1 1 0 0 0 .7-1.7C19.5 14.4 18 12.5 18 8a6 6 0 0 0-6-6z"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0z"/></svg><span>알림 설정</span></button><button class="snav-btn" onclick="toggleAdmin()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l1.9-1.5a.5.5 0 0 0 .1-.6l-1.8-3.1a.5.5 0 0 0-.6-.2l-2.2 1a7 7 0 0 0-1.7-1l-.3-2.4a.5.5 0 0 0-.5-.4h-3.6a.5.5 0 0 0-.5.4l-.3 2.4a7 7 0 0 0-1.7 1l-2.2-1a.5.5 0 0 0-.6.2L2.6 8.9a.5.5 0 0 0 .1.6L4.6 11a7.5 7.5 0 0 0 0 2l-1.9 1.5a.5.5 0 0 0-.1.6l1.8 3.1a.5.5 0 0 0 .6.2l2.2-1a7 7 0 0 0 1.7 1l.3 2.4a.5.5 0 0 0 .5.4h3.6a.5.5 0 0 0 .5-.4l.3-2.4a7 7 0 0 0 1.7-1l2.2 1a.5.5 0 0 0 .6-.2l1.8-3.1a.5.5 0 0 0-.1-.6L19.4 13zM12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4z"/></svg><span>관리자 모드</span></button></div>
   <!-- 빌드 버전(PC 사이드바 전용): 배포 때마다 갱신 -->
-  <div class="snav-version" title="빌드 버전">v2026.08.31 14:32</div>
+  <div class="snav-version" title="빌드 버전">v2026.08.31 15:47</div>
 </nav>
 
 <!-- 상단 통합 메뉴 (iOS 컨텍스트 메뉴) -->
@@ -5754,7 +5754,7 @@ function renderWorkshopTable() {
   jogeunCols.forEach(()=>{cg+='<col>';});
   cg+='<col style="width:32px">'; // VW합
   cgCols.forEach(()=>{cg+='<col>';});
-  cg+='<col style="width:32px"><col style="width:40px"><col style="width:90px">';
+  cg+='<col style="width:32px"><col style="width:40px"><col style="width:90px"><col id="ws-bigo-col">';   // CG합·당일·확인·비고(비고는 내용맞춤 동적폭)
   document.getElementById('ws-colgroup').innerHTML=cg;
 
   // thead
@@ -6048,6 +6048,15 @@ function renderWorkshopTable() {
   cgCols.forEach(s=>{const cnt=workCount[s.id]||0;tbody+=`<td style="text-align:center;font-size:11px;font-weight:700;color:${cnt>weekdaysInMonth?'#d65a52':cnt?'var(--text)':'var(--muted)'};">${cnt||'-'}</td>`;});
   tbody+=`<td></td><td></td><td></td><td></td></tr>`;
   document.getElementById('ws-tbody').innerHTML=tbody;
+  // 비고 열 폭을 가장 긴 비고 내용에 맞춰 동적 조정(내용 없으면 기본, 길면 늘림)
+  (function(){
+    const col=document.getElementById('ws-bigo-col'); const tb=document.getElementById('ws-tbody');
+    if(!col||!tb) return;
+    col.style.width='1px';                              // 최소로 눌러 실제 내용폭(scrollWidth) 측정
+    let maxW=0;
+    tb.querySelectorAll('tr').forEach(tr=>{ const last=tr.lastElementChild; if(last) maxW=Math.max(maxW, last.scrollWidth); });
+    col.style.width=Math.min(Math.max(maxW+6,160),460)+'px';   // 최소 160, 최대 460
+  })();
 }
 
 let wsBrushType = null;
@@ -6824,6 +6833,9 @@ function _doApplyImageSchedule(skipNames) {
   if (!data.draft.schedule) data.draft.schedule = {};
   let applied = 0;
   if (!data.draft.newLeaves) data.draft.newLeaves = {};
+  // 엑셀에 열(데이터)이 있는 사람 이름 집합 — 조근 휴무 판정에 사용(열 자체가 없는 사람은 건드리지 않음)
+  const _impNames = new Set();
+  (_imgParsedData.schedule||[]).forEach(d=>(d.entries||[]).forEach(e=>_impNames.add(e.name)));
   (_imgParsedData.schedule||[]).forEach(day => {
     const ds = day.date;
     // 파싱된 날짜는 기존 내용을 비우고 새로 덮어씀 (재파싱 시 누적 방지)
@@ -6905,6 +6917,20 @@ function _doApplyImageSchedule(skipNames) {
       }
       applied++;
     });
+    // 조근 부서: 엑셀 셀이 비어있는 날은 그날 휴무로 명시(가져오기=엑셀 그대로) → 렌더가 자동으로 '조근' 채우는 것 방지.
+    //  (엑셀에 값 있으면 그대로: 조근/8진/신휴가 등. 엑셀에 열 자체가 없는 조근원은 건드리지 않음.)
+    (function(){
+      const _jNames = new Set((day.entries||[]).map(e=>e.name));
+      (data.staff||[]).forEach(s=>{
+        if (s.active===false) return;
+        const _d = (typeof deptOn==='function') ? deptOn(s, ds) : s.dept;
+        if (_d !== '조근') return;
+        if (_jNames.has(s.name)) return;      // 이 날 엑셀에 값 있음 → 유지
+        if (!_impNames.has(s.name)) return;   // 엑셀에 열 자체가 없음 → 건드리지 않음
+        if (!entry.restWorkers) entry.restWorkers = [];
+        if (!entry.restWorkers.includes(s.id)) entry.restWorkers.push(s.id);
+      });
+    })();
   });
   // 작성소 범위를 파싱된 날짜 범위로 맞춤 (적용 직후 바로 보이게)
   const _ds = (_imgParsedData.schedule||[]).map(d=>d.date).filter(Boolean).sort();
