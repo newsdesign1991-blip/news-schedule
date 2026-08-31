@@ -829,6 +829,13 @@ button, input, select, textarea { font-family: inherit; }
 .excel-table tbody tr:last-child td:first-child { border-bottom-left-radius: 13px; }
 .excel-table tbody tr:last-child td:last-child { border-bottom-right-radius: 13px; }
 .excel-table thead tr.dept-row th { border-bottom: 2px solid var(--border); }
+/* 관리자: 작성소 이름열 드래그 재정렬 */
+body.admin-mode-active #ws-thead th.name-th[data-sid] { cursor: grab; touch-action: none; }
+body.admin-mode-active #ws-thead th.name-th[data-sid]:active { cursor: grabbing; }
+body.ws-coldragging, body.ws-coldragging * { user-select: none !important; -webkit-user-select: none !important; cursor: grabbing !important; }
+#ws-thead th.name-th.col-dragsrc { opacity: .35; }
+.ws-col-ghost { position: fixed; z-index: 4000; pointer-events: none; transform: translate(-50%, -150%); background: var(--vw); color: #fff; font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 9px; box-shadow: 0 8px 22px rgba(0,0,0,.28); white-space: nowrap; }
+.ws-col-indicator { position: fixed; z-index: 4000; pointer-events: none; width: 3px; margin-left: -1.5px; background: var(--vw); border-radius: 2px; box-shadow: 0 0 0 1px rgba(255,255,255,.7); display: none; }
 .excel-table tbody td { border: 0 solid var(--border); border-width: 0 1px 1px 0; padding: 0; text-align: center; font-size: 11px; white-space: nowrap; height: 28px; vertical-align: middle; }
 .excel-table tbody td.date-td { position: sticky; left: 0; z-index: 5; background: var(--surface2); font-weight: 700; font-size: 12px; color: var(--text); padding: 0 4px; border-left: 1px solid var(--border); }
 .excel-table tbody td.dow-td { position: sticky; left: 46px; z-index: 5; background: var(--surface2); font-size: 11px; padding: 0 3px; min-width: 36px; width: 36px; }
@@ -5638,6 +5645,80 @@ function wsRangeNav(dir) {
   renderWorkshop();
 }
 
+// ===== 관리자: 작성소 이름열 롱프레스 드래그 재정렬 =====
+// data.staff 배열 순서를 바꿔 같은 부서 내 컬럼 순서 변경(작성소·근무표 양쪽 반영). 드롭은 같은 부서(data-grp)끼리만.
+function _reorderStaffCol(dragSid, targetSid, before){
+  if(!dragSid||!targetSid||dragSid===targetSid) return;
+  const arr=data.staff;
+  const di=arr.findIndex(s=>s.id===dragSid); if(di<0) return;
+  const moved=arr.splice(di,1)[0];
+  let ti=arr.findIndex(s=>s.id===targetSid);
+  if(ti<0){ arr.splice(di,0,moved); return; }      // 타깃 사라짐 → 원복
+  arr.splice(before?ti:ti+1, 0, moved);
+  saveData(data);
+  renderWorkshopTable();
+  const vt=document.getElementById('view-table'); if(vt&&vt.classList.contains('active')&&typeof renderTable==='function') renderTable();
+  if(typeof toast==='function') toast('순서 변경됨','success');
+}
+function _wsColDragSetup(){
+  const thead=document.getElementById('ws-thead');
+  if(!thead||thead._colDragBound) return;
+  thead._colDragBound=true;
+  thead.addEventListener('pointerdown', function(e){
+    if(!isAdmin) return;
+    const th=e.target.closest('th.name-th[data-sid]'); if(!th) return;
+    const sid=th.getAttribute('data-sid'), grp=th.getAttribute('data-grp');
+    const startX=e.clientX, startY=e.clientY, pid=e.pointerId;
+    let dragging=false, ghost=null, indicator=null, curTarget=null, curBefore=true;
+    const longTimer=setTimeout(startDrag, 300);
+    function startDrag(){
+      dragging=true;
+      try{ th.setPointerCapture(pid); }catch(_){}
+      document.body.classList.add('ws-coldragging');
+      th.classList.add('col-dragsrc');
+      ghost=document.createElement('div'); ghost.className='ws-col-ghost'; ghost.textContent=th.textContent;
+      document.body.appendChild(ghost);
+      indicator=document.createElement('div'); indicator.className='ws-col-indicator';
+      document.body.appendChild(indicator);
+      moveGhost(startX,startY);
+      if(navigator.vibrate){ try{ navigator.vibrate(15); }catch(_){} }
+    }
+    function moveGhost(x,y){ if(ghost){ ghost.style.left=x+'px'; ghost.style.top=y+'px'; } }
+    function onMove(ev){
+      if(!dragging){
+        if(Math.abs(ev.clientX-startX)>10||Math.abs(ev.clientY-startY)>10){ clearTimeout(longTimer); cleanup(); }
+        return;
+      }
+      ev.preventDefault();
+      moveGhost(ev.clientX,ev.clientY);
+      const els=thead.querySelectorAll('th.name-th[data-grp="'+grp+'"]');
+      let best=null,bestD=1e9,before=true;
+      els.forEach(el=>{ const r=el.getBoundingClientRect(); const mid=r.left+r.width/2; const d=Math.abs(ev.clientX-mid); if(d<bestD){ bestD=d; best=el; before=ev.clientX<mid; } });
+      curTarget=best; curBefore=before;
+      if(best){ const r=best.getBoundingClientRect(); indicator.style.display='block'; indicator.style.left=(before?r.left:r.right)+'px'; indicator.style.top=r.top+'px'; indicator.style.height=r.height+'px'; }
+      else if(indicator){ indicator.style.display='none'; }
+    }
+    function onUp(){
+      clearTimeout(longTimer);
+      const t=curTarget, b=curBefore, wasDragging=dragging;
+      cleanup();
+      if(wasDragging && t){ const tsid=t.getAttribute('data-sid'); if(tsid&&tsid!==sid) _reorderStaffCol(sid, tsid, b); }
+    }
+    function cleanup(){
+      document.removeEventListener('pointermove',onMove,true);
+      document.removeEventListener('pointerup',onUp,true);
+      document.removeEventListener('pointercancel',onUp,true);
+      document.body.classList.remove('ws-coldragging');
+      th.classList.remove('col-dragsrc');
+      if(ghost){ ghost.remove(); ghost=null; }
+      if(indicator){ indicator.remove(); indicator=null; }
+      dragging=false;
+    }
+    document.addEventListener('pointermove',onMove,true);
+    document.addEventListener('pointerup',onUp,true);
+    document.addEventListener('pointercancel',onUp,true);
+  });
+}
 function renderWorkshopTable() {
   if (!wsRangeStart||!wsRangeEnd) return;
   const _sched = data.draft.schedule;
@@ -5685,11 +5766,13 @@ function renderWorkshopTable() {
   thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:var(--th-daysum-bg);color:var(--th-daysum-fg);">당일</th>`;
   thead+=`<th rowspan="2" class="sum-col check-sticky" style="font-size:10px;background:#fff0f0;color:#c06b66;min-width:80px;">확인</th>`;
   thead+=`<th rowspan="2" style="font-size:10px;background:#f8f4ff;color:#7c3aed;min-width:160px;white-space:nowrap;">비고</th></tr><tr>`;
-  vwCols.forEach(s=>{thead+=`<th class="name-th" style="color:${deptColors.vw};">${s.name}</th>`;});
-  jogeunCols.forEach(s=>{thead+=`<th class="name-th" style="background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);">${s.name}</th>`;});
-  cgCols.forEach((s,_ci)=>{const bg=s._dept==='xr'?'background:var(--th-xr-namebg);':'';const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;let _gb='';if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:1px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:1px solid ${_gc}55;`;}thead+=`<th class="name-th" style="${bg}color:${deptColors[s._dept]||'var(--text)'};${_gb}">${s.name}</th>`;});
+  const _grpMap={cg:'CG',xr:'XR',project:'PROJECT',sports:'SPORTS'};
+  vwCols.forEach(s=>{thead+=`<th class="name-th" data-sid="${s.id}" data-grp="VW" style="color:${deptColors.vw};">${s.name}</th>`;});
+  jogeunCols.forEach(s=>{thead+=`<th class="name-th" data-sid="${s.id}" data-grp="조근" style="background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);">${s.name}</th>`;});
+  cgCols.forEach((s,_ci)=>{const bg=s._dept==='xr'?'background:var(--th-xr-namebg);':'';const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;let _gb='';if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:1px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:1px solid ${_gc}55;`;}thead+=`<th class="name-th" data-sid="${s.id}" data-grp="${_grpMap[s._dept]||'CG'}" style="${bg}color:${deptColors[s._dept]||'var(--text)'};${_gb}">${s.name}</th>`;});
   thead+='</tr>';
   document.getElementById('ws-thead').innerHTML=thead;
+  try{ _wsColDragSetup(); }catch(e){}   // 관리자: 이름열 롱프레스 드래그 재정렬
 
   // tbody
   let tbody='';
