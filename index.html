@@ -1407,7 +1407,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 .login-box .btn-primary.lb-btn-master { background:linear-gradient(135deg,#d9a441,#e8c06a); }
 </style>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.0/dist/dom-to-image-more.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -2368,7 +2368,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.09.07 15:25';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.07 15:43';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -3921,48 +3921,40 @@ function quickGenerate() {
 }
 
 async function captureSchedule() {
-  if (typeof domtoimage === 'undefined') { toast('캡쳐 라이브러리 로딩 중...',''); return; }
+  if (typeof html2canvas === 'undefined') { toast('캡쳐 라이브러리 로딩 중...',''); return; }
   const titleEl = document.getElementById('table-title');
   const tableEl = document.getElementById('excel-table');
   if (!tableEl) { toast('근무표가 없습니다',''); return; }
   toast('캡쳐 중...','');
-
-  const PAD = 20;
-  const titleH = 44;
-  const W = tableEl.scrollWidth;
-  const H = tableEl.scrollHeight;
-
   try {
-    const dataUrl = await domtoimage.toPng(tableEl, {
-      bgcolor: '#ffffff',
-      width: W,
-      height: H,
-      style: { overflow: 'visible' }
-    });
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e){} }
+    const S = 2;   // 출력 해상도 배율(선명하게)
+    // html2canvas: 화면에 보이는 그대로(색·폰트·테두리) 렌더 — dom-to-image의 뿌옇게/두껍게 나오던 문제 해결
+    const canvas = await html2canvas(tableEl, { backgroundColor: '#ffffff', scale: S, useCORS: true, logging: false });
 
     // 제목 + 테이블 합치기
-    const img = new Image();
-    await new Promise(r => { img.onload = r; img.src = dataUrl; });
-
+    const PAD = 20 * S, titleH = 44 * S;
     const out = document.createElement('canvas');
-    out.width = W + PAD * 2;
-    out.height = H + PAD * 2 + titleH;
+    out.width = canvas.width + PAD * 2;
+    out.height = canvas.height + PAD * 2 + titleH;
     const ctx = out.getContext('2d');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, out.width, out.height);
 
     const titleText = (titleEl.querySelector('#table-title-text')?.textContent || '근무표').trim();
     const deployText = (titleEl.querySelector('span[style*="muted"]')?.textContent || '').trim();
+    const _ff = '"Wanted Sans Variable","Wanted Sans","Segoe UI",sans-serif';
+    ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#1e293b';
-    ctx.font = '700 18px "Segoe UI", sans-serif';
-    ctx.fillText(titleText, PAD, PAD + 22);
+    ctx.font = '700 ' + (18 * S) + 'px ' + _ff;
+    ctx.fillText(titleText, PAD, PAD + 24 * S);
     if (deployText) {
       const titleW = ctx.measureText(titleText).width;
-      ctx.fillStyle = 'var(--muted)';
-      ctx.font = '400 11px "Segoe UI", sans-serif';
-      ctx.fillText(deployText, PAD + titleW + 12, PAD + 20);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '400 ' + (11 * S) + 'px ' + _ff;
+      ctx.fillText(deployText, PAD + titleW + 12 * S, PAD + 22 * S);
     }
-    ctx.drawImage(img, PAD, PAD + titleH);
+    ctx.drawImage(canvas, PAD, PAD + titleH);
 
     const link = document.createElement('a');
     link.download = titleText.replace(/\s+/g,'_') + '.png';
