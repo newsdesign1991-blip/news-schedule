@@ -2368,7 +2368,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.09.07 15:43';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.07 17:38';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -4073,7 +4073,7 @@ function renderTable() {
   cgCols.forEach(()=>{ cg+='<col>'; });
   cg+='<col style="width:32px">';
   cg+='<col style="width:40px">';
-  cg+='<col style="width:130px">';
+  cg+='<col id="excel-bigo-col">';   // 비고: 내용맞춤 동적폭
   document.getElementById('excel-colgroup').innerHTML=cg;
 
   // thead row 1 — dept groups
@@ -4331,7 +4331,7 @@ function renderTable() {
     const bigoHtml=bigoItems.map(b=>`<span style="display:inline-block;font-size:10px;padding:1px 5px;border-radius:4px;background:${b.bg};color:${b.color};font-weight:700;white-space:nowrap;margin:1px;">${b.name}: ${b.note}</span>`).join('');
     const _nesc2=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     const _ntHtml2 = entry?.notes ? `<span style="display:block;font-size:10px;color:#7c3aed;font-weight:600;margin-top:2px;white-space:nowrap;">${_nesc2(entry.notes)}</span>` : '';
-    tbody+=`<td style="padding:3px 6px;white-space:normal;text-align:left;">${(bigoHtml||_ntHtml2)?(bigoHtml+_ntHtml2):'<span style="color:var(--muted);font-size:10px;">-</span>'}</td>`;
+    tbody+=`<td style="padding:3px 6px;white-space:nowrap;text-align:left;">${(bigoHtml||_ntHtml2)?(bigoHtml+_ntHtml2):'<span style="color:var(--muted);font-size:10px;">-</span>'}</td>`;
 
     tbody+='</tr>';
   }
@@ -4361,6 +4361,15 @@ function renderTable() {
 
   document.getElementById('excel-tbody').innerHTML=tbody;
   (function(){ var dr=document.querySelector('.excel-table thead tr.dept-row'); if(dr){ var h=dr.getBoundingClientRect().height; document.querySelectorAll('.excel-table thead th.name-th').forEach(function(el){ el.style.top=h+'px'; }); } })();
+  // 비고 열 폭을 가장 긴 비고 내용에 맞춰 동적 조정(안 잘리게) — 이미지 저장도 렌더된 표 그대로라 함께 반영
+  (function(){
+    var col=document.getElementById('excel-bigo-col'); var tb=document.getElementById('excel-tbody');
+    if(!col||!tb) return;
+    col.style.width='1px';
+    var maxW=0;
+    tb.querySelectorAll('tr').forEach(function(tr){ var last=tr.lastElementChild; if(last) maxW=Math.max(maxW, last.scrollWidth); });
+    col.style.width=Math.min(Math.max(maxW+8,130),480)+'px';
+  })();
   if(!allCols.length){
     document.getElementById('excel-tbody').innerHTML=`<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--muted);">직원을 먼저 등록해 주세요.</td></tr>`;
   }
