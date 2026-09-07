@@ -1807,6 +1807,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
         <button class="tbl-btn" onclick="setThisMonth()">이번 달</button>
         <button class="ws-page-arrow" onclick="tableRangeNav(-1)" title="이전 4주">&#8249;</button>
         <button class="ws-page-arrow" onclick="tableRangeNav(1)" title="다음 4주">&#8250;</button>
+        <button class="tbl-btn" onclick="captureSchedule()" title="현재 근무표를 PNG 이미지로 저장"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px;"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-4.5-4.5L5 21"/></svg>이미지로 저장</button>
         <button class="tbl-btn" id="tbl-del-pub" style="display:none;background:#fdecea;color:#d65a52;border:1px solid #f3c2bd;" onclick="openDeletePublished()">🗑 배포 삭제</button>
       </div>
     </div>
@@ -2367,7 +2368,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.08.31 17:04';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.07 15:25';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
