@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -167,9 +167,9 @@ nav { display: flex; gap: 2px; }
 [data-theme="dark"] .snav-btn.active { background:rgba(106,168,255,.14); color:#8ab4ff; }
 .snav-admin-only { display:none !important; }
 .snav-sub { display:flex; flex-direction:column; gap:2px; overflow:hidden; max-height:0; margin:0; transition:max-height .32s cubic-bezier(.4,0,.2,1), margin .32s ease; }
-.snav-btn[data-view="home"].active + .snav-sub { max-height:200px; margin:1px 0 4px; }
+.snav-btn[data-view].active + .snav-sub { max-height:200px; margin:1px 0 4px; }
 .snav-sub-btn { opacity:0; transform:translateX(-7px); transition:opacity .26s ease, transform .26s cubic-bezier(.4,0,.2,1); }
-.snav-btn[data-view="home"].active + .snav-sub .snav-sub-btn { opacity:1; transform:none; }
+.snav-btn[data-view].active + .snav-sub .snav-sub-btn { opacity:1; transform:none; }
 .snav-btn[data-view="home"].active + .snav-sub .snav-sub-btn:nth-child(1){ transition-delay:.05s; }
 .snav-btn[data-view="home"].active + .snav-sub .snav-sub-btn:nth-child(2){ transition-delay:.1s; }
 .snav-btn[data-view="home"].active + .snav-sub .snav-sub-btn:nth-child(3){ transition-delay:.15s; }
@@ -1408,7 +1408,90 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 </style>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-</head>
+<style id="floating-sidebar-only">
+/* Header material measured from https://www.apple.com/kr/iphone-duo/ localnav-wrap (2026-09-21). Keep the app sidebar alignment and full available width. */
+@media (min-width:1001px) {
+ body { padding-left:236px; }
+ #side-nav { left:12px; top:12px; bottom:12px; width:212px; border:1px solid var(--border); border-radius:22px; background:var(--surface); box-shadow:0 6px 22px -12px rgba(15,23,42,.22); }
+ [data-theme="dark"] #side-nav { box-shadow:0 6px 22px -12px rgba(0,0,0,.55); }
+ body > header { top:12px; height:54px; margin:12px 20px 0; padding:12px 20px; border:0; border-radius:18px; background:rgba(255,255,255,.8); box-shadow:0 0 0 1px rgb(230,230,232); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); }
+ body > header .logo#hdr-user { font-size:19px; line-height:25px; font-weight:600; letter-spacing:-.025em; padding-left:0; color:var(--text); }
+ [data-theme="dark"] body > header { background:rgba(29,29,31,.84); border-color:rgba(255,255,255,.12); box-shadow:inset 0 1px 0 rgba(255,255,255,.05); }
+ @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) { body > header { background:var(--surface); } }
+ body.admin-mode-active > header { top:42px; }
+ body.admin-mode-active #side-nav { top:42px; }
+ #ws-sticky-toolbar { top:78px; }
+ body.admin-mode-active #ws-sticky-toolbar { top:108px; }
+}
+/* Same material measured from Apple's local navigation; retain the mobile pill geometry. */
+#floating-nav { background:rgba(255,255,255,.8); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); border:0; box-shadow:0 0 0 1px rgb(230,230,232); }
+[data-theme="dark"] #floating-nav { background:rgba(29,29,31,.8); box-shadow:0 0 0 1px rgba(255,255,255,.12); }
+@media(max-width:1000px) { .dinner-toolbar-trigger { display:none !important; } #hmenu-dinner { min-height:44px; } }
+</style><style id="picker-and-card-interactions">/* Common regular-day picker: whole-tile interaction, native accessible state. */
+html body #dinner-modal > .nd-pop { width:600px !important; max-width:94vw; }
+html body #dinner-modal .nd-pop > div:first-child { padding:20px 24px 16px !important; }
+html body #dinner-modal .nd-pop > div:nth-child(2) { padding:18px 24px 22px !important; }
+html body #dinner-title { font-size:19px !important; }
+html body #dinner-modal input[type=date],html body #dinner-modal input[type=search] { min-height:44px; padding:10px 12px; border:1px solid var(--border); border-radius:12px; background:var(--surface2); color:var(--text); font:inherit; box-sizing:border-box; outline:none; }
+html body #dinner-modal input:focus-visible { border-color:var(--vw); box-shadow:0 0 0 3px rgba(90,126,198,.16); }
+html body #dinner-people { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px !important; max-height:240px !important; padding:4px !important; }
+html body #dinner-people label { position:relative; min-height:48px; padding:11px 12px !important; border-radius:12px !important; user-select:none; -webkit-user-select:none; touch-action:manipulation; }
+html body #dinner-people label input[type=checkbox] { position:absolute !important; width:1px !important; height:1px !important; margin:-1px !important; padding:0 !important; overflow:hidden; clip:rect(0,0,0,0); clip-path:inset(50%); white-space:nowrap; border:0; }
+html body #dinner-people label span:first-of-type { font-weight:600; }
+html body #dinner-people label span:last-of-type { margin-left:auto; font-size:10px !important; }
+html body #dinner-people label:has(input:checked) { background:#3478e5 !important; border-color:#3478e5 !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.25); }
+html body #dinner-people label:has(input:checked) span { color:#fff !important; }
+html body #dinner-people label:has(input:focus-visible) { outline:2px solid var(--vw); outline-offset:3px; }
+html body #dinner-results { font-size:13px; line-height:1.65; border-radius:14px !important; padding:17px !important; }
+#dinner-selected { display:flex; flex-wrap:wrap; gap:6px; max-height:112px; overflow-y:auto; margin-bottom:12px; padding:2px; }
+#dinner-selected:empty { display:none; }
+#dinner-selected .dinner-selected-chip { display:inline-flex; align-items:center; gap:8px; min-height:36px; padding:7px 11px; border:1px solid rgba(52,120,229,.18); border-radius:999px; background:var(--vw-bg); color:var(--vw-light); font:inherit; font-size:12px; font-weight:600; cursor:pointer; }
+#dinner-selected .dinner-selected-chip:hover { background:rgba(52,120,229,.16); }
+#dinner-selected .dinner-selected-chip:focus-visible { outline:2px solid var(--vw); outline-offset:1px; }
+@media(max-width:760px) {
+ html body #dinner-modal { align-items:flex-end !important; padding:8px 8px max(8px,env(safe-area-inset-bottom)) !important; }
+ html body #dinner-modal > .nd-pop { width:100% !important; max-width:100%; max-height:88vh; max-height:88dvh; }
+ html body #dinner-modal .nd-pop > div:first-child { padding:20px 18px 15px !important; }
+ html body #dinner-modal .nd-pop > div:nth-child(2) { padding:16px 18px 20px !important; }
+ html body #dinner-modal input[type=date],html body #dinner-modal input[type=search] { font-size:16px; min-width:0; }
+ html body #dinner-people { grid-template-columns:repeat(2,minmax(0,1fr)); max-height:28vh !important; }
+ html body #dinner-modal button { min-height:44px; }
+}
+@media(max-width:360px) { html body #dinner-modal .nd-pop > div:nth-child(2) > div:first-child { flex-direction:column; } }
+/* Match notice-modal's tinted header, section borders and solid panel treatment. */
+html body #dinner-modal > .nd-pop { background:linear-gradient(#f8fafd,#f8fafd) padding-box,linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box !important; border:1px solid transparent; }
+html[data-theme="dark"] body #dinner-modal > .nd-pop { background:linear-gradient(#212121,#212121) padding-box,linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box !important; }
+html body #dinner-modal .nd-pop > div:first-child { background:rgba(49,130,246,.09); border-bottom:1px solid rgba(49,130,246,.2) !important; flex-shrink:0; }
+html body #dinner-modal .nd-pop > div:first-child > div > div:last-child { font-size:13px !important; line-height:1.6; }
+html body #dinner-modal button[aria-label="닫기"] { width:44px; height:44px; flex-shrink:0; padding:0 !important; border-radius:50%; background:rgba(255,255,255,.55); border:1px solid rgba(255,255,255,.65); font-size:20px; }
+html[data-theme="dark"] body #dinner-modal button[aria-label="닫기"] { background:rgba(50,50,50,.55); border-color:rgba(255,255,255,.12); }
+html body #dinner-modal .dinner-period { padding-bottom:18px; border-bottom:1px solid rgba(49,130,246,.18); }
+html body #dinner-modal .dinner-period label { font-size:14px !important; font-weight:600; }
+html body #dinner-modal b { font-size:15px !important; }
+html body #dinner-modal .nd-pop > div:nth-child(2) > div > .btn { font-size:13px !important; min-height:44px; padding:9px 12px !important; }
+.dinner-selection { padding:14px; margin:0 0 14px; background:rgba(49,130,246,.07); border:1px solid rgba(49,130,246,.16); border-radius:14px; }
+.dinner-selection:has(#dinner-selected:empty) { display:none; }
+.dinner-section-label { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 10px; font-size:14px; font-weight:700; margin-bottom:10px; }
+.dinner-section-label > span { color:var(--muted); font-size:12px; font-weight:500; }
+html body #dinner-selected { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:168px; padding:2px; margin:0; }
+html body #dinner-selected .dinner-selected-chip { justify-content:space-between; min-height:48px; padding:10px 12px; border-radius:12px; font-size:15px; line-height:1.4; background:var(--surface); color:var(--text); touch-action:manipulation; }
+html body #dinner-selected .dinner-selected-chip > span:last-child { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:rgba(49,130,246,.09); color:var(--vw-light); font-size:20px; flex-shrink:0; }
+html body #dinner-people label { min-height:52px; font-size:15px !important; }
+html body #dinner-people label span:last-of-type { font-size:12px !important; }
+html body #dinner-modal input[type=search],html body #dinner-modal input[type=date] { min-height:48px; font-size:16px; }
+html body #dinner-results { background:rgba(49,130,246,.07) !important; border-color:rgba(49,130,246,.2) !important; font-size:14px; }
+html body #dinner-modal .nd-pop > div:nth-child(2) > p { font-size:12px !important; line-height:1.7; }
+@media(max-width:760px) { html body #dinner-modal .nd-pop > div:nth-child(2) { padding:16px !important; } html body #dinner-people { max-height:30vh !important; } }
+/* A faint blue cursor glow, with no tilt or sweeping highlight. */
+.nd-hover-reflection { position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:2; opacity:0; transition:opacity .25s ease; overflow:hidden; }
+.nd-hover-reflection::before { content:''; position:absolute; inset:0; border-radius:inherit; background:radial-gradient(260px circle at var(--nd-mx,50%) var(--nd-my,50%),rgba(65,135,245,.055),rgba(65,135,245,.018) 45%,transparent 75%); }
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference) {
+ [data-nd-hover] { position:relative; }
+ .nd-hover-active > .nd-hover-reflection { opacity:1; }
+}
+@media(hover:none),(pointer:coarse),(prefers-reduced-motion:reduce) { .nd-hover-reflection { display:none; } }
+html body #dinner-people label:active { transform:scale(.98); }
+@media(prefers-reduced-motion:reduce) { html body #dinner-people label:active { transform:none; } }</style></head>
 <body>
 
 <div id="admin-mode-bar">🔐 관리자 모드 <button onclick="adminLogout()">로그아웃</button></div>
@@ -1451,6 +1534,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
   <button class="snav-btn active" data-view="home" onclick="showView('home')"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd"><path d="M11.3 3.25a1 1 0 0 1 1.4 0l8.5 7.6a1 1 0 0 1-.7 1.75H20V20a1 1 0 0 1-1 1h-4.5v-5.5a2.5 2.5 0 0 0-5 0V21H5a1 1 0 0 1-1-1v-7.4h-.5a1 1 0 0 1-.67-1.75z"/></svg><span>홈</span></button>
   <div class="snav-sub"><button class="snav-btn snav-sub-btn" onclick="openPollCreate()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="10" width="4.2" height="10" rx="1.2"/><rect x="9.9" y="5" width="4.2" height="15" rx="1.2"/><rect x="16.8" y="13" width="4.2" height="7" rx="1.2"/></svg><span>투표 만들기</span></button><button class="snav-btn snav-sub-btn" onclick="openPollPast()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4a1 1 0 1 0-2 0v5a1 1 0 0 0 .45.83l3 2a1 1 0 1 0 1.1-1.66L13 11.46V7z"/></svg><span>과거 투표 보기</span></button><button class="snav-btn snav-sub-btn" onclick="openNoticeModal()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6a1 1 0 0 0 1 1h1v3a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-3l7 4V4L9 8H5a1 1 0 0 0-1 1z"/></svg><span>공지 작성</span></button><button class="snav-btn snav-sub-btn" onclick="openNoticeHistory()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4a1 1 0 1 0-2 0v5a1 1 0 0 0 .45.83l3 2a1 1 0 1 0 1.1-1.66L13 11.46V7z"/></svg><span>지난 공지</span></button></div>
   <button class="snav-btn" data-view="table" onclick="showView('table')"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H6zm3 5.5a1 1 0 0 0 0 2h6a1 1 0 1 0 0-2H9zm0 4a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H9zm0 4a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2H9z"/></svg><span>근무표</span></button>
+  <div class="snav-sub"><button id="dinner-trigger" class="snav-btn snav-sub-btn" onclick="openDinnerFinder()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3V3a1 1 0 0 1 1-1zm9.7 9.3a1 1 0 0 0-1.4 0L11 15.6l-2.3-2.3a1 1 0 0 0-1.4 1.4l3 3a1 1 0 0 0 1.4 0l5-5a1 1 0 0 0 0-1.4z"/></svg><span>공통 정근일 조회</span></button></div>
   <button class="snav-btn" data-view="month" onclick="showView('month')"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd"><path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3V3a1 1 0 0 1 1-1zM8 12a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm4 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm4 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zM8 16a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm4 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg><span>달력</span></button>
   <button class="snav-btn" data-view="project" onclick="showView('project')"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 5.5a1 1 0 0 1 1-1h8a1 1 0 1 1 0 2h-8a1 1 0 0 1-1-1zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2h-12a1 1 0 0 1-1-1zm0 5a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2h-6a1 1 0 0 1-1-1z"/></svg><span>프로젝트</span></button>
   <button class="snav-btn" data-view="leavereq" onclick="showView('leavereq')"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4.5"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></g></svg><span>휴가신청</span></button>
@@ -1463,6 +1547,8 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 
 <!-- 상단 통합 메뉴 (iOS 컨텍스트 메뉴) -->
 <div id="hdr-menu" style="display:none;"><svg width="0" height="0" style="position:absolute;" aria-hidden="true"><defs><linearGradient id="hmGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a94ff"/><stop offset="1" stop-color="#2f77f6"/></linearGradient></defs></svg>
+  <button id="hmenu-dinner" class="hmenu-item" onclick="closeHdrMenu();openDinnerFinder();"><svg viewBox="0 0 24 24" fill="url(#hmGrad)" fill-rule="evenodd" aria-hidden="true"><path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3V3a1 1 0 0 1 1-1zm9.7 9.3a1 1 0 0 0-1.4 0L11 15.6l-2.3-2.3a1 1 0 0 0-1.4 1.4l3 3a1 1 0 0 0 1.4 0l5-5a1 1 0 0 0 0-1.4z"/></svg><span>공통 정근일 조회</span></button>
+  <div class="hmenu-div"></div>
   <button class="hmenu-item" onclick="openAccountSheet()">
     <svg viewBox="0 0 24 24" fill="url(#hmGrad)"><circle cx="12" cy="8" r="4.2"/><path d="M12 14c-4.4 0-8 2.6-8 6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1c0-3.4-3.6-6-8-6z"/></svg>
     <span>계정 정보</span>
@@ -1803,7 +1889,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
         <input type="date" id="range-end" class="tbl-date">
         <button class="tbl-apply" onclick="applyDateRange()">적용</button>
       </div>
-      <div class="tbl-actions">
+      <div class="tbl-actions"><button class="tbl-btn dinner-toolbar-trigger" onclick="openDinnerFinder()">공통 정근일 조회</button>
         <button class="tbl-btn" onclick="setThisMonth()">이번 달</button>
         <button class="ws-page-arrow" onclick="tableRangeNav(-1)" title="이전 4주">&#8249;</button>
         <button class="ws-page-arrow" onclick="tableRangeNav(1)" title="다음 4주">&#8250;</button>
@@ -2368,7 +2454,7 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.09.07 17:38';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.21 01:49';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -3748,6 +3834,15 @@ function _hmItems(grid){
   return out;
 }
 var _hmRO=null, _hmT=null;
+// Reset every previously placed card, including children of display:contents wrappers.
+// At narrower widths those wrappers become grids again, so stale row numbers create blank space.
+function _hmResetPlacement(grid){
+  grid.querySelectorAll('[style]').forEach(function(it){
+    if(it.style.gridRowStart || it.style.gridRowEnd){
+      it.style.gridRowStart=''; it.style.gridRowEnd=''; it.style.gridColumn='';
+    }
+  });
+}
 // 진짜 균형 배치: 각 아이템을 '현재 가장 짧은 열'에 직접 배치(열 높이 추적). span2는 인접 2열, full은 전체폭.
 // grid-auto-flow(row dense)의 행 우선 채움 대신 열 최소높이 기준으로 놓아 바닥 정렬을 최대한 맞춤.
 function _hmSpans(items){
@@ -3804,7 +3899,7 @@ function _hmSpans(items){
 // (grid 셀만 바꾸므로 관찰 대상 content-box는 그대로 → RO 재발생/루프 없음)
 function _hmApplySpans(){
   var grid=document.getElementById('view-home'); if(!grid) return;
-  if(getComputedStyle(grid).display!=='grid'){ grid.classList.remove('hm-on'); return; }
+  if(getComputedStyle(grid).display!=='grid'){ grid.classList.remove('hm-on'); _hmResetPlacement(grid); return; }
   grid.classList.add('hm-on');
   _hmSpans(_hmItems(grid));
 }
@@ -3813,7 +3908,7 @@ function _hmApply(){
   var grid=document.getElementById('view-home'); if(!grid) return null;
   var isGrid=getComputedStyle(grid).display==='grid';
   var items=_hmItems(grid);
-  if(!isGrid){ grid.classList.remove('hm-on'); items.forEach(function(it){ it.style.gridRowEnd=''; it.style.gridColumn=''; it.style.gridRowStart=''; }); return items; }
+  if(!isGrid){ grid.classList.remove('hm-on'); _hmResetPlacement(grid); return items; }
   grid.classList.add('hm-on');
   var doFlip = !grid.classList.contains('home-anim');   // 초기 등장(home-anim) 중엔 FLIP 생략(homeRise와 충돌/순서 꼬임 방지)
   var first = doFlip ? new Map() : null;
@@ -9998,6 +10093,112 @@ function _getPersonRoles(entry, sid) {
   return roles;
 }
 // 근무표 열(사람) 클릭 → 그 사람의 기간 내 근무를 표로 보여주는 팝업 (휴가 팝업과 동일 스타일)
+// 회식 조회는 배포된 근무표만 사용한다. 작성 중인 draft 휴가는 섞지 않는다.
+function _dinnerIsRegular(s, ds) {
+  const e = data.schedule?.[ds], id = s.id;
+  if (!e || s.active === false || !isContractActive(s, ds) || isDispatched(s, ds)) return false;
+  if ((data.leaves?.[id] || []).includes(ds) || (data.newLeaves?.[ds] || []).includes(id)) return false;
+  if (getDanjikExitStaff(ds) === id || getDanjikOffStaff(ds) === id) return false;
+  const special = ['danjik','ilgeun','satMorning','morningDesk','newsOh','newsOh2','weekend8jin','weekday8jin','weekend8jin2','weekday8jin2'];
+  if (special.some(key => e[key] === id)) return false;
+  if (['restWorkers','jogeunEdu','jogeunExtra'].some(key => (e[key] || []).includes(id))) return false;
+  if (Object.values(e.jogeunSubs || {}).includes(id)) return false;
+  if ([e.vw?.desk,e.cg?.desk,e.cg?.desk8,e.cg?.desk5].includes(id)) return false;
+  const custom = e.customCells?.[id]?.text;
+  if (custom) return custom.trim() === '정근';
+  const dept = (deptOn(s, ds) || '').toLowerCase();
+  const workers = {vw:e.vw?.workers,cg:e.cg?.workers,xr:e.xr,project:e.project,sports:e.sports}[dept] || [];
+  if (!workers.includes(id)) return false;
+  // 본 부서 정근과 타 부서 대체가 겹쳐 있는 경우도 제외한다.
+  if (dept !== 'vw' && (e.vw?.workers || []).includes(id)) return false;
+  if (dept !== 'cg' && (e.cg?.workers || []).includes(id)) return false;
+  return true;
+}
+function _dinnerDates(ids, start, end) {
+  if (ids.length < 2 || !start || !end || start > end) return [];
+  const people = ids.map(staffById);
+  return Object.keys(data.schedule || {}).filter(ds => /^\d{4}-\d{2}-\d{2}$/.test(ds) && ds >= start && ds <= end && people.every(s => s && _dinnerIsRegular(s, ds))).sort();
+}
+function closeDinnerFinder() {
+  _animModalClose(document.getElementById('dinner-modal'));
+  const trigger = document.getElementById('dinner-trigger');
+  if (trigger) trigger.focus();
+}
+function openDinnerFinder() {
+  document.getElementById('dinner-modal')?.remove();
+  const now = new Date(), today = toDateStr(now.getFullYear(),now.getMonth()+1,now.getDate());
+  const start = tableRangeStart || today;
+  const end = tableRangeEnd || toDateStr(now.getFullYear(),now.getMonth()+1,new Date(now.getFullYear(),now.getMonth()+1,0).getDate());
+  const people = getStaff().slice().sort((a,b) => a.dept.localeCompare(b.dept,'ko') || a.name.localeCompare(b.name,'ko'));
+  const el = document.createElement('div');
+  el.id = 'dinner-modal'; el.className = 'nd-modal';
+  el.style.cssText = 'position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  el.onclick = ev => { if (ev.target === el) closeDinnerFinder(); };
+  el.innerHTML = `<div class="nd-pop" role="dialog" aria-modal="true" aria-labelledby="dinner-title" style="width:540px;max-width:94vw;max-height:84vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div><div id="dinner-title" style="font-size:17px;font-weight:800;color:var(--text);">공통 정근일 조회</div><div style="font-size:12px;color:var(--muted);margin-top:5px;">선택한 직원 모두의 정근일을 조회합니다.</div></div>
+      <button class="btn" onclick="closeDinnerFinder()" aria-label="닫기" style="padding:6px 10px;">✕</button>
+    </div>
+    <div style="padding:18px 22px;overflow-y:auto;">
+      <div class="dinner-period" style="display:flex;gap:12px;margin-bottom:18px;">
+        <label style="flex:1;min-width:0;font-size:12px;color:var(--muted);">시작일<input id="dinner-start" type="date" value="${start}" onchange="renderDinnerResults()" style="display:block;width:100%;box-sizing:border-box;margin-top:6px;"></label>
+        <label style="flex:1;min-width:0;font-size:12px;color:var(--muted);">종료일<input id="dinner-end" type="date" value="${end}" onchange="renderDinnerResults()" style="display:block;width:100%;box-sizing:border-box;margin-top:6px;"></label>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><b style="font-size:13px;">조회 대상 직원 <span id="dinner-count" style="color:var(--vw);">0명</span></b><button class="btn" style="padding:5px 9px;font-size:11px;" onclick="document.querySelectorAll('#dinner-people input').forEach(el=>el.checked=false);renderDinnerResults()">선택 해제</button></div>
+      <div class="dinner-selection"><div class="dinner-section-label">선택한 직원 <span>이름을 누르면 선택 해제</span></div><div id="dinner-selected" role="group" aria-label="선택한 직원"></div></div>
+      <input type="search" aria-label="직원 검색" placeholder="이름 또는 부서 검색" oninput="filterDinnerPeople(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
+      <div id="dinner-people" style="display:flex;flex-wrap:wrap;gap:7px;max-height:210px;overflow-y:auto;padding:2px;">${people.map(s => `<label data-search="${_pEsc(s.name+' '+s.dept)}" style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;font-size:12px;"><input type="checkbox" value="${_pEsc(s.id)}" onchange="renderDinnerResults()" style="margin:0;accent-color:var(--vw);"><span>${_pEsc(s.name)}</span><span style="font-size:10px;color:var(--muted);">${_pEsc(s.dept)}</span></label>`).join('')}</div>
+      <div id="dinner-results" role="status" aria-live="polite" style="margin-top:18px;padding:15px;border-radius:14px;background:var(--surface2);border:1px solid var(--border);"></div>
+      <p style="font-size:11px;line-height:1.7;color:var(--muted);margin:12px 0 0;">배포된 근무표 기준 · 당직, 퇴근, 비번, 휴가, 데스크, 조근 등 다른 근무는 제외합니다.</p>
+    </div>
+  </div>`;
+  el.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') { ev.stopPropagation(); closeDinnerFinder(); }
+    if (ev.key === 'Tab') {
+      const nodes = [...el.querySelectorAll('button,input')].filter(n => n.getClientRects().length);
+      const first = nodes[0], last = nodes[nodes.length-1];
+      if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+      else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+    }
+  });
+  document.body.appendChild(el);
+  renderDinnerResults();
+  el.querySelector('input[type="search"]').focus();
+}
+function filterDinnerPeople(value) {
+  const q = value.trim().toLocaleLowerCase();
+  document.querySelectorAll('#dinner-people label').forEach(el => { el.style.display = el.dataset.search.toLocaleLowerCase().includes(q) ? 'flex' : 'none'; });
+}
+function renderDinnerResults() {
+  const ids = [...document.querySelectorAll('#dinner-people input:checked')].map(el => el.value);
+  document.getElementById('dinner-count').textContent = ids.length + '명';
+  const selected = document.getElementById('dinner-selected');
+  selected.replaceChildren();
+  ids.forEach(id => {
+    const person = staffById(id);
+    const chip = document.createElement('button');
+    chip.type = 'button'; chip.className = 'dinner-selected-chip';
+    chip.setAttribute('aria-label', (person?.name || id) + ' 선택 해제');
+    const name = document.createElement('span'); name.textContent = person?.name || id;
+    const cross = document.createElement('span'); cross.textContent = '×'; cross.setAttribute('aria-hidden','true');
+    chip.append(name, cross);
+    chip.onclick = () => {
+      const index = [...selected.children].indexOf(chip);
+      const input = [...document.querySelectorAll('#dinner-people input')].find(el => el.value === id);
+      if(input) input.checked = false;
+      renderDinnerResults();
+      (selected.children[Math.min(index, selected.children.length - 1)] || document.querySelector('#dinner-modal input[type=search]')).focus();
+    };
+    selected.appendChild(chip);
+  });
+  const start = document.getElementById('dinner-start').value, end = document.getElementById('dinner-end').value;
+  const host = document.getElementById('dinner-results');
+  const msg = !start || !end ? '조회 기간을 선택해 주세요.' : start > end ? '종료일을 시작일 이후로 선택해 주세요.' : ids.length < 2 ? '조회 대상 직원을 2명 이상 선택해 주세요.' : '';
+  if (msg) { host.textContent = msg; return; }
+  const dates = _dinnerDates(ids,start,end);
+  const names = ids.map(id => _pEsc(staffById(id)?.name || '')).join(', ');
+  host.innerHTML = `<div style="font-size:12px;color:var(--muted);line-height:1.6;overflow-wrap:anywhere;">${names}</div><div style="font-size:15px;font-weight:800;margin:8px 0 12px;">공통 정근일 <span style="color:var(--vw);">${dates.length}일</span></div>` + (dates.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">${dates.map(ds => { const dt = new Date(ds+'T00:00:00'); return `<span style="padding:9px 12px;border-radius:10px;background:var(--vw-bg);color:var(--vw-light);font-size:13px;font-weight:700;">${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()} (${'일월화수목금토'[dt.getDay()]})</span>`; }).join('')}</div>` : '<div style="font-size:12px;color:var(--muted);line-height:1.7;">조회 기간 내 공통 정근일이 없습니다.<br>조회 기간 또는 대상 직원을 변경해 주세요. 미배포 날짜는 결과에 포함되지 않습니다.</div>');
+}
 function openPersonSchedule(staffId){
   const staff = staffById(staffId);
   if (!staff || !tableRangeStart || !tableRangeEnd) return;
@@ -10730,5 +10931,23 @@ document.addEventListener('click', function(e){
   });
 })();
 </script>
-</body>
+<script>
+// Delegated handlers cover dynamically rendered cards; update only the active card once per frame.
+(function(){
+ const query=matchMedia('(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference)');
+ const selector='.panel,.dept-list,.today-work,.sum-card,.notice-card,.poll-card,.pj-card,.qlink,.wm-ev-card,.dept-row[onclick],.tw-row,.wchip,#dinner-people label';
+ let active=null,frame=0,px=0,py=0;
+ function clear(){if(frame)cancelAnimationFrame(frame);frame=0;if(active){active.classList.remove('nd-hover-active');}active=null;}
+ document.addEventListener('pointermove',function(e){
+  if(!query.matches||e.pointerType==='touch'){if(active)clear();return;}
+  const card=e.target instanceof Element?e.target.closest(selector):null;
+  if(!card){if(active)clear();return;}
+  if(active!==card){clear();active=card;card.dataset.ndHover='';if(!card.querySelector(':scope > .nd-hover-reflection')){const shine=document.createElement('i');shine.className='nd-hover-reflection';shine.setAttribute('aria-hidden','true');card.appendChild(shine);}card.classList.add('nd-hover-active');}
+  px=e.clientX;py=e.clientY;
+  if(!frame)frame=requestAnimationFrame(function(){frame=0;if(!active||!active.isConnected){clear();return;}const r=active.getBoundingClientRect();if(!r.width||!r.height)return;const x=Math.max(0,Math.min(1,(px-r.left)/r.width)),y=Math.max(0,Math.min(1,(py-r.top)/r.height));active.style.setProperty('--nd-mx',(x*100).toFixed(1)+'%');active.style.setProperty('--nd-my',(y*100).toFixed(1)+'%');});
+ },{passive:true});
+ document.addEventListener('pointerout',function(e){if(active&&!(e.relatedTarget instanceof Node&&active.contains(e.relatedTarget)))clear();},{passive:true});
+ window.addEventListener('blur',clear);window.addEventListener('scroll',clear,{passive:true});query.addEventListener('change',clear);
+})();
+</script></body>
 </html>
