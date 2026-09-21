@@ -40,7 +40,7 @@ export function exchange(p,r,today){
   for(const k of arrays){if(['vw','cg'].includes(k)){if(e[k]?.workers)e[k].workers=e[k].workers.filter(id=>id!==from&&id!==to)}else if(e[k])e[k]=e[k].filter(id=>id!==from&&id!==to)}
   const target=group(out.staff.find(s=>s.id===to),d);
   if(['vw','cg'].includes(target)){e[target]||={};e[target].workers||=[];e[target].workers.push(to)}else{e[target]||=[];e[target].push(to)}
-  if(e.customCells?.[from]){e.customCells[to]=e.customCells[from];delete e.customCells[from]}
+  if(e.customCells){delete e.customCells[to];if(e.customCells[from]){e.customCells[to]=e.customCells[from];delete e.customCells[from]}}
   if(e.restWorkers)e.restWorkers=e.restWorkers.filter(id=>id!==to);
   if(draft)out.draft.schedule[d]=structuredClone(e);
  }
