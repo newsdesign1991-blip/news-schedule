@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3';
-import {validate,fingerprint,exchange,assignment} from './logic.mjs';
+import {validate,fingerprint,exchange,assignment,describe} from './logic.mjs';
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'};
 const sb=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 const reply=(x:unknown,status=200)=>new Response(JSON.stringify(x),{status,headers:{...cors,'Content-Type':'application/json'}});
@@ -39,7 +39,7 @@ Deno.serve(async req=>{
   }
   if(b.action==='create'){
    const r:any={id:crypto.randomUUID(),requester:actor,recipient:String(b.recipient||''),from:String(b.from||''),to:String(b.to||''),status:'pending',createdAt:now,updatedAt:now,messages:[],history:[{status:'pending',actor,at:now}]};
-   validate(p,r,today);r.snapshot=fingerprint(p,r);
+   validate(p,r,today);r.snapshot=fingerprint(p,r);r.fromDuty=describe(p,actor,r.from);r.toDuty=describe(p,r.recipient,r.to);
    const {data:pending}=await sb.from('nd_swaps').select('doc').or(`requester.eq.${actor},recipient.eq.${actor}`);
    if((pending||[]).some(x=>['pending','accepted'].includes(x.doc.status)&&[r.from,r.to].some(d=>[x.doc.from,x.doc.to].includes(d))))throw Error('해당 날짜에 진행 중인 교환 신청이 있습니다.');
    if(String(b.text||'').trim())r.messages.push({id:crypto.randomUUID(),actor,text:String(b.text).trim().slice(0,1000),at:now});

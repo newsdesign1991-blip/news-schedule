@@ -1,5 +1,6 @@
 const arrays=['vw','cg','xr','project','sports'];
-const roles=['danjik','ilgeun','satMorning','morningDesk','newsOh','newsOh2','weekday8jin','weekday8jin2','weekend8jin','weekend8jin2'];
+const roles=['danjik','ilgeun','satMorning','morningDesk'];
+const transferable={newsOh:'뉴오',newsOh2:'뉴오2',weekday8jin:'8진',weekday8jin2:'8진2',weekend8jin:'8진',weekend8jin2:'8진2'};
 const members=(e,k)=>['vw','cg'].includes(k)?e[k]?.workers||[]:e[k]||[];
 const department=(s,date)=>[...(s.deptSchedule||[])].filter(h=>h.start&&h.dept&&h.start<=date).sort((a,b)=>b.start.localeCompare(a.start))[0]?.dept||s.dept;
 const group=(s,date)=>({VW:'vw',CG:'cg',XR:'xr',PROJECT:'project',SPORTS:'sports'})[department(s,date)];
@@ -17,15 +18,16 @@ export function assignment(p,id,date){
  const custom=e.customCells?.[id]?.text?.trim();
  if(custom&&custom!=='정근')return 'special';
  if((e.restWorkers||[]).includes(id))return 'off';
- if(custom==='정근'||members(e,group(s,date)).includes(id))return 'regular';
- return arrays.some(k=>members(e,k).includes(id))?'special':'off';
+ if(custom==='정근'||arrays.some(k=>members(e,k).includes(id))||Object.keys(transferable).some(k=>e[k]===id))return 'regular';
+ return 'off';
 }
+export function describe(p,id,date){const e=p.schedule?.[date]||{},s=p.staff?.find(s=>s.id===id);const location=arrays.filter(k=>members(e,k).includes(id)).map(k=>k.toUpperCase());const duties=Object.entries(transferable).filter(([k])=>e[k]===id).map(([,v])=>v);return [...(location.length?location:[department(s,date)]),...(duties.length?duties:['정근'])].join(' · ');}
 export function fingerprint(p,r){return JSON.stringify([p.schedule?.[r.from],p.schedule?.[r.to],p.staff?.filter(s=>[r.requester,r.recipient].includes(s.id)),p.leaves?.[r.requester]||[],p.leaves?.[r.recipient]||[],p.newLeaves?.[r.from]||[],p.newLeaves?.[r.to]||[],[r.from,r.to].map(d=>[1,2].map(n=>p.schedule?.[plus(d,-n)]?.danjik||null))]);}
 export function validate(p,r,today){
  if(r.requester===r.recipient)throw Error('본인과 교환할 수 없습니다.');
  if(!/^\d{4}-\d{2}-\d{2}$/.test(r.from)||!/^\d{4}-\d{2}-\d{2}$/.test(r.to)||r.from===r.to||r.from<today||r.to<today)throw Error('오늘 이후의 서로 다른 두 날짜를 선택하세요.');
  if([r.from,r.to].some(d=>!Number.isFinite(Date.parse(d))||new Date(d).toISOString().slice(0,10)!==d))throw Error('올바른 날짜를 선택하세요.');
- if(assignment(p,r.requester,r.from)!=='regular'||assignment(p,r.recipient,r.to)!=='regular')throw Error('교환할 두 근무는 정근이어야 합니다. 당직·8진·데스크 등 별도 임무는 교환할 수 없습니다.');
+ if(assignment(p,r.requester,r.from)!=='regular'||assignment(p,r.recipient,r.to)!=='regular')throw Error('정근·VW/CG 대체·뉴오·8진 근무만 교환할 수 있습니다. 당직·조근·일근·데스크 등은 제외됩니다.');
  if(assignment(p,r.recipient,r.from)!=='off'||assignment(p,r.requester,r.to)!=='off')throw Error('대신 근무할 날짜는 휴무여야 합니다. 휴가·당직 퇴근·비번·다른 근무가 있는 날은 교환할 수 없습니다.');
 }
 export function exchange(p,r,today){
@@ -37,10 +39,18 @@ export function exchange(p,r,today){
   const e=out.schedule[d];
   const draft=out.draft?.schedule?.[d];
   if(draft&&JSON.stringify(draft)!==JSON.stringify(e))throw Error('해당 날짜에 수정 중인 초안이 있습니다. 관리자가 초안을 먼저 정리해 주세요.');
-  for(const k of arrays){if(['vw','cg'].includes(k)){if(e[k]?.workers)e[k].workers=e[k].workers.filter(id=>id!==from&&id!==to)}else if(e[k])e[k]=e[k].filter(id=>id!==from&&id!==to)}
-  const target=group(out.staff.find(s=>s.id===to),d);
-  if(['vw','cg'].includes(target)){e[target]||={};e[target].workers||=[];e[target].workers.push(to)}else{e[target]||=[];e[target].push(to)}
+  // Transfer the actual assignment, never infer its department from the replacement employee.
+  const hadRoster=arrays.some(k=>members(e,k).includes(from));
+  const hadDuty=Object.keys(transferable).some(k=>e[k]===from);
+  for(const k of arrays){if(['vw','cg'].includes(k)){if(e[k]?.workers)e[k].workers=e[k].workers.map(id=>id===from?to:id)}else if(e[k])e[k]=e[k].map(id=>id===from?to:id)}
+  for(const k of Object.keys(transferable))if(e[k]===from)e[k]=to;
+  if(!hadRoster&&(hadDuty||e.customCells?.[from]?.text?.trim()==='정근')){
+   let target=group(out.staff.find(s=>s.id===from),d);
+   if(hadDuty&&target==='xr')target='cg';
+   if(['vw','cg'].includes(target)){e[target]||={};e[target].workers||=[];e[target].workers.push(to)}else{e[target]||=[];e[target].push(to)}
+  }
   if(e.customCells){delete e.customCells[to];if(e.customCells[from]){e.customCells[to]=e.customCells[from];delete e.customCells[from]}}
+  if(e.customCells?.[to]?.text?.trim()==='정근')delete e.customCells[to];
   if(e.restWorkers)e.restWorkers=e.restWorkers.filter(id=>id!==to);
   if(draft)out.draft.schedule[d]=structuredClone(e);
  }
