@@ -4331,7 +4331,7 @@ function renderTable() {
       let bg='',color='',fw='500',text='',extraStyle='';
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_custom.bg||'';color=_custom.color||'var(--text)';fw='700';text=_custom.text;workCount[s.id]++;
+        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
         tbody+=`<td data-sid="${s.id}" ${cl}>${text}</td>`; return;
@@ -4374,7 +4374,7 @@ function renderTable() {
       let bg='',color='',fw='500',text='',extraStyle='';
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_custom.bg||'';color=_custom.color||'var(--text)';fw='700';text=_custom.text;workCount[s.id]++;
+        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
         tbody+=`<td data-sid="${s.id}" ${cl}>${text}</td>`; return;
@@ -4409,7 +4409,7 @@ function renderTable() {
       let bg='',color='',fw='500',text='',extraStyle='';
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_custom.bg||'';color=_custom.color||'var(--text)';fw='700';text=_custom.text;workCount[s.id]++;
+        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};${_gb}`:`color:${color};font-weight:${fw};${_gb}`;
         const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
         tbody+=`<td data-sid="${s.id}" ${cl}>${text}</td>`; return;
@@ -6051,7 +6051,7 @@ function renderWorkshopTable() {
       let bg='',color='',fw='500',text='',extraStyle='';
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_custom.bg||'';color=_custom.color||'var(--text)';fw='700';text=_custom.text;workCount[s.id]++;
+        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="cursor:pointer;${st}">${text}</td>`;
         return;
@@ -6093,7 +6093,7 @@ function renderWorkshopTable() {
       let bg='',color='',fw='500',text='',extraStyle='';
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_custom.bg||'';color=_custom.color||'var(--text)';fw='700';text=_custom.text;workCount[s.id]++;
+        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="cursor:pointer;${st}">${text}</td>`;
         return;
@@ -6126,7 +6126,7 @@ function renderWorkshopTable() {
       let bg='',color='',fw='500',text='',extraStyle='';
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_custom.bg||'';color=_custom.color||'var(--text)';fw='700';text=_custom.text;workCount[s.id]++;
+        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="cursor:pointer;${st}${_gb}">${text}</td>`;
         return;
@@ -7112,7 +7112,7 @@ function _doApplyImageSchedule(skipNames) {
       } else if (wt === 'vw2') {
         // Display this assignment without adding it to staffing headcounts.
         if (!entry.customCells) entry.customCells = {};
-        entry.customCells[s.id] = {text:'VW2', color:'var(--vw-light)'};
+        entry.customCells[s.id] = {text:'VW2', bg:'var(--vw-bg)', color:'var(--vw-light)'};
       } else if (wt === 'vw-sub') {
         // VW 대체자(타부서 사람이 VW 자리) → vw.workers에만 추가(메인데스크로 만들지 않음)
         if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id);
