@@ -10222,7 +10222,7 @@ function openDinnerFinder() {
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><b style="font-size:13px;">조회 대상 직원 <span id="dinner-count" style="color:var(--vw);">0명</span></b><button class="btn" style="padding:5px 9px;font-size:11px;" onclick="document.querySelectorAll('#dinner-people input').forEach(el=>el.checked=false);renderDinnerResults()">선택 해제</button></div>
       <div class="dinner-selection"><div class="dinner-section-label">선택한 직원 <span>이름을 누르면 선택 해제</span></div><div id="dinner-selected" role="group" aria-label="선택한 직원"></div></div>
-      <input type="search" aria-label="직원 검색" placeholder="이름 검색 후 Enter로 추가" enterkeyhint="done" onkeydown="selectDinnerSearch(event)" oninput="filterDinnerPeople(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
+      <input type="search" aria-label="직원 검색" placeholder="이름 검색 후 Enter로 추가" enterkeyhint="done" onkeydown="selectDinnerSearch(event)" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
       <div id="dinner-people" style="display:flex;flex-wrap:wrap;gap:7px;max-height:210px;overflow-y:auto;padding:2px;">${people.map(s => `<label data-search="${_pEsc(s.name+' '+s.dept)}" style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;font-size:12px;"><input type="checkbox" value="${_pEsc(s.id)}" onchange="renderDinnerResults()" style="margin:0;accent-color:var(--vw);"><span>${_pEsc(s.name)}</span><span style="font-size:10px;color:var(--muted);">${_pEsc(s.dept)}</span></label>`).join('')}</div>
       <div id="dinner-results" role="status" aria-live="polite" style="margin-top:18px;padding:15px;border-radius:14px;background:var(--surface2);border:1px solid var(--border);"></div>
       <p style="font-size:11px;line-height:1.7;color:var(--muted);margin:12px 0 0;">배포된 근무표의 12:00~21:00 근무 기준 · 정근, 8진, VW·CG 대체, VW·CG 데스크 포함. 다른 시간대 근무와 휴가·비번은 제외합니다.</p>
@@ -10245,6 +10245,7 @@ function selectDinnerSearch(event) {
   if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
   event.preventDefault();
   const field = event.currentTarget, query = field.value.trim().toLocaleLowerCase();
+  filterDinnerPeople(query);
   if (!query) return;
   const labels = [...document.querySelectorAll('#dinner-people label')].filter(el => el.style.display !== 'none');
   const exact = labels.filter(el => el.querySelector('span').textContent.trim().toLocaleLowerCase() === query);
