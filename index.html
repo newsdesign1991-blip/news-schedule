@@ -1491,6 +1491,14 @@ html body #dinner-modal .nd-pop > div:nth-child(2) > p { font-size:12px !importa
  #view-table > .excel-wrap { flex:1; min-height:0; max-height:none; overflow:auto; }
  #view-table > .excel-wrap > .excel-table { min-height:100%; }
 }
+/* Broadcast information shares the weekly calendar, with larger mobile text. */
+.wm-news-card { padding:10px; border-radius:12px; background:rgba(49,130,246,.075); border:1px solid rgba(49,130,246,.14); min-width:0; }
+#view-home .week-day-mini:has(.wm-num.today) .wm-news-card { background:var(--surface); }
+.wm-news-title { font-size:12px; font-weight:800; color:var(--vw-light); margin-bottom:8px; }
+.wm-news-field { display:flex; flex-direction:column; gap:3px; margin-top:7px; }
+.wm-news-field > span { font-size:11px; color:var(--muted); }
+.wm-news-field > strong { font-size:14px; line-height:1.5; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; color:var(--text); }
+@media(max-width:760px) { .wm-news-card { padding:14px 16px; } .wm-news-title { font-size:15px; } .wm-news-field { flex-direction:row; align-items:baseline; gap:16px; } .wm-news-field > span { font-size:13px; flex:0 0 28px; } .wm-news-field > strong { font-size:16px; } #home-mobile-ev-list > div > div:first-child { font-size:14px !important; } }
 /* A faint blue cursor glow, with no tilt or sweeping highlight. */
 .nd-hover-reflection { position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:2; opacity:0; transition:opacity .25s ease; overflow:hidden; }
 .nd-hover-reflection::before { content:''; position:absolute; inset:0; border-radius:inherit; background:radial-gradient(260px circle at var(--nd-mx,50%) var(--nd-my,50%),rgba(65,135,245,.055),rgba(65,135,245,.018) 45%,transparent 75%); }
@@ -3516,6 +3524,19 @@ function _scrollToWorkers(chipsId){
   setTimeout(function(){ panel.style.outlineColor='rgba(49,130,246,0)'; }, 700);
   setTimeout(function(){ panel.style.outline=''; panel.style.outlineOffset=''; panel.style.transition=''; }, 1250);
 }
+// Read broadcast metadata from the published remarks, without creating duplicate calendar events.
+function _news8ScheduleInfo(note) {
+  const text = String(note || '');
+  const entry = text.match(/(?:8\s*뉴스|뉴스\s*진입|진입(?:시간)?)\s*[:：]?\s*((?:[01]?\d|2[0-3]):[0-5]\d(?:\s*\/\s*(?:[01]?\d|2[0-3]):[0-5]\d)*)/);
+  const duration = text.match(/편성(?:시간|길이)?\s*[:：]?\s*(\d+(?:\s*(?:분|['’′])?\s*\/\s*\d+)*\s*(?:분|['’′])?)/);
+  if (!entry && !duration) return null;
+  return { times:entry ? entry[1].split('/').map(t=>t.trim().padStart(5,'0')) : [], minutes:duration ? (duration[1].match(/\d+/g)||[]) : [] };
+}
+function _news8WeekCard(note) {
+  const info = _news8ScheduleInfo(note);
+  if (!info) return '';
+  return `<div class="wm-news-card"><div class="wm-news-title">8뉴스</div>${info.times.length ? `<div class="wm-news-field"><span>진입</span><strong>${info.times.join(' / ')}</strong></div>` : ''}${info.minutes.length ? `<div class="wm-news-field"><span>편성</span><strong>${info.minutes.map(n=>n+'분').join(' / ')}</strong></div>` : ''}</div>`;
+}
 function renderHome() {
   _checkLeaveReqDeadline();
   updateLeaveReqBadge();
@@ -3638,14 +3659,15 @@ function renderHome() {
     const dow=d.getDay(); const isSun=dow===0; const isSat=dow===6;
     const dayEvs = events[ds]||[];
     const dayGcal = _gcalWeek[ds]||[];
-    const evCards = dayEvs.map(ev=>_evCard(ds,ev)).join('') + dayGcal.map(ev=>_gcalCard(ds,ev)).join('');
+    const broadcastCard = _news8WeekCard(data.schedule?.[ds]?.notes);
+    const evCards = broadcastCard + dayEvs.map(ev=>_evCard(ds,ev)).join('') + dayGcal.map(ev=>_gcalCard(ds,ev)).join('');
     wMini+=`<div class="week-day-mini">
       <div class="wm-label">${dowLabels[i]}</div>
       <div class="wm-num ${isToday?'today':''} ${hasData?'has-data':''} ${isSun?'sun':isSat?'sat':''}" onclick="showDayModal('${ds}')">${d.getDate()}</div>
       ${evCards?`<div class="wm-ev-list">${evCards}</div>`:''}
     </div>`;
     // 모바일용 리스트도 동시에 생성
-    if (dayEvs.length || dayGcal.length) {
+    if (broadcastCard || dayEvs.length || dayGcal.length) {
       const dowLbl=['일','월','화','수','목','금','토'][dow];
       mobileEvHtml += `<div style="margin-bottom:12px;">
         <div style="font-size:11px;font-weight:700;color:${isToday?'#6366f1':'var(--muted)'};margin-bottom:6px;">${d.getMonth()+1}/${d.getDate()} (${dowLbl})${isToday?' 오늘':''}</div>
