@@ -3595,7 +3595,7 @@ function renderHome() {
   const _hJIds=new Set(getStaff('조근').map(x=>x.id));
   const _hSpEx=new Set([entry?.satMorning,entry?.morningDesk].filter(Boolean));
   const _hLv=new Set((data.newLeaves?.[todayStr])||[]);
-  const _hEx=id=>_hCgEx.has(id)||_hJIds.has(id)||_hSpEx.has(id)||_hLv.has(id)||isProbation(staffById(id),todayStr);
+  const _hEx=id=>_isVw2(entry,id)||_hCgEx.has(id)||_hJIds.has(id)||_hSpEx.has(id)||_hLv.has(id)||isProbation(staffById(id),todayStr);
   const _hCgW=new Set(entry?.cg?.workers||[]);
   const _hVwS=new Set((entry?.vw?.workers||[]).filter(id=>!_hEx(id)&&!(_hCgW.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
   const _hIlVw=(entry?.ilgeun?staffById(entry.ilgeun)?.dept?.toUpperCase():'')==='VW';
@@ -3866,7 +3866,7 @@ function renderHome() {
       const _wJIds=new Set(getStaff('조근').map(x=>x.id));
       const _wSpExcl=new Set([e2.satMorning,e2.morningDesk].filter(Boolean));
       const _wLv=new Set((data.newLeaves?.[ds])||[]);
-      const _wExcl=id=>_wCgExcl.has(id)||_wJIds.has(id)||_wSpExcl.has(id)||_wLv.has(id);
+      const _wExcl=id=>_isVw2(e2,id)||_wCgExcl.has(id)||_wJIds.has(id)||_wSpExcl.has(id)||_wLv.has(id);
       const _wCgWorkers=new Set(e2.cg?.workers||[]);
       const _wVwSet=new Set((e2.vw?.workers||[]).filter(id=>!_wExcl(id)&&!(_wCgWorkers.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
       const _w8Ids=[e2.weekend8jin,e2.weekday8jin,e2.weekend8jin2,e2.weekday8jin2].filter(id=>id&&!_wSpExcl.has(id)&&!_wLv.has(id));
@@ -4304,7 +4304,7 @@ function renderTable() {
     const _cgWorkersSet=new Set(entry?.cg?.workers||[]);
     const _leaveSet=new Set((data.newLeaves?.[dateStr])||[]);
     const _specialExclude=new Set([entry?.satMorning,entry?.morningDesk].filter(Boolean));
-    const _excl=id=>{const _p=staffById(id);return _cgExclude.has(id)||jogeunIds.has(id)||_specialExclude.has(id)||_leaveSet.has(id)||(_p&&!isContractActive(_p,dateStr));};
+    const _excl=id=>{const _p=staffById(id);return _isVw2(entry,id)||_cgExclude.has(id)||jogeunIds.has(id)||_specialExclude.has(id)||_leaveSet.has(id)||(_p&&!isContractActive(_p,dateStr));};
     const _vwSet=new Set((entry?.vw?.workers||[]).filter(id=>!_excl(id)&&!(_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
     const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin,entry?.weekend8jin2,entry?.weekday8jin2].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _8jinVwAdd=_8jinIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
@@ -6026,7 +6026,7 @@ function renderWorkshopTable() {
     const _cgWorkersSet=new Set(entry?.cg?.workers||[]);
     const _leaveSet=new Set(_newLvs?.[dateStr]||[]);
     const _specialExclude=new Set([entry?.satMorning,entry?.morningDesk].filter(Boolean));
-    const _excl=id=>{const _p=staffById(id);return _cgExclude.has(id)||jogeunIds.has(id)||_specialExclude.has(id)||_leaveSet.has(id)||(_p&&!isContractActive(_p,dateStr));};
+    const _excl=id=>{const _p=staffById(id);return _isVw2(entry,id)||_cgExclude.has(id)||jogeunIds.has(id)||_specialExclude.has(id)||_leaveSet.has(id)||(_p&&!isContractActive(_p,dateStr));};
     const _vwSet=new Set((entry?.vw?.workers||[]).filter(id=>!_excl(id)&&!(_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
     const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin,entry?.weekend8jin2,entry?.weekday8jin2].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _8jinVwAdd=_8jinIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
@@ -6988,6 +6988,7 @@ function _renderImgResult(parsed) {
   document.getElementById('img-apply-btn').style.display = 'block';
 }
 
+function _isVw2(entry,id) { return String(entry?.customCells?.[id]?.text || '').replace(/\s/g,'').toUpperCase() === 'VW2'; }
 const WORK_TYPE_MAP = {
   '정근': 'work', '신휴가': 'leave', '당직': 'danjik',
   'VW데': 'vw-desk', '데스크': 'desk-auto',
@@ -7001,7 +7002,7 @@ const WORK_TYPE_MAP = {
   '일근': 'ilgeun',
   'XR': 'work', 'N': 'work',
   // 부서명 라벨 = "그 부서에서 근무". 같은 부서면 정근, 타부서 사람이면 대체로 자동 표시(cg.workers/vw.workers).
-  'CG': 'cg-sub', 'VW': 'vw-sub',
+  'CG': 'cg-sub', 'VW': 'vw-sub', 'VW2': 'vw2', 'vw2': 'vw2',
   // 당직 지정 시 자동 계산되는 항목 → 가져오기에서 무시
   '퇴근': 'skip', '당직퇴근': 'skip', '비번': 'skip', '당직비번': 'skip'
 };
@@ -7108,6 +7109,10 @@ function _doApplyImageSchedule(skipNames) {
       } else if (wt === 'cg-sub') {
         // CG 대체자(타부서 사람이 CG 자리) → cg.workers에만 추가(데스크 건드리지 않음). 렌더가 자동으로 'CG'/'CG대' 표시
         if (!entry.cg.workers.includes(s.id)) entry.cg.workers.push(s.id);
+      } else if (wt === 'vw2') {
+        // Display this assignment without adding it to staffing headcounts.
+        if (!entry.customCells) entry.customCells = {};
+        entry.customCells[s.id] = {text:'VW2', color:'var(--vw-light)'};
       } else if (wt === 'vw-sub') {
         // VW 대체자(타부서 사람이 VW 자리) → vw.workers에만 추가(메인데스크로 만들지 않음)
         if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id);
