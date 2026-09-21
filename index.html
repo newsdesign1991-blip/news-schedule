@@ -465,11 +465,9 @@ main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
 #view-home .wm-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 3px; }
 #view-home .wm-num { width: auto; height: auto; min-width: 0; border-radius: 0; background: transparent !important; font-size: 15px; font-weight: 700; color: var(--text); }
 #view-home .wm-num:hover { background: transparent !important; }
-#view-home .week-day-mini:has(.wm-num.today) { background: linear-gradient(135deg,#4a94ff 0%,#2f77f6 100%); box-shadow: 0 4px 12px -5px rgba(49,130,246,.45); }
-#view-home .week-day-mini:has(.wm-num.today) .wm-label { color: #dbeafe; }
-#view-home .week-day-mini:has(.wm-num.today) .wm-num { color: #fff !important; }
-#view-home .week-day-mini:has(.wm-num.today) .wm-ev-card { background: color-mix(in srgb, var(--evc,#6366f1) 13%, #fff) !important; }
-[data-theme="dark"] #view-home .week-day-mini:has(.wm-num.today) .wm-ev-card { background: color-mix(in srgb, var(--evc,#6366f1) 26%, #1c2028) !important; }
+#view-home .week-day-mini:has(.wm-num.today) { background:linear-gradient(145deg,rgba(49,130,246,.17),rgba(49,130,246,.035) 70%); box-shadow:inset 0 0 0 1px rgba(49,130,246,.24),0 4px 12px -7px rgba(49,130,246,.2); }
+#view-home .week-day-mini:has(.wm-num.today) .wm-label { color:var(--vw-light); }
+#view-home .week-day-mini:has(.wm-num.today) .wm-num { color:var(--vw-light) !important; }
 [data-theme="dark"] #view-home .week-day-mini { box-shadow: 0 4px 13px -5px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.3); }
 /* #4 일정(이벤트) 카드 토스 스타일 */
 #view-home .wm-ev-card::before { display: none !important; }
@@ -747,7 +745,7 @@ button, input, select, textarea { font-family: inherit; }
 .mw-day { flex: 0 0 auto; width: 62px; background: var(--surface); border-radius: 16px; padding: 12px 7px 7px; text-align: center; box-shadow: 0 1px 3px rgba(20,24,40,.05); }
 .mw-day .mw-dow { font-size: 13.5px; font-weight: 700; color: var(--muted); }
 .mw-day .mw-num { font-size: 18px; font-weight: 700; margin: 2px 0 9px; font-variant-numeric: tabular-nums; color: var(--text); }
-.mw-day.today { background: linear-gradient(135deg,#4a94ff 0%,#2f77f6 100%); box-shadow: 0 4px 12px -5px rgba(49,130,246,.45); }
+.mw-day.today { background:linear-gradient(145deg,rgba(49,130,246,.17),rgba(49,130,246,.035) 70%); box-shadow:inset 0 0 0 1px rgba(49,130,246,.24),0 4px 12px -7px rgba(49,130,246,.2); }
 .mw-day.today .mw-dow { color: #dbeafe; }
 .mw-day.today .mw-num { color: #fff; }
 .mw-role { font-size: 13.5px; font-weight: 700; padding: 6px 4px; border-radius: 9px; display: block; line-height: 1.15; word-break: keep-all; }
@@ -1493,14 +1491,14 @@ html body #dinner-modal .nd-pop > div:nth-child(2) > p { font-size:12px !importa
 }
 /* Broadcast information shares the weekly calendar, with larger mobile text. */
 .wm-news-card { padding:10px; border-radius:12px; background:rgba(49,130,246,.075); border:1px solid rgba(49,130,246,.14); min-width:0; }
-#view-home .week-day-mini:has(.wm-num.today) .wm-news-card { background:var(--surface); }
 .wm-news-title { font-size:12px; font-weight:800; color:var(--vw-light); margin-bottom:8px; }
 .wm-news-field { display:flex; flex-direction:column; gap:3px; margin-top:7px; }
 .wm-news-field > span { font-size:11px; color:var(--muted); }
 .wm-news-field > strong { display:flex; flex-wrap:wrap; gap:4px 8px; min-width:0; font-size:14px; line-height:1.5; font-variant-numeric:tabular-nums; overflow-wrap:normal; color:var(--text); }
 @media(max-width:760px) { .wm-news-card { padding:14px 16px; } .wm-news-title { font-size:15px; } .wm-news-field { flex-direction:row; align-items:baseline; gap:16px; } .wm-news-field > span { font-size:13px; flex:0 0 28px; } .wm-news-field > strong { font-size:16px; } #home-mobile-ev-list > div > div:first-child { font-size:14px !important; } }
 .wm-news-value { display:inline-flex; align-items:baseline; gap:8px; white-space:nowrap; }
-.wm-news-value + .wm-news-value::before { content:"/"; color:var(--muted); font-weight:400; }
+.wm-news-value { padding:2px 5px; border-radius:6px; background:rgba(49,130,246,.075); }
+.wm-news-value:nth-child(2n) { background:rgba(147,102,211,.11); }
 /* Compact broadcast details: entry and duration share one row when space permits. */
 .wm-news-card { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 16px; }
 .wm-news-title { flex:0 0 100%; margin-bottom:0; }
