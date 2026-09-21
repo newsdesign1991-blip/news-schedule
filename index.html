@@ -1447,7 +1447,7 @@ html body #dinner-results { font-size:13px; line-height:1.65; border-radius:14px
 #dinner-selected .dinner-selected-chip:hover { background:rgba(52,120,229,.16); }
 #dinner-selected .dinner-selected-chip:focus-visible { outline:2px solid var(--vw); outline-offset:1px; }
 @media(max-width:760px) {
- html body #dinner-modal { align-items:flex-end !important; padding:8px 8px max(8px,env(safe-area-inset-bottom)) !important; }
+ html body #dinner-modal { align-items:center !important; }
  html body #dinner-modal > .nd-pop { width:100% !important; max-width:100%; max-height:88vh; max-height:88dvh; }
  html body #dinner-modal .nd-pop > div:first-child { padding:20px 18px 15px !important; }
  html body #dinner-modal .nd-pop > div:nth-child(2) { padding:16px 18px 20px !important; }
@@ -1550,7 +1550,7 @@ html[data-theme="dark"] #view-home .wm-news-value:nth-child(2n) { color:#c5afe9;
 }
 @media(hover:none),(pointer:coarse),(prefers-reduced-motion:reduce) { .nd-hover-reflection { display:none; } }
 html body #dinner-people label:active { transform:scale(.98); }
-@media(prefers-reduced-motion:reduce) { html body #dinner-people label:active { transform:none; } }</style><link rel="stylesheet" href="work-swap.css?v=20260922-1">
+@media(prefers-reduced-motion:reduce) { html body #dinner-people label:active { transform:none; } }</style><link rel="stylesheet" href="work-swap.css?v=20260922-3">
 <style>
 /* Common-work finder: one touch scroller and full-width mobile dates. */
 html body #dinner-modal .dinner-body { min-height:0; min-width:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
@@ -1558,7 +1558,7 @@ html body #dinner-modal .dinner-period { display:grid !important; grid-template-
 html body #dinner-modal .dinner-period label { min-width:0; }
 html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:100%; }
 @media(max-width:760px) {
- html body #dinner-modal > .nd-pop { max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important; }
+ /* Viewport limits shared with the work-swap dialog in work-swap.css. */
  html body #dinner-modal .dinner-period { grid-template-columns:minmax(0,1fr); gap:12px; }
  html body #dinner-modal input[type=date] { display:block; appearance:none; -webkit-appearance:none; min-height:48px; }
  html body #dinner-modal input[type=date]::-webkit-date-and-time-value { text-align:left; min-width:0; }

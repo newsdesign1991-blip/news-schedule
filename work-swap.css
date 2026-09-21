@@ -4,7 +4,7 @@
 .swap-head b{font-size:19px}.swap-head p{margin:5px 0 0;font-size:13px;color:var(--muted)}
 #swap-modal button{min-height:44px;padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);font:inherit;cursor:pointer}
 .swap-head button{width:44px;flex-shrink:0;font-size:22px!important;border-radius:50%!important}
-.swap-body{overflow-y:auto;padding:20px;overscroll-behavior:contain}.swap-body label{display:block;font-size:14px;font-weight:650;line-height:1.6}
+.swap-body{min-height:0;min-width:0;overflow-x:hidden;overflow-y:auto;padding:20px;overscroll-behavior:contain}.swap-body label{display:block;min-width:0;font-size:14px;font-weight:650;line-height:1.6}
 .swap-body input,.swap-body select,.swap-body textarea{display:block;width:100%;min-width:0;min-height:48px;margin:7px 0 14px;padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);font:inherit;font-size:16px;box-sizing:border-box}
 .swap-body textarea{resize:vertical}.swap-body .swap-primary{background:#3478e5!important;color:white!important;border-color:transparent!important;font-weight:700!important}
 .swap-list{display:grid;gap:10px;margin-top:16px}.swap-row{text-align:left;display:flex;flex-direction:column;gap:7px;width:100%}.swap-row b{font-size:16px}.swap-row small{color:var(--muted)}
@@ -12,7 +12,17 @@
 #swap-modal :focus-visible{outline:2px solid #3478e5;outline-offset:3px}
 .swap-state{font-size:12px;font-weight:700;color:var(--vw-light)}.swap-state[data-status=approved]{color:#238261}.swap-state[data-status=rejected],.swap-state[data-status=declined]{color:#c5534b}
 .swap-section{background:rgba(49,130,246,.06);border:1px solid rgba(49,130,246,.14);border-radius:14px;padding:16px;margin:12px 0 18px}
-.swap-dates{display:grid;grid-template-columns:1fr 1fr;gap:12px}.swap-summary{display:grid;gap:12px;margin-top:14px}.swap-summary div{display:grid;gap:5px;font-size:14px}.swap-hint{color:var(--muted);font-size:13px;line-height:1.7}.swap-actions{display:flex;flex-wrap:wrap;gap:8px}.swap-actions button{flex:1}
+.swap-dates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.swap-summary{display:grid;gap:12px;margin-top:14px}.swap-summary div{display:grid;gap:5px;font-size:14px}.swap-hint{color:var(--muted);font-size:13px;line-height:1.7}.swap-actions{display:flex;flex-wrap:wrap;gap:8px}.swap-actions button{flex:1}
 #swap-error{color:#c5534b;padding:0 20px 14px;font-size:14px;line-height:1.6}#swap-error:empty{padding:0}
 .swap-message{padding:12px;border-radius:12px;background:var(--surface2);margin:8px 0}.swap-message.mine{background:rgba(49,130,246,.09)}.swap-message small{color:var(--muted);font-size:11px}.swap-message p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.6;margin:6px 0 0}.swap-chat-form{display:flex;gap:8px;align-items:center}.swap-chat-form textarea{margin:8px 0;flex:1}.swap-empty{text-align:center;color:var(--muted);padding:24px}
-@media(max-width:760px){#swap-modal{align-items:flex-end;padding:8px 8px max(8px,env(safe-area-inset-bottom))}.swap-body{padding:16px}.swap-head{padding:18px}.swap-section{padding:12px}.swap-dates{gap:8px}.swap-head p{font-size:12px}}
+/* Both scheduling dialogs share positioning and native-date sizing rules. */
+html body :is(#dinner-modal,#swap-modal){align-items:center!important;justify-content:center!important;box-sizing:border-box;padding:16px!important}
+html body :is(#dinner-modal,#swap-modal) input[type=date]{min-width:0;max-width:100%;width:100%;box-sizing:border-box}
+@media(max-width:760px){
+ html body :is(#dinner-modal,#swap-modal){padding:max(12px,env(safe-area-inset-top),env(safe-area-inset-bottom)) 12px!important}
+ html body :is(#dinner-modal,#swap-modal)>.nd-pop{max-height:calc(100dvh - 2 * max(12px,env(safe-area-inset-top),env(safe-area-inset-bottom)))!important;margin:0!important}
+ html body :is(#dinner-modal,#swap-modal) :is(.dinner-period,.swap-dates){display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:12px}
+ html body :is(#dinner-modal,#swap-modal) input[type=date]{appearance:none;-webkit-appearance:none;min-height:48px;font-size:16px}
+ html body :is(#dinner-modal,#swap-modal) input[type=date]::-webkit-date-and-time-value{text-align:left;min-width:0}
+ .swap-body{padding:16px}.swap-head{padding:18px}.swap-section{padding:12px}.swap-head p{font-size:12px}
+}
