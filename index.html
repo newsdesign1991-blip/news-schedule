@@ -1501,6 +1501,17 @@ html body #dinner-modal .nd-pop > div:nth-child(2) > p { font-size:12px !importa
 @media(max-width:760px) { .wm-news-card { padding:14px 16px; } .wm-news-title { font-size:15px; } .wm-news-field { flex-direction:row; align-items:baseline; gap:16px; } .wm-news-field > span { font-size:13px; flex:0 0 28px; } .wm-news-field > strong { font-size:16px; } #home-mobile-ev-list > div > div:first-child { font-size:14px !important; } }
 .wm-news-value { display:inline-flex; align-items:baseline; gap:8px; white-space:nowrap; }
 .wm-news-value + .wm-news-value::before { content:"/"; color:var(--muted); font-weight:400; }
+/* Compact broadcast details: entry and duration share one row when space permits. */
+.wm-news-card { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 16px; }
+.wm-news-title { flex:0 0 100%; margin-bottom:0; }
+.wm-news-field { flex-direction:row; align-items:baseline; gap:8px; margin-top:0; min-width:0; }
+@media(max-width:760px) {
+ .wm-news-card { padding:12px 14px; gap:7px 14px; }
+ .wm-news-field { gap:7px; }
+ .wm-news-field > span { flex:0 0 auto; }
+ .wm-news-field > strong { font-size:15px; gap:3px 5px; }
+ .wm-news-value { gap:5px; }
+}
 /* A faint blue cursor glow, with no tilt or sweeping highlight. */
 .nd-hover-reflection { position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:2; opacity:0; transition:opacity .25s ease; overflow:hidden; }
 .nd-hover-reflection::before { content:''; position:absolute; inset:0; border-radius:inherit; background:radial-gradient(260px circle at var(--nd-mx,50%) var(--nd-my,50%),rgba(65,135,245,.055),rgba(65,135,245,.018) 45%,transparent 75%); }
