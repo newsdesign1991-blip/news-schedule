@@ -19,9 +19,11 @@ Deno.serve(async req=>{
   const {data:row,error:loadError}=await sb.from('nd_data').select('payload,updated_at').eq('id','main').single();
   if(loadError)throw Error('근무표를 불러오지 못했습니다.');
   const p=row.payload;
-  const {data:login}=await sb.from('login_log').select('staff_id,logged_in').eq('device_id',String(b.deviceId||'')).maybeSingle();
-  if(!actor||login?.staff_id!==actor||!login.logged_in||!p.staff?.some(s=>s.id===actor&&s.active!==false))return reply({error:'다시 로그인한 후 이용하세요.'},401);
-  // Match the existing application's name/device login. Admin writes additionally verify the password on the server.
+  const tokenHash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(b.token||''))))].map(x=>x.toString(16).padStart(2,'0')).join('');
+  const {data:session}=await sb.from('nd_employee_sessions').select('*').eq('token_hash',tokenHash).maybeSingle();
+  const {data:account}=await sb.from('nd_employee_accounts').select('version,must_change').eq('staff_id',actor).maybeSingle();
+  if(!actor||session?.staff_id!==actor||!account||session.version!==account.version||account.must_change||session.expires_at<new Date().toISOString()||!p.staff?.some(s=>s.id===actor&&s.active!==false))return reply({error:'다시 로그인한 후 이용하세요.'},401);
+  // Require a completed employee password setup; reset invalidates existing sessions.
   const admin=!!b.adminPassword&&[p.adminPass,p.masterPass].filter(Boolean).includes(btoa(b.adminPassword));
   if(b.admin&&!admin)return reply({error:'관리자 비밀번호를 확인해 주세요.'},403);
   const today=new Date(Date.now()+9*3600000).toISOString().slice(0,10),now=new Date().toISOString();

@@ -1565,7 +1565,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
  html body #dinner-people,html body #dinner-selected { max-height:none !important; overflow:visible !important; }
  html body #dinner-modal .dinner-body { overflow-anchor:none; }
 }
-</style></head>
+</style><link rel="stylesheet" href="employee-auth.css?v=20260922-1"><script src="employee-auth.js?v=20260922-1"></script></head>
 <body>
 
 <div id="admin-mode-bar">🔐 관리자 모드 <button onclick="adminLogout()">로그아웃</button></div>
@@ -1858,14 +1858,14 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 </div>
 
 <!-- 로그인 모달 -->
-<div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;overflow:hidden;">
+<div id="login-overlay" style="display:flex;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;overflow:hidden;">
   <div class="li-orbs"><span></span><span></span><span></span></div>
   <div class="lg-card" style="padding:32px 28px;width:320px;text-align:center;position:relative;z-index:2;">
     <img src="logo.png" alt="ND" style="width:72px;height:72px;border-radius:18px;margin-bottom:12px;">
     <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:4px;letter-spacing:-.01em;">NewsDesign DashBoard</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:24px;">이름을 입력하면 나의 근무를 확인할 수 있습니다</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:24px;">이름과 6자리 비밀번호로 로그인하세요</div>
     <input type="text" id="login-name-input" class="form-input" placeholder="이름 입력 (예: 홍길동)" maxlength="10" style="text-align:center;font-size:16px;padding:10px;margin-bottom:6px;" onkeydown="if(event.key==='Enter')loginUser()">
-    <div id="login-name-error" style="font-size:12px;color:#d65a52;margin-bottom:4px;min-height:0;"></div>
+    <input type="password" id="login-pin-input" class="form-input" aria-label="비밀번호" placeholder="비밀번호 6자리" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="current-password" onkeydown="if(event.key==='Enter')loginUser()"><p style="font-size:12px;color:var(--muted);margin:4px 0 12px;">최초·초기화 비밀번호: 000000<br>비밀번호를 잊으셨다면 관리자에게 초기화를 요청하세요.</p><div id="login-name-error" style="font-size:12px;color:#d65a52;margin-bottom:4px;min-height:0;"></div>
     <button class="btn btn-primary" style="width:100%;font-size:15px;padding:10px;" onclick="loginUser()">입장</button>
     <div style="margin-top:14px;font-size:11.5px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px;line-height:1.5;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" style="flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>라이트·다크 모드는 앱 안에서 바꿀 수 있어요</div>
   </div>
@@ -2211,6 +2211,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
       <button class="btn btn-sm btn-outline" onclick="adminLogout()">로그아웃</button>
     </div>
     <div class="admin-tabs">
+      <button class="admin-tab" onclick="showAdminTab('accounts')">계정 관리</button>
       <button class="admin-tab" onclick="showAdminTab('swap')">근무 교환</button>
       <button class="admin-tab active" onclick="showAdminTab('staff')">직원 관리</button>
       <button class="admin-tab" onclick="showAdminTab('leave')">근무 통계</button>
@@ -2223,6 +2224,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
     </div>
 
     <div class="admin-panel" id="panel-swap"><div class="card" style="padding:22px"><h3>근무 교환 승인</h3><p id="swap-admin-summary" style="margin:12px 0;color:var(--muted)">상대방이 수락한 신청을 확인하고 최종 승인합니다.</p><button class="btn btn-primary" onclick="openWorkSwap(true)">교환 신청 목록</button><p style="margin-top:12px;font-size:13px;color:var(--muted)">최초 관리자 확인 후 이 계정으로 승인 대기 알림을 받습니다. 기기의 알림도 켜 주세요.</p></div></div>
+    <div class="admin-panel" id="panel-accounts"><div class="card" style="padding:20px;"><h3>직원 계정 관리</h3><div id="employee-accounts"></div></div></div>
     <!-- STAFF -->
     <div class="admin-panel active" id="panel-staff">
       <div class="add-form">
@@ -3425,6 +3427,7 @@ function toggleAdmin() {
   } else { renderAdminPanel(); }
 }
 function adminLogout() {
+  employeeClearAdmin();
   isAdmin = false; isMaster = false; isAdminTest = false;
   try{ sessionStorage.removeItem('nd_admin'); }catch(e){}
   _setAdminNav(false);
@@ -3443,6 +3446,7 @@ function doLoginMode(mode) {
   if (errEl) errEl.textContent='';
   if (mode==='test' && !data.adminTestPass) { if(errEl) errEl.textContent='관리자 테스트가 비활성화돼 있습니다.'; return; }
   if (btoa(inEl.value) === passMap[mode]) {
+    employeeAdminCredential(mode,inEl.value);
     if (mode==='master') closeMasterLogin();
     // 관리자 화면으로 전환 후 입장
     document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
@@ -8443,6 +8447,7 @@ function showAdminTab(tab) {
   if (panel) panel.classList.add('active');
   if (tab==='leave') { _statsEditMode = false; renderWorkStats(); _updateStatsEditBtn(); }
   if (tab==='notify') renderNotifyTab();
+  if (tab==='accounts') employeeAccounts();
   if (tab==='settings') { _initGcalSettings(); _renderBackupList(); }
   if (tab==='loginlog') renderLoginLog();
   if (tab==='avoid') renderAvoidTab();
@@ -9073,27 +9078,7 @@ const USER_KEY = 'nd_user';
 let currentUser = localStorage.getItem(USER_KEY) || null; // {name, staffId}
 try { if (currentUser) currentUser = JSON.parse(currentUser); } catch(e) { currentUser = null; }
 
-function loginUser() {
-  const input = document.getElementById('login-name-input');
-  const errEl = document.getElementById('login-name-error');
-  const name = input.value.trim();
-  if (!name) { input.style.borderColor='#d65a52'; errEl.textContent='이름을 입력하세요.'; return; }
-  const staff = (data.staff||[]).find(s => s.name === name);
-  if (!staff) {
-    input.style.borderColor='#d65a52';
-    errEl.textContent='해당 이름이 없습니다. 직원/프리랜서 목록에 등록된 이름을 입력하세요.';
-    return;
-  }
-  input.style.borderColor='';
-  errEl.textContent='';
-  currentUser = { name, staffId: staff.id };
-  localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
-  _updateUserHeader();
-  window._homeAnimated=true;
-  if(typeof showView==='function') showView('home'); else renderHome();
-  _recordLogin(true);   // 이름으로 로그인 → 기록
-  _startLoginSequence(name);
-}
+function loginUser() { return employeeLogin(); }
 function _startLoginSequence(name){
   window._homeAnimated=true;
   var ov=document.getElementById('login-overlay');
@@ -9127,6 +9112,10 @@ function _homeReveal(){
 }
 function logoutUser() {
   if (!confirm(currentUser?.name + '님, 로그아웃 하시겠습니까?')) return;
+  employeeApi('logout').catch(()=>{});
+  employeeClearAdmin();
+  adminLogout();
+  document.getElementById('login-pin-input').value='';
   _recordLogout();   // 로그아웃 상태로 기록
   currentUser = null;
   localStorage.removeItem(USER_KEY);
@@ -10618,11 +10607,7 @@ function _looksEmptyData(d){
   _applyThemeUI();   // 토글 아이콘을 저장된 테마와 동기화
   // 관리자 모드 세션 복원(새로고침해도 유지 — 탭 닫으면 해제)
   try{ var _am=sessionStorage.getItem('nd_admin'); if(_am==='admin'||_am==='master'||_am==='test'){ _enterAdmin(_am); } }catch(e){}
-  if (!currentUser) {
-    document.getElementById('login-overlay').style.display = 'flex';
-  } else {
-    _recordLogin(false);   // 자동 로그인(재접속) → 하루 1회 기록
-  }
+  await employeeRestore();
   renderHome();
   if (currentUser) { var _vh0=document.getElementById('view-home'); if(_vh0){ _vh0.classList.remove('home-anim'); void _vh0.offsetWidth; _vh0.classList.add('home-anim'); setTimeout(function(){ _vh0.classList.remove('home-anim'); }, 1200); } }
   _startAutoSync();
@@ -11062,5 +11047,5 @@ document.addEventListener('click', function(e){
  document.addEventListener('pointerout',function(e){if(active&&!(e.relatedTarget instanceof Node&&active.contains(e.relatedTarget)))clear();},{passive:true});
  window.addEventListener('blur',clear);window.addEventListener('scroll',clear,{passive:true});query.addEventListener('change',clear);
 })();
-</script><script src="work-swap.js?v=20260922-1"></script></body>
+</script><script src="work-swap.js?v=20260922-2"></script></body>
 </html>
