@@ -1522,6 +1522,25 @@ html body #dinner-modal .nd-pop > div:nth-child(2) > p { font-size:12px !importa
  .wm-news-field > span { font-size:12px; }
  .wm-news-field > strong { font-size:15px; }
 }
+/* One day surface: broadcast and events are edge-to-edge tinted sections. */
+#view-home .week-day-mini { padding:9px 0 0; overflow:hidden; }
+#view-home .wm-ev-list { gap:0; margin-top:9px; }
+#view-home .wm-news-card { border:0; border-radius:0; box-shadow:none; padding:12px 10px; background:rgba(49,130,246,.085); gap:8px; }
+#view-home .wm-news-field { background:none; border:0; border-radius:0; padding:0; gap:7px; }
+#view-home .wm-news-value { background:none; padding:0; border-radius:0; }
+#view-home .wm-news-value:nth-child(2n) { color:#8065ae; }
+html[data-theme="dark"] #view-home .wm-news-value:nth-child(2n) { color:#c5afe9; }
+#view-home .wm-ev-card { border:0; border-radius:0; box-shadow:none; padding:12px 10px; }
+#view-home .wm-ev-list > * + * { border-top:1px solid var(--border); }
+#view-home .wm-ev-title { white-space:normal; overflow-wrap:anywhere; }
+@media(max-width:760px) {
+ #view-home .week-day-mini { padding-bottom:9px; }
+ #home-mobile-ev-list > div { overflow:hidden; border-radius:14px; background:var(--surface2); }
+ #home-mobile-ev-list > div > div:first-child { padding:12px 14px; margin-bottom:0 !important; }
+ #home-mobile-ev-list > div > div:last-child { gap:0 !important; }
+ #home-mobile-ev-list > div > div:last-child > * + * { border-top:1px solid var(--border); }
+ #view-home #home-mobile-ev-list .wm-news-card, #view-home #home-mobile-ev-list .wm-ev-card { padding:12px 14px; }
+}
 /* A faint blue cursor glow, with no tilt or sweeping highlight. */
 .nd-hover-reflection { position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:2; opacity:0; transition:opacity .25s ease; overflow:hidden; }
 .nd-hover-reflection::before { content:''; position:absolute; inset:0; border-radius:inherit; background:radial-gradient(260px circle at var(--nd-mx,50%) var(--nd-my,50%),rgba(65,135,245,.055),rgba(65,135,245,.018) 45%,transparent 75%); }
