@@ -15,7 +15,7 @@ function employeeLoginScreen(message=''){
 }
 async function employeeRestore(){
  const saved=currentUser;currentUser=null;document.getElementById('login-overlay').style.display='flex';
- if(!saved?.authToken){employeeLoginScreen();return}
+ if(!saved?.authToken){employeeLoginScreen(saved?'새 기능 이용을 위해 다시 로그인해 주세요. 최초 비밀번호는 000000이며, 로그인 후 새 비밀번호를 설정해야 합니다.':'');return}
  try{const r=await employeeApi('session',{token:saved.authToken});const user={...r.user,authToken:saved.authToken};if(r.mustChange){employeePending=user;localStorage.removeItem(USER_KEY);employeeChangeDialog();return}currentUser=user;localStorage.setItem(USER_KEY,JSON.stringify(user));document.getElementById('login-overlay').style.display='none';_updateUserHeader();_recordLogin(false)}
  catch(e){employeeLoginScreen(e.status===401?'비밀번호로 다시 로그인해 주세요.':e.message)}
 }
