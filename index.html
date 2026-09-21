@@ -1565,7 +1565,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
  html body #dinner-people,html body #dinner-selected { max-height:none !important; overflow:visible !important; }
  html body #dinner-modal .dinner-body { overflow-anchor:none; }
 }
-</style><link rel="stylesheet" href="employee-auth.css?v=20260922-1"><script src="employee-auth.js?v=20260922-1"></script></head>
+</style><link rel="stylesheet" href="employee-auth.css?v=20260922-1"><script src="employee-auth.js?v=20260922-1"></script><style>html,body{overscroll-behavior-y:none}</style></head>
 <body>
 
 <div id="admin-mode-bar">🔐 관리자 모드 <button onclick="adminLogout()">로그아웃</button></div>
@@ -10527,16 +10527,18 @@ async function _reloadRemoteData() {
     const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
     });
+    if (!res.ok) throw new Error('Refresh failed');
     const rows = await res.json();
     let remote = rows?.[0]?.payload;
-    if (!remote || typeof remote!=='object' || !Object.keys(remote).length) return;
+    if (!remote || typeof remote!=='object' || !Object.keys(remote).length) return false;
     data = _migrateRemote(remote);
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
     const ae = document.activeElement;
-    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return; // 입력 중이면 화면 갱신만 보류(데이터는 갱신됨)
+    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return true; // 입력 중이면 화면 갱신만 보류(데이터는 갱신됨)
     _rerenderActiveView();
     if (typeof toast==='function') toast('🔄 최신 정보로 업데이트되었습니다.','info');
-  } catch(e) {}
+    return true;
+  } catch(e) { return false; }
 }
 async function _checkRemoteUpdate() {
   if (document.hidden) return;   // 백그라운드면 트래픽 0
@@ -10969,7 +10971,7 @@ document.addEventListener('click', function(e){
 // ===== 풀-투-리프레시 =====
 (function(){
   const THRESHOLD = 80; // 당기는 거리 (px)
-  let startY = 0, pulling = false, dist = 0;
+  let startY = 0, pulling = false, dist = 0, refreshing = false;
 
   const indicator = document.createElement('div');
   indicator.id = 'ptr-indicator';
@@ -10997,7 +10999,7 @@ document.addEventListener('click', function(e){
   }
 
   document.addEventListener('touchstart', e => {
-    if (window.scrollY > 0) return;
+    if (refreshing || window.scrollY > 0) return;
     // 모달/오버레이 위에서는 무시
     if (e.target.closest('.modal-overlay,.nd-modal,.staff-modal-overlay,#lr-popup-overlay,[style*="position:fixed"]')) { pulling=false; return; }
     startY = e.touches[0].clientY;
@@ -11012,8 +11014,9 @@ document.addEventListener('click', function(e){
     if (dy > 0) setDist(dy * 0.5); // 저항감
   }, { passive: true });
 
-  document.addEventListener('touchend', () => {
-    if (!pulling) return;
+  document.addEventListener('touchcancel', () => { pulling=false; if(!refreshing)setDist(0); }, {passive:true});
+  document.addEventListener('touchend', async () => {
+    if (!pulling || refreshing) return;
     pulling = false;
     indicator.style.transition = 'height 0.25s ease';
     if (dist >= THRESHOLD) {
@@ -11022,7 +11025,20 @@ document.addEventListener('click', function(e){
       arrow.innerHTML = '<circle cx="12" cy="12" r="9" stroke-dasharray="28 56" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/></circle>';
       arrow.style.transform = '';
       document.getElementById('ptr-label').textContent = '새로고침 중...';
-      setTimeout(() => { location.reload(); }, 300);
+      refreshing = true;
+      try {
+        // Refresh data in place: preserve the login, selected view and local UI state.
+        const wasLoggedIn = !!currentUser;
+        if (currentUser?.authToken) await employeeCheckSession();
+        if (!wasLoggedIn || currentUser) {
+          const ok = await _reloadRemoteData();
+          if (!ok) toast('새로고침하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.','error');
+        }
+      } finally {
+        arrow.innerHTML = '<path d="M12 5v14M5 12l7 7 7-7"/>';
+        refreshing = false;
+        setDist(0);
+      }
     } else {
       setDist(0);
     }
