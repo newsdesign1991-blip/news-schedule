@@ -1550,7 +1550,7 @@ html[data-theme="dark"] #view-home .wm-news-value:nth-child(2n) { color:#c5afe9;
 }
 @media(hover:none),(pointer:coarse),(prefers-reduced-motion:reduce) { .nd-hover-reflection { display:none; } }
 html body #dinner-people label:active { transform:scale(.98); }
-@media(prefers-reduced-motion:reduce) { html body #dinner-people label:active { transform:none; } }</style><link rel="stylesheet" href="work-swap.css?v=20260922-3">
+@media(prefers-reduced-motion:reduce) { html body #dinner-people label:active { transform:none; } }</style><link rel="stylesheet" href="work-swap.css?v=20260922-5">
 <style>
 /* Common-work finder: one touch scroller and full-width mobile dates. */
 html body #dinner-modal .dinner-body { min-height:0; min-width:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
@@ -10218,9 +10218,9 @@ function openDinnerFinder() {
   el.style.cssText = 'position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
   el.onclick = ev => { if (ev.target === el) closeDinnerFinder(); };
   el.innerHTML = `<div class="nd-pop" role="dialog" aria-modal="true" aria-labelledby="dinner-title" style="width:540px;max-width:94vw;max-height:84vh;display:flex;flex-direction:column;overflow:hidden;">
-    <div style="padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;">
-      <div><div id="dinner-title" style="font-size:17px;font-weight:800;color:var(--text);">공통 근무일 조회</div><div style="font-size:12px;color:var(--muted);margin-top:5px;">선택한 직원 모두가 12:00~21:00에 근무하는 날을 조회합니다.</div></div>
-      <button class="btn" onclick="closeDinnerFinder()" aria-label="닫기" style="padding:6px 10px;">✕</button>
+    <div class="modal-header schedule-dialog-head" style="padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div><div id="dinner-title" style="font-size:17px;font-weight:800;color:var(--text);">공통 근무일 조회</div><div class="schedule-dialog-sub" style="font-size:12px;color:var(--muted);margin-top:5px;">선택한 직원 모두가 12:00~21:00에 근무하는 날을 조회합니다.</div></div>
+      <button type="button" class="modal-close schedule-dialog-close" onclick="closeDinnerFinder()" aria-label="닫기">✕</button>
     </div>
     <div class="dinner-body" style="padding:18px 22px;overflow-y:auto;">
       <div class="dinner-period" style="display:flex;gap:12px;margin-bottom:18px;">
@@ -11047,5 +11047,5 @@ document.addEventListener('click', function(e){
  document.addEventListener('pointerout',function(e){if(active&&!(e.relatedTarget instanceof Node&&active.contains(e.relatedTarget)))clear();},{passive:true});
  window.addEventListener('blur',clear);window.addEventListener('scroll',clear,{passive:true});query.addEventListener('change',clear);
 })();
-</script><script src="work-swap.js?v=20260922-4"></script></body>
+</script><script src="work-swap.js?v=20260922-5"></script></body>
 </html>
