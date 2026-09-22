@@ -15,6 +15,13 @@ Deno.serve(async req=>{
   const b=await req.json();
   const {data:row,error}=await sb.from('nd_data').select('payload').eq('id','main').single();if(error)throw error;
   const p=row.payload,people=(p.staff||[]).filter((s:any)=>s.active!==false);
+  if(b.action==='adminLogin'){
+   const mode=b.mode==='master'?'master':'admin',expected=mode==='master'?(p.masterPass||p.adminPass):p.adminPass;
+   if(!b.password||btoa(String(b.password))!==expected)return reply({error:'비밀번호가 일치하지 않습니다.'},401);
+   const token='admin.'+crypto.randomUUID()+crypto.randomUUID();
+   const {error}=await sb.from('nd_admin_sessions').insert({token_hash:await hash(token),mode,credential_hash:await hash(expected),expires_at:new Date(Date.now()+12*3600000).toISOString()});if(error)throw error;
+   return reply({user:{staffId:'@'+mode,name:mode==='master'?'마스터':'관리자',adminRole:mode,authToken:token},mustChange:false});
+  }
   if(b.action==='login'){
    const matches=people.filter((s:any)=>s.name===String(b.name||'').trim());
    if(matches.length!==1||!/^\d{6}$/.test(String(b.pin||'')))return reply({error:'이름과 숫자 6자리 비밀번호를 확인해 주세요.'},401);
@@ -23,6 +30,14 @@ Deno.serve(async req=>{
    return reply(await issue(a,person));
   }
   const tokenHash=await hash(String(b.token||''));
+  let master=false,admin=false;
+  if(String(b.token||'').startsWith('admin.')){
+   const {data:session}=await sb.from('nd_admin_sessions').select('*').eq('token_hash',tokenHash).maybeSingle();
+   if(!session||session.expires_at<new Date().toISOString()||session.credential_hash!==await hash(session.mode==='master'?(p.masterPass||p.adminPass):p.adminPass))return reply({error:'관리자 계정으로 다시 로그인해 주세요.'},401);
+   if(b.action==='logout'){await sb.from('nd_admin_sessions').delete().eq('token_hash',tokenHash);return reply({ok:true})}
+   if(b.action==='session')return reply({user:{staffId:'@'+session.mode,name:session.mode==='master'?'마스터':'관리자',adminRole:session.mode},mustChange:false});
+   master=session.mode==='master';admin=true;
+  }else{
   const {data:session}=await sb.from('nd_employee_sessions').select('*').eq('token_hash',tokenHash).maybeSingle();
   if(!session||session.expires_at<new Date().toISOString())return reply({error:'다시 로그인해 주세요.'},401);
   const person=people.find((s:any)=>s.id===session.staff_id),a=await account(session.staff_id);
@@ -37,8 +52,9 @@ Deno.serve(async req=>{
   }
   if(a.must_change)return reply({error:'비밀번호를 먼저 변경해 주세요.'},403);
   const pass=btoa(String(b.adminPassword||''));
-  const master=b.mode==='master'&&!!b.adminPassword&&pass===(p.masterPass||p.adminPass),admin=master||(b.mode==='admin'&&!!b.adminPassword&&pass===p.adminPass);
+  master=b.mode==='master'&&!!b.adminPassword&&pass===(p.masterPass||p.adminPass);admin=master||(b.mode==='admin'&&!!b.adminPassword&&pass===p.adminPass);
   if(!admin)return reply({error:'관리자 또는 마스터 확인이 필요합니다.'},403);
+  }
   if(b.action==='accounts'){
    const {data:accounts,error}=await sb.from('nd_employee_accounts').select('staff_id,pin,must_change');if(error)throw error;
    return reply({master,accounts:people.map((s:any)=>{const c=accounts?.find(x=>x.staff_id===s.id);return {staffId:s.id,name:s.name,dept:s.dept,mustChange:c?.must_change??true,...(master?{pin:c?.pin||'000000'}:{})}})});

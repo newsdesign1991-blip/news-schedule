@@ -3,7 +3,7 @@ let swapRows=[],swapSelected=null,swapAdminPassword='',swapAdminView=false,swapB
 let swapDeepLink=new URL(location.href).searchParams.get('swap'),swapReturnFocus=null;
 const swapStatus={pending:'상대방 확인 대기',accepted:'관리자 승인 대기',approved:'승인 · 반영 완료',rejected:'상대방 거절',declined:'관리자 반려',cancelled:'신청 취소'};
 const swapEsc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const swapName=id=>staffById(id)?.name||'직원';
+const swapName=id=>id==='@master'?'마스터':id==='@admin'?'관리자':staffById(id)?.name||'직원';
 async function swapApi(action,extra={}){
  if(!currentUser?.staffId)throw Error('로그인 후 이용해 주세요.');
  if(isAdminTest&&action!=='list')throw Error('관리자 테스트 모드에서는 변경할 수 없습니다.');
@@ -18,8 +18,8 @@ function swapShell(title,body){
 function swapError(e){const el=document.getElementById('swap-error');if(el)el.textContent=e.message||e;else toast(e.message||String(e),'error')}
 async function openWorkSwap(admin=false){
  if(!currentUser?.staffId){toast('로그인 후 이용해 주세요.','error');return}
- swapReturnFocus=document.activeElement;swapAdminView=!!admin&&isAdmin;swapSelected=null;
- if(swapAdminView&&!swapAdminPassword){swapShell('근무 교환 관리',`<form onsubmit="event.preventDefault();swapUnlock()"><p>승인 처리를 위해 관리자 비밀번호를 확인합니다.</p><input id="swap-admin-password" type="password" autocomplete="current-password" placeholder="관리자 비밀번호" required><button class="swap-primary" type="submit">확인</button></form>`);document.getElementById('swap-admin-password').focus();return}
+ swapReturnFocus=document.activeElement;swapAdminView=(!!admin||!!currentUser?.adminRole)&&isAdmin;swapSelected=null;
+ if(swapAdminView&&!swapAdminPassword&&!currentUser?.adminRole){swapShell('근무 교환 관리',`<form onsubmit="event.preventDefault();swapUnlock()"><p>승인 처리를 위해 관리자 비밀번호를 확인합니다.</p><input id="swap-admin-password" type="password" autocomplete="current-password" placeholder="관리자 비밀번호" required><button class="swap-primary" type="submit">확인</button></form>`);document.getElementById('swap-admin-password').focus();return}
  swapShell(admin?'근무 교환 관리':'근무 교환', '<p>신청 목록을 불러오는 중입니다.</p>');
  try{await swapLoad();swapPresent()}catch(e){swapError(e)}
 }

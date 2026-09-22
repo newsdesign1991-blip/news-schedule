@@ -1565,8 +1565,9 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
  html body #dinner-people,html body #dinner-selected { max-height:none !important; overflow:visible !important; }
  html body #dinner-modal .dinner-body { overflow-anchor:none; }
 }
-</style><link rel="stylesheet" href="employee-auth.css?v=20260922-2"><script src="employee-auth.js?v=20260922-2"></script><style>html,body{overscroll-behavior-y:none}</style></head>
+</style><link rel="stylesheet" href="employee-auth.css?v=20260923-1"><script src="employee-auth.js?v=20260923-1"></script><style>html,body{overscroll-behavior-y:none}</style></head>
 <body>
+<div id="employee-loading" role="status"><span>불러오는 중…</span></div>
 
 <div id="admin-mode-bar">🔐 관리자 모드 <button onclick="adminLogout()">로그아웃</button></div>
 <div id="statusbar-scrim"></div>
@@ -1857,8 +1858,9 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div class="modal" id="deploy-log-card" style="max-width:460px;max-height:82vh;display:flex;flex-direction:column;"></div>
 </div>
 
+<script src="data-save.js?v=20260923-1"></script>
 <!-- 로그인 모달 -->
-<div id="login-overlay" style="display:flex;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;overflow:hidden;">
+<div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;overflow:hidden;">
   <div class="li-orbs"><span></span><span></span><span></span></div>
   <div class="lg-card" style="padding:32px 28px;width:320px;text-align:center;position:relative;z-index:2;">
     <img src="logo.png" alt="ND" style="width:72px;height:72px;border-radius:18px;margin-bottom:12px;">
@@ -1869,6 +1871,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
     <button class="btn btn-primary" style="width:100%;font-size:15px;padding:10px;" onclick="loginUser()">입장</button>
     <div style="margin-top:14px;font-size:11.5px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px;line-height:1.5;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" style="flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>라이트·다크 모드는 앱 안에서 바꿀 수 있어요</div>
   </div>
+<button class="employee-admin-entry" type="button" onclick="employeeAdminDialog()">관리자 · 마스터 로그인</button>
 </div>
 
 <main>
@@ -2865,14 +2868,8 @@ function saveData(d) {
   }
   data = d;
   localStorage.setItem(STORE_KEY, JSON.stringify(d));
-  const _ua = new Date().toISOString();
-  _ndUpdatedAt = _ua;   // 내 변경은 폴링이 '남의 변경'으로 오인하지 않도록 기준 갱신
-  fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main`, {
-    method: 'PATCH',
-    headers: SB_HEADERS,
-    body: JSON.stringify({ payload: d, updated_at: _ua })
-  }).then(async response => { if(!response.ok){ const result=await response.json().catch(()=>({})); throw new Error(result.message||'서버 저장에 실패했습니다.'); } }).catch(e => { console.warn('Supabase sync failed', e); toast(e.message+' 변경 전 내용을 확인해 주세요.','error'); _ndUpdatedAt=null; _reloadRemoteData(); });
-  _localBackup(d);   // 저장 때마다 이 기기에 당일 백업 갱신(데이터 유실 대비, 서버 미사용)
+  _localBackup(d);
+  return ndQueueSave(d);
 }
 
 // ===== 로컬 자동 백업 (서버 미사용 · 데이터 유실 대비) =====
@@ -3427,6 +3424,7 @@ function toggleAdmin() {
   } else { renderAdminPanel(); }
 }
 function adminLogout() {
+  const standalone=!!currentUser?.adminRole;
   employeeClearAdmin();
   isAdmin = false; isMaster = false; isAdminTest = false;
   try{ sessionStorage.removeItem('nd_admin'); }catch(e){}
@@ -3434,6 +3432,7 @@ function adminLogout() {
   document.getElementById('login-area').style.display='block';
   document.getElementById('admin-area').style.display='none';
   ['pw-admin','pw-test','pw-master'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  if(standalone)employeeCancel();
 }
 
 // ===== LOGIN ===== (모드별 명시 로그인: 관리자/관리자테스트 박스 + 마스터 하단 투명버튼)
@@ -9129,7 +9128,7 @@ function _givenName(n){ n=(n||'').trim(); var T=['제갈','남궁','황보','선
 function _updateUserHeader() {
   const _hu = document.getElementById('hdr-user');
   if (_hu) _hu.innerHTML = (currentUser && currentUser.name)
-    ? `<b>${_givenName(currentUser.name)}</b><span class="hdr-nim">님</span>`
+    ? `<b>${currentUser.adminRole?currentUser.name:_givenName(currentUser.name)}</b><span class="hdr-nim">${currentUser.adminRole?"":"님"}</span>`
     : `<span class="hdr-team">뉴스디자인팀</span>`;
   const av = document.getElementById('hdr-menu-avatar');
   const mb = document.getElementById('hdr-menu-btn');
@@ -10523,6 +10522,7 @@ function _rerenderActiveView() {
   else if (v==='view-workshop') renderWorkshopTable();
 }
 async function _reloadRemoteData() {
+  if(ndSaving || ndSaveQueue.length)return false;
   try {
     const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
@@ -10541,7 +10541,7 @@ async function _reloadRemoteData() {
   } catch(e) { return false; }
 }
 async function _checkRemoteUpdate() {
-  if (document.hidden) return;   // 백그라운드면 트래픽 0
+  if (document.hidden || ndSaving || ndSaveQueue.length) return;   // 저장 중에는 로컬 편집 보존
   try {
     const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=updated_at`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
@@ -10584,10 +10584,7 @@ function _looksEmptyData(d){
       _localBackup(data);   // 정상 로드 시 당일 백업 확보
     } else if (Object.keys(data).length > 0 && !_looksEmptyData(data)) {
       // Supabase가 비어있고 + 로컬에 실제 데이터가 있을 때만 올림 (빈/기본 데이터로 원격을 덮어쓰지 않음)
-      fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main`, {
-        method: 'PATCH', headers: SB_HEADERS,
-        body: JSON.stringify({ payload: data, updated_at: new Date().toISOString() })
-      }).catch(()=>{});
+      saveData(data);
     }
   } catch(e) {
     _remoteLoadOk = false;
@@ -11063,5 +11060,5 @@ document.addEventListener('click', function(e){
  document.addEventListener('pointerout',function(e){if(active&&!(e.relatedTarget instanceof Node&&active.contains(e.relatedTarget)))clear();},{passive:true});
  window.addEventListener('blur',clear);window.addEventListener('scroll',clear,{passive:true});query.addEventListener('change',clear);
 })();
-</script><script src="work-swap.js?v=20260922-5"></script></body>
+</script><script src="work-swap.js?v=20260923-1"></script></body>
 </html>

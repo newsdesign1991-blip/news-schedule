@@ -20,11 +20,21 @@ Deno.serve(async req=>{
   if(loadError)throw Error('근무표를 불러오지 못했습니다.');
   const p=row.payload;
   const tokenHash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(b.token||''))))].map(x=>x.toString(16).padStart(2,'0')).join('');
+  let admin=false;
+  if(String(b.token||'').startsWith('admin.')){
+   const {data:session}=await sb.from('nd_admin_sessions').select('*').eq('token_hash',tokenHash).maybeSingle();
+   const expected=session?.mode==='master'?(p.masterPass||p.adminPass):p.adminPass;
+   const credentialHash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(expected||'')))].map(x=>x.toString(16).padStart(2,'0')).join('');
+   if(!session||session.expires_at<new Date().toISOString()||session.credential_hash!==credentialHash||actor!=='@'+session.mode)return reply({error:'관리자 계정으로 다시 로그인해 주세요.'},401);
+   if(!['list','registerAdmin','chat','approve','decline'].includes(b.action))return reply({error:'직원 계정으로 이용해 주세요.'},403);
+   admin=true;
+  }else{
   const {data:session}=await sb.from('nd_employee_sessions').select('*').eq('token_hash',tokenHash).maybeSingle();
   const {data:account}=await sb.from('nd_employee_accounts').select('version,must_change').eq('staff_id',actor).maybeSingle();
   if(!actor||session?.staff_id!==actor||!account||session.version!==account.version||account.must_change||session.expires_at<new Date().toISOString()||!p.staff?.some(s=>s.id===actor&&s.active!==false))return reply({error:'다시 로그인한 후 이용하세요.'},401);
   // Require a completed employee password setup; reset invalidates existing sessions.
-  const admin=!!b.adminPassword&&[p.adminPass,p.masterPass].filter(Boolean).includes(btoa(b.adminPassword));
+  admin=!!b.adminPassword&&[p.adminPass,p.masterPass].filter(Boolean).includes(btoa(b.adminPassword));
+  }
   if(b.admin&&!admin)return reply({error:'관리자 비밀번호를 확인해 주세요.'},403);
   const today=new Date(Date.now()+9*3600000).toISOString().slice(0,10),now=new Date().toISOString();
   if(b.action==='list'){
@@ -35,6 +45,7 @@ Deno.serve(async req=>{
   }
   if(b.action==='registerAdmin'){
    if(!admin)throw Error('관리자 확인이 필요합니다.');
+   if(actor.startsWith('@'))return reply({ok:true});
    const {error}=await sb.from('nd_swap_admins').upsert({staff_id:actor});if(error)throw error;return reply({ok:true});
   }
   if(b.action==='create'){
