@@ -7,7 +7,7 @@ const swapName=id=>id==='@master'?'마스터':id==='@admin'?'관리자':staffByI
 async function swapApi(action,extra={}){
  if(!currentUser?.staffId)throw Error('로그인 후 이용해 주세요.');
  if(isAdminTest&&action!=='list')throw Error('관리자 테스트 모드에서는 변경할 수 없습니다.');
- const res=await fetch(`${SB_URL}/functions/v1/work-swap`,{method:'POST',headers:SB_HEADERS,body:JSON.stringify({action,staffId:currentUser.staffId,token:currentUser.authToken,deviceId:_deviceId(),...(swapAdminView?{admin:true,adminPassword:swapAdminPassword}:{}),...extra})});
+ const res=await fetch(`${SB_URL}/functions/v1/work-swap`,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({action,staffId:currentUser.staffId,token:currentUser.authToken,deviceId:_deviceId(),...(swapAdminView?{admin:true,adminPassword:swapAdminPassword}:{}),...extra})});
  const result=await res.json();if(!res.ok||result.error)throw Error(result.error||'요청을 처리하지 못했습니다.');return result;
 }
 function closeWorkSwap(){document.getElementById('swap-modal')?.remove();swapSelected=null;swapAdminView=false;swapReturnFocus?.focus();}

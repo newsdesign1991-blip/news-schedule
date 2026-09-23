@@ -1,7 +1,7 @@
 let employeePending=null,employeeBusy=false,employeeAdminPass='',employeeAdminMode='';
 const employeeEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function employeeApi(action,extra={}){
- const res=await fetch(SB_URL+'/functions/v1/employee-auth',{method:'POST',headers:SB_HEADERS,body:JSON.stringify({action,token:currentUser?.authToken||employeePending?.authToken||'',...extra})});
+ let res;try{res=await fetch(SB_URL+'/functions/v1/employee-auth',{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({action,token:currentUser?.authToken||employeePending?.authToken||'',...extra})});}catch(e){throw new Error(e.message==='Design preview is read-only'?'디자인 시안에서는 로그인할 수 없습니다. 실제 앱에서 로그인해 주세요.':'로그인 서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.')}
  const r=await res.json();if(!res.ok){const e=new Error(r.error||'연결하지 못했습니다.');e.status=res.status;throw e}return r;
 }
 function employeeAdminCredential(mode,password){employeeAdminPass=mode==='test'?'':password;employeeAdminMode=mode==='test'?'':mode}
