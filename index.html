@@ -1565,7 +1565,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
  html body #dinner-people,html body #dinner-selected { max-height:none !important; overflow:visible !important; }
  html body #dinner-modal .dinner-body { overflow-anchor:none; }
 }
-</style><link rel="stylesheet" href="employee-auth.css?v=20260923-1"><script src="employee-auth.js?v=20260923-1"></script><style>html,body{overscroll-behavior-y:none}</style></head>
+</style><link rel="stylesheet" href="employee-auth.css?v=20260923-2"><script src="employee-auth.js?v=20260923-2"></script><style>html,body{overscroll-behavior-y:none}</style></head>
 <body>
 <div id="employee-loading" role="status"><span>불러오는 중…</span></div>
 
@@ -1871,7 +1871,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
     <button class="btn btn-primary" style="width:100%;font-size:15px;padding:10px;" onclick="loginUser()">입장</button>
     <div style="margin-top:14px;font-size:11.5px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px;line-height:1.5;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" style="flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>라이트·다크 모드는 앱 안에서 바꿀 수 있어요</div>
   </div>
-<button class="employee-admin-entry" type="button" onclick="employeeAdminDialog()">관리자 · 마스터 로그인</button>
+<div class="employee-login-links"><button class="employee-admin-entry" type="button" onclick="employeeAdminDialog('admin')">관리자 로그인</button><button class="employee-master-entry" type="button" aria-label="마스터 로그인" onclick="employeeAdminDialog('master')"></button></div>
 </div>
 
 <main>

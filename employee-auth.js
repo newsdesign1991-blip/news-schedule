@@ -38,10 +38,12 @@ async function employeeRestore(){
   host.querySelector('button').onclick=()=>{currentUser=saved;employeeRestore()};
  }
 }
-function employeeAdminDialog(){
+function employeeAdminDialog(mode='admin'){
+ mode=mode==='master'?'master':'admin';
  document.getElementById('employee-admin-login')?.remove();const el=document.createElement('div');el.id='employee-admin-login';el.className='nd-modal';
- el.innerHTML='<div class="nd-pop employee-dialog" role="dialog" aria-modal="true" aria-labelledby="employee-admin-title"><div class="employee-head"><h2 id="employee-admin-title">관리자 로그인</h2></div><form class="employee-form"><label>계정<select id="employee-admin-mode"><option value="admin">관리자</option><option value="master">마스터</option></select></label><label>비밀번호<input id="employee-admin-pin" type="password" autocomplete="current-password" required></label><p id="employee-admin-login-error" role="status"></p><button class="btn btn-primary" type="submit">로그인</button><button class="btn btn-outline" type="button" onclick="document.getElementById(&quot;employee-admin-login&quot;).remove()">돌아가기</button></form></div>';
- el.querySelector('form').onsubmit=async e=>{e.preventDefault();if(employeeBusy)return;employeeBusy=true;try{const r=await employeeApi('adminLogin',{mode:document.getElementById('employee-admin-mode').value,password:document.getElementById('employee-admin-pin').value});currentUser=r.user;localStorage.setItem(USER_KEY,JSON.stringify(currentUser));el.remove();document.getElementById('login-overlay').style.display='none';_updateUserHeader();_enterAdmin(currentUser.adminRole);showView('admin')}catch(err){document.getElementById('employee-admin-login-error').textContent=err.message}finally{employeeBusy=false}};
+ el.innerHTML='<div class="nd-pop employee-dialog" role="dialog" aria-modal="true" aria-labelledby="employee-admin-title"><div class="employee-head"><h2 id="employee-admin-title">관리자 로그인</h2></div><form class="employee-form"><label>비밀번호<input id="employee-admin-pin" type="password" autocomplete="current-password" required></label><p id="employee-admin-login-error" role="status"></p><button class="btn btn-primary" type="submit">로그인</button><button class="btn btn-outline" type="button" onclick="document.getElementById(&quot;employee-admin-login&quot;).remove()">돌아가기</button></form></div>';
+ el.querySelector('#employee-admin-title').textContent=mode==='master'?'마스터 로그인':'관리자 로그인';
+ el.querySelector('form').onsubmit=async e=>{e.preventDefault();if(employeeBusy)return;employeeBusy=true;try{const r=await employeeApi('adminLogin',{mode,password:document.getElementById('employee-admin-pin').value});currentUser=r.user;localStorage.setItem(USER_KEY,JSON.stringify(currentUser));el.remove();document.getElementById('login-overlay').style.display='none';_updateUserHeader();_enterAdmin(currentUser.adminRole);showView('admin')}catch(err){document.getElementById('employee-admin-login-error').textContent=err.message}finally{employeeBusy=false}};
  document.body.appendChild(el);
 }
 async function employeeLogin(){
