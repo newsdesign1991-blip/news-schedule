@@ -21,3 +21,7 @@
 .employee-form{padding:20px;display:grid;gap:14px}.employee-form label{font-size:14px;font-weight:650}.employee-form input{display:block;width:100%;box-sizing:border-box;min-width:0;min-height:48px;padding:12px;margin-top:7px;font-size:16px;border-radius:12px;border:1px solid var(--border);color:var(--text);background:var(--surface)}
 .employee-form button,.employee-account button{min-height:44px}.employee-form [role=status]{color:#c5534b;font-size:14px}.employee-account-list{display:grid;gap:10px;margin-top:14px}.employee-account{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--border);border-radius:14px;padding:14px;background:var(--surface)}
 .employee-account>div{min-width:0}.employee-account span{display:block;font-size:13px;color:var(--muted);margin-top:5px}.employee-account summary{padding:12px 0;cursor:pointer;font-size:14px}.employee-account output{font-size:18px;letter-spacing:.15em}.employee-account button{flex-shrink:0}
+.employee-account[data-password-ready="true"]{background:linear-gradient(120deg,rgba(49,130,246,.15),rgba(91,164,255,.05)),var(--surface);border-color:rgba(49,130,246,.25)}
+.employee-account[data-password-ready="true"] span{color:#3267ae}
+[data-theme="dark"] .employee-account[data-password-ready="true"]{background:linear-gradient(120deg,rgba(49,130,246,.23),rgba(91,164,255,.07)),var(--surface);border-color:rgba(104,167,255,.32)}
+[data-theme="dark"] .employee-account[data-password-ready="true"] span{color:#97c3ff}
