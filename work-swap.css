@@ -27,6 +27,12 @@ html body :is(#dinner-modal,#swap-modal) input[type=date]{min-width:0;max-width:
  .swap-body{padding:16px}.swap-head{padding:18px}.swap-section{padding:12px}.swap-head p{font-size:12px}
 }
 /* Shared notice-style chrome for both scheduling popups. */
+@media(min-width:1001px) and (pointer:fine){
+ html body #swap-modal{background:rgba(15,23,42,.06)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+ html body #swap-modal>.swap-dialog{position:fixed;animation:none!important;transform:none!important;max-height:calc(100dvh - 32px)!important}
+ #swap-modal .swap-head{cursor:grab;user-select:none;touch-action:none}
+ #swap-modal .swap-head.swap-dragging{cursor:grabbing}
+}
 html body :is(#dinner-modal,#swap-modal) .nd-pop>div.schedule-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 22px 15px!important;margin:0;flex-shrink:0;background:rgba(49,130,246,.09);border-bottom:1px solid rgba(49,130,246,.18)!important}
 .schedule-dialog-head>div{min-width:0}
 html body :is(#dinner-modal,#swap-modal) :is(#dinner-title,#swap-title){font-size:17px!important;font-weight:800;letter-spacing:-.02em;line-height:1.4;color:var(--text)}

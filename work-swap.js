@@ -10,10 +10,39 @@ async function swapApi(action,extra={}){
  const res=await fetch(`${SB_URL}/functions/v1/work-swap`,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({action,staffId:currentUser.staffId,token:currentUser.authToken,deviceId:_deviceId(),...(swapAdminView?{admin:true,adminPassword:swapAdminPassword}:{}),...extra})});
  const result=await res.json();if(!res.ok||result.error)throw Error(result.error||'요청을 처리하지 못했습니다.');return result;
 }
-function closeWorkSwap(){document.getElementById('swap-modal')?.remove();swapSelected=null;swapAdminView=false;swapReturnFocus?.focus();}
+function closeWorkSwap(){const modal=document.getElementById('swap-modal');modal?._stopWindowDrag?.();modal?.remove();swapSelected=null;swapAdminView=false;swapReturnFocus?.focus();}
+function swapEnableWindowDrag(modal){
+ modal._stopWindowDrag?.();
+ const dialog=modal.querySelector('.swap-dialog'),head=modal.querySelector('.swap-head');
+ const desktop=matchMedia('(min-width:1001px) and (pointer:fine)'),events=new AbortController();
+ let drag=null;
+ function place(x,y){
+  const r=dialog.getBoundingClientRect(),gap=16;
+  x=Math.max(gap,Math.min(x,innerWidth-r.width-gap));y=Math.max(gap,Math.min(y,innerHeight-r.height-gap));
+  modal.dataset.windowX=String(x);modal.dataset.windowY=String(y);
+  dialog.style.left=x+'px';dialog.style.top=y+'px';
+ }
+ function finish(){if(drag&&head.hasPointerCapture(drag.id))head.releasePointerCapture(drag.id);drag=null;head.classList.remove('swap-dragging')}
+ function fit(){
+  if(!desktop.matches){finish();dialog.style.left='';dialog.style.top='';delete modal.dataset.windowX;delete modal.dataset.windowY;head.removeAttribute('title');return}
+  head.title='제목 부분을 드래그하여 창을 옮길 수 있습니다.';
+  if(modal.dataset.windowX!==undefined)place(Number(modal.dataset.windowX),Number(modal.dataset.windowY));
+ }
+ head.addEventListener('pointerdown',e=>{
+  if(!desktop.matches||e.button!==0||e.target.closest('button,input,select,textarea,a'))return;
+  const r=dialog.getBoundingClientRect();drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:r.left,top:r.top};
+  place(r.left,r.top);head.setPointerCapture(e.pointerId);head.classList.add('swap-dragging');e.preventDefault();
+ },{signal:events.signal});
+ head.addEventListener('pointermove',e=>{if(drag&&e.pointerId===drag.id)place(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y)},{signal:events.signal});
+ for(const name of ['pointerup','pointercancel','lostpointercapture'])head.addEventListener(name,finish,{signal:events.signal});
+ window.addEventListener('resize',fit,{signal:events.signal});desktop.addEventListener('change',fit,{signal:events.signal});
+ const observer=new ResizeObserver(fit);observer.observe(dialog);
+ modal._stopWindowDrag=()=>{finish();events.abort();observer.disconnect()};fit();
+}
 function swapShell(title,body){
  let modal=document.getElementById('swap-modal');if(!modal){modal=document.createElement('div');modal.id='swap-modal';modal.className='nd-modal';modal.addEventListener('click',e=>{if(e.target===modal)closeWorkSwap()});modal.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();closeWorkSwap()}if(e.key==='Tab'){const a=[...modal.querySelectorAll('button,input,textarea,select')].filter(x=>!x.disabled&&x.getClientRects().length);if(e.shiftKey&&document.activeElement===a[0]){e.preventDefault();a.at(-1)?.focus()}else if(!e.shiftKey&&document.activeElement===a.at(-1)){e.preventDefault();a[0]?.focus()}}});document.body.appendChild(modal)}
  modal.innerHTML=`<div class="nd-pop swap-dialog" role="dialog" aria-modal="true" aria-labelledby="swap-title"><div class="swap-head modal-header schedule-dialog-head"><div><b id="swap-title">${title}</b><p class="schedule-dialog-sub">근무 배정 교환 · 상대방 수락 후 관리자 승인</p></div><button type="button" class="modal-close schedule-dialog-close" aria-label="닫기" onclick="closeWorkSwap()">✕</button></div><div class="swap-body">${body}</div><div id="swap-error" role="status" aria-live="polite"></div></div>`;
+ swapEnableWindowDrag(modal);
 }
 function swapError(e){const el=document.getElementById('swap-error');if(el)el.textContent=e.message||e;else toast(e.message||String(e),'error')}
 async function openWorkSwap(admin=false){
