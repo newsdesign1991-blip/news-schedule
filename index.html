@@ -2536,7 +2536,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.09.29 15:22';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.29 15:24';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -6937,7 +6937,7 @@ async function analyzeScheduleImage() {
 규칙:
 - 각 날짜(date: "YYYY-MM-DD")별로 직원별 근무유형을 추출
 - 연도와 월은 이미지의 제목에서 추출 (예: "2026년 6월")
-- 근무유형 코드: 정근, 신휴가, Jr.휴가, 출장, Jr.캠프, 당직, VW대, 8데스크, 5데스크, 오전데스크, 조근, 8진, 뉴오, 일근, 데스크, CG
+- 근무유형 코드: 정근, 신휴가, Jr.휴가, 출장, Jr.캠프, AI 교육, 당직, VW대, 8데스크, 5데스크, 오전데스크, 조근, 8진, 뉴오, 일근, 데스크, CG
 - 이미지에서 셀 내용이 "정근"이면 workType을 "정근"으로, "신휴가"이면 "신휴가"로 등 그대로 사용
 - 빈 셀(근무 없음)은 포함하지 마세요
 - 등록된 직원 목록에 없는 이름은 unknownNames 배열에 추가
@@ -7010,9 +7010,9 @@ function _renderImgResult(parsed) {
 }
 
 function _isVw2(entry,id) { return String(entry?.customCells?.[id]?.text || '').replace(/\s/g,'').toUpperCase() === 'VW2'; }
-function _normalizeImportedWorkType(value){return String(value||'').replace(/\s+/g,'').replace(/^jr[.．]?/i,'Jr.');}
+function _normalizeImportedWorkType(value){return String(value||'').replace(/\s+/g,'').replace(/^jr[.．]?/i,'Jr.').replace(/^ai교육$/i,'AI 교육');}
 const WORK_TYPE_MAP = {
-  '정근': 'work', '신휴가': 'leave', 'Jr.휴가': 'leave', '출장': 'offsite', 'Jr.캠프': 'offsite', '당직': 'danjik',
+  '정근': 'work', '신휴가': 'leave', 'Jr.휴가': 'leave', '출장': 'offsite', 'Jr.캠프': 'offsite', 'AI 교육': 'offsite', '당직': 'danjik',
   'VW데': 'vw-desk', '데스크': 'desk-auto',
   'VW대': 'vw-sub', 'VW대체': 'vw-sub', 'VW대체자': 'vw-sub',
   'CG대': 'cg-sub', 'CG대체': 'cg-sub', 'CG대체자': 'cg-sub',
