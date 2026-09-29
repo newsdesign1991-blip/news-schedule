@@ -2536,7 +2536,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.09.29 16:10';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.29 16:14';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -10456,6 +10456,13 @@ function renderDinnerResults() {
   const names = ids.map(id => _pEsc(staffById(id)?.name || '')).join(', ');
   host.innerHTML = `<div style="font-size:12px;color:var(--muted);line-height:1.6;overflow-wrap:anywhere;">${names}</div><div style="font-size:15px;font-weight:800;margin:8px 0 12px;">공통 근무일 <span style="color:var(--vw);">${dates.length}일</span></div>` + (dates.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">${dates.map(ds => { const dt = new Date(ds+'T00:00:00'); return `<span style="padding:9px 12px;border-radius:10px;background:var(--vw-bg);color:var(--vw-light);font-size:13px;font-weight:700;">${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()} (${'일월화수목금토'[dt.getDay()]})</span>`; }).join('')}</div>` : '<div style="font-size:12px;color:var(--muted);line-height:1.7;">조회 기간 내 공통 근무일이 없습니다.<br>조회 기간 또는 대상 직원을 변경해 주세요. 미배포 날짜는 결과에 포함되지 않습니다.</div>');
 }
+function _personLeaveCandidate(staff,ds,label,entry){
+  if(!entry || !isContractActive(staff,ds) || isDispatched(staff,ds))return false;
+  const dow=new Date(ds+'T00:00:00').getDay();
+  if(dow===0 || dow===6 || data.holidays?.[ds])return false;
+  const text=String(label||'').replace(/\s|\u00a0/g,'');
+  return ['', '-', '–', '—', '신휴가', '휴가', 'Jr.휴가', '비번', '당직비번', '휴무'].includes(text);
+}
 function openPersonSchedule(staffId){
   const staff = staffById(staffId);
   if (!staff || !tableRangeStart || !tableRangeEnd) return;
@@ -10470,7 +10477,7 @@ function openPersonSchedule(staffId){
   const TD_WE='padding:9px 8px;vertical-align:middle;text-align:center;font-size:12px;border-bottom:1px solid var(--border);background:var(--wk-bg);';
   // 실제 렌더된 근무표 셀을 그대로 가져와 동일한 디자인으로 표시 (없으면 역할 칩으로 대체)
   const _trs = document.querySelectorAll('#excel-tbody > tr');
-  let rows='';
+  let rows=''; const leaveDates=[];
   dates.forEach((dt,i)=>{
     const ds=toDateStr(dt.getFullYear(),dt.getMonth()+1,dt.getDate());
     const dow=dt.getDay(); const isWE=dow===0||dow===6; const isHoli=!!(data.holidays&&data.holidays[ds]);
@@ -10490,6 +10497,8 @@ function openPersonSchedule(staffId){
       const roles=onLv?[{label:'휴가',bg:'#fee2e2',color:'#d65a52'}]:_getPersonRoles(sched[ds],staffId);
       if(roles.length){ const r=roles[0]; _workStyle=base+`font-size:12px;font-weight:700;background:${r.bg};color:${r.color};`; _workContent=roles.map(x=>x.label).join(' '); }
     }
+    const label=_td?_td.textContent:(_importCellDisplay(sched[ds],staffId,data.newLeaves?.[ds])?.text ?? _workContent.replace(/<[^>]*>/g,''));
+    if(_personLeaveCandidate(staff,ds,label,sched[ds]))leaveDates.push({ds,month:dt.getMonth()+1,day:dt.getDate(),dow:DOW_KR[dow]});
     const _tbg = isToday ? 'background:var(--pop-today-bg);' : '';
     const _tBd = isToday ? 'border-bottom:2px solid #4c8ef2;' : '';
     const tL = isToday ? 'border-left:2px solid #4c8ef2;' : '';
@@ -10501,8 +10510,32 @@ function openPersonSchedule(staffId){
     </tr>`;
   });
   const TH='padding:10px 6px;font-size:11px;font-weight:700;text-align:center;background:var(--surface);color:var(--muted);position:sticky;top:0;z-index:1;border-bottom:1.5px solid var(--border);';
+  const leaveSummary=`<aside class="nd-pop person-leave-summary" aria-labelledby="person-leave-title" onclick="event.stopPropagation()">
+    <div class="person-leave-head"><div><div id="person-leave-title" style="font-size:15px;font-weight:800;color:var(--text);">휴가 신청 대상일</div><div style="margin-top:5px;font-size:12px;color:var(--muted);">${_pEsc(staff.name)} · 현재 조회 기간</div></div><span class="person-leave-count">${leaveDates.length}일</span></div>
+    <div class="person-leave-body"><p style="margin:0 0 14px;font-size:12px;line-height:1.7;color:var(--muted);">주말·공휴일을 제외한 평일 휴무·휴가 날짜입니다.</p>
+    ${leaveDates.length?'<ul class="person-leave-list">'+leaveDates.map(d=>`<li><span>${d.month}월 ${d.day}일 <span style="color:var(--muted);font-weight:500;">(${d.dow})</span></span><span class="person-leave-dot" aria-hidden="true"></span></li>`).join('')+'</ul>':'<div class="person-leave-empty">해당 기간에 신청 대상일이 없습니다.</div>'}
+    <p style="margin:14px 0 0;font-size:11px;line-height:1.7;color:var(--muted);">근무표 기준 안내이며, 휴가 신청 완료 여부와는 별개입니다.</p></div>
+  </aside>`;
+  document.getElementById('lr-popup-root')?.remove();
   const html=`
+  <style>
+    .person-schedule-pair{display:contents;}
+    .person-leave-summary{display:none;}
+    @media(min-width:1001px){
+      .person-schedule-pair{display:flex;align-items:flex-start;justify-content:center;gap:16px;max-width:calc(100vw - 32px);}
+      .person-leave-summary{display:flex;flex-direction:column;width:282px;max-height:84vh;background:var(--surface);border-radius:20px;overflow:hidden;box-shadow:0 16px 50px -12px rgba(15,23,42,.32);}
+      .person-leave-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;background:var(--vw-bg);border-bottom:1px solid var(--border);flex-shrink:0;}
+      .person-leave-count{padding:6px 10px;border-radius:10px;background:var(--surface);color:var(--vw-light);font-size:14px;font-weight:800;white-space:nowrap;}
+      .person-leave-body{padding:16px 20px 20px;overflow-y:auto;min-height:0;overscroll-behavior:contain;}
+      .person-leave-list{list-style:none;padding:0;margin:0;}
+      .person-leave-list li{display:flex;align-items:center;justify-content:space-between;min-height:46px;border-bottom:1px solid var(--border);font-size:14px;font-weight:700;color:var(--text);}
+      .person-leave-list li:last-child{border-bottom:0;}
+      .person-leave-dot{width:6px;height:6px;border-radius:50%;background:var(--vw-light);opacity:.6;}
+      .person-leave-empty{padding:18px 0;font-size:13px;line-height:1.7;color:var(--text);}
+    }
+  </style>
   <div id="lr-popup-overlay" class="nd-modal" onclick="if(event.target===this)dismissLrPopup()" style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;">
+    <div class="person-schedule-pair">
     <div onclick="event.stopPropagation()" class="nd-pop" style="background:var(--surface);border-radius:20px;box-shadow:0 16px 50px -12px rgba(15,23,42,0.32);max-height:84vh;display:flex;flex-direction:column;width:fit-content !important;min-width:186px;max-width:94vw;">
       <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
         <div><span style="font-size:16px;font-weight:800;letter-spacing:-.01em;color:${nameColor};">${staff.name}</span><span style="font-size:11px;color:var(--muted);margin-left:6px;">${staff.dept} · 근무</span></div>
@@ -10515,6 +10548,8 @@ function openPersonSchedule(staffId){
           <tbody>${rows}</tbody>
         </table>
       </div>
+    </div>
+    ${leaveSummary}
     </div>
   </div>`;
   const el=document.createElement('div'); el.id='lr-popup-root'; el.innerHTML=html; document.body.appendChild(el);
