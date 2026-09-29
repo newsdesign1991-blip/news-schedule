@@ -2536,7 +2536,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.09.29 15:24';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.29 15:36';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -6793,20 +6793,37 @@ function parseExcelSchedule() {
       if(best>=0 && bestScore>=0.5) dateColIdx=best;
     }
 
-    // 이름→열 매핑 (날짜 열 제외, 빈 이름 제외)
-    // 이름 헤더 행 오른쪽에 붙은 메모·요약 영역이 이름으로 잘못 잡히는 것 방지:
-    // 등록 직원이 아니면서 명백히 이름이 아닌 값(숫자/공백포함/근무유형 텍스트/너무 긴 값)은 제외
-    const colMap = [];
-    nameRow.forEach((v,c)=>{
-      const nm=String(v).trim();
-      if(!nm || c===dateColIdx) return;
-      if(!knownStaffByName[nm]) {
-        if(/^\d+$/.test(nm)) return;        // 날짜·숫자
-        if(/\s/.test(nm)) return;           // 공백 포함(여러 명 나열·메모)
-        if(nm in WORK_TYPE_MAP) return;     // 근무유형 텍스트(일근·정근 등)
-        if(nm.length > 5) return;           // 이름은 보통 5자 이하
+    // 부서 병합 헤더의 범위만 직원 열로 사용한다. 표 밖 메모는 이름으로 읽지 않는다.
+    const candidateNames = nameRow.map((v,c)=>{
+      const nm=String(v||'').trim();
+      if(!nm || c===dateColIdx || c===dowColIdx) return '';
+      if(knownStaffByName[nm]) return nm;
+      if(/\d|\s/.test(nm) || nm in WORK_TYPE_MAP || nm.length>5) return '';
+      if(/^(비고|편성|길이|진입|합계|총원|인원|일반|근무|요일|날짜)$/.test(nm)) return '';
+      return nm;
+    });
+    const sheetStart=XLSX.utils.decode_range(ws['!ref']||'A1').s;
+    const staffColumns=new Set();
+    (ws['!merges']||[]).forEach(range=>{
+      const headerRow=range.s.r-sheetStart.r;
+      if(headerRow<0 || headerRow>=nameRowIdx || range.e.r>=nameRowIdx+sheetStart.r) return;
+      const start=range.s.c-sheetStart.c, end=range.e.c-sheetStart.c;
+      const header=String((rows[headerRow]||[])[start]||'');
+      if(!/VW|CG|XR|P\.?J|PROJECT|SPORTS|조근|스포츠/i.test(header)) return;
+      for(let c=Math.max(0,start);c<=Math.min(end,nameRow.length-1);c++) staffColumns.add(c);
+    });
+    // 병합 헤더가 없는 형식: 등록 직원에서 이어지는 이름 열까지만 허용한다.
+    // 빈 열/합계/숫자 메모를 만나면 멈추므로 떨어져 있는 메모 영역은 제외된다.
+    candidateNames.forEach((nm,c)=>{
+      if(!knownStaffByName[nm] || staffColumns.has(c)) return;
+      staffColumns.add(c);
+      for(const step of [-1,1]) {
+        for(let next=c+step;next>=0 && next<candidateNames.length && candidateNames[next];next+=step) staffColumns.add(next);
       }
-      colMap.push({name:nm,colIdx:c});
+    });
+    const colMap = [];
+    candidateNames.forEach((name,colIdx)=>{
+      if(name && staffColumns.has(colIdx)) colMap.push({name,colIdx});
     });
 
     // 비고 열 감지: 이름행 위(병합 헤더행) 또는 이름행 헤더에 '8뉴스/진입/편성/길이/비고' 포함 → 날짜별 메모로 수집
