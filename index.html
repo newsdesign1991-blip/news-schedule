@@ -2536,7 +2536,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.09.26 00:50';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.29 15:22';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -4363,7 +4363,7 @@ function renderTable() {
       if(contractOut){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(dispatched){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(s.id===danjikExitId){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';fw='700';text='퇴근';workCount[s.id]++;}
-      else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
+      else if(hasNL){color='#c79a5e';fw='700';text=entry?.leaveLabels?.[s.id]||'신휴가';}
       else if(entry?.satMorning===s.id){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
       else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
@@ -4406,7 +4406,7 @@ function renderTable() {
         if(entry?.weekend8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
         else if(entry?.weekend8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
       } else if(hasNL){
-        color='#c79a5e';fw='700';text='신휴가';
+        color='#c79a5e';fw='700';text=entry?.leaveLabels?.[s.id]||'신휴가';
       } else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='var(--r-edu-bg)';color='var(--r-edu-fg)';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
@@ -4441,7 +4441,7 @@ function renderTable() {
       if(contractOut){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(dispatched){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(s.id===danjikExitId){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';fw='700';text='퇴근';workCount[s.id]++;}
-      else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
+      else if(hasNL){color='#c79a5e';fw='700';text=entry?.leaveLabels?.[s.id]||'신휴가';}
       else if(entry?.satMorning===s.id){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
       else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
@@ -6083,7 +6083,7 @@ function renderWorkshopTable() {
       if(contractOut){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(dispatched){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(s.id===danjikExitId){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';fw='700';text='퇴근';workCount[s.id]++;}
-      else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
+      else if(hasNL){color='#c79a5e';fw='700';text=entry?.leaveLabels?.[s.id]||'신휴가';}
       else if(entry?.satMorning===s.id){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
       else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
@@ -6125,7 +6125,7 @@ function renderWorkshopTable() {
         if(entry?.weekend8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
         else if(entry?.weekend8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
       } else if(hasNL){
-        color='#c79a5e';fw='700';text='신휴가';
+        color='#c79a5e';fw='700';text=entry?.leaveLabels?.[s.id]||'신휴가';
       } else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='var(--r-edu-bg)';color='var(--r-edu-fg)';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
@@ -6158,7 +6158,7 @@ function renderWorkshopTable() {
       if(contractOut){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(dispatched){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(s.id===danjikExitId){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';fw='700';text='퇴근';workCount[s.id]++;}
-      else if(hasNL){color='#c79a5e';fw='700';text='신휴가';}
+      else if(hasNL){color='#c79a5e';fw='700';text=entry?.leaveLabels?.[s.id]||'신휴가';}
       else if(entry?.satMorning===s.id){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(s.id===danjikOffId){text='';}
       else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
@@ -6937,7 +6937,7 @@ async function analyzeScheduleImage() {
 규칙:
 - 각 날짜(date: "YYYY-MM-DD")별로 직원별 근무유형을 추출
 - 연도와 월은 이미지의 제목에서 추출 (예: "2026년 6월")
-- 근무유형 코드: 정근, 신휴가, 당직, VW대, 8데스크, 5데스크, 오전데스크, 조근, 8진, 뉴오, 일근, 데스크, CG
+- 근무유형 코드: 정근, 신휴가, Jr.휴가, 출장, Jr.캠프, 당직, VW대, 8데스크, 5데스크, 오전데스크, 조근, 8진, 뉴오, 일근, 데스크, CG
 - 이미지에서 셀 내용이 "정근"이면 workType을 "정근"으로, "신휴가"이면 "신휴가"로 등 그대로 사용
 - 빈 셀(근무 없음)은 포함하지 마세요
 - 등록된 직원 목록에 없는 이름은 unknownNames 배열에 추가
@@ -7010,8 +7010,9 @@ function _renderImgResult(parsed) {
 }
 
 function _isVw2(entry,id) { return String(entry?.customCells?.[id]?.text || '').replace(/\s/g,'').toUpperCase() === 'VW2'; }
+function _normalizeImportedWorkType(value){return String(value||'').replace(/\s+/g,'').replace(/^jr[.．]?/i,'Jr.');}
 const WORK_TYPE_MAP = {
-  '정근': 'work', '신휴가': 'leave', '당직': 'danjik',
+  '정근': 'work', '신휴가': 'leave', 'Jr.휴가': 'leave', '출장': 'offsite', 'Jr.캠프': 'offsite', '당직': 'danjik',
   'VW데': 'vw-desk', '데스크': 'desk-auto',
   'VW대': 'vw-sub', 'VW대체': 'vw-sub', 'VW대체자': 'vw-sub',
   'CG대': 'cg-sub', 'CG대체': 'cg-sub', 'CG대체자': 'cg-sub',
@@ -7094,6 +7095,7 @@ function _doApplyImageSchedule(skipNames) {
       const s = (data.staff||[]).find(x=>x.name===name);
       if (!s) return;
       const dOn = (typeof deptOn==='function') ? deptOn(s, ds) : (s.dept||'');   // 시점부서(부서이동 예약 반영) — 기준부서 s.dept 대신 사용
+      workType = _normalizeImportedWorkType(workType);
       const wt = WORK_TYPE_MAP[workType];
       if (wt === 'skip') return;   // 당직퇴근·비번 등 자동 계산 항목은 가져오지 않음
       if (wt === undefined) {      // 매핑 안 된 표기(면접관 등) → 자동 배정 않고 메모에 '수동입력 필요' 기록
@@ -7104,6 +7106,10 @@ function _doApplyImageSchedule(skipNames) {
         if (!data.draft.newLeaves) data.draft.newLeaves = {};
         if (!data.draft.newLeaves[ds]) data.draft.newLeaves[ds] = [];
         if (!data.draft.newLeaves[ds].includes(s.id)) data.draft.newLeaves[ds].push(s.id);
+        if(workType==='Jr.휴가'){if(!entry.leaveLabels)entry.leaveLabels={};entry.leaveLabels[s.id]='Jr.휴가';}
+      } else if (wt === 'offsite') {
+        if(!entry.customCells)entry.customCells={};
+        entry.customCells[s.id]={text:workType,bg:'#ffc1df',color:'#000000'};
       } else if (wt === 'danjik') {
         entry.danjik = s.id;
       } else if (wt === 'desk8') {
