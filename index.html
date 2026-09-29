@@ -2536,7 +2536,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.09.29 16:32';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.29 18:27';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -7627,11 +7627,11 @@ function _fmtLrDeadline(dl) {
 function _checkLeaveReqDeadline() {
   const lr = data.leaveReq;
   if (lr && lr.isOpen && lr.deadline && new Date() >= new Date(lr.deadline)) {
-    lr.isOpen = false;
-    saveData(data);
+    lr.isOpen = false; // 마감 판정은 로컬 표시만 변경. 신청 저장도 서버 최신 마감 조건을 확인한다.
   }
 }
 function renderLeaveReqView() {
+  _lrRestorePending();_lrOverlayPending();
   _checkLeaveReqDeadline();   // 마감 시각이 지났으면 자동으로 닫기
   const lr = data.leaveReq || {};
   const isOpen = !!lr.isOpen;
@@ -7648,6 +7648,7 @@ function renderLeaveReqView() {
     deadlineBanner = `<div style="display:flex;align-items:center;gap:9px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.28);border-radius:15px;padding:13px 17px;margin-bottom:14px;font-size:13.5px;font-weight:700;color:#e0483c;">⛔ 휴가 신청이 마감되었습니다${dl?` (마감: ${_fmtLrDeadline(dl)})`:''}</div>`;
   }
 
+  deadlineBanner=_lrSyncBanner()+deadlineBanner;
   // 관리자 컨트롤
   let adminCtrl = '';
   if (isAdmin) {
@@ -7908,7 +7909,7 @@ function closeLrPopup() {
 }
 // 사용자가 닫을 때(✕·배경·저장): 닫힘 애니메이션 후 제거 (셀 클릭 재생성은 즉시 closeLrPopup 사용)
 function dismissLrPopup() {
-  if (!isAdmin) _lrFlushSync();   // 미저장 토글이 있으면 즉시 병합 저장
+  _lrFlushSync();   // 미저장 토글이 있으면 즉시 병합 저장
   const ov = document.getElementById('lr-popup-overlay');
   if (!ov) { closeLrPopup(); return; }
   ov.classList.add('nd-closing');
@@ -7925,10 +7926,9 @@ function lrPopupCellClick(staffId, dateStr) {
 async function lrSaveAndClose() {
   if (_lrSyncTimer) { clearTimeout(_lrSyncTimer); _lrSyncTimer=null; }
   let ok = true;
-  if (isAdmin) { saveData(data); }
-  else { ok = await _lrSyncMyColumn(_lrMyId()); }   // 서버 최신본에 내 열 병합 (동시 저장 안전)
+  ok = await _lrSyncMyColumn(_lrMyId());   // 서버 최신본에 내 열 병합 (동시 저장 안전)
   renderLeaveReqView();
-  dismissLrPopup();
+  if (ok) dismissLrPopup();
   if (ok) toast('휴가 신청이 저장되었습니다.','success');
   else toast('저장에 실패했습니다. 네트워크 확인 후 다시 시도해 주세요.','error');
 }
@@ -7960,85 +7960,99 @@ function sendLeaveReqNotice() {
   toast('휴가신청 알림을 보냈습니다.','success');
 }
 
-// ===== 휴가신청 동시 저장 안전화(A안): 본인 열만 서버 최신본에 병합 =====
-// 각 사용자는 자기 staffId 멤버십만 변경 -> 원격 최신본을 기준으로 내 열만 반영 후
-// updated_at 조건부 PATCH(낙관적 잠금) + 재시도. 40명이 동시에 눌러도 서로 덮어쓰지 않음.
-let _lrSyncTimer = null;
-function _lrDateList(rs, re){
-  const out=[]; if(!rs||!re) return out;
-  let cur=new Date(rs+'T00:00:00'), end=new Date(re+'T00:00:00');
-  while(cur<=end){ out.push(toDateStr(cur.getFullYear(),cur.getMonth()+1,cur.getDate())); cur.setDate(cur.getDate()+1); }
-  return out;
+// ===== 휴가신청: 셀 단위 변경 대기열 + 조건부 저장 =====
+let _lrSyncTimer=null, _lrInFlight=null, _lrPending={}, _lrScope=null, _lrSerial=0, _lrSaveError='';
+function _lrPendingKey(){return STORE_KEY+':leave-pending:'+(isAdmin?'admin':(_lrMyId()||'guest'));}
+function _lrRestorePending(){
+  const key=_lrPendingKey();if(_lrScope===key)return;
+  _lrScope=key;_lrPending={};
+  try{const saved=JSON.parse(localStorage.getItem(key)||'{}');for(const [k,op]of Object.entries(saved))if(op&&op.id&&/^\d{4}-\d{2}-\d{2}$/.test(op.ds)&&(isAdmin||op.id===_lrMyId()))_lrPending[k]={...op,version:++_lrSerial};}catch{}
+  _lrOverlayPending();
+  if(Object.keys(_lrPending).length)_lrSaveError='restored';
 }
-async function _lrSyncMyColumn(myId){
-  if (isAdminTest) return true;          // 테스트 모드: 서버 반영 안 함
-  if (!myId) return false;
-  const url = `${SB_URL}/rest/v1/nd_data?id=eq.main`;
-  const localEntries = (data.leaveReq && data.leaveReq.entries) || {};
-  for (let attempt=0; attempt<6; attempt++){
-    let remote;
-    try {
-      const g = await fetch(`${url}&select=payload,updated_at`, { headers: SB_HEADERS });
-      if(!g.ok) throw new Error('GET '+g.status);
-      const arr = await g.json(); remote = arr && arr[0];
-    } catch(e){ console.warn('휴가 동기화 읽기 실패', e); return false; }
-    if (!remote || !remote.payload) return false;
-    const rp = remote.payload;
-    if (!rp.leaveReq) rp.leaveReq = { entries:{} };
-    if (!rp.leaveReq.entries) rp.leaveReq.entries = {};
-    const rs = rp.leaveReq.rangeStart || (data.leaveReq && data.leaveReq.rangeStart);
-    const re = rp.leaveReq.rangeEnd   || (data.leaveReq && data.leaveReq.rangeEnd);
-    // 내 열(myId)만 로컬 상태에 맞춰 반영 - 다른 사람 데이터는 절대 건드리지 않음
-    _lrDateList(rs, re).forEach(ds=>{
-      const mineLocal = ((localEntries[ds]||[]).indexOf(myId) >= 0);
-      const list = rp.leaveReq.entries[ds] || (rp.leaveReq.entries[ds]=[]);
-      const i = list.indexOf(myId);
-      if (mineLocal && i<0) list.push(myId);
-      else if (!mineLocal && i>=0) list.splice(i,1);
-    });
-    const nowIso = new Date().toISOString();
-    try {
-      const cond = remote.updated_at ? `&updated_at=eq.${encodeURIComponent(remote.updated_at)}` : '';
-      const p = await fetch(`${url}${cond}`, {
-        method:'PATCH',
-        headers: Object.assign({}, SB_HEADERS, { 'Prefer':'return=representation' }),
-        body: JSON.stringify({ payload: rp, updated_at: nowIso })
-      });
-      if(!p.ok) throw new Error('PATCH '+p.status);
-      const rows = await p.json();
-      if (Array.isArray(rows) && rows.length>0){
-        data.leaveReq = rp.leaveReq;           // 로컬을 병합된 최신본으로 갱신
-        _ndUpdatedAt = nowIso;
-        try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e){}
-        _localBackup(data);
-        return true;
-      }
-      // rows 비어있음 = 그 사이 다른 사람이 먼저 저장함 -> 최신본 다시 읽어 재시도
-    } catch(e){ console.warn('휴가 동기화 쓰기 실패', e); return false; }
-    await new Promise(res=>setTimeout(res, 70 + attempt*110));
+function _lrPersistPending(){try{localStorage.setItem(_lrScope,JSON.stringify(_lrPending));return true;}catch{toast('기기 보관 공간이 부족합니다. 저장 완료 전 창을 닫지 마세요.','error');return false;}}
+function _lrOverlayPending(){
+  if(!data.leaveReq)data.leaveReq={entries:{}};if(!data.leaveReq.entries)data.leaveReq.entries={};
+  for(const op of Object.values(_lrPending)){
+    const list=(data.leaveReq.entries[op.ds]||[]).filter(id=>id!==op.id);
+    if(op.selected)list.push(op.id);data.leaveReq.entries[op.ds]=list;
   }
-  return false;
 }
-function _lrScheduleSync(myId){
-  if (_lrSyncTimer) clearTimeout(_lrSyncTimer);
-  _lrSyncTimer = setTimeout(function(){ _lrSyncTimer=null; _lrSyncMyColumn(myId); }, 450);
+function _lrHasPending(){_lrRestorePending();return !!_lrInFlight||Object.keys(_lrPending).length>0;}
+function _lrSyncBanner(){
+  if(!_lrHasPending())return '';
+  return '<div role="status" style="padding:12px 16px;margin-bottom:12px;border-radius:12px;background:var(--vw-bg);color:var(--text);font-size:13px;line-height:1.7;">'+(_lrSaveError?'아직 서버에 저장되지 않았습니다. 변경 내용은 이 기기에 보관되어 있습니다.':'휴가 변경 사항을 저장 중입니다. 저장 완료 전에는 신청이 확정되지 않습니다.')+' <button class="btn" onclick="_lrSyncMyColumn(_lrMyId())">다시 저장</button> <button class="btn" onclick="_lrDiscardPending()">미저장 변경 취소</button></div>';
 }
-function _lrFlushSync(){
-  if (_lrSyncTimer){ clearTimeout(_lrSyncTimer); _lrSyncTimer=null; _lrSyncMyColumn(_lrMyId()); }
+async function _lrDiscardPending(){
+  if(_lrInFlight){toast('저장 중입니다. 잠시 후 다시 시도해 주세요.');return;}
+  if(!confirm('서버에 저장되지 않은 휴가 변경을 취소하고 최신 내용을 불러올까요?'))return;
+  _lrPending={};_lrPersistPending();_lrSaveError='';await _reloadRemoteData();renderLeaveReqView();
 }
-function lrCellClick(staffId, dateStr) {
-  if (!isAdmin && _lrMyId() !== staffId) return;   // 본인 열만 토글 가능
-  if (!isAdmin && !data.leaveReq?.isOpen) return;
-  const lr = data.leaveReq;
-  if (!lr.entries) lr.entries={};
-  if (!lr.entries[dateStr]) lr.entries[dateStr]=[];
-  const idx=lr.entries[dateStr].indexOf(staffId);
-  if(idx>=0) lr.entries[dateStr].splice(idx,1);
-  else lr.entries[dateStr].push(staffId);
-  if (isAdmin) { saveData(data); }
-  else { try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e){} _lrScheduleSync(_lrMyId()); }   // 본인 열만 병합 저장(충돌 방지)
-  renderLeaveReqView();
+function _lrDateList(rs,re){const out=[];if(!rs||!re)return out;let cur=new Date(rs+'T00:00:00'),end=new Date(re+'T00:00:00');while(cur<=end){out.push(toDateStr(cur.getFullYear(),cur.getMonth()+1,cur.getDate()));cur.setDate(cur.getDate()+1);}return out;}
+async function _lrSyncMyColumn(myId){
+  _lrRestorePending();if(_lrSyncTimer){clearTimeout(_lrSyncTimer);_lrSyncTimer=null;}
+  if(_lrInFlight)return _lrInFlight;
+  if(!Object.keys(_lrPending).length)return true;
+  const scope=_lrScope,admin=isAdmin;
+  _lrSaveError='';
+  _lrInFlight=_lrDrainChanges(scope,admin);
+  let ok=false;
+  try{ok=await _lrInFlight;return ok;}finally{
+    _lrInFlight=null;
+    if(_lrScope===scope){_lrSaveError=ok?'':'unsaved';renderLeaveReqView();if(!ok)toast('휴가 변경을 저장하지 못했습니다. 연결 확인 후 다시 저장해 주세요.','error');}
+  }
 }
+async function _lrRequest(url,options){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+  try{return await fetch(url,{...options,signal:controller.signal});}finally{clearTimeout(timer);}
+}
+async function _lrDrainChanges(scope,admin){
+  if(isAdminTest){_lrPending={};_lrPersistPending();return true;}
+  const url=SB_URL+'/rest/v1/nd_data?id=eq.main';
+  let failures=0;
+  while(Object.keys(_lrPending).length && failures<80){
+    if(scope!==_lrPendingKey()||scope!==_lrScope)return false;
+    const batch=Object.entries(_lrPending).map(([key,op])=>[key,{...op}]);
+    try{
+      const g=await _lrRequest(url+'&select=payload,updated_at',{headers:SB_HEADERS});
+      if(!g.ok)throw Error('read');const remote=(await g.json())?.[0];
+      if(!remote?.payload||!remote.updated_at)throw Error('missing version');
+      const rp=remote.payload,lr=rp.leaveReq;
+      if(!lr || (!admin&&(!lr.isOpen||(lr.deadline&&Date.now()>=new Date(lr.deadline).getTime()))))return false;
+      if(batch.some(([,op])=>op.rs!==lr.rangeStart||op.re!==lr.rangeEnd||op.ds<lr.rangeStart||op.ds>lr.rangeEnd))return false;
+      if(!lr.entries)lr.entries={};
+      for(const [,op]of batch){const list=(lr.entries[op.ds]||[]).filter(id=>id!==op.id);if(op.selected)list.push(op.id);lr.entries[op.ds]=list;}
+      const p=await _lrRequest(url+'&updated_at=eq.'+encodeURIComponent(remote.updated_at),{method:'PATCH',headers:{...SB_HEADERS,Prefer:'return=representation'},body:JSON.stringify({payload:rp})});
+      if(!p.ok){if(p.status===409){failures++;}else throw Error('write');}
+      else{
+        const saved=(await p.json())?.[0];
+        if(saved?.payload){
+          if(scope!==_lrPendingKey()||scope!==_lrScope)return false;
+          for(const [key,op]of batch)if(_lrPending[key]?.version===op.version)delete _lrPending[key];
+          data.leaveReq=saved.payload.leaveReq;_lrOverlayPending();_lrPersistPending();
+          // Do not advance the full-document revision: other local fields may be stale.
+          try{localStorage.setItem(STORE_KEY,JSON.stringify(data));}catch{}
+          _localBackup(data);failures=0;continue;
+        }
+        failures++;
+      }
+    }catch{failures++;if(failures>=3)return false;}
+    await new Promise(resolve=>setTimeout(resolve,80+Math.random()*Math.min(1600,120*failures)));
+  }
+  return !Object.keys(_lrPending).length;
+}
+function _lrScheduleSync(myId){if(_lrSyncTimer)clearTimeout(_lrSyncTimer);_lrSyncTimer=setTimeout(()=>{_lrSyncTimer=null;_lrSyncMyColumn(myId);},450);}
+function _lrFlushSync(){if(_lrHasPending())return _lrSyncMyColumn(_lrMyId());}
+function lrCellClick(staffId,dateStr){
+  _lrRestorePending();_lrOverlayPending();
+  if(!isAdmin&&(_lrMyId()!==staffId||!data.leaveReq?.isOpen))return;
+  const lr=data.leaveReq;if(!lr||dateStr<lr.rangeStart||dateStr>lr.rangeEnd)return;
+  const selected=!(lr.entries?.[dateStr]||[]).includes(staffId);
+  _lrPending[JSON.stringify([staffId,dateStr])]={id:staffId,ds:dateStr,selected,rs:lr.rangeStart,re:lr.rangeEnd,version:++_lrSerial};
+  _lrOverlayPending();_lrPersistPending();_lrSaveError='';_lrScheduleSync(_lrMyId());renderLeaveReqView();
+}
+window.addEventListener('online',()=>{if(_lrHasPending())_lrSyncMyColumn(_lrMyId());});
+window.addEventListener('beforeunload',event=>{if(_lrHasPending()){_lrPersistPending();event.preventDefault();event.returnValue='';}});
 
 function importLeaveReq() {
   if (!isAdmin) return;
@@ -10713,7 +10727,7 @@ function _rerenderActiveView() {
   else if (v==='view-workshop') renderWorkshopTable();
 }
 async function _reloadRemoteData() {
-  if(ndSaving || ndSaveQueue.length)return false;
+  if(ndSaving || ndSaveQueue.length || _lrHasPending())return false;
   try {
     const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
@@ -10722,6 +10736,7 @@ async function _reloadRemoteData() {
     const rows = await res.json();
     let remote = rows?.[0]?.payload;
     if (!remote || typeof remote!=='object' || !Object.keys(remote).length) return false;
+    if(ndSaving || ndSaveQueue.length || _lrHasPending())return false;
     data = _migrateRemote(remote);
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
     const ae = document.activeElement;
@@ -10732,7 +10747,7 @@ async function _reloadRemoteData() {
   } catch(e) { return false; }
 }
 async function _checkRemoteUpdate() {
-  if (document.hidden || ndSaving || ndSaveQueue.length) return;   // 저장 중에는 로컬 편집 보존
+  if (document.hidden || ndSaving || ndSaveQueue.length || _lrHasPending()) return;   // 저장 중에는 로컬 편집 보존
   try {
     const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=updated_at`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
