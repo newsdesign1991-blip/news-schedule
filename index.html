@@ -2536,7 +2536,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.09.29 16:17';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.29 16:32';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -10510,12 +10510,12 @@ function openPersonSchedule(staffId){
     </tr>`;
   });
   const TH='padding:10px 6px;font-size:11px;font-weight:700;text-align:center;background:var(--surface);color:var(--muted);position:sticky;top:0;z-index:1;border-bottom:1.5px solid var(--border);';
-  const leaveSummary=`<aside class="nd-pop person-leave-summary" aria-labelledby="person-leave-title" onclick="event.stopPropagation()">
-    <div class="person-leave-head"><div><div id="person-leave-title" style="font-size:15px;font-weight:800;color:var(--text);">휴가 신청 대상일</div><div style="margin-top:5px;font-size:12px;color:var(--muted);">${_pEsc(staff.name)} · 현재 조회 기간</div></div><span class="person-leave-count">${leaveDates.length}일</span></div>
+  const leaveSummary=staff.employmentType==='employee'?`<aside class="nd-pop person-leave-summary" aria-labelledby="person-leave-title" onclick="event.stopPropagation()">
+    <div class="person-leave-head"><div><div id="person-leave-title" style="font-size:15px;font-weight:800;color:var(--text);">Wise 휴가 신청 대상일</div><div style="margin-top:5px;font-size:12px;color:var(--muted);">${_pEsc(staff.name)} · 현재 조회 기간</div></div><span class="person-leave-count">${leaveDates.length}일</span></div>
     <div class="person-leave-body"><p style="margin:0 0 14px;font-size:12px;line-height:1.7;color:var(--muted);">주말·공휴일을 제외한 평일 휴무·휴가 날짜입니다.</p>
     ${leaveDates.length?'<ul class="person-leave-list">'+leaveDates.map(d=>`<li><span>${d.month}월 ${d.day}일 <span style="color:var(--muted);font-weight:500;">(${d.dow})</span></span><span class="person-leave-dot" aria-hidden="true"></span></li>`).join('')+'</ul>':'<div class="person-leave-empty">해당 기간에 신청 대상일이 없습니다.</div>'}
     <p style="margin:14px 0 0;font-size:11px;line-height:1.7;color:var(--muted);">근무표 기준 안내이며, 휴가 신청 완료 여부와는 별개입니다.</p></div>
-  </aside>`;
+  </aside>`:'';
   document.getElementById('lr-popup-root')?.remove();
   const html=`
   <style>
