@@ -2536,7 +2536,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.09.29 15:59';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.29 16:10';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -2965,10 +2965,27 @@ function getWeekKey(dateStr) {
 
 // 당직 helpers: given a date, find who is doing 당직퇴근 (started 당직 yesterday) and 당직비번 (started 당직 2 days ago)
 function getDanjikExitStaff(dateStr, extraSched) {
+  const current=extraSched?.[dateStr]||data.schedule[dateStr];
+  if(current?.importedCells){
+    const leaves=extraSched?data.draft?.newLeaves?.[dateStr]:data.newLeaves?.[dateStr];
+    const ids=Object.keys(current.importedCells);
+    const exit=ids.find(id=>/^(퇴근|당직퇴근)$/.test(_importCellDisplay(current,id,leaves)?.text||''));
+    if(exit)return exit;
+    const previous=extraSched?.[addDays(dateStr,-1)]?.danjik||data.schedule[addDays(dateStr,-1)]?.danjik;
+    if(previous&&_importCellDisplay(current,previous,leaves))return null;
+  }
   const prev = addDays(dateStr, -1);
   return extraSched?.[prev]?.danjik || data.schedule[prev]?.danjik || null;
 }
 function getDanjikOffStaff(dateStr, extraSched) {
+  const current=extraSched?.[dateStr]||data.schedule[dateStr];
+  if(current?.importedCells){
+    const leaves=extraSched?data.draft?.newLeaves?.[dateStr]:data.newLeaves?.[dateStr];
+    const off=Object.keys(current.importedCells).find(id=>/^(비번|당직비번)$/.test(_importCellDisplay(current,id,leaves)?.text||''));
+    if(off)return off;
+    const previous=extraSched?.[addDays(dateStr,-2)]?.danjik||data.schedule[addDays(dateStr,-2)]?.danjik;
+    if(previous&&_importCellDisplay(current,previous,leaves))return null;
+  }
   const prev2 = addDays(dateStr, -2);
   return extraSched?.[prev2]?.danjik || data.schedule[prev2]?.danjik || null;
 }
@@ -4350,6 +4367,13 @@ function renderTable() {
     // VW staff cells
     vwCols.forEach(s=>{
       let bg='',color='',fw='500',text='',extraStyle='';
+      const imported=_importCellDisplay(entry,s.id,data.newLeaves?.[dateStr]);
+      if(imported){
+        if(imported.count)workCount[s.id]++;
+        const style=`background:${imported.bg};color:${imported.color};font-weight:${imported.fw};`;
+        tbody+=`<td data-sid="${s.id}" ${isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)"`:""} style="${style}">${_importCellHTML(imported.text)||'<span class="cell-off">-</span>'}</td>`;
+        return;
+      }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
         bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
@@ -4393,6 +4417,13 @@ function renderTable() {
     // 조근 dept staff cells
     jogeunCols.forEach(s=>{
       let bg='',color='',fw='500',text='',extraStyle='';
+      const imported=_importCellDisplay(entry,s.id,data.newLeaves?.[dateStr]);
+      if(imported){
+        if(imported.count)workCount[s.id]++;
+        const style=`background:${imported.bg};color:${imported.color};font-weight:${imported.fw};`;
+        tbody+=`<td data-sid="${s.id}" ${isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)"`:""} style="${style}">${_importCellHTML(imported.text)||'<span class="cell-off">-</span>'}</td>`;
+        return;
+      }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
         bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
@@ -4428,6 +4459,13 @@ function renderTable() {
       let _gb='';
       if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:1px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:1px solid ${_gc}55;`;}
       let bg='',color='',fw='500',text='',extraStyle='';
+      const imported=_importCellDisplay(entry,s.id,data.newLeaves?.[dateStr]);
+      if(imported){
+        if(imported.count)workCount[s.id]++;
+        const style=`background:${imported.bg};color:${imported.color};font-weight:${imported.fw};`;
+        tbody+=`<td data-sid="${s.id}" ${isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)"`:""} style="${style}">${_importCellHTML(imported.text)||'<span class="cell-off">-</span>'}</td>`;
+        return;
+      }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
         bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
@@ -6034,8 +6072,8 @@ function renderWorkshopTable() {
     const holidayName=isHoliday?data.holidays[dateStr]:'';
     const dowClass=dow===0?'sun':dow===6?'sat':'';
     const entry=_sched[dateStr];
-    const danjikExitId=_sched[addDays(dateStr,-1)]?.danjik||null;
-    const danjikOffId=_sched[addDays(dateStr,-2)]?.danjik||null;
+    const danjikExitId=entry?.importedCells?getDanjikExitStaff(dateStr,_sched):(_sched[addDays(dateStr,-1)]?.danjik||null);
+    const danjikOffId=entry?.importedCells?getDanjikOffStaff(dateStr,_sched):(_sched[addDays(dateStr,-2)]?.danjik||null);
     const danjikId=entry?.danjik||null;
     const ilgeunId=entry?.ilgeun||null;
     const _cgExclude=new Set([entry?.danjik,danjikExitId].filter(Boolean));
@@ -6070,6 +6108,13 @@ function renderWorkshopTable() {
     // VW cells
     vwCols.forEach(s=>{
       let bg='',color='',fw='500',text='',extraStyle='';
+      const imported=_importCellDisplay(entry,s.id,_newLvs?.[dateStr]);
+      if(imported){
+        if(imported.count)workCount[s.id]++;
+        const style=`background:${imported.bg};color:${imported.color};font-weight:${imported.fw};`;
+        tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="${style}">${_importCellHTML(imported.text)||'<span class="cell-off">-</span>'}</td>`;
+        return;
+      }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
         bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
@@ -6112,6 +6157,13 @@ function renderWorkshopTable() {
     // 조근 cells
     jogeunCols.forEach(s=>{
       let bg='',color='',fw='500',text='',extraStyle='';
+      const imported=_importCellDisplay(entry,s.id,_newLvs?.[dateStr]);
+      if(imported){
+        if(imported.count)workCount[s.id]++;
+        const style=`background:${imported.bg};color:${imported.color};font-weight:${imported.fw};`;
+        tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="${style}">${_importCellHTML(imported.text)||'<span class="cell-off">-</span>'}</td>`;
+        return;
+      }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
         bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
@@ -6145,6 +6197,13 @@ function renderWorkshopTable() {
       let _gb='';
       if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:1px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:1px solid ${_gc}55;`;}
       let bg='',color='',fw='500',text='',extraStyle='';
+      const imported=_importCellDisplay(entry,s.id,_newLvs?.[dateStr]);
+      if(imported){
+        if(imported.count)workCount[s.id]++;
+        const style=`background:${imported.bg};color:${imported.color};font-weight:${imported.fw};`;
+        tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="${style}">${_importCellHTML(imported.text)||'<span class="cell-off">-</span>'}</td>`;
+        return;
+      }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
         bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
@@ -6331,6 +6390,7 @@ function _ensureDraftEntry(ds) {
   return data.draft.schedule[ds];
 }
 function _brushClearStaff(entry, staffId, ds) {
+  if(entry.importedCells)delete entry.importedCells[staffId];
   if (entry.vw?.workers) entry.vw.workers = entry.vw.workers.filter(id=>id!==staffId);
   if (entry.vw?.desk===staffId) entry.vw.desk = null;
   if (entry.cg?.workers) entry.cg.workers = entry.cg.workers.filter(id=>id!==staffId);
@@ -6935,11 +6995,11 @@ function parseExcelSchedule() {
         });
         _note=_parts.join(' · ');
       }
-      if(entries.length||_note) schedule.push({date:dateStr,entries,note:_note});
+      schedule.push({date:dateStr,entries,note:_note});
     }
 
     if (!schedule.length) { toast('파싱된 근무 데이터가 없습니다. 엑셀 구조를 확인해주세요.','error'); return; }
-    _imgParsedData = {year,month,unknownNames:[...unknown],schedule};
+    _imgParsedData = {year,month,unknownNames:[...unknown],schedule,source:'excel',staffNames:colMap.map(c=>c.name)};
     _renderImgResult(_imgParsedData);
   } catch(err) {
     toast('엑셀 파싱 오류: '+err.message, 'error');
@@ -7121,6 +7181,40 @@ function skipUnknownStaff() {
   document.getElementById('unknown-staff-modal').style.display = 'none';
   _doApplyImageSchedule(_unknownNames);
 }
+// 엑셀 원문은 계산된 근무와 별도로 보존한다. 이후 수동 수정/교환된 셀은 현재 배정을 표시한다.
+function _importCellSignature(entry,id,leaves) {
+  const roles={};
+  Object.keys(entry||{}).sort().forEach(key=>{
+    if(['importedCells','notes','leaveLabels'].includes(key)) return;
+    const v=entry[key];
+    if(Array.isArray(v)){if(v.includes(id))roles[key]=true;}
+    else if(v && typeof v==='object'){
+      const own={};Object.keys(v).sort().forEach(k=>{if(k===id)own[k]=v[k];else if(v[k]===id || (Array.isArray(v[k])&&v[k].includes(id)))own[k]=true;});
+      if(Object.keys(own).length)roles[key]=own;
+    } else if(v===id)roles[key]=true;
+  });
+  roles.leave=(leaves||[]).includes(id);
+  return JSON.stringify(roles);
+}
+function _importCellDisplay(entry,id,leaves) {
+  const cell=entry?.importedCells?.[id];
+  if(!cell || cell.signature!==_importCellSignature(entry,id,leaves)) return null;
+  const text=cell.text, type=WORK_TYPE_MAP[_normalizeImportedWorkType(text)];
+  let bg='',color='var(--muted)',fw='500';
+  const palette={danjik:['#d65a52','#fff'],jogeun:['var(--r-jogeun-bg)','var(--r-jogeun-fg)'],ilgeun:['var(--r-ilgeun-bg)','var(--r-ilgeun-fg)'],offsite:['#ffc1df','#000000'],'vw-sub':['var(--vw-bg)','var(--vw-light)'],vw2:['var(--vw-bg)','var(--vw-light)'],'cg-sub':['var(--cg-bg)','var(--cg-light)'],newsoh:['var(--r-news-bg)','var(--r-news-fg)'],newsoh2:['var(--r-news2-bg)','var(--r-news2-fg)']};
+  if(palette[type]) [bg,color]=palette[type];
+  if(type==='leave')color='#c79a5e';
+  if(type==='8jin'||type==='8jin2')color='#d65a52';
+  if(['desk8','vw-desk','desk-auto'].includes(type))color='#6366f1';
+  if(type==='desk5')color='#4a9fbd';
+  if(type==='ojende')color='#436bb5';
+  if(/^(퇴근|당직퇴근)$/.test(text)){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';}
+  if(text && type!=='work')fw='700';
+  const count=!!text && text!=='-' && text!=='0' && type!=='leave' && !/^(비번|당직비번)$/.test(text);
+  return {text,bg,color,fw,count};
+}
+function _importCellHTML(text){return String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
 function _doApplyImageSchedule(skipNames) {
   if (!_imgParsedData) return;
   const skipSet = new Set(skipNames);
@@ -7193,9 +7287,8 @@ function _doApplyImageSchedule(skipNames) {
       } else if (wt === 'jogeun') {
         // 토요일 조근(직원)→satMorning, 평일 조근 대체(비조근 부서/프리랜서)→jogeunExtra, 평일 조근부서원은 기본 자동
         const _dow = new Date(ds+'T00:00:00').getDay();
-        if (_dow===6) {
-          entry.satMorning = s.id;
-        } else if (_dow>=1 && _dow<=5 && dOn!=='조근') {
+        if (_dow===6 && !entry.satMorning) entry.satMorning = s.id;
+        if (dOn!=='조근' || _imgParsedData.source==='excel') {
           if (!entry.jogeunExtra) entry.jogeunExtra = [];
           if (!entry.jogeunExtra.includes(s.id)) entry.jogeunExtra.push(s.id);
         }
@@ -7234,6 +7327,16 @@ function _doApplyImageSchedule(skipNames) {
         if (!entry.restWorkers.includes(s.id)) entry.restWorkers.push(s.id);
       });
     })();
+    if(_imgParsedData.source==='excel'){
+      entry.importedCells={};
+      const originals=new Map((day.entries||[]).map(e=>[e.name,e.workType]));
+      (_imgParsedData.staffNames||[]).forEach(name=>{
+        if(skipSet.has(name))return;
+        const person=(data.staff||[]).find(p=>p.name===name);if(!person)return;
+        const text=_normalizeImportedWorkType(originals.get(name)||'');
+        entry.importedCells[person.id]={text,signature:_importCellSignature(entry,person.id,data.draft.newLeaves[ds])};
+      });
+    }
   });
   // 작성소 범위를 파싱된 날짜 범위로 맞춤 (적용 직후 바로 보이게)
   const _ds = (_imgParsedData.schedule||[]).map(d=>d.date).filter(Boolean).sort();
