@@ -2536,7 +2536,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.09.29 15:36';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.09.29 15:38';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -6793,6 +6793,31 @@ function parseExcelSchedule() {
       if(best>=0 && bestScore>=0.5) dateColIdx=best;
     }
 
+    // 실제 날짜/요일이 연속되는 본문만 읽는다. 하단 집계/메모는 근무행이 아니다.
+    const isBodyRow=row=>{
+      if(!row) return false;
+      if(dowColIdx>=0 && !_DOW.has(String(row[dowColIdx]||'').trim())) return false;
+      if(dateColIdx>=0) {
+        const day=String(row[dateColIdx]||'').trim();
+        return /^\d{1,2}$/.test(day) && Number(day)>=1 && Number(day)<=31;
+      }
+      return /^(?:\d{1,2}[/.]\d{1,2}|\d{1,2}월\d{1,2}일?|\d{5})$/.test(String(row[0]||'').trim());
+    };
+    let bodyStart=nameRowIdx+1;
+    while(bodyStart<rows.length && !isBodyRow(rows[bodyStart])) bodyStart++;
+    let bodyEnd=bodyStart;
+    while(bodyEnd<rows.length && isBodyRow(rows[bodyEnd])) bodyEnd++;
+    const hasWorkValues=c=>{
+      let filled=0, recognized=0;
+      for(let r=bodyStart;r<bodyEnd;r++) {
+        const value=_normalizeImportedWorkType(rows[r][c]);
+        if(!value || value==='-' || value==='0') continue;
+        filled++;
+        if(Object.prototype.hasOwnProperty.call(WORK_TYPE_MAP,value)) recognized++;
+      }
+      return filled>0 && recognized/filled>=0.5;
+    };
+
     // 부서 병합 헤더의 범위만 직원 열로 사용한다. 표 밖 메모는 이름으로 읽지 않는다.
     const candidateNames = nameRow.map((v,c)=>{
       const nm=String(v||'').trim();
@@ -6815,10 +6840,10 @@ function parseExcelSchedule() {
     // 병합 헤더가 없는 형식: 등록 직원에서 이어지는 이름 열까지만 허용한다.
     // 빈 열/합계/숫자 메모를 만나면 멈추므로 떨어져 있는 메모 영역은 제외된다.
     candidateNames.forEach((nm,c)=>{
-      if(!knownStaffByName[nm] || staffColumns.has(c)) return;
+      if(!knownStaffByName[nm] || staffColumns.has(c) || !hasWorkValues(c)) return;
       staffColumns.add(c);
       for(const step of [-1,1]) {
-        for(let next=c+step;next>=0 && next<candidateNames.length && candidateNames[next];next+=step) staffColumns.add(next);
+        for(let next=c+step;next>=0 && next<candidateNames.length && candidateNames[next] && hasWorkValues(next);next+=step) staffColumns.add(next);
       }
     });
     const colMap = [];
@@ -6830,7 +6855,12 @@ function parseExcelSchedule() {
     const _noteHdr = nameRowIdx>0 ? (rows[nameRowIdx-1]||[]) : [];
     const noteCols = [];
     const _hdrMaxC = Math.max(nameRow.length, _noteHdr.length);
-    for (let c=0; c<_hdrMaxC; c++) {
+    // 비고도 표에 이어지는 헤더만 수집하고 빈 열 너머의 별도 메모는 제외한다.
+    let tableLeft=Math.min(...staffColumns), tableRight=Math.max(...staffColumns);
+    const hasHeader=c=>String(nameRow[c]||_noteHdr[c]||'').trim()!=='';
+    while(tableLeft>0 && hasHeader(tableLeft-1)) tableLeft--;
+    while(tableRight+1<_hdrMaxC && hasHeader(tableRight+1)) tableRight++;
+    for (let c=tableLeft; c<=tableRight; c++) {
       if (c===dateColIdx || c===dowColIdx) continue;
       const h = (String(_noteHdr[c]||'')+String(nameRow[c]||'')).replace(/\s+/g,'');
       let label=null;
@@ -6847,7 +6877,7 @@ function parseExcelSchedule() {
     // 날짜 열에는 '일'만 있으므로, 날짜가 역행하면(예: 30→1) 자동으로 다음 달로 이어서 인식한다.
     const schedule = [];
     let _prevDay = 0, _curMon = month, _curYear = year;
-    for (let r=nameRowIdx+1; r<rows.length; r++) {
+    for (let r=bodyStart; r<bodyEnd; r++) {
       const row = rows[r];
       let dayNum=null, explicitMon=null;   // explicitMon: col0에서 '월'이 직접 적힌 경우만
 
