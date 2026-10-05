@@ -55,7 +55,7 @@ function closeDinnerFinder() {
   if (trigger) trigger.focus();
 }
 function openDinnerFinder() {
-  document.getElementById('dinner-modal')?.remove();
+  { const old=document.getElementById('dinner-modal'); old?.querySelector('#dinner-pick')?._ndPicker?.destroy(); old?.remove(); }
   const now = new Date(), today = toDateStr(now.getFullYear(),now.getMonth()+1,now.getDate());
   const start = tableRangeStart || today;
   const end = tableRangeEnd || toDateStr(now.getFullYear(),now.getMonth()+1,new Date(now.getFullYear(),now.getMonth()+1,0).getDate());
@@ -70,16 +70,22 @@ function openDinnerFinder() {
       <button type="button" class="modal-close schedule-dialog-close" onclick="closeDinnerFinder()" aria-label="닫기">✕</button>
     </div>
     <div class="dinner-body" style="padding:18px 22px;overflow-y:auto;">
+      <!-- 넓은 화면: 왼쪽(dinner-left) 기간 달력·직원 검색 / 오른쪽(dinner-right) 결과. 모바일은 위에서 아래로 그대로 -->
+      <div class="dinner-left">
       <div class="dinner-period" style="display:flex;gap:12px;margin-bottom:18px;">
         <label style="flex:1;min-width:0;font-size:12px;color:var(--muted);">시작일<input id="dinner-start" type="date" value="${start}" onchange="renderDinnerResults()" style="display:block;width:100%;box-sizing:border-box;margin-top:6px;"></label>
         <label style="flex:1;min-width:0;font-size:12px;color:var(--muted);">종료일<input id="dinner-end" type="date" value="${end}" onchange="renderDinnerResults()" style="display:block;width:100%;box-sizing:border-box;margin-top:6px;"></label>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><b style="font-size:13px;">조회 대상 직원 <span id="dinner-count" style="color:var(--vw);">0명</span></b><button class="btn" style="padding:5px 9px;font-size:11px;" onclick="document.querySelectorAll('#dinner-people input').forEach(el=>el.checked=false);renderDinnerResults()">선택 해제</button></div>
-      <div class="dinner-selection"><div class="dinner-section-label">선택한 직원 <span>이름을 누르면 선택 해제</span></div><div id="dinner-selected" role="group" aria-label="선택한 직원"></div></div>
-      <input type="search" aria-label="직원 검색" placeholder="이름 검색 후 Enter로 추가" enterkeyhint="done" onkeydown="selectDinnerSearch(event)" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
-      <div id="dinner-people" style="display:flex;flex-wrap:wrap;gap:7px;max-height:210px;overflow-y:auto;padding:2px;">${people.map(s => `<label data-search="${_pEsc(s.name+' '+s.dept)}" style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;font-size:12px;"><input type="checkbox" value="${_pEsc(s.id)}" onchange="renderDinnerResults()" style="margin:0;accent-color:var(--vw);"><span>${_pEsc(s.name)}</span><span style="font-size:10px;color:var(--muted);">${_pEsc(s.dept)}</span></label>`).join('')}</div>
+      <div class="dinner-cal-wrap"><div class="dinner-sec-lbl">조회 기간 <span>시작일 → 종료일 순서로 누르세요</span></div><div id="dinner-cal"></div></div>
+      <div class="dinner-who">
+        <div class="dinner-who-head"><b>조회 대상 직원 <span id="dinner-count" style="color:var(--vw);">0명</span></b><button type="button" class="btn dinner-clear" onclick="document.getElementById('dinner-pick')?._ndPicker?.set([]);renderDinnerResults()">선택 해제</button></div>
+        <div id="dinner-pick"></div>
+      </div>
+      </div>
+      <div class="dinner-right">
       <div id="dinner-results" role="status" aria-live="polite" style="margin-top:18px;padding:15px;border-radius:14px;background:var(--surface2);border:1px solid var(--border);"></div>
-      <p style="font-size:11px;line-height:1.7;color:var(--muted);margin:12px 0 0;">배포된 근무표의 12:00~21:00 근무 기준 · 정근, 8진, VW·CG 대체, VW·CG 데스크 포함. 다른 시간대 근무와 휴가·비번은 제외합니다.</p>
+      <p class="dinner-note" style="font-size:11px;line-height:1.7;color:var(--muted);margin:12px 0 0;">배포된 근무표의 12:00~21:00 근무 기준 · 정근, 8진, VW·CG 대체, VW·CG 데스크 포함. 다른 시간대 근무와 휴가·비번은 제외합니다.</p>
+      </div>
     </div>
   </div>`;
   el.addEventListener('keydown', ev => {
@@ -92,61 +98,32 @@ function openDinnerFinder() {
     }
   });
   document.body.appendChild(el);
-  renderDinnerResults();
-  (window.matchMedia('(max-width:760px)').matches ? el.querySelector('button[aria-label="닫기"]') : el.querySelector('input[type="search"]')).focus({preventScroll:true});
-}
-function selectDinnerSearch(event) {
-  if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
-  event.preventDefault();
-  const field = event.currentTarget, query = field.value.trim().toLocaleLowerCase();
-  filterDinnerPeople(query);
-  if (!query) return;
-  const labels = [...document.querySelectorAll('#dinner-people label')].filter(el => el.style.display !== 'none');
-  const exact = labels.filter(el => el.querySelector('span').textContent.trim().toLocaleLowerCase() === query);
-  const matches = exact.length ? exact : labels;
-  if (matches.length !== 1) {
-    toast(matches.length ? '여러 직원이 검색되었습니다. 이름을 더 입력하거나 목록에서 선택해 주세요.' : '검색된 직원이 없습니다.');
-    return;
+  // 직원 고르기: 이름·부서·초성 검색(js/nd-people.js) — 예전 이름 칸 격자/선택 칩 대신
+  if (typeof ndPeoplePicker === 'function') ndPeoplePicker(el.querySelector('#dinner-pick'), { staff: people, onChange: renderDinnerResults, placeholder: '이름·부서·초성으로 검색해서 추가' });
+  // 넓은 화면: 기간은 달력에서 시작~끝(js/nd-cal.js), 값은 시작일/종료일 input에 그대로
+  if (typeof ndCal === 'function') {
+    const si = el.querySelector('#dinner-start'), ei = el.querySelector('#dinner-end');
+    ndCal(el.querySelector('#dinner-cal'), { range: true, mark: ds => _dinnerMarks.has(ds), markLabel: '공통 근무일', get: () => ({ from: si.value, to: ei.value }), set: r => { si.value = r.from || ''; ei.value = r.to || ''; renderDinnerResults(); } });
   }
-  matches[0].querySelector('input').checked = true;
   renderDinnerResults();
-  field.value = '';
-  filterDinnerPeople('');
-  field.focus();
+  const wide = window.matchMedia('(min-width:1001px)').matches;
+  (wide ? el.querySelector('.ndc-day[tabindex="0"]') : el.querySelector('button[aria-label="닫기"]'))?.focus({preventScroll:true});
 }
-function filterDinnerPeople(value) {
-  const q = value.trim().toLocaleLowerCase();
-  document.querySelectorAll('#dinner-people label').forEach(el => { el.style.display = el.dataset.search.toLocaleLowerCase().includes(q) ? 'flex' : 'none'; });
-}
+// 고른 직원(js/nd-people.js 태그) 기준으로 결과 갱신. 넓은 화면 달력엔 공통 근무일에 점 표시(_dinnerMarks)
+let _dinnerMarks = new Set();
 function renderDinnerResults() {
-  const ids = [...document.querySelectorAll('#dinner-people input:checked')].map(el => el.value);
+  const ids = document.getElementById('dinner-pick')?._ndPicker?.get() || [];
   document.getElementById('dinner-count').textContent = ids.length + '명';
-  const selected = document.getElementById('dinner-selected');
-  selected.replaceChildren();
-  ids.forEach(id => {
-    const person = staffById(id);
-    const chip = document.createElement('button');
-    chip.type = 'button'; chip.className = 'dinner-selected-chip';
-    chip.setAttribute('aria-label', (person?.name || id) + ' 선택 해제');
-    const name = document.createElement('span'); name.textContent = person?.name || id;
-    const cross = document.createElement('span'); cross.textContent = '×'; cross.setAttribute('aria-hidden','true');
-    chip.append(name, cross);
-    chip.onclick = () => {
-      const index = [...selected.children].indexOf(chip);
-      const input = [...document.querySelectorAll('#dinner-people input')].find(el => el.value === id);
-      if(input) input.checked = false;
-      renderDinnerResults();
-      (selected.children[Math.min(index, selected.children.length - 1)] || document.querySelector('#dinner-modal input[type=search]')).focus();
-    };
-    selected.appendChild(chip);
-  });
   const start = document.getElementById('dinner-start').value, end = document.getElementById('dinner-end').value;
   const host = document.getElementById('dinner-results');
   const msg = !start || !end ? '조회 기간을 선택해 주세요.' : start > end ? '종료일을 시작일 이후로 선택해 주세요.' : ids.length < 2 ? '조회 대상 직원을 2명 이상 선택해 주세요.' : '';
-  if (msg) { host.textContent = msg; return; }
+  const cal = document.getElementById('dinner-cal')?._ndCal;
+  if (msg) { host.textContent = msg; host.classList.add('is-empty'); _dinnerMarks = new Set(); if (cal) cal.render(); return; }
+  host.classList.remove('is-empty');
   const dates = _dinnerDates(ids,start,end);
+  _dinnerMarks = new Set(dates); if (cal) cal.render();
   const names = ids.map(id => _pEsc(staffById(id)?.name || '')).join(', ');
-  host.innerHTML = `<div style="font-size:12px;color:var(--muted);line-height:1.6;overflow-wrap:anywhere;">${names}</div><div style="font-size:15px;font-weight:800;margin:8px 0 12px;">공통 근무일 <span style="color:var(--vw);">${dates.length}일</span></div>` + (dates.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">${dates.map(ds => { const dt = new Date(ds+'T00:00:00'); return `<span style="padding:9px 12px;border-radius:10px;background:var(--vw-bg);color:var(--vw-light);font-size:13px;font-weight:700;">${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()} (${'일월화수목금토'[dt.getDay()]})</span>`; }).join('')}</div>` : '<div style="font-size:12px;color:var(--muted);line-height:1.7;">조회 기간 내 공통 근무일이 없습니다.<br>조회 기간 또는 대상 직원을 변경해 주세요. 미배포 날짜는 결과에 포함되지 않습니다.</div>');
+  host.innerHTML = `<div class="dinner-names" style="font-size:12px;color:var(--muted);line-height:1.6;overflow-wrap:anywhere;">${names}</div><div class="dinner-total" style="font-size:15px;font-weight:800;margin:8px 0 12px;">공통 근무일 <span style="color:var(--vw);">${dates.length}일</span></div>` + (dates.length ? `<div class="dinner-dates" style="display:flex;flex-wrap:wrap;gap:8px;">${dates.map(ds => { const dt = new Date(ds+'T00:00:00'); return `<span class="dinner-date" style="padding:9px 12px;border-radius:10px;background:var(--vw-bg);color:var(--vw-light);font-size:13px;font-weight:700;">${dt.getFullYear()}.${dt.getMonth()+1}.${dt.getDate()} (${'일월화수목금토'[dt.getDay()]})</span>`; }).join('')}</div>` : '<div class="dinner-none" style="font-size:12px;color:var(--muted);line-height:1.7;">조회 기간 내 공통 근무일이 없습니다.<br>조회 기간 또는 대상 직원을 변경해 주세요. 미배포 날짜는 결과에 포함되지 않습니다.</div>');
 }
 function _personLeaveCandidate(staff,ds,label,entry){
   if(!entry || !isContractActive(staff,ds) || isDispatched(staff,ds))return false;

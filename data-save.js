@@ -25,3 +25,19 @@ async function ndDrainSaves(){
   }
  }}finally{ndSaving=false}
 }
+// 투표·공지(공감·댓글)처럼 서버 최신본에 '일부만' 병합 저장한 뒤 부름. base = 병합 전 서버 리비전, saved = PATCH 응답 행.
+// 내 기기 데이터가 병합 전 서버와 같은 리비전(=최신)이었고 저장 대기도 없으면 → 새 리비전·수정시각을 그대로 따라감(다음 saveData가 거부되지 않음).
+// 아니면(내 기기가 뒤처짐) 리비전은 그대로 두고 전체를 서버 최신으로 다시 불러옴(_reloadRemoteData는 저장 중이면 스스로 건너뜀)
+// 병합할 대상이 이미 없어(mutate가 false) 쓰지 않고 끝날 때: 방금 받은 서버본 섹션으로 맞추는 것도 같은 조건에서만(apply).
+// 저장 대기 중이거나 내 기기 리비전이 다르면 섹션을 덮지 않고(내가 방금 올린 공지가 지워지는 등 방지) 전체 다시 불러오기
+function ndAdoptGoneSnapshot(base,apply){
+ const pend=ndSaving||ndSaveQueue.length||(typeof _lrHasPending==='function'&&_lrHasPending());
+ if(!pend&&(data._dataRevision||0)===(base||0)){apply();try{localStorage.setItem(STORE_KEY,JSON.stringify(data))}catch{}}
+ else if(typeof _reloadRemoteData==='function')setTimeout(()=>{_reloadRemoteData()},0);
+}
+function ndAdoptMergedSave(base,saved){
+ if(!saved||!saved.payload)return;
+ const pend=ndSaving||ndSaveQueue.length||(typeof _lrHasPending==='function'&&_lrHasPending());
+ if(!pend&&(data._dataRevision||0)===(base||0)){data._dataRevision=saved.payload._dataRevision;if(saved.updated_at)_ndUpdatedAt=saved.updated_at;}
+ else if(typeof _reloadRemoteData==='function')setTimeout(()=>{_reloadRemoteData()},0);
+}

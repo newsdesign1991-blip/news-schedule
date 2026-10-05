@@ -107,3 +107,76 @@ body[style*="overflow: hidden"] #floating-nav {
 .staff-modal-overlay.nd-closing { animation: ndModalFadeOut .34s ease both; }
 .staff-modal-overlay.nd-closing > * { animation: ndModalPopOut .34s ease both; }
 
+/* ===== 신휴가 팝업(js/leave-request.js openLrPopup): 앱 공통 팝업 스타일 + 목록/달력 보기 ===== */
+.lr-pop{overflow:hidden}
+.lr-pop-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 20px 14px;flex-shrink:0;background:rgba(214,169,105,.12);border-bottom:1px solid rgba(191,136,70,.18)}
+.lr-pop-title{font-size:17px;font-weight:700;letter-spacing:-.01em;color:var(--text);line-height:1.35}
+.lr-pop-dept{margin-left:7px;font-size:12px;font-weight:700}
+.lr-pop-sub{margin-top:4px;font-size:12px;font-weight:500;color:var(--muted)}
+.lr-pop-close{flex:0 0 34px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:50%;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.65);color:var(--text);font-family:inherit;font-size:17px;line-height:1;box-shadow:0 2px 8px rgba(15,23,42,.12);cursor:pointer;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+[data-theme="dark"] .lr-pop-close{background:rgba(50,50,50,.55);border-color:rgba(255,255,255,.12)}
+.lr-pop-save{display:block;width:100%;min-height:50px;padding:13px;border:0;border-radius:20px;background:linear-gradient(135deg,#d6a969,#bf8846);color:#fff;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px -4px rgba(191,136,70,.55)}
+@media(hover:hover){.lr-pop-save:hover{filter:brightness(1.05)}}
+/* 목록 | 달력 전환 */
+.lr-view-tabs{display:flex;gap:4px;margin:12px 16px 6px;padding:4px;border-radius:14px;background:var(--surface2);flex-shrink:0}
+.lr-view-tabs button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.lr-view-tabs button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+[data-theme="dark"] .lr-view-tabs button.on{background:#2c2c2c}
+/* 달력(iOS 날짜 선택기 느낌) */
+.lr-cal{padding:6px 2px 2px}
+.lr-cal-head{display:flex;align-items:center;justify-content:space-between;padding:4px 2px 8px}
+.lr-cal-head>b{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--text)}
+.lr-cal-nav{display:flex;gap:2px}
+.lr-cal-nav button{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:none;color:#3478e5;cursor:pointer}
+.lr-cal-nav button:disabled{color:var(--muted);opacity:.35;cursor:default}
+@media(hover:hover){.lr-cal-nav button:not(:disabled):hover{background:rgba(52,120,229,.08)}}
+.lr-cal-week,.lr-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));justify-items:center}
+.lr-cal-week span{padding:4px 0 6px;font-size:12px;font-weight:700;color:var(--muted)}
+.lr-cal-grid{row-gap:2px}
+.lr-day{display:flex;flex-direction:column;align-items:center;gap:1px;width:40px;padding:0;border:0;background:none;font-family:inherit;color:var(--text);cursor:pointer}
+.lr-day b{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;font-size:15px;font-weight:500;font-variant-numeric:tabular-nums;transition:background .12s}
+.lr-day i{height:12px;font-style:normal;font-size:10px;font-weight:700;color:var(--muted);line-height:12px}
+.lr-day.sun b{color:var(--pop-dow-sun,#e5484d)}.lr-day.sat b{color:var(--pop-dow-sat,#3b82f6)}
+.lr-day.today b{box-shadow:inset 0 0 0 1.5px #3478e5;font-weight:800}
+.lr-day.on b{background:linear-gradient(135deg,#d6a969,#bf8846);color:#fff;font-weight:700;box-shadow:0 4px 10px -4px rgba(191,136,70,.6)}
+.lr-day.over i{color:#dc2626}
+.lr-day.out{cursor:default}.lr-day.out b{color:var(--muted);opacity:.35}
+.lr-day:disabled{cursor:default}
+@media(hover:hover){.lr-day:not(:disabled):not(.on):hover b{background:rgba(214,169,105,.16)}}
+.lr-cal-legend{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:0 4px;font-size:11.5px;font-weight:600;color:var(--muted)}
+.lr-cal-legend .lg-on{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:50%;background:#c99a58;vertical-align:-1px}
+/* 신휴가 달력 보기: 오른쪽(모바일은 아래) '내 신휴가 · 같은 날 신청한 사람' 목록 */
+.lr-pop{max-width:calc(100vw - 24px)}
+.lr-cal-side{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.lr-side-hd{display:flex;align-items:baseline;gap:6px;margin:0 2px 10px;font-size:14px;font-weight:700;color:var(--text)}
+.lr-side-hd b{color:#bf8846}.lr-side-hd span{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--muted)}
+.lr-side-list{display:flex;flex-direction:column;gap:8px}
+.lr-side-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--surface2);border:1px solid transparent}
+.lr-side-row.focus{border-color:rgba(191,136,70,.45);background:rgba(214,169,105,.10)}
+.lr-side-date{display:flex;align-items:baseline;gap:4px;min-width:76px;white-space:nowrap;line-height:1.2}   /* 날짜·요일 한 줄: 11/13 (금) */
+.lr-side-date b{font-size:15px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}.lr-side-date small{font-size:12px;font-weight:600;color:var(--muted)}
+.lr-side-names{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
+.lr-side-chip{display:inline-flex;align-items:baseline;gap:4px;padding:3px 9px;border-radius:999px;background:var(--surface);border:1px solid var(--border);font-size:12.5px;font-weight:700;color:var(--text)}
+.lr-side-chip small{font-size:10.5px;font-weight:700;color:var(--c)}
+.lr-side-none{font-size:12px;color:var(--muted)}
+.lr-side-cnt{font-size:11.5px;font-weight:700;color:var(--muted);white-space:nowrap}
+.lr-side-row.over .lr-side-cnt{color:#dc2626}
+.lr-side-empty{padding:18px 8px;text-align:center;font-size:12.5px;line-height:1.7;color:var(--muted)}
+/* 넓은 화면: 달력 보기는 크게(데스크톱 느낌) + 왼쪽 달력 / 오른쪽 목록 */
+@media (min-width:1001px){
+  .lr-pop.lr-cal-mode{width:min(1060px,calc(100vw - 48px))!important;height:min(860px,92vh);max-height:92vh!important}
+  /* 세로로 꽉: 달력 보기가 남는 높이를 채우고, 날짜 줄이 그 높이를 나눠 가짐(찌부 방지) */
+  .lr-pop.lr-cal-mode #lr-cal-view{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+  .lr-pop.lr-cal-mode .lr-cal-wrap{flex:1 1 auto;min-height:0;align-items:stretch!important}
+  .lr-pop.lr-cal-mode .lr-cal{display:flex;flex-direction:column;min-height:0}
+  .lr-pop.lr-cal-mode .lr-cal-grid{flex:1 1 auto;grid-auto-rows:1fr;align-items:center}
+  .lr-pop.lr-cal-mode .lr-cal-side{min-height:0;overflow-y:auto}
+  .lr-pop.lr-cal-mode .lr-view-tabs{width:300px;margin-left:20px}
+  .lr-pop.lr-cal-mode #lr-cal-view{padding:6px 20px 14px!important}
+  .lr-pop.lr-cal-mode .lr-cal-wrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:start}
+  .lr-pop.lr-cal-mode .lr-cal-side{margin:0;padding:6px 0 0 24px;border-top:0;border-left:1px solid var(--border);min-height:100%;box-sizing:border-box}
+  .lr-pop.lr-cal-mode .lr-day{width:62px}.lr-pop.lr-cal-mode .lr-day b{width:46px;height:46px;font-size:17px}
+  .lr-pop.lr-cal-mode .lr-cal-grid{row-gap:8px}
+  .lr-pop.lr-cal-mode .lr-side-row{padding:12px 14px}.lr-pop.lr-cal-mode .lr-side-chip{font-size:13px;padding:4px 10px}
+  .lr-pop.lr-cal-mode .lr-cal-head>b{font-size:20px}
+}

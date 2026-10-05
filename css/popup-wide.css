@@ -1,0 +1,233 @@
+/* [모듈] css/popup-wide.css — 넓은 화면(≥1001px) 입력 팝업 2분할(왼쪽 입력칸 / 오른쪽 큰 내용·저장 버튼) | 순서 = 우선순위(바꾸지 말 것)
+   모바일(<1001px)은 이 파일 규칙이 하나도 적용되지 않아 기존 세로 배치 그대로. 각 팝업은 섹션에 붙인 클래스(ev-s-* 등)로 칸을 정함 */
+@media (min-width: 1001px) {
+  /* ===== 일정 추가(#event-add-modal): 왼쪽(고정 폭) 날짜 달력·시간 직접 입력·참여자 / 오른쪽 장소·내용(크게)·색상·저장 ===== */
+  #event-add-modal .modal { width: min(1080px, calc(100vw - 48px)); max-width: none !important; max-height: 92vh; }
+  #event-add-modal .ev-body { display: grid !important; grid-template-columns: 430px minmax(0, 1fr); align-items: stretch; }
+  #event-add-modal .ev-col { display: flex; flex-direction: column; min-width: 0; }
+  #event-add-modal .ev-col-r { border-left: 1px solid rgba(49, 130, 246, .12); }
+  [data-theme="dark"] #event-add-modal .ev-col-r { border-left-color: rgba(106, 168, 255, .13); }
+  #event-add-modal .ev-col > .ev-sect { padding: 18px 26px 18px; }
+  #event-add-modal .ev-col > .ev-sect:first-child { border-top: 0; }
+  #event-add-modal .ev-sect.ev-s-when { display: flex !important; flex-direction: column; gap: 16px; }
+  #event-add-modal .ev-s-pt { flex: 1 1 auto; }
+  #event-add-modal .ev-s-title { flex: 1 1 auto; display: flex; flex-direction: column; }
+  #event-add-modal #ev-title { flex: 1 1 auto; min-height: 280px; resize: none; overflow-y: auto; line-height: 1.6; font-size: 15px; }
+  #event-add-modal .ev-actions { padding: 16px 26px 22px; }
+  #event-add-modal .ev-body .ev-tint { background: transparent; }   /* 색상 띠는 머리에만(두 칸에 걸쳐 끊겨 보이지 않게) */
+}
+@media (min-width: 1001px) {
+  /* ===== 일정 수정(#event-detail-modal 안 #ev-edit-form): 편집하는 동안만 넓혀서 왼쪽 날짜 달력·시간·참여자 / 오른쪽 내용(크게)·장소·색상·저장 ===== */
+  html body #event-detail-modal .modal.ev-editing { width: min(1080px, calc(100vw - 48px)); max-width: none !important; max-height: 92vh; }
+  #event-detail-modal .ev-edit-grid { display: grid; grid-template-columns: 410px minmax(0, 1fr); column-gap: 28px; }
+  #event-detail-modal .ee-col { display: flex; flex-direction: column; min-width: 0; }
+  #event-detail-modal .ee-col-r { padding-left: 28px; border-left: 1px solid var(--border); }
+  #event-detail-modal .ee-when { display: flex !important; flex-direction: column; gap: 14px !important; margin-bottom: 14px !important; }
+  #event-detail-modal .ee-title { flex: 1 1 auto; display: flex; flex-direction: column; }
+  #event-detail-modal #ev-edit-title { flex: 1 1 auto; min-height: 220px; resize: none; overflow-y: auto; line-height: 1.6; font-size: 15px; }
+  #event-detail-modal .ee-act { margin-bottom: 4px; }
+  #event-detail-modal .ee-act .btn-primary { flex: 1; min-height: 46px; border-radius: 20px !important; font-size: 15px !important; font-weight: 800; background: linear-gradient(135deg, #4a94ff, #2f77f6); color: #fff; border: 0; }
+  #event-detail-modal .ee-act .btn-outline, #event-detail-modal .ee-act .btn-danger { min-height: 46px; border-radius: 20px !important; padding: 0 18px !important; font-size: 14px !important; font-weight: 700; }
+  #event-detail-modal .ev-editing #ev-edit-form { padding: 18px 22px !important; }
+}
+@media (min-width: 1001px) {
+  /* ===== 투표 만들기(#poll-modal-card.pc-wide-card, js/poll.js _pollCreateHtml): 왼쪽(고정 폭) 종료 날짜 달력·마감 시간·조용히 / 오른쪽 제목·선택지·설명 + 버튼 ===== */
+  html body #poll-modal-card.pc-wide-card { width: min(1080px, calc(100vw - 48px)); max-width: none !important; max-height: 92vh; }
+  #poll-modal .pc-wide { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 430px minmax(0, 1fr); }
+  #poll-modal .pc-wide > .pc-col { min-height: 0; }
+  #poll-modal .pc-wide .ev-sect { padding: 18px 26px; }
+  #poll-modal .pc-wide .pc-col > .ev-sect:first-child, #poll-modal .pc-right > .poll-scroll > .ev-sect:first-child { border-top: 0; }
+  #poll-modal .pc-when .form-label.pc-time-lbl { margin-top: 20px !important; }
+  #poll-modal .pc-right #poll-desc-in { min-height: 130px; resize: none !important; }
+  #poll-modal .pc-right .p-actions { padding: 16px 26px 22px; }
+  #poll-modal .pc-right { display: flex; flex-direction: column; border-left: 1px solid rgba(224, 72, 60, .12); }
+  #poll-modal .pc-right > .poll-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  [data-theme="dark"] #poll-modal .pc-right { border-left-color: rgba(255, 120, 110, .13); }
+  #poll-modal .pc-wide .ev-sect.ev-tint { background: transparent; }
+}
+@media (min-width: 1001px) {
+  /* ===== 공지 작성(#notice-modal): 왼쪽(고정 폭) 게시 기간(빠른 선택 + 오늘~끝날 달력)·8뉴스 시간 직접 입력·조용히 / 오른쪽 제목·공지 내용(크게) + 저장 ===== */
+  html body #notice-modal .modal { width: min(1080px, calc(100vw - 48px)); max-width: none !important; display: grid !important; grid-template-columns: 430px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: 'head head' 'left right' 'left foot'; max-height: 92vh; }
+  #notice-modal .modal > .modal-header { grid-area: head; }
+  #notice-modal .modal > .ev-body { display: contents !important; }
+  #notice-modal .nm-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  #notice-modal .nm-col-l { grid-area: left; overflow-y: auto; }
+  #notice-modal .nm-col-r { grid-area: right; border-left: 1px solid rgba(251, 191, 36, .30); }
+  #notice-modal .nm-foot { grid-area: foot; border-left: 1px solid rgba(251, 191, 36, .30); padding: 16px 26px 22px !important; }
+  [data-theme='dark'] #notice-modal :is(.nm-col-r, .nm-foot) { border-left-color: rgba(251, 191, 36, .22); }
+  #notice-modal .nm-col > .ev-sect { padding: 18px 26px; }
+  #notice-modal .nm-col > .ev-sect:first-child { border-top: 0; }
+  #notice-modal .nm-text { flex: 1 1 auto; display: flex; flex-direction: column; }
+  #notice-modal .nm-text textarea { flex: 1; min-height: 340px !important; resize: none !important; font-size: 15px !important; line-height: 1.65 !important; }
+  #notice-modal .ev-sect.ev-tint { background: transparent; }
+  #notice-modal .nm-period-native { display: none !important; }
+  #notice-modal .nm-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+  #notice-modal .nm-chips button { min-height: 0; padding: 8px 4px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--text); cursor: pointer; }
+  #notice-modal .nm-chips button.on { border-color: #d4a017; background: rgba(251, 191, 36, .16); color: #a16207; }
+  [data-theme='dark'] #notice-modal .nm-chips button { background: #212121; border-color: rgba(255, 255, 255, .1); }
+  [data-theme='dark'] #notice-modal .nm-chips button.on { border-color: #e6c14d; background: rgba(251, 191, 36, .14); color: #f2d37a; }
+  #notice-modal #notice-period-hint { margin-top: 10px !important; }
+}
+@media (min-width: 1001px) {
+  /* ===== 공통 근무일 조회(#dinner-modal, js/schedule-finder.js): 왼쪽(고정 폭) 기간 달력(시작~끝)·직원 검색 / 오른쪽 결과(크게) ===== */
+  html body #dinner-modal > .nd-pop.nd-pop { width: min(1080px, calc(100vw - 48px)) !important; max-width: none !important; height: min(780px, 92vh); max-height: 92vh !important; }
+  html body #dinner-modal .nd-pop > div.dinner-body.dinner-body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 430px minmax(0, 1fr); padding: 0 !important; overflow: hidden; }
+  #dinner-modal .dinner-left, #dinner-modal .dinner-right { min-height: 0; overflow-y: auto; padding: 20px 26px 22px; }
+  #dinner-modal .dinner-right { display: flex; flex-direction: column; border-left: 1px solid rgba(49, 130, 246, .14); }
+  [data-theme="dark"] #dinner-modal .dinner-right { border-left-color: rgba(106, 168, 255, .13); }
+  html body #dinner-modal .dinner-body .dinner-period.dinner-period { display: none !important; }
+  #dinner-modal .dinner-cal-wrap { display: block; margin-bottom: 20px; }
+  #dinner-modal .dinner-sec-lbl { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 12.5px; font-weight: 700; color: #3182f6; }
+  #dinner-modal .dinner-sec-lbl span { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+  [data-theme="dark"] #dinner-modal .dinner-sec-lbl { color: #6aa8ff; }
+  html body #dinner-modal #dinner-results { flex: 1 1 auto; margin-top: 0 !important; padding: 22px !important; }
+  html body #dinner-modal #dinner-results.is-empty { display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: 14px; }
+  #dinner-modal .dinner-total { font-size: 18px !important; margin: 6px 0 16px !important; }
+  #dinner-modal .dinner-dates { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px !important; }
+  #dinner-modal .dinner-date { text-align: center; padding: 12px 10px !important; border-radius: 14px !important; font-size: 14px !important; }
+  #dinner-modal .ndc { --ndc-mark: #3182f6; }
+}
+@media (min-width: 1001px) {
+  /* ===== 프로젝트(#project-modal, js/project-gantt.js): 왼쪽(고정 폭) 기간 달력(시작~끝) / 오른쪽 이름·색상·참여자 + 버튼(맨 아래) ===== */
+  html body #project-modal .modal { width: min(1080px, calc(100vw - 48px)); max-width: none !important; max-height: 92vh; display: grid; grid-template-columns: 430px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "head head" "left right" "left foot"; }
+  html body #project-modal .modal > .modal-header { grid-area: head; padding: 22px 26px 16px; background: var(--pj-tint, rgba(49, 130, 246, .07)); transition: background .25s ease; }
+  html[data-theme="dark"] body #project-modal .modal > .modal-header { background: var(--pj-tint, rgba(106, 168, 255, .08)); }
+  #project-modal .mh-title { font-size: 19px; }
+  #project-modal .pj-body { display: contents; }
+  #project-modal .pj-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; }
+  #project-modal .pj-col-l { grid-area: left; padding: 20px 26px 22px; }
+  #project-modal .pj-col-r { grid-area: right; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; gap: 22px 14px; padding: 20px 26px 8px; }   /* 이름 | 색상 한 줄, 참여자는 아래 전체 폭 */
+  #project-modal .pj-s-pt { grid-column: 1 / -1; }
+  #project-modal :is(.pj-col-r, .pj-foot) { border-left: 1px solid rgba(49, 130, 246, .12); }
+  [data-theme="dark"] #project-modal :is(.pj-col-r, .pj-foot) { border-left-color: rgba(106, 168, 255, .13); }
+  #project-modal .pj-s-when { display: none; }   /* 날짜칸 대신 달력 */
+  #project-modal .pj-cal-wrap { display: block; }
+  #project-modal :is(.pj-s-name, .pj-s-color) { margin: 0; }
+  #project-modal .pj-s-color br { display: none; }
+  #project-modal :is(.form-label, .pj-sec-lbl) { display: block; margin: 0 0 8px; font-size: 12.5px; font-weight: 700; color: #3182f6; }
+  #project-modal .pj-sec-lbl { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  #project-modal .pj-sec-lbl span { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+  [data-theme="dark"] #project-modal :is(.form-label, .pj-sec-lbl) { color: #6aa8ff; }
+  #project-modal .form-input { min-height: 48px; padding: 13px 16px; border-radius: 20px; background: #fff; font-size: 15px; }
+  #project-modal .ndp-box { min-height: 48px; border-radius: 20px; background: #fff; }
+  [data-theme="dark"] #project-modal :is(.form-input, .ndp-box) { background: #212121; }
+  #pj-color { width: 48px; height: 48px; padding: 4px; border: 1px solid var(--border); border-radius: 16px; background: #fff; }
+  [data-theme="dark"] #pj-color { background: #212121; }
+  #pj-color::-webkit-color-swatch-wrapper { padding: 0; }
+  #pj-color::-webkit-color-swatch { border: 0; border-radius: 11px; }
+  #project-modal .pj-foot { grid-area: foot; padding: 16px 26px 22px; border-top: 0; background: transparent; }
+  #project-modal .pj-foot-sp { display: none; }
+  #project-modal .pj-foot .btn { min-height: 50px; padding: 0 22px; border-radius: 20px; font-size: 15px; font-weight: 800; }
+  #project-modal .pj-foot .btn-primary { flex: 1; background: linear-gradient(135deg, #4a94ff, #2f77f6); color: #fff; }
+  #project-modal .pj-foot .btn-outline { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+}
+@media (min-width: 1001px) {
+  /* ===== 직원 편집(#staff-edit-modal, 마크업 js/a2hs.js · 동작 js/staff-modal.js): 왼쪽(고정 폭) 기본 정보·계약·파견·수습 / 오른쪽 근무 속성·부서 이동 예약 + 버튼(맨 아래)
+     그룹 표시/숨김은 JS가 style.display로 바꾸므로 여기선 display를 건드리지 않음. 삭제 확인(#staff-del-confirm)은 absolute라 칸을 차지하지 않음 ===== */
+  html body #staff-edit-modal .staff-modal { width: min(1080px, calc(100vw - 48px)); max-width: none; max-height: 92vh; display: grid; grid-template-columns: 430px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "head head" "left right" "left foot"; }
+  #staff-edit-modal .staff-modal-head { grid-area: head; padding: 22px 26px; }
+  #staff-edit-modal .staff-modal-body { display: contents; }
+  #staff-edit-modal .sm-col { display: block; min-width: 0; min-height: 0; overflow-y: auto; }
+  #staff-edit-modal .sm-col-l { grid-area: left; padding: 20px 26px 22px; }
+  #staff-edit-modal .sm-col-r { grid-area: right; padding: 20px 26px 8px; }
+  #staff-edit-modal :is(.sm-col-r, .staff-modal-foot) { border-left: 1px solid rgba(49, 130, 246, .12); }
+  [data-theme="dark"] #staff-edit-modal :is(.sm-col-r, .staff-modal-foot) { border-left-color: rgba(106, 168, 255, .13); }
+  /* 왼쪽 묶음 사이 구분선(숨겨진 묶음은 자리 없음) */
+  #staff-edit-modal .sm-col-l > div + div { margin-top: 18px !important; padding-top: 18px; border-top: 1px solid rgba(49, 130, 246, .10); }
+  [data-theme="dark"] #staff-edit-modal .sm-col-l > div + div { border-top-color: rgba(106, 168, 255, .11); }
+  #staff-edit-modal .sm-s-basic { gap: 14px 12px; margin: 0; }
+  #staff-edit-modal .sm-s-basic .form-group { margin: 0; }
+  #staff-edit-modal .form-label { margin: 0 0 8px !important; font-size: 12.5px; font-weight: 700; color: #3182f6; }
+  #staff-edit-modal .form-label span { font-size: 11.5px !important; font-weight: 500; }
+  [data-theme="dark"] #staff-edit-modal .form-label { color: #6aa8ff; }
+  #staff-edit-modal :is(.form-input, .form-select) { min-height: 46px; padding: 11px 15px; border-radius: 16px; background: #fff; font-size: 14.5px; }
+  [data-theme="dark"] #staff-edit-modal :is(.form-input, .form-select) { background: #212121; }
+  #staff-edit-modal .sm-col input[type="date"] { flex: 1 1 0; width: auto !important; min-width: 0; }
+  #staff-edit-modal .sm-col-l .btn-sm { flex: none; min-height: 36px; padding: 0 12px !important; border-radius: 999px; font-size: 12px !important; font-weight: 700; }
+  /* 오른쪽: 근무 속성 태그 · 부서 이동 예약 */
+  #staff-edit-modal .sm-s-tags { margin: 0 !important; }
+  #staff-edit-modal .sm-s-tags .tag-sel-pool { gap: 8px; margin-top: 0; }
+  #staff-edit-modal .sm-s-tags .tag-sel-item { padding: 8px 15px; border-radius: 999px; font-size: 13px; }
+  #staff-edit-modal .sm-s-dsched { margin-top: 22px !important; padding: 18px 20px !important; border-radius: 20px !important; }
+  #staff-edit-modal .sm-s-dsched > div:first-of-type { gap: 8px !important; margin-bottom: 12px !important; }
+  #staff-edit-modal .sm-s-dsched .form-select { width: auto !important; min-width: 120px; }
+  #staff-edit-modal .sm-s-dsched .btn-sm { min-height: 46px; padding: 0 18px; border-radius: 16px; font-size: 13.5px; font-weight: 800; }
+  #staff-edit-modal #modal-deptsched-list .avoid-row { padding: 10px 14px; border-radius: 14px; }
+  /* 버튼: 오른쪽 칸 맨 아래 */
+  #staff-edit-modal .staff-modal-foot { grid-area: foot; padding: 16px 26px 22px; border-top: 0; background: transparent; flex-wrap: nowrap; }
+  #staff-edit-modal .staff-modal-foot .smf-sp { display: none; }
+  #staff-edit-modal .staff-modal-foot .btn { min-height: 50px; padding: 0 20px; border-radius: 20px; font-size: 14.5px !important; font-weight: 800; }
+  #staff-edit-modal .staff-modal-foot .btn-primary { flex: 1; font-size: 15px !important; background: linear-gradient(135deg, #4a94ff, #2f77f6); color: #fff; }
+  #staff-edit-modal .staff-modal-foot .btn-outline { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+}
+@media (min-width: 1001px) {
+  /* ===== 특정일 적정 인원(#special-day-modal, js/core.js): 왼쪽(고정 폭) 날짜 달력(등록된 날 점)·인원 입력·저장 / 오른쪽 등록된 특정일 목록 ===== */
+  html body #special-day-modal .modal { width: min(1080px, calc(100vw - 48px)); max-width: none !important; max-height: 92vh; }
+  #special-day-modal .modal-header { padding: 22px 26px 16px; }
+  #special-day-modal .mh-title { font-size: 19px; }
+  #special-day-modal .sp-body { display: grid; grid-template-columns: 430px minmax(0, 1fr); overflow: hidden; }
+  #special-day-modal .sp-col { min-height: 0; overflow-y: auto; padding: 20px 26px 22px; }
+  #special-day-modal .sp-col-r { display: flex; flex-direction: column; border-top: 0; border-left: 1px solid rgba(251, 191, 36, .30); }
+  [data-theme="dark"] #special-day-modal .sp-col-r { border-left-color: rgba(251, 191, 36, .22); }
+  #special-day-modal #sp-date-cal { margin-bottom: 18px; }
+  #special-day-modal .ndc { --ndc-mark: #e0a10b; }
+  #special-day-modal .sp-list-hd { margin-bottom: 12px; }
+  #special-day-modal #special-day-list { flex: 1 1 auto; gap: 10px; }
+  #special-day-modal .sp-item { padding: 13px 12px 13px 18px; }
+  #special-day-modal .sp-item-txt { font-size: 14.5px; gap: 3px 12px; }
+  #special-day-modal .sp-item-btns button { min-height: 36px; padding: 0 16px; font-size: 13px; }
+  #special-day-modal .sp-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 240px; font-size: 14px; }
+}
+@media (min-width: 1001px) {
+  /* ===== 투표 자세히 보기(js/poll.js _pollDetailHtml 넓은 화면): 왼쪽 요약(상태·마감·설명·참여율 링·항목 막대) / 오른쪽 항목별 투표자 2열 ===== */
+  #poll-modal .pd-wide { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 400px minmax(0, 1fr); }
+  html body #poll-modal-card.pc-wide-card:has(.pd-wide) { min-height: min(640px, 88vh); }   /* 자세히 보기는 세로로도 넉넉하게 */
+  #poll-modal .pd-left { padding: 22px 26px 26px; border-right: 1px solid rgba(224, 72, 60, .12); }
+  [data-theme="dark"] #poll-modal .pd-left { border-right-color: rgba(255, 120, 110, .13); }
+  #poll-modal .pd-right { padding: 22px 26px 26px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-content: start; }
+  #poll-modal .pd-right .poll-band { margin: 0; padding: 16px 18px; }
+  #poll-modal .pd-right .poll-band.pd-non { grid-column: 1 / -1; }
+  #poll-modal .pd-right .poll-band-names { font-size: 14.5px; gap: 9px 16px; }
+  .pd-status { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 999px; background: rgba(224, 72, 60, .12); color: #d23a2f; font-size: 12.5px; font-weight: 800; }
+  .pd-status.ended { background: var(--surface2); color: var(--muted); }
+  .pd-meta { margin-top: 10px; font-size: 14px; font-weight: 700; color: var(--text); }
+  .pd-desc { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--surface2); font-size: 13.5px; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
+  .pd-ring { display: flex; align-items: center; gap: 18px; margin: 22px 0 20px; }
+  .pd-ring b { display: block; font-size: 30px; font-weight: 800; letter-spacing: -.02em; color: var(--text); line-height: 1.1; }
+  .pd-ring span { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .pd-bars { display: flex; flex-direction: column; gap: 14px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .pd-bar-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 7px; font-size: 14px; font-weight: 700; color: var(--text); }
+  .pd-bar-top span { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+  .pd-bar-top i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .pd-bar-top b { font-size: 14px; white-space: nowrap; } .pd-bar-top small { font-size: 12px; font-weight: 700; color: var(--muted); margin-left: 3px; }
+  .pd-bar-track { height: 10px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+  .pd-bar-track > div { height: 100%; border-radius: 999px; transition: width .6s cubic-bezier(.16, 1, .3, 1); }
+}
+@media (min-width: 1001px) {
+  /* ===== 공지 확인(js/notice.js _noticeDetailHtml 넓은 화면): 왼쪽 공지 본문 / 오른쪽 공감 누르기 + 공감한 사람·아직 안 본 사람 — 한 창 ===== */
+  html body #poll-modal-card.pc-wide-card:has(.ntd-wide) { min-height: min(600px, 86vh); }
+  #poll-modal .ntd-wide { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  #poll-modal .ntd-left { padding: 22px 28px 26px; }
+  #poll-modal .ntd-body { font-size: 15.5px; line-height: 1.8; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+  #poll-modal .ntd-status { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--border); }   /* 본문 아래: 확인·공감 현황 */
+  #poll-modal .ntd-right { display: flex; flex-direction: column; padding: 22px 26px 26px; border-left: 1px solid rgba(251, 191, 36, .32); background: rgba(251, 191, 36, .04); }
+  [data-theme="dark"] #poll-modal .ntd-right { border-left-color: rgba(251, 191, 36, .2); background: rgba(251, 191, 36, .03); }
+  #poll-modal .ntd-rhd { font-size: 13px; font-weight: 800; color: #b8860b; margin-bottom: 10px; }
+  #poll-modal .ntd-rhd b { margin-left: 4px; color: var(--text); }
+  [data-theme="dark"] #poll-modal .ntd-rhd { color: #e6c14d; }
+  #poll-modal .ntd-status .ntc-react { margin-bottom: 16px; }
+  #poll-modal .ntd-status .ntc-rx-who { display: none; }   /* 누가 공감했는지는 바로 아래에 보이므로 */
+  #poll-modal .ntd-bands .poll-band { padding: 14px 16px; }
+}
+@media (min-width: 1001px) {
+  /* 댓글(js/nd-comments.js) — 오른쪽 열: 투표는 참석자 이름 아래(두 칸 전체 폭), 공지는 공감 목록 아래. */
+  #poll-modal .pd-cmt { grid-column: 1 / -1; }
+  #poll-modal .pd-right .ndcm { margin-top: 10px; }
+  /* 공지: 오른쪽은 댓글만 — 목록이 칸을 채우고 입력칸은 칸 바닥에 */
+  #poll-modal .ntd-right .ndcm { flex: 1 1 auto; display: flex; flex-direction: column; margin: 0; padding: 0; border-top: 0; }
+  #poll-modal .ntd-right .ndcm-list { flex: 1 1 auto; }
+  #poll-modal .ntd-right .ndcm-form { margin-top: 16px; }
+}
+@media (min-width: 1001px) {
+  #poll-modal .ntd-rhd-sep { margin: 0 7px; color: var(--muted); font-weight: 600; }
+}

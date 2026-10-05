@@ -1,5 +1,36 @@
 /* [모듈] js/table-view.js — 근무표(배포) 표·기간 이동·이미지로 저장 | dashboard.html 메인 스크립트에서 분리됨. 로드 순서 = dashboard.html의 <script> 순서(바꾸지 말 것) */
 // ===== EXCEL TABLE VIEW =====
+// 근무표 칸에 '무엇으로 보이는지'(VW·CG·XR·PROJECT·SPORTS 열, 조근 부서 제외) — renderTable의 칸 우선순위와 똑같이.
+// 근무 통계(js/admin.js)가 이걸로 세므로, 표의 우선순위를 바꾸면 여기도 같이 바꿀 것(검사: swap-backend/test-work-stats.cjs)
+// 반환: '당직'·'조근'·'일근'·'휴가'·'퇴근'·'뉴.오'·'뉴.오2'·'8진'·'8진2'·'근무'·''(비어 있음) 또는 엑셀/수동 칸이면 그 글자
+function workCellRole(entry, s, ds) {
+  const leaves = data.newLeaves?.[ds] || [];
+  const byText = t => { const k = (typeof WORK_TYPE_MAP !== 'undefined') ? WORK_TYPE_MAP[_normalizeImportedWorkType(t)] : null;
+    return k==='danjik' ? '당직' : k==='jogeun' ? '조근' : k==='ilgeun' ? '일근' : k==='leave' ? '휴가' : /^(퇴근|당직퇴근)$/.test(t) ? '퇴근' : String(t||'').trim(); };
+  const imported = (typeof _importCellDisplay === 'function') ? _importCellDisplay(entry, s.id, leaves) : null;
+  if (imported) return byText(imported.text);
+  const custom = entry?.customCells?.[s.id];
+  if (custom?.text) return byText(custom.text);
+  if (!isContractActive(s, ds) || isDispatched(s, ds)) return '';
+  const dow = new Date(ds+'T00:00:00').getDay(), isWeekend = dow===0||dow===6, isHoliday = !!(data.holidays && data.holidays[ds]);
+  if (s.id === getDanjikExitStaff(ds)) return '퇴근';
+  if (leaves.includes(s.id)) return '휴가';
+  if (entry?.satMorning === s.id) return '조근';
+  if (s.id === getDanjikOffStaff(ds) && !_hasBrush(entry, s.id, 'work', ds)) return '';
+  if (entry && s.id === entry.danjik) return '당직';
+  if ((entry?.restWorkers||[]).includes(s.id)) return '';
+  if ((entry?.jogeunEdu||[]).includes(s.id)) return '조근';
+  if (entry?.newsOh === s.id) return '뉴.오';
+  if (entry?.newsOh2 === s.id) return '뉴.오2';
+  if (entry?.weekend8jin === s.id || entry?.weekday8jin === s.id) return '8진';
+  if (entry?.weekend8jin2 === s.id || entry?.weekday8jin2 === s.id) return '8진2';
+  const subbed = Object.values(entry?.jogeunSubs||{}).includes(s.id);
+  if ((!isWeekend && !isHoliday && subbed) || (entry?.jogeunExtra||[]).includes(s.id)) return '조근';
+  if (entry && s.id === entry.ilgeun) return '일근';
+  if (!entry) return '';
+  const all = [...(entry.vw?.workers||[]), ...(entry.cg?.workers||[]), ...(entry.xr||[]), ...(entry.project||[]), ...(entry.sports||[])];
+  return all.includes(s.id) ? '근무' : '';
+}
 function setThisMonth() {
   const now = new Date();
   const y=now.getFullYear(), m=now.getMonth()+1;

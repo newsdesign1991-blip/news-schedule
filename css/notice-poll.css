@@ -165,6 +165,15 @@
 [data-theme="dark"] #event-add-modal .modal-close { background: rgba(50,50,50,0.55); border-color: rgba(255,255,255,0.12); }
 #event-add-modal .form-input { border-radius: 20px; }
 #event-add-modal #ev-participants-wrap { border-radius: 20px !important; }
+/* 좌/우 묶음(ev-col)은 모바일에선 없는 셈(display:contents) + order로 원래 순서: 날짜·시간 → 장소 → 내용 → 참여자 → 색상 → 버튼 */
+#event-add-modal .ev-col { display: contents; }
+#event-add-modal .ev-s-when { order: 1; } #event-add-modal .ev-s-loc { order: 2; } #event-add-modal .ev-s-title { order: 3; }
+#event-add-modal .ev-s-pt { order: 4; } #event-add-modal .ev-s-color { order: 5; } #event-add-modal .ev-actions { order: 6; }
+#event-add-modal #ev-title, #ev-edit-title { display: block; width: 100%; resize: none; overflow: hidden; line-height: 1.45; font-family: inherit; }
+#ev-edit-form .ev-edit-grid { display: flex; flex-direction: column; }
+#ev-edit-form .ee-col { display: contents; }
+#ev-edit-form .ee-when { order: 1; } #ev-edit-form .ee-title { order: 2; } #ev-edit-form .ee-loc { order: 3; }
+#ev-edit-form .ee-pt { order: 4; } #ev-edit-form .ee-color { order: 5; } #ev-edit-form .ee-act { order: 6; }
 .ev-discard-card { background: rgba(255,255,255,0.94); -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%); border-radius: 20px; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 22px 55px -14px rgba(15,23,42,0.35); }
 [data-theme="dark"] .ev-discard-card { background: rgba(33,33,33,0.95); border-color: rgba(255,255,255,0.1); }
 #a2hs-banner > div { border: 1px solid transparent !important; border-radius: 22px !important; background: linear-gradient(#f8fafd,#f8fafd) padding-box, linear-gradient(135deg, #ffffff, rgba(255,255,255,.5) 58%, rgba(15,23,42,.13) 100%) border-box !important; box-shadow: 0 1px 2px rgba(20,24,40,.05), 0 24px 60px -14px rgba(20,24,40,.34) !important; }
@@ -216,3 +225,49 @@ header.hdr-enter #hdr-menu-btn { animation-delay:.42s; }
 #event-detail-modal .btn-primary { border-radius: 12px; background: linear-gradient(135deg,#4a94ff 0%,#2f77f6 100%); font-weight: 700; box-shadow: 0 4px 12px -4px rgba(49,130,246,.5); }
 #event-detail-modal .btn-primary:hover { opacity: .92; }
 #event-detail-modal .btn, #event-detail-modal .btn-outline { border-radius: 12px; }
+/* 공지 작성: 좌/우 묶음(nm-col)은 모바일에선 없는 셈 → 원래 순서(제목·내용·게시 기간·8뉴스·조용히). 빠른 선택 칩은 넓은 화면(css/popup-wide.css)에서만 */
+#notice-modal .nm-col { display: contents; }
+#notice-modal .nm-chips { display: none; }
+/* ===== 투표·공지 댓글(js/nd-comments.js) ===== */
+.ndcm { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.ndcm-hd { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 12px; }
+.ndcm-hd b { margin-left: 3px; color: #3182f6; }
+.ndcm-list { display: flex; flex-direction: column; gap: 10px; }
+.ndcm-empty { padding: 4px 2px 2px; font-size: 12.5px; color: var(--muted); }
+.ndcm-item { display: flex; align-items: flex-start; gap: 9px; }
+.ndcm-av { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; color: #fff; font-size: 12.5px; font-weight: 800; }
+.ndcm-bub { flex: 1; min-width: 0; padding: 9px 12px 10px; border-radius: 4px 16px 16px 16px; background: rgba(15,23,42,.05); }
+[data-theme="dark"] .ndcm-bub { background: rgba(255,255,255,.07); }
+.ndcm-item.mine .ndcm-bub { background: rgba(49,130,246,.09); }
+.ndcm-meta { display: flex; align-items: baseline; gap: 7px; margin-bottom: 3px; font-size: 12.5px; }
+.ndcm-meta b { font-weight: 800; color: var(--text); }
+.ndcm-meta time { font-size: 11.5px; color: var(--muted); }
+.ndcm .ndcm-del { margin-left: auto; align-self: center; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; box-shadow: none; }
+.ndcm .ndcm-del:hover { background: rgba(120,120,128,.14); color: #d65a52; }
+.ndcm-text { font-size: 14px; line-height: 1.55; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.ndcm-form { display: flex; align-items: flex-end; gap: 8px; margin-top: 14px; }
+.ndcm-form textarea { flex: 1; min-width: 0; height: 44px; min-height: 44px; max-height: 140px; margin: 0; padding: 11px 16px; border: .8px solid var(--border); border-radius: 22px; background: var(--surface); color: var(--text); font: inherit; font-size: 14px; line-height: 1.45; resize: none; box-sizing: border-box; outline: none; }
+.ndcm-form textarea:focus { border-color: #3182f6; box-shadow: 0 0 0 3px rgba(49,130,246,.14); }
+.ndcm .ndcm-send { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: linear-gradient(135deg,#4a94ff,#2f77f6); color: #fff; cursor: pointer; box-shadow: 0 4px 12px -4px rgba(49,130,246,.55); }
+.ndcm-login { margin-top: 12px; padding: 11px 14px; border-radius: 14px; background: var(--surface2); font-size: 12.5px; color: var(--muted); }
+/* 투표(빨강)·공지(금색) 강조색 */
+.ndcm[data-kind="poll"] .ndcm-hd b { color: #e0483c; }
+.ndcm[data-kind="poll"] .ndcm-send { background: linear-gradient(135deg,#f0625a,#e0483c); box-shadow: 0 4px 12px -4px rgba(224,72,60,.5); }
+.ndcm[data-kind="poll"] .ndcm-form textarea:focus { border-color: #e0483c; box-shadow: 0 0 0 3px rgba(224,72,60,.14); }
+.ndcm[data-kind="poll"] .ndcm-item.mine .ndcm-bub { background: rgba(224,72,60,.08); }
+.ndcm[data-kind="notice"] .ndcm-hd b { color: #b8860b; }
+.ndcm[data-kind="notice"] .ndcm-send { background: linear-gradient(135deg,#f0b429,#d4a017); box-shadow: 0 4px 12px -4px rgba(212,160,23,.55); }
+.ndcm[data-kind="notice"] .ndcm-form textarea:focus { border-color: #d4a017; box-shadow: 0 0 0 3px rgba(212,160,23,.16); }
+.ndcm[data-kind="notice"] .ndcm-item.mine .ndcm-bub { background: rgba(251,191,36,.14); }
+[data-theme="dark"] .ndcm-form textarea { background: #212121; border-color: rgba(255,255,255,.1); }
+[data-theme="dark"] .ndcm-item.mine .ndcm-bub { background: rgba(76,147,255,.14); }
+[data-theme="dark"] .ndcm[data-kind="poll"] .ndcm-item.mine .ndcm-bub { background: rgba(255,120,110,.13); }
+[data-theme="dark"] .ndcm[data-kind="notice"] .ndcm-item.mine .ndcm-bub { background: rgba(251,191,36,.12); }
+[data-theme="dark"] .ndcm[data-kind="notice"] .ndcm-hd b { color: #e6c14d; }
+/* 홈 카드 댓글 수 */
+.poll-cmt-cnt { margin-left: 8px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.poll-cmt-cnt[hidden] { display: none; }
+.ntc-cmt-cnt { font-size: 11px; font-weight: 700; color: #b8860b; background: rgba(251,191,36,.16); border-radius: 999px; padding: 1px 8px; }
+.poll-band.nd-seen .poll-band-hd svg { flex: none; }
+[data-theme="dark"] .poll-band.nd-seen { background: rgba(34,197,94,.1) !important; }
+[data-theme="dark"] .poll-band.nd-seen .poll-band-hd { color: #4ade80 !important; }

@@ -321,60 +321,82 @@ function _monthNav(dir){
   if(el){ el.style.animation='none'; void el.offsetWidth; el.style.animation=(dir>0?'weekSlideNext':'weekSlidePrev')+' .34s cubic-bezier(.22,1,.36,1)'; }
   setTimeout(function(){ if(vm) vm.classList.remove('cal-sliding'); if(el) el.style.animation=''; }, 380);
 }
+// 달력 탭(iOS 캘린더식 월 보기): 주 단위 줄 + 얇은 구분선, 큰 날짜(오늘=빨간 동그라미), 일정은 둥근 막대.
+// 같은 근무·공휴일·종일 구글 일정이 며칠 이어지면 막대 하나로 이어 그림. 한 칸에 다 못 넣으면 '+N개'(누르면 그날 상세)
+// 막대는 클릭을 아래 날짜 칸으로 흘려보냄(구글 일정만 자체 상세 열기). 이번 달이 아닌 칸은 비워 둠
 function renderMonth() {
   const now=new Date();
   const target=new Date(now.getFullYear(),now.getMonth()+monthOffset,1);
   const year=target.getFullYear(); const month=target.getMonth();
-  document.getElementById('month-title').textContent=`${year}년 ${month+1}월`;
+  const _t=document.getElementById('month-title');
+  _t.innerHTML=`<b>${month+1}월</b><span>${year}년</span>`; _t.setAttribute('aria-label',`${year}년 ${month+1}월`);
+  var _tb=document.getElementById('mn-today-btn'); if(_tb) _tb.style.visibility = (monthOffset===0)?'hidden':'visible';
   const todayStr=toDateStr(now.getFullYear(),now.getMonth()+1,now.getDate());
   const mine = (calMode==='mine');
   const sid = currentUser && currentUser.staffId;
-  if (mine && !sid) { document.getElementById('month-calendar').innerHTML='<div style="grid-column:1 / -1;padding:30px 16px;text-align:center;color:var(--muted);font-size:13px;">로그인하면 나만의 근무 달력을 볼 수 있어요.</div>'; return; }
-  let html='';
-  ['일','월','화','수','목','금','토'].forEach(d=>{html+=`<div class="cal-head">${d}</div>`;});
+  const host=document.getElementById('month-calendar');
+  if (mine && !sid) { host.innerHTML='<div class="mc-empty">로그인하면 나만의 근무 달력을 볼 수 있어요.</div>'; return; }
   const firstDay=new Date(year,month,1).getDay();
   const daysInMonth=new Date(year,month+1,0).getDate();
-  const _tot=firstDay+daysInMonth; const rem=_tot%7===0?0:7-(_tot%7);
-  // 그리드 전체 범위(전달 앞 + 다음달 뒤)로 구글 일정 인덱스
+  // 이번 달 범위로 구글 일정 인덱스
   _loadGcal();
-  const _gStart=new Date(year,month,1-firstDay), _gEnd=new Date(year,month,daysInMonth+rem);
   const _gcalByDate={};
   if(_gcalEvents && _gcalEvents.length){
-    const _mS=toDateStr(_gStart.getFullYear(),_gStart.getMonth()+1,_gStart.getDate());
-    const _mE=toDateStr(_gEnd.getFullYear(),_gEnd.getMonth()+1,_gEnd.getDate());
+    const _mS=toDateStr(year,month+1,1), _mE=toDateStr(year,month+1,daysInMonth);
     for(const ev of _gcalEvents){ if(!_gcalCalOn(ev._calId)) continue; for(const ds of _icsOccurrences(ev,_mS,_mE)){ (_gcalByDate[ds]=_gcalByDate[ds]||[]).push(ev); } }
   }
-  const _esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-  function _calCell(cy,cm,cd,isOther){
-    const date=new Date(cy,cm,cd); const dow=date.getDay();
-    const dateStr=toDateStr(cy,cm+1,cd); const isToday=dateStr===todayStr;
-    const isWeekend=dow===0||dow===6;
-    const isHoliday2=!!(data.holidays&&data.holidays[dateStr]);
-    const holidayName2=isHoliday2?data.holidays[dateStr]:'';
-    const entry=data.schedule[dateStr];
-    const dowClass=dow===0?'sun':dow===6?'sat':'';
-    let pips='';
+  const _esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const MAXL=window.matchMedia('(min-width:761px)').matches?4:3;   // 한 주에 보일 막대 줄 수
+  const DOWN=['일','월','화','수','목','금','토'];
+  const IC={cal:'<svg class="mc-ic" viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1.6" width="10" height="9.4" rx="2.4" fill="currentColor"/><path d="M1.2 4.6h9.6" stroke="#fff" stroke-width="1.3" opacity=".9"/></svg>',
+    star:'<svg class="mc-ic" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5.6" fill="currentColor"/><path d="M6 2.7l.98 2 2.2.32-1.6 1.55.38 2.18L6 7.72 4.04 8.75l.38-2.18L2.82 5.02l2.2-.32z" fill="#fff"/></svg>'};
+  // 하루 항목: 근무(나만의 달력) 또는 부서 인원(팀 전체) → 공휴일 → 일정 → 구글 일정. merge=이어지는 날과 막대 합치기
+  function dayItems(ds){
+    const out=[], entry=data.schedule[ds];
     if (mine) {
-      const roles = isOnLeave(sid,dateStr) ? [{label:'휴가',bg:'#fee2e2',color:'#c0524a',border:'#f8a0a0'}] : _calRolesShort(entry, sid);
-      pips = roles.map(r=>`<span class="cal-pip" style="background:${r.bg};color:${r.color};border:1px solid ${r.border||'transparent'};">${r.label}</span>`).join('');
+      const roles = isOnLeave(sid,ds) ? [{label:'휴가',bg:'#fee2e2',color:'#c0524a'}] : _calRolesShort(entry, sid);
+      roles.forEach(r=>out.push({key:'r:'+r.label, label:r.label, bg:r.bg, fg:r.color, cls:'r', ic:'cal', merge:true}));
     } else if (entry) {
-      const vwN=(entry.vw?.workers||[]).length,cgN=(entry.cg?.workers||[]).length;
-      const prjN=(entry.project||[]).length,sptN=(entry.sports||[]).length;
-      if(vwN) pips+=`<span class="cal-pip vw">VW ${vwN}</span>`;
-      if(cgN) pips+=`<span class="cal-pip cg">CG ${cgN}</span>`;
-      if(prjN) pips+=`<span class="cal-pip project">P ${prjN}</span>`;
-      if(sptN) pips+=`<span class="cal-pip sports">S ${sptN}</span>`;
+      [['VW',(entry.vw?.workers||[]).length,'vw'],['CG',(entry.cg?.workers||[]).length,'cg'],['P',(entry.project||[]).length,'project'],['S',(entry.sports||[]).length,'sports']]
+        .forEach(([l,n,k])=>{ if(n) out.push({key:'t:'+k, label:l+' '+n, cls:'t-'+k, merge:false}); });
     }
-    const dayEvents=(data.events||{})[dateStr]||[];
-    const evChips=dayEvents.map(ev=>`<div class="cal-event-chip" style="background:${ev.color}22;color:${ev.color};border-left:3px solid ${ev.color};">${ev.time?ev.time+' ':''}${ev.title}</div>`).join('');
-    const gchips=(_gcalByDate[dateStr]||[]).map(ev=>{const _c=ev._color||'#4285f4';return `<div class="cal-event-chip" onclick="event.stopPropagation();showGcalDetail('${dateStr}','${ev._id}')" style="background:${_c}1f;color:${_c};border-left:3px solid ${_c};cursor:pointer;" title="📆 ${_esc(ev._calName?ev._calName+': ':'')}${_esc(ev.title)}">${ev.start.time?ev.start.time+' ':''}📆 ${_esc(ev.title)}</div>`;}).join('');
-    return `<div class="cal-day${isOther?' other-month':''} ${isToday?'today':''} ${isWeekend?'weekend':''} ${isHoliday2?'holiday':''}" onclick="showDayModal('${dateStr}')"><div class="cal-date-num ${dowClass}">${cd}${isHoliday2?`<span class="cal-holiday-name">${holidayName2}</span>`:''}</div><div class="cal-pips">${pips}</div><div class="cal-events">${evChips}${gchips}</div></div>`;
+    const hol=data.holidays&&data.holidays[ds];
+    if (hol) out.push({key:'h:'+hol, label:hol, cls:'hol', ic:'star', merge:true});
+    ((data.events||{})[ds]||[]).forEach(ev=>{ const c=ev.color||'#6366f1'; out.push({key:'e:'+ev.id, label:(ev.time?ev.time+' ':'')+(ev.title||''), bg:c+'24', fg:c, ic:'cal', merge:false}); });
+    (_gcalByDate[ds]||[]).forEach(ev=>{ const c=ev._color||'#4285f4'; out.push({key:'g:'+ev._id, label:(ev.start.time?ev.start.time+' ':'')+(ev.title||''), bg:c+'20', fg:c, ic:'cal', merge:!ev.start.time, g:ev._id, title:(ev._calName?ev._calName+': ':'')+(ev.title||'')}); });
+    return out;
   }
-  for (let i=0;i<firstDay;i++){ const dt=new Date(year,month,1-firstDay+i); html+=_calCell(dt.getFullYear(),dt.getMonth(),dt.getDate(),true); }
-  for (let d=1;d<=daysInMonth;d++){ html+=_calCell(year,month,d,false); }
-  for (let i=1;i<=rem;i++){ const dt=new Date(year,month,daysInMonth+i); html+=_calCell(dt.getFullYear(),dt.getMonth(),dt.getDate(),true); }
-  document.getElementById('month-calendar').innerHTML=html;
-  var _tb=document.getElementById('mn-today-btn'); if(_tb) _tb.style.visibility = (monthOffset===0)?'hidden':'visible';
+  let html='<div class="mc-head" aria-hidden="true">'+DOWN.map((d,i)=>`<span${i===0||i===6?' class="we"':''}>${d}</span>`).join('')+'</div>';
+  const weeks=Math.ceil((firstDay+daysInMonth)/7);
+  for (let w=0; w<weeks; w++) {
+    const cols=[];
+    for (let c=0;c<7;c++) { const d=w*7+c-firstDay+1; if(d<1||d>daysInMonth){ cols.push(null); continue; } const ds=toDateStr(year,month+1,d); cols.push({d, ds, its:dayItems(ds)}); }
+    // 이어지는 같은 항목(merge) 합치기 → 줄(lane) 배치: 먼저 시작·긴 것부터 비어 있는 가장 위 줄에
+    const segs=[]; let open={};
+    cols.forEach((col,c)=>{ const nx={}; (col?col.its:[]).forEach((it,i)=>{ const o=open[it.key]; if(it.merge&&o){ o.end=c; nx[it.key]=o; } else { const s={it, start:c, end:c, ds:col.ds, ord:i}; segs.push(s); nx[it.key]=s; } }); open=nx; });
+    segs.sort((a,b)=>a.start-b.start||(b.end-b.start)-(a.end-a.start)||a.ord-b.ord);
+    const lanes=[];
+    segs.forEach(s=>{ let l=0; for(;;l++){ lanes[l]=lanes[l]||[]; let ok=true; for(let c=s.start;c<=s.end;c++) if(lanes[l][c]){ ok=false; break; } if(ok) break; } for(let c=s.start;c<=s.end;c++) lanes[l][c]=1; s.lane=l; });
+    const over=lanes.length>MAXL, vis=over?MAXL-1:lanes.length, more=[0,0,0,0,0,0,0];
+    if (over) segs.forEach(s=>{ if(s.lane>=vis) for(let c=s.start;c<=s.end;c++) more[c]++; });
+    const rows=vis+(over?1:0);
+    let cells='', bars='';
+    cols.forEach((col,c)=>{
+      if (!col) { cells+=`<div class="mc-day is-blank" style="grid-column:${c+1}"></div>`; return; }
+      const isT=col.ds===todayStr, hol=!!(data.holidays&&data.holidays[col.ds]);
+      const lbl=`${month+1}월 ${col.d}일 ${DOWN[c]}요일${isT?', 오늘':''}${col.its.length?', '+col.its.map(i=>i.label).join(', '):''}`;   // 화면읽기: 막대는 숨기고 칸 이름에 항목 이름을 다 읽어 줌
+      cells+=`<div class="mc-day${isT?' today':''}${c===0||c===6?' we':''}${hol?' hol':''}" style="grid-column:${c+1}" role="button" tabindex="0" aria-label="${_esc(lbl)}" onclick="showDayModal('${col.ds}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showDayModal('${col.ds}')}"><span class="mc-num">${col.d}</span></div>`;
+    });
+    segs.forEach(s=>{
+      if (s.lane>=vis) return;
+      const it=s.it, st=`grid-column:${s.start+1}/${s.end+2};grid-row:${s.lane+2};${it.bg?'--bg:'+it.bg+';':''}${it.fg?'--fg:'+it.fg+';':''}`;
+      const link=it.g?` role="button" tabindex="0" onclick="event.stopPropagation();showGcalDetail('${s.ds}','${it.g}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();showGcalDetail('${s.ds}','${it.g}')}"`:' aria-hidden="true"';
+      bars+=`<div class="mc-bar${it.cls?' '+it.cls:''}${it.g?' is-link':''}${s.end>s.start?' is-span':''}" style="${st}"${link} title="${_esc(it.title||it.label)}">${it.ic?IC[it.ic]:''}<span>${_esc(it.label)}</span></div>`;
+    });
+    if (over) more.forEach((n,c)=>{ if(n) bars+=`<div class="mc-more" style="grid-column:${c+1};grid-row:${vis+2}" aria-hidden="true">+${n}개</div>`; });
+    html+=`<div class="mc-week" style="grid-template-rows:var(--mc-num-h)${rows?` repeat(${rows},var(--mc-lane-h))`:''} 1fr">${cells}${bars}</div>`;
+  }
+  host.innerHTML=html;
 }
 
 // ===== MODAL =====

@@ -16,40 +16,55 @@ function _initYearSelect(elId, onchange) {
 }
 
 let _statsEditMode = false;
-function renderWorkStats() {
-  _initYearSelect('stats-year', renderWorkStats);
-  const year = parseInt(document.getElementById('stats-year')?.value) || new Date().getFullYear();
+// 근무 통계 자동 집계(스케줄 기준) — 화면 표시(renderWorkStats)와 검사(swap-backend/test-work-stats.cjs)가 같이 씀
+function _workStatsAuto(year) {
   const active = data.staff.filter(s => s.active !== false);
-  const edit = _statsEditMode;
 
+  // 올해 한 달이라도(그 달 1일 기준) 조근 부서가 아니었던 사람만 — 부서 이동(deptSchedule)으로 조근에서 나간 사람도 포함
+  const _dOn = (s, ds) => (typeof deptOn === 'function' ? deptOn(s, ds) : s.dept);
+  const _monthStarts = Array.from({length:12}, (_, i) => toDateStr(year, i+1, 1));
+  const _notJogeunYear = s => _monthStarts.some(ms => _dOn(s, ms) !== '조근');
   // 직원: 조근 부서 제외 + 프리랜서 제외
-  const employees = active.filter(s => s.dept !== '조근' && s.employmentType !== 'freelancer');
+  const employees = active.filter(s => _notJogeunYear(s) && s.employmentType !== 'freelancer');
 
   // 직원B(프리랜서) 조근 대체 근무: 활성 프리랜서 전원(조근 부서 제외) — 대체를 안 했어도 0으로 표시
-  const jflPool = active.filter(s => s.employmentType === 'freelancer' && s.dept !== '조근');
+  const jflPool = active.filter(s => s.employmentType === 'freelancer' && _notJogeunYear(s));
 
   // 자동 집계(스케줄)분만 따로 보관 — 수동 입력분(manualStats)과 분리해서 역산 가능하게
   const satA = {}, friA = {}, jsubA = {}, ilgeunA = {}, jflA = {};
   employees.forEach(s => { satA[s.id]=Array(12).fill(0); friA[s.id]=Array(12).fill(0); jsubA[s.id]=Array(12).fill(0); ilgeunA[s.id]=Array(12).fill(0); });
   jflPool.forEach(s => { jflA[s.id]=Array(12).fill(0); });
 
+  // 근무표에 '보이는 그대로' 센다(js/table-view.js workCellRole — 표와 같은 우선순위).
+  // 예전엔 자동생성용 jogeunSubs만 세서 엑셀 가져오기·브러시로 넣은 조근 대체(jogeunExtra)가 빠졌고,
+  // 휴가·당직 등으로 표에선 다른 글자인 날도 셌음. 그날 조근 부서인 사람은(부서 이동 포함) 세지 않음
+  const statStaff = [...employees, ...jflPool];
   for (let m = 1; m <= 12; m++) {
     const days = new Date(year, m, 0).getDate();
-    const mi = m - 1;
+    const mi = m - 1, ms = _monthStarts[mi];
     for (let d = 1; d <= days; d++) {
       const dow = new Date(year, m-1, d).getDay();
       const ds = toDateStr(year, m, d);
       const en = data.schedule[ds];
       if (!en) continue;
-      if (dow === 6 && en.danjik && satA[en.danjik] !== undefined) satA[en.danjik][mi]++;       // 토요 숙직 = 토요 당직(en.danjik)
-      if (dow === 5 && en.danjik && friA[en.danjik] !== undefined) friA[en.danjik][mi]++;       // 금요일 당직
-      if (dow === 6 && en.satMorning && jsubA[en.satMorning] !== undefined) jsubA[en.satMorning][mi]++;  // 토요 조근 = en.satMorning
-      if (en.ilgeun && ilgeunA[en.ilgeun] !== undefined) ilgeunA[en.ilgeun][mi]++;
-      Object.values(en.jogeunSubs || {}).forEach(subId => {
-        if (jflA[subId] !== undefined) jflA[subId][mi]++;
+      statStaff.forEach(s => {
+        if (_dOn(s, ms) === '조근') return;   // 그 달 근무표에서 조근 열인 사람(조근이 본업) — 표와 같은 기준
+        const role = workCellRole(en, s, ds);
+        if (role === '당직' && dow === 6 && satA[s.id]) satA[s.id][mi]++;        // 토요 숙직 = 토요일 당직
+        if (role === '당직' && dow === 5 && friA[s.id]) friA[s.id][mi]++;        // 금요일 당직
+        if (role === '조근' && dow === 6 && jsubA[s.id]) jsubA[s.id][mi]++;      // 직원 토요 조근
+        if (role === '일근' && ilgeunA[s.id]) ilgeunA[s.id][mi]++;
+        if (role === '조근' && jflA[s.id]) jflA[s.id][mi]++;                     // 직원B 조근(평일 대체·토요일 모두)
       });
     }
   }
+  return { employees, jflPool, satA, friA, jsubA, ilgeunA, jflA };
+}
+function renderWorkStats() {
+  _initYearSelect('stats-year', renderWorkStats);
+  const year = parseInt(document.getElementById('stats-year')?.value) || new Date().getFullYear();
+  const edit = _statsEditMode;
+  const { employees, jflPool, satA, friA, jsubA, ilgeunA, jflA } = _workStatsAuto(year);
 
   const manY = data.manualStats?.[year] || {};
 
@@ -104,7 +119,7 @@ function renderWorkStats() {
     || Object.keys(data.schedule||{}).some(ds => ds.startsWith(year+''))
     || Object.keys(manY).length > 0;
   if (!hasData) {
-    area.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--muted);font-size:14px;">📊 ${year}년 데이터가 없습니다. '📝 과거 데이터 직접 입력'으로 채워넣으세요.</div>`;
+    area.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--muted);font-size:14px;">${year}년 데이터가 없습니다. '과거 데이터 직접 입력'으로 채워 넣으세요.</div>`;
     return;
   }
   const t1 = buildStatTable('토요 숙직근무', 'sat', employees, satA, '#dfe4f2', '#565ba4');
@@ -124,11 +139,11 @@ function _updateStatsEditBtn() {
   const hint = document.getElementById('stats-edit-hint');
   if (!btn) return;
   if (_statsEditMode) {
-    btn.textContent = '💾 입력 완료 (저장)';
+    btn.textContent = '입력 완료 (저장)';
     btn.style.background = '#6366f1'; btn.style.color = '#fff'; btn.style.borderColor = '#6366f1';
     if (hint) hint.style.display = '';
   } else {
-    btn.textContent = '📝 과거 데이터 직접 입력';
+    btn.textContent = '과거 데이터 직접 입력';
     btn.style.background = '#e0f0e8'; btn.style.color = '#2d7a5f'; btn.style.borderColor = '#a8d5b8';
     if (hint) hint.style.display = 'none';
   }
@@ -504,7 +519,7 @@ function renderNotifyTab() {
         <tbody>${rows}</tbody>
       </table>
       </div>
-      <button class="btn btn-primary" style="width:auto;margin-top:14px;" onclick="saveNotifyConfig()">💾 알림 설정 저장</button>
+      <button class="btn btn-primary" style="width:auto;margin-top:14px;" onclick="saveNotifyConfig()">알림 설정 저장</button>
       <div id="nt-save-status" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
     </div>`;
 }
@@ -571,12 +586,13 @@ async function enablePush() {
     const res = await fetch(`${SB_URL}/rest/v1/push_subs`, {
       method:'POST',
       headers:{...SB_HEADERS, 'Prefer':'return=minimal'},
-      body: JSON.stringify({ staff_id:currentUser.staffId, name:currentUser.name, endpoint:j.endpoint, sub:j })
+      body: JSON.stringify({ staff_id:currentUser.staffId, name:currentUser.name, endpoint:j.endpoint, sub:{ ...j, prefs:getUserNotify() } })   // prefs = 개인 알림 설정(서버가 보고 거름)
     });
     if (!res.ok) {
       const errTxt = await res.text().catch(()=>'');
       throw new Error(`구독 저장 실패 (HTTP ${res.status}). ${errTxt||'서버 권한(RLS) 설정을 확인하세요.'}`);
     }
+    try { localStorage.setItem('nd_prefs_synced', j.endpoint + '|' + currentUser.staffId + '|' + JSON.stringify(getUserNotify())); } catch(_){}   // 이 설정으로 서버에 저장됨(_pushSavePrefs가 다시 안 보냄)
     toast('알림이 켜졌습니다 🔔','success');
     renderMySchedule();
     _refreshUserSettingsModal();
@@ -595,6 +611,29 @@ async function disablePush() {
     renderMySchedule();
     _refreshUserSettingsModal();
   } catch(e) { console.warn('disablePush', e); }
+}
+// 개인 알림 설정이 바뀌면 이 기기 구독 행(push_subs)의 sub.prefs만 갱신 — 서버 notify 함수(mode:'prefs')가 대신 고침.
+// 웹(anon)은 push_subs를 읽을 권한이 없어 직접 덮어쓰기(upsert)가 안 되고, 지우고 다시 넣는 방식은 구독을 잃을 수 있어 쓰지 않음.
+// 서버는 endpoint+직원 id가 둘 다 맞는 행만 고침(공용 PC에서 남의 구독을 바꾸지 않음). 실제로 고친 행이 있을 때만 '저장됨' 표시.
+// 여러 번 빨리 바꿔도 순서대로 하나씩 보내고, 보낼 때의 최신 설정을 보냄
+function _pushSavePrefs(onlyIfChanged) {
+  window._ndPrefsChain = (window._ndPrefsChain || Promise.resolve()).then(() => _pushSavePrefsNow(onlyIfChanged), () => _pushSavePrefsNow(onlyIfChanged));
+  return window._ndPrefsChain;
+}
+async function _pushSavePrefsNow(onlyIfChanged) {
+  try {
+    if (!currentUser || !currentUser.staffId || !_pushSupported()) return 'na';
+    const reg = await navigator.serviceWorker.getRegistration();
+    const s = reg && await reg.pushManager.getSubscription(); if (!s) return 'na';   // 이 기기 알림이 꺼져 있음 → 서버에 보낼 것 없음
+    const prefs = getUserNotify(), mark = s.endpoint + '|' + currentUser.staffId + '|' + JSON.stringify(prefs);
+    if (onlyIfChanged) { let last = ''; try { last = localStorage.getItem('nd_prefs_synced') || ''; } catch(_){} if (last === mark) return true; }   // 이미 서버에 같은 설정이면 건너뜀
+    const r = await fetch(NOTIFY_FN_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY },
+      body: JSON.stringify({ mode:'prefs', endpoint:s.endpoint, staff_id:currentUser.staffId, prefs }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.updated > 0) { try { localStorage.setItem('nd_prefs_synced', mark); } catch(_){} return true; }
+    if (r.ok && !j.error && (j.found === 0 || (j.found === undefined && j.updated === 0))) return 'nosub';   // 서버에 이 기기·이 직원의 구독이 없음
+    return false;
+  } catch(e) { console.warn('push prefs sync', e); return false; }
 }
 async function togglePush() {
   if (await isPushSubscribed()) disablePush(); else enablePush();
@@ -655,6 +694,8 @@ function saveUserSettings() {
   toast(pref.enabled ? '알림 설정 켜짐' : '알림 설정 꺼짐', 'success');
 }
 async function _refreshPushBtn() {
+  // 접속마다 1번: 이 기기에 저장된 개인 알림 설정을 서버 구독 정보에도 맞춰 둠(예전에 끈 설정도 서버가 알게)
+  if (!window._ndPrefsSynced && currentUser && currentUser.staffId) { window._ndPrefsSynced = true; _pushSavePrefs(true); }
   const btn = document.getElementById('push-toggle-btn');
   if (!btn) return;
   if (!_pushSupported()) { btn.style.display='none'; return; }

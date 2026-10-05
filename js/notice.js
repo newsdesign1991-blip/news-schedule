@@ -51,6 +51,20 @@ function _onNoticePeriodChange(){
     if (until <= today) hint.textContent = '오늘 하루만 홈 화면에 표시됩니다.';
     else { const p = until.split('-'); hint.textContent = (+p[1]) + '월 ' + (+p[2]) + '일까지 홈 화면에 계속 표시됩니다. (8뉴스 진입시간은 항상 당일만 적용)'; }
   }
+  // 넓은 화면: 빠른 선택 칩 + 달력(오늘~끝날 띠) 따라가기
+  document.querySelectorAll('#notice-modal .nm-chips button').forEach(b => { const on = b.dataset.v === sel.value; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  document.getElementById('notice-cal')?._ndCal?.render();
+}
+function _noticeSetPeriod(v){ const sel = document.getElementById('notice-period'); if (!sel) return; sel.value = v; _onNoticePeriodChange(); }
+// 넓은 화면(js/nd-cal.js): 게시 기간 = 오늘부터 고정, 달력에서 끝날을 누름(프리셋과 같으면 그 항목, 아니면 '직접 선택') / 8뉴스 시간 = 직접 입력
+// 값은 원래 select·date·time input에 그대로 → saveNotice는 손대지 않음
+function _noticePickers(){
+  if (typeof ndCal !== 'function') return;
+  const sel = document.getElementById('notice-period'), dEl = document.getElementById('notice-until'), today = _todayStr();
+  const until = () => sel.value === 'custom' ? ((dEl.value && dEl.value >= today) ? dEl.value : today) : addDays(today, parseInt(sel.value)||0);
+  ndCal(document.getElementById('notice-cal'), { range: true, fixedFrom: today, min: today, get: () => ({ from: today, to: until() }),
+    set: r => { const to = r.to || today, k = ['0','2','6','13','29'].find(x => addDays(today, parseInt(x)) === to); if (k) sel.value = k; else { sel.value = 'custom'; dEl.min = today; dEl.value = to; } _onNoticePeriodChange(); } });
+  ndTimeInput(document.getElementById('notice-news8'), document.getElementById('notice-news8-pick'), { presets: ['19:40','19:45','19:48','19:50','19:55'] });
 }
 function toggleNoticeExpand(){
   const _exp=!_noticeExpanded;
@@ -123,7 +137,7 @@ function renderNoticeBar() {
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
             <div style="flex:1;min-width:0;">
               <div class="ntc-title" style="font-size:15px;font-weight:800;line-height:1.4;word-break:break-word;">${_pEsc(title)}${bell}</div>
-              <div style="display:flex;align-items:center;gap:6px;margin-top:6px;"><span style="font-size:11.5px;color:#b8860b;font-weight:800;">눌러서 전체 보기 ›</span>${by}</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:6px;"><span style="font-size:11.5px;color:#b8860b;font-weight:800;">눌러서 전체 보기 ›</span>${by}${(it.comments||[]).length?`<span class="ntc-cmt-cnt">댓글 ${(it.comments||[]).length}</span>`:''}</div>
             </div>
             <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">${span}</div>
           </div>
@@ -185,12 +199,13 @@ function _noticeReactSet(itemId, emoji){
   _ndCommit((rp)=>{
     let target=null;
     Object.keys(rp.notices||{}).forEach(ds=>{ const items=((rp.notices[ds]||{}).items)||[]; const t=items.find(x=>x.id===itemId); if(t) target=t; });
-    if(!target) return;
+    if(!target) return false;   // 공지가 이미 없음 → 쓰지 않음('gone')
     if(!target.reactions) target.reactions={};
     if(desired===undefined) delete target.reactions[myId]; else target.reactions[myId]=desired;
   }).then(ok=>{ if(ok) _noticeReactRefresh(itemId); });
 }
-// 원격 최신본에 내 공감만 병합 + updated_at 낙관적잠금 + 재시도 (동시 공감 무손실)
+// 원격 최신본에 내 공감만 병합 + updated_at 낙관적잠금 + 재시도 (동시 공감 무손실).
+// mutate가 false를 돌려주면(대상 없음) 쓰지 않고 'gone'. 성공하면 true(그 뒤 ndAdoptMergedSave로 리비전 맞춤)
 async function _ndCommit(mutate){
   if(isAdminTest) return true;
   const url=`${SB_URL}/rest/v1/nd_data?id=eq.main`;
@@ -199,17 +214,18 @@ async function _ndCommit(mutate){
     try{ const g=await fetch(`${url}&select=payload,updated_at`,{headers:SB_HEADERS}); if(!g.ok) throw new Error('GET'); const a=await g.json(); remote=a&&a[0]; }
     catch(e){ console.warn('공감 동기화 읽기 실패',e); return false; }
     if(!remote||!remote.payload) return false;
-    const rp=remote.payload; if(!rp.notices) rp.notices={};
-    try{ mutate(rp); }catch(e){ console.warn('공감 mutate 실패',e); return false; }
+    const rp=remote.payload, base=rp._dataRevision||0; if(!rp.notices) rp.notices={};
+    let mr; try{ mr=mutate(rp); }catch(e){ console.warn('공감 mutate 실패',e); return false; }
+    if(mr===false){ ndAdoptGoneSnapshot(base, ()=>{ data.notices=rp.notices; }); return 'gone'; }   // 대상 공지가 이미 없음 → 쓰지 않음
     const nowIso=new Date().toISOString();
     try{
       const cond=remote.updated_at?`&updated_at=eq.${encodeURIComponent(remote.updated_at)}`:'';
       const pr=await fetch(`${url}${cond}`,{method:'PATCH',headers:Object.assign({},SB_HEADERS,{'Prefer':'return=representation'}),body:JSON.stringify({payload:rp,updated_at:nowIso})});
       if(!pr.ok) throw new Error('PATCH');
       const rows=await pr.json();
-      if(Array.isArray(rows)&&rows.length>0){ data.notices=rp.notices; _ndUpdatedAt=nowIso; try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){} _localBackup(data); return true; }
+      if(Array.isArray(rows)&&rows.length>0){ const saved=rows[0]; data.notices=(saved.payload&&saved.payload.notices)||rp.notices; ndAdoptMergedSave(base, saved); try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){} _localBackup(data); return true; }
     }catch(e){ console.warn('공감 동기화 쓰기 실패',e); return false; }
-    await new Promise(res=>setTimeout(res, 70+attempt*110));
+    await new Promise(res=>setTimeout(res, 70+attempt*110+Math.floor(Math.random()*140)));
   }
   return false;
 }
@@ -273,34 +289,104 @@ function closeReact2(){
   if(notice){ notice.style.transition='transform .3s cubic-bezier(.5,0,.35,1)'; notice.style.transform='none'; }
   _animModalClose(document.getElementById('react2-modal'));
 }
-function _reactDetailHtml(it){
-  const rx=it.reactions||{};
+// 공감한 사람(이모지별) + 확인함(공감 없이 열어 본 사람) + 아직 확인 안 한 사람 띠 — 따로 뜨는 공감 현황(모바일)과 넓은 화면 합친 창이 같이 씀.
+// '확인' = 공감했거나, 공지 확인 창을 연 적 있거나(서버 별도 저장칸, _noticeSeenCache), 올린 사람. 활성 직원만 셈(머리 숫자와 띠가 같은 기준)
+function _reactBandsHtml(it){
+  const rx=it.reactions||{}, active=(data.staff||[]).filter(st=>st.active!==false), actIds=new Set(active.map(st=>st.id));
   const byEmoji={};
-  Object.keys(rx).forEach(sid=>{ (byEmoji[rx[sid]]=byEmoji[rx[sid]]||[]).push(sid); });
+  Object.keys(rx).forEach(sid=>{ if(actIds.has(sid)) (byEmoji[rx[sid]]=byEmoji[rx[sid]]||[]).push(sid); });
   const emojis=Object.keys(byEmoji);
   const rxHtml = emojis.length ? emojis.map(e=>{
     const names=byEmoji[e].map(sid=>{ const st=staffById(sid); return st?st.name:null; }).filter(Boolean);
     return `<div class="poll-band" style="background:rgba(255,171,0,.1);"><div class="poll-band-hd" style="color:#b7791f;"><span style="font-size:18px;">${_rxIcon(e)}</span> ${names.length}명</div><div class="poll-band-names" style="color:var(--text);">${names.map(n=>`<span>${_pEsc(n)}</span>`).join('')}</div></div>`;
   }).join('') : `<div style="text-align:center;color:var(--muted);font-size:13px;padding:18px 0;">아직 아무도 공감하지 않았어요</div>`;
-  const reacted=new Set(Object.keys(rx));
-  const notYet=(data.staff||[]).filter(st=>st.active!==false && !reacted.has(st.id)).map(st=>st.name);
-  const notHtml=`<div class="poll-band" style="background:var(--surface2);"><div class="poll-band-hd" style="color:var(--muted);">아직 확인 안 함 · ${notYet.length}명</div><div class="poll-band-names" style="color:var(--muted);">${notYet.length?notYet.map(n=>`<span>${_pEsc(n)}</span>`).join(''):'<span>모두 확인했어요</span>'}</div></div>`;
+  const reacted=new Set(Object.keys(rx)), seen=_noticeSeenSet(it);
+  const seenOnly=active.filter(st=>!reacted.has(st.id) && seen.has(st.id)).map(st=>st.name);
+  const notYet=active.filter(st=>!reacted.has(st.id) && !seen.has(st.id)).map(st=>st.name);
+  const seenHtml=seenOnly.length?`<div class="poll-band nd-seen" style="background:rgba(22,163,74,.08);"><div class="poll-band-hd" style="color:#15803d;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>확인함 · ${seenOnly.length}명</div><div class="poll-band-names" style="color:var(--text);">${seenOnly.map(n=>`<span>${_pEsc(n)}</span>`).join('')}</div></div>`:'';
+  const notHtml=`<div class="poll-band nd-not" style="background:var(--surface2);"><div class="poll-band-hd" style="color:var(--muted);">아직 확인 안 함 · ${notYet.length}명</div><div class="poll-band-names" style="color:var(--muted);">${notYet.length?notYet.map(n=>`<span>${_pEsc(n)}</span>`).join(''):'<span>모두 확인했어요</span>'}</div></div>`;
+  return rxHtml+seenHtml+notHtml;
+}
+// 넓은 화면 왼쪽 아래 현황(확인 N명 · 공감 M명 + 공감 누르기 + 띠) — 공감·확인이 바뀌면 이 부분만 다시 그림(댓글 칸은 그대로)
+function _noticeStatusHtml(it){
+  const act=new Set((data.staff||[]).filter(st=>st.active!==false).map(st=>st.id)), sn=_noticeSeenSet(it);
+  const nSeen=[...sn].filter(id=>act.has(id)).length, nRx=Object.keys(it.reactions||{}).filter(id=>act.has(id)).length;
+  return `<div class="ntd-rhd">확인 <b>${nSeen}명</b><span class="ntd-rhd-sep">·</span>공감 <b>${nRx}명</b></div>${_noticeReactBar(it, true)}<div class="ntd-bands">${_reactBandsHtml(it)}</div>`;
+}
+// ===== 확인함(열어 본 사람) =====
+// 근무표 문서(nd_data main)에 쓰면 저장 번호가 올라가 다른 사람(관리자 편집 등)의 다음 저장이 막히므로,
+// 서버 notify 함수(mode:'seen')가 별도 저장칸(nd_data id='seen', 저장 번호 검사 없음)에 기록·조회. 응답 = 그 공지를 확인한 사람 목록
+let _noticeSeenCache={};   // 공지 id → {직원 id: 시각}
+function _noticeSeenSet(it){ const s=new Set(Object.keys(_noticeSeenCache[it.id]||{})); Object.keys(it.reactions||{}).forEach(id=>s.add(id)); if(it.postedById) s.add(it.postedById); return s; }
+// 공지 확인 창을 열면: 내 기록(로그인한 직원·관리자 테스트 아님) + 확인한 사람 목록 받아 오기. 실패해도 다음에 열 때 다시 시도
+async function _noticeSyncSeen(itemId){
+  const u=currentUser, me=(u&&u.staffId&&!isAdminTest)?u.staffId:'';
+  if(me){ (_noticeSeenCache[itemId]=_noticeSeenCache[itemId]||{})[me]=_noticeSeenCache[itemId][me]||new Date().toISOString(); }   // 내 화면엔 바로 '확인함'
+  try{
+    const r=await fetch(NOTIFY_FN_URL,{ method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY }, body:JSON.stringify({ mode:'seen', notice_id:itemId, staff_id:me, until:(function(){ const f=_findNoticeItem(itemId); return f?_noticeEnd(f.ds, f.it):''; })() }) });   // until = 게시 종료일(서버가 기록 정리 기준으로 씀)
+    const j=await r.json().catch(()=>({}));
+    if(r.ok && j && j.seen && typeof j.seen==='object'){ _noticeSeenCache[itemId]=Object.assign({}, j.seen, me&&!j.seen[me]?{[me]:_noticeSeenCache[itemId][me]}:{}); _noticeStatusRefresh(itemId); }
+  }catch(e){ /* 연결이 안 되면 내 화면에서만 확인함 — 다음에 열 때 다시 보냄 */ }
+}
+function _reactDetailHtml(it){
   const preview=(it.text||'').replace(/\n/g,' ').slice(0,28);
   return `<div class="modal-header"><div class="mh-title">공감 현황</div><button class="modal-close" onclick="closeReact2()">✕</button></div>
     <div class="poll-scroll" style="padding:15px 20px 20px;">
       <div style="font-size:12px;color:var(--muted);margin-bottom:13px;line-height:1.5;">“${_pEsc(preview)}${(it.text||'').length>28?'…':''}”</div>
-      ${rxHtml}${notHtml}
+      ${_reactBandsHtml(it)}
     </div>`;
 }
-function _noticeReactRefresh(itemId){
-  renderNoticeBar();
-  if(window._noticeDetailId===itemId){ const pm=document.getElementById('poll-modal'); if(pm && pm.style.display==='flex'){ const fd=_findNoticeItem(itemId); const c=document.getElementById('poll-modal-card'); if(fd && c) c.innerHTML=_noticeDetailHtml(fd.it); } }
+function _noticeReactRefresh(itemId){ renderNoticeBar(); _noticeStatusRefresh(itemId); }
+// 열린 확인 창의 현황만 다시 그림: 넓은 화면=왼쪽 아래 .ntd-status, 모바일=아래 공감 줄. 댓글 칸·입력 중인 글은 건드리지 않음
+function _noticeStatusRefresh(itemId){
+  if(window._noticeDetailId!==itemId) return;
+  const pm=document.getElementById('poll-modal'), c=document.getElementById('poll-modal-card'); if(!pm || pm.style.display!=='flex' || !c) return;
+  const fd=_findNoticeItem(itemId); if(!fd) return;
+  const st=c.querySelector('.ntd-status'); if(st) st.innerHTML=_noticeStatusHtml(fd.it);
+  const ft=c.querySelector('.ntc-detail-foot'); if(ft) ft.innerHTML=_noticeReactBar(fd.it, true);
+  const r2=document.getElementById('react2-modal'), r2c=document.getElementById('react2-card');
+  if(r2 && r2c && r2.style.display==='flex') r2c.innerHTML=_reactDetailHtml(fd.it);   // 모바일 '공감 현황' 창이 떠 있으면 같이
+}
+// 댓글(js/nd-comments.js): 내 화면에 먼저 보이고 → 서버 최신본에 이 댓글만 넣거나 뺌(_ndCommit, 동시 저장 안전).
+// 실패하면 되돌리고 false(입력했던 글은 입력칸으로 돌아감). 같은 id는 두 번 안 들어감(재시도 안전)
+function _noticeCmtShow(itemId, scrollToId){
+  const fd=_findNoticeItem(itemId), list=(fd&&fd.it.comments)||[];
+  if(typeof ndCmtRefresh==='function') ndCmtRefresh('notice', itemId, list, scrollToId);
+  renderNoticeBar();   // 홈 카드의 댓글 수
+}
+// 지워진 공지: 그 공지 확인 창이 열려 있을 때만 닫고(그사이 연 다른 창은 그대로) 홈 공지 다시 그림
+function _noticeGoneClose(itemId){ if(window._noticeDetailId===itemId) closePollModal(); renderNoticeBar(); }
+function _noticeCmtRemote(rp, itemId){ let t=null; Object.keys(rp.notices||{}).forEach(ds=>{ const items=((rp.notices[ds]||{}).items)||[]; const x=items.find(y=>y.id===itemId); if(x) t=x; }); return t; }
+async function _noticeCmtAdd(itemId, cmt){
+  if(isAdminTest){ toast('관리자 테스트 모드에서는 댓글이 저장되지 않아요.','error'); return false; }
+  const fd=_findNoticeItem(itemId); if(!fd){ toast('이미 삭제된 공지예요.','error'); _noticeGoneClose(itemId); return false; }
+  (fd.it.comments=fd.it.comments||[]).push(cmt);   // 기기 저장(localStorage)은 서버 저장 성공 때 _ndCommit이 함(실패 시 남지 않게)
+  _noticeCmtShow(itemId, cmt.id);
+  const res=await _ndCommit(rp=>{ const t=_noticeCmtRemote(rp, itemId); if(!t) return false; t.comments=t.comments||[]; if(!t.comments.some(c=>c.id===cmt.id)) t.comments.push(cmt); });
+  const ok=res===true;
+  if(res==='gone'){ toast('이미 삭제된 공지예요.','error'); _noticeGoneClose(itemId); return false; }
+  if(!ok){ const f2=_findNoticeItem(itemId); if(f2&&f2.it.comments) f2.it.comments=f2.it.comments.filter(c=>c.id!==cmt.id); toast('댓글을 저장하지 못했어요. 네트워크 확인 후 다시 시도하세요.','error'); }
+  _noticeCmtShow(itemId); return ok;
+}
+async function _noticeCmtDel(itemId, cid){
+  if(isAdminTest){ toast('관리자 테스트 모드에서는 댓글이 저장되지 않아요.','error'); return false; }
+  const fd=_findNoticeItem(itemId); if(!fd){ _noticeGoneClose(itemId); return false; }
+  const old=(fd.it.comments||[]).find(c=>c.id===cid); if(!old || !ndCmtCanDelete(old)) return false;
+  fd.it.comments=(fd.it.comments||[]).filter(c=>c.id!==cid);
+  _noticeCmtShow(itemId);
+  const res=await _ndCommit(rp=>{ const t=_noticeCmtRemote(rp, itemId); if(!t) return false; if(!(t.comments||[]).some(c=>c.id===cid)) return false; t.comments=t.comments.filter(c=>c.id!==cid); });
+  if(res==='gone' && !_findNoticeItem(itemId)){ toast('이미 삭제된 공지예요.','error'); _noticeGoneClose(itemId); return true; }
+  const ok=res===true||res==='gone';   // 'gone' = 댓글만 이미 지워짐 → 지운 것과 같음
+  if(!ok){ const f2=_findNoticeItem(itemId); if(f2 && !(f2.it.comments||[]).some(c=>c.id===cid)) (f2.it.comments=f2.it.comments||[]).push(old); toast('댓글을 지우지 못했어요. 다시 시도하세요.','error'); }
+  _noticeCmtShow(itemId); return ok;
 }
 function openNoticeDetail(itemId){
   const found=_findNoticeItem(itemId); if(!found) return;
+  _noticeSyncSeen(itemId);   // 열어 본 사람 = 확인함(서버 별도 저장칸, 근무표 저장 번호 안 올림)
   closeReactPicker();
   const src=document.querySelector('#home-notice .notice-card[data-nid="'+itemId+'"]');
   _pollShow(_noticeDetailHtml(found.it)); window._noticeDetailId=itemId;
+  if(typeof _pollWide==='function' && _pollWide()) document.getElementById('poll-modal-card')?.classList.add('pc-wide-card');   // 넓은 화면: 공지+공감 2분할 큰 창
   const pm=document.getElementById('poll-modal'); if(pm) pm.classList.add('nc-yellow');
   try{
     const modal=document.getElementById('poll-modal-card');
@@ -347,10 +433,19 @@ function _noticeDetailHtml(it){
   const body=(it.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const by=it.postedBy?`<div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:13px;">${_pEsc(it.postedBy)}님이 올림</div>`:'';
   const _edit = _noticeIsMine(it) ? `<button class="modal-close" onclick="_noticeEditFromDetail('${it.id}')" title="수정" style="color:#b8860b;"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>` : '';
-  return `<div class="modal-header"><div class="mh-title">${_pEsc(title)}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">${_edit}<button class="modal-close" onclick="closePollModal()">✕</button></div></div>
+  const head=`<div class="modal-header"><div class="mh-title">${_pEsc(title)}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">${_edit}<button class="modal-close" onclick="closePollModal()">✕</button></div></div>`;
+  // 넓은 화면: 공감 현황을 따로 띄우지 않고 한 창에 — 왼쪽 공지 본문 + 그 아래 확인·공감 현황(누르기·이름·아직 확인 안 함) / 오른쪽 댓글만(css/popup-wide.css .ntd-*)
+  if(typeof _pollWide==='function' && _pollWide()){
+    return head+`<div class="ntd-wide">
+      <div class="ntd-left poll-scroll">${by}<div class="ntd-body">${body}</div><div class="ntd-status">${_noticeStatusHtml(it)}</div></div>
+      <div class="ntd-right poll-scroll">${typeof ndCmtSection==='function'?ndCmtSection('notice', it.id, it.comments):''}</div>
+    </div>`;
+  }
+  return head+`
     <div class="poll-scroll" style="padding:16px 20px 18px;">
       ${by}
       <div style="font-size:14.5px;color:var(--text);line-height:1.75;white-space:pre-wrap;word-break:break-word;">${body}</div>
+      ${typeof ndCmtSection==='function'?ndCmtSection('notice', it.id, it.comments):''}
     </div>
     <div class="ntc-detail-foot">${_noticeReactBar(it, true)}</div>`;
 }
@@ -454,6 +549,7 @@ function openNoticeModal(editId) {
     if (matched) { _psel.value = matched; if (_pdate) _pdate.style.display = 'none'; }
     else { _psel.value = 'custom'; if (_pdate) { _pdate.style.display = ''; _pdate.min = today; _pdate.value = until; } }
   }
+  _noticePickers();
   _onNoticePeriodChange();
   _updateNoticeSaveBtn();
   document.getElementById('notice-delete-btn').style.display = it ? '' : 'none';
@@ -548,12 +644,27 @@ function deleteNotice() {
   toast('공지를 삭제했습니다.','success');
   _noticeEditId = null;
 }
-async function _sendNoticePush(text, title) {
+// kind: 'notice'(공지·휴가 신청 안내) | 'poll'(투표) — 서버가 받는 사람의 개인 알림 설정(공지/투표)으로 거름
+async function _sendNoticePush(text, title, kind) {
   try {
     await fetch(NOTIFY_FN_URL, {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY },
-      body: JSON.stringify({ mode:'notice', text, title: title||'' })
+      body: JSON.stringify({ mode:'notice', text, title: title||'', kind: kind||'notice' })
     });
   } catch(e) { console.warn('notice push failed', e); }
 }
+// 화면 폭이 1001px을 넘나들면(창 크기·회전) 열린 공지 확인 창을 그 폭의 배치로 다시 그림 — 쓰던 댓글·커서는 유지
+(function(){
+  if(!window.matchMedia) return;
+  const mq=matchMedia('(min-width:1001px)');
+  const onChange=()=>{
+    const id=window._noticeDetailId, pm=document.getElementById('poll-modal'), c=document.getElementById('poll-modal-card');
+    if(!id || !pm || pm.style.display!=='flex' || !c) return;
+    const fd=_findNoticeItem(id); if(!fd) return;
+    const ta=c.querySelector('.ndcm textarea'), draft=ta?ta.value:'', had=ta&&document.activeElement===ta;
+    c.innerHTML=_noticeDetailHtml(fd.it); c.classList.toggle('pc-wide-card', mq.matches);
+    const nt=c.querySelector('.ndcm textarea'); if(nt && draft){ nt.value=draft; if(typeof ndCmtGrow==='function') ndCmtGrow(nt); } if(nt && had) nt.focus();
+  };
+  if(mq.addEventListener) mq.addEventListener('change', onChange); else if(mq.addListener) mq.addListener(onChange);
+})();

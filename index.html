@@ -33,15 +33,18 @@ window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.hre
 <link rel="stylesheet" href="css/base.css?v=49d694c3">
 <link rel="stylesheet" href="css/dark.css?v=8b2248c5">
 <link rel="stylesheet" href="css/nav.css?v=bd336f40">
-<link rel="stylesheet" href="css/home.css?v=bf91826f">
-<link rel="stylesheet" href="css/notice-poll.css?v=84636f7c">
+<link rel="stylesheet" href="css/home.css?v=5aa68d43">
+<link rel="stylesheet" href="css/notice-poll.css?v=a56a3057">
 <link rel="stylesheet" href="css/toss-common.css?v=b7c30a91">
-<link rel="stylesheet" href="css/calendar.css?v=64198ed7">
+<link rel="stylesheet" href="css/calendar.css?v=fb8bf996">
 <link rel="stylesheet" href="css/table.css?v=803b1db3">
-<link rel="stylesheet" href="css/modal.css?v=a72ead44">
-<link rel="stylesheet" href="css/admin.css?v=a8a7aa93">
-<link rel="stylesheet" href="css/gantt-etc.css?v=a1823418">
-<link rel="stylesheet" href="css/sheet-login.css?v=f7cb9c15">
+<link rel="stylesheet" href="css/modal.css?v=1cb57910">
+<link rel="stylesheet" href="css/admin.css?v=3f666b22">
+<link rel="stylesheet" href="css/gantt-etc.css?v=82a1d736">
+<link rel="stylesheet" href="css/sheet-login.css?v=a15e1dc2">
+<link rel="stylesheet" href="css/nd-select.css?v=23fbc7fd">
+<link rel="stylesheet" href="css/nd-cal.css?v=f5021ab4">
+<link rel="stylesheet" href="css/popup-wide.css?v=48b1ea99">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style id="floating-sidebar-only">
@@ -70,30 +73,16 @@ html body #dinner-modal .nd-pop > div:nth-child(2) { padding:18px 24px 22px !imp
 html body #dinner-title { font-size:19px !important; }
 html body #dinner-modal input[type=date],html body #dinner-modal input[type=search] { min-height:44px; padding:10px 12px; border:1px solid var(--border); border-radius:12px; background:var(--surface2); color:var(--text); font:inherit; box-sizing:border-box; outline:none; }
 html body #dinner-modal input:focus-visible { border-color:var(--vw); box-shadow:0 0 0 3px rgba(90,126,198,.16); }
-html body #dinner-people { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px !important; max-height:240px !important; padding:4px !important; }
-html body #dinner-people label { position:relative; min-height:48px; padding:11px 12px !important; border-radius:12px !important; user-select:none; -webkit-user-select:none; touch-action:manipulation; }
-html body #dinner-people label input[type=checkbox] { position:absolute !important; width:1px !important; height:1px !important; margin:-1px !important; padding:0 !important; overflow:hidden; clip:rect(0,0,0,0); clip-path:inset(50%); white-space:nowrap; border:0; }
-html body #dinner-people label span:first-of-type { font-weight:600; }
-html body #dinner-people label span:last-of-type { margin-left:auto; font-size:10px !important; }
-html body #dinner-people label:has(input:checked) { background:#3478e5 !important; border-color:#3478e5 !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.25); }
-html body #dinner-people label:has(input:checked) span { color:#fff !important; }
-html body #dinner-people label:has(input:focus-visible) { outline:2px solid var(--vw); outline-offset:3px; }
 html body #dinner-results { font-size:13px; line-height:1.65; border-radius:14px !important; padding:17px !important; }
-#dinner-selected { display:flex; flex-wrap:wrap; gap:6px; max-height:112px; overflow-y:auto; margin-bottom:12px; padding:2px; }
-#dinner-selected:empty { display:none; }
-#dinner-selected .dinner-selected-chip { display:inline-flex; align-items:center; gap:8px; min-height:36px; padding:7px 11px; border:1px solid rgba(52,120,229,.18); border-radius:999px; background:var(--vw-bg); color:var(--vw-light); font:inherit; font-size:12px; font-weight:600; cursor:pointer; }
-#dinner-selected .dinner-selected-chip:hover { background:rgba(52,120,229,.16); }
-#dinner-selected .dinner-selected-chip:focus-visible { outline:2px solid var(--vw); outline-offset:1px; }
 @media(max-width:760px) {
  html body #dinner-modal { align-items:center !important; }
  html body #dinner-modal > .nd-pop { width:100% !important; max-width:100%; max-height:88vh; max-height:88dvh; }
  html body #dinner-modal .nd-pop > div:first-child { padding:20px 18px 15px !important; }
  html body #dinner-modal .nd-pop > div:nth-child(2) { padding:16px 18px 20px !important; }
  html body #dinner-modal input[type=date],html body #dinner-modal input[type=search] { font-size:16px; min-width:0; }
- html body #dinner-people { grid-template-columns:repeat(2,minmax(0,1fr)); max-height:28vh !important; }
  html body #dinner-modal button { min-height:44px; }
 }
-@media(max-width:360px) { html body #dinner-modal .nd-pop > div:nth-child(2) > div:first-child { flex-direction:column; } }
+@media(max-width:360px) { html body #dinner-modal .dinner-period { flex-direction:column; } }
 /* Match notice-modal's tinted header, section borders and solid panel treatment. */
 html body #dinner-modal > .nd-pop { background:linear-gradient(#f8fafd,#f8fafd) padding-box,linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box !important; border:1px solid transparent; }
 html[data-theme="dark"] body #dinner-modal > .nd-pop { background:linear-gradient(#212121,#212121) padding-box,linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box !important; }
@@ -104,20 +93,13 @@ html[data-theme="dark"] body #dinner-modal button[aria-label="닫기"] { backgro
 html body #dinner-modal .dinner-period { padding-bottom:18px; border-bottom:1px solid rgba(49,130,246,.18); }
 html body #dinner-modal .dinner-period label { font-size:14px !important; font-weight:600; }
 html body #dinner-modal b { font-size:15px !important; }
-html body #dinner-modal .nd-pop > div:nth-child(2) > div > .btn { font-size:13px !important; min-height:44px; padding:9px 12px !important; }
-.dinner-selection { padding:14px; margin:0 0 14px; background:rgba(49,130,246,.07); border:1px solid rgba(49,130,246,.16); border-radius:14px; }
-.dinner-selection:has(#dinner-selected:empty) { display:none; }
-.dinner-section-label { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 10px; font-size:14px; font-weight:700; margin-bottom:10px; }
-.dinner-section-label > span { color:var(--muted); font-size:12px; font-weight:500; }
-html body #dinner-selected { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:168px; padding:2px; margin:0; }
-html body #dinner-selected .dinner-selected-chip { justify-content:space-between; min-height:48px; padding:10px 12px; border-radius:12px; font-size:15px; line-height:1.4; background:var(--surface); color:var(--text); touch-action:manipulation; }
-html body #dinner-selected .dinner-selected-chip > span:last-child { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:rgba(49,130,246,.09); color:var(--vw-light); font-size:20px; flex-shrink:0; }
-html body #dinner-people label { min-height:52px; font-size:15px !important; }
-html body #dinner-people label span:last-of-type { font-size:12px !important; }
+html body #dinner-modal .dinner-clear { font-size:13px !important; min-height:44px; padding:9px 12px !important; }
+html body #dinner-modal .dinner-who-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
+.dinner-cal-wrap { display:none; }   /* 기간 달력은 넓은 화면(css/popup-wide.css)에서만 */
 html body #dinner-modal input[type=search],html body #dinner-modal input[type=date] { min-height:48px; font-size:16px; }
 html body #dinner-results { background:rgba(49,130,246,.07) !important; border-color:rgba(49,130,246,.2) !important; font-size:14px; }
-html body #dinner-modal .nd-pop > div:nth-child(2) > p { font-size:12px !important; line-height:1.7; }
-@media(max-width:760px) { html body #dinner-modal .nd-pop > div:nth-child(2) { padding:16px !important; } html body #dinner-people { max-height:30vh !important; } }
+html body #dinner-modal .dinner-note { font-size:12px !important; line-height:1.7; }
+@media(max-width:760px) { html body #dinner-modal .nd-pop > div:nth-child(2) { padding:16px !important; } }
 /* Desktop table and sidebar finish at the same 12px viewport inset. */
 @media(min-width:1001px) {
  body:has(#view-table.active) main { padding-bottom:12px; }
@@ -187,8 +169,7 @@ html[data-theme="dark"] #view-home .wm-news-value:nth-child(2n) { color:#c5afe9;
  .nd-hover-active > .nd-hover-reflection { opacity:1; }
 }
 @media(hover:none),(pointer:coarse),(prefers-reduced-motion:reduce) { .nd-hover-reflection { display:none; } }
-html body #dinner-people label:active { transform:scale(.98); }
-@media(prefers-reduced-motion:reduce) { html body #dinner-people label:active { transform:none; } }</style><link rel="stylesheet" href="work-swap.css?v=d57ebe69">
+@media(prefers-reduced-motion:reduce) { html body #dinner-people label:active { transform:none; } }</style><link rel="stylesheet" href="work-swap.css?v=b94c51ab">
 <style>
 /* Common-work finder: one touch scroller and full-width mobile dates. */
 html body #dinner-modal .dinner-body { min-height:0; min-width:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
@@ -200,10 +181,9 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
  html body #dinner-modal .dinner-period { grid-template-columns:minmax(0,1fr); gap:12px; }
  html body #dinner-modal input[type=date] { display:block; appearance:none; -webkit-appearance:none; min-height:48px; }
  html body #dinner-modal input[type=date]::-webkit-date-and-time-value { text-align:left; min-width:0; }
- html body #dinner-people,html body #dinner-selected { max-height:none !important; overflow:visible !important; }
  html body #dinner-modal .dinner-body { overflow-anchor:none; }
 }
-</style><link rel="stylesheet" href="employee-auth.css?v=c26d001d"><script src="employee-auth.js?v=adcee455"></script><style>html,body{overscroll-behavior-y:none}</style></head>
+</style><link rel="stylesheet" href="employee-auth.css?v=448cadd6"><script src="employee-auth.js?v=adcee455"></script><style>html,body{overscroll-behavior-y:none}</style></head>
 <body>
 <div id="employee-loading" role="status"><span>불러오는 중…</span></div>
 
@@ -350,17 +330,23 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
       <button class="modal-close" onclick="closeNoticeModal()">✕</button>
     </div>
     <div class="ev-body">
-      <div class="ev-sect ev-tint">
+      <!-- 넓은 화면: 왼쪽(nm-col-l) 게시 기간 달력·8뉴스 시간·조용히 / 오른쪽(nm-col-r) 제목·내용(크게) + 아래 저장. 모바일은 nm-col이 display:contents + order로 원래 순서 -->
+      <div class="nm-col nm-col-r">
+      <div class="ev-sect ev-tint nm-title">
         <label class="form-label">제목</label>
         <input id="notice-title" class="form-input" maxlength="40" placeholder="공지 제목 (예: 회식 안내)">
       </div>
-      <div class="ev-sect ev-tint">
+      <div class="ev-sect ev-tint nm-text">
         <label class="form-label">공지 내용</label>
         <textarea id="notice-text" class="form-input" rows="4" style="width:100%;resize:vertical;font-size:14px;line-height:1.55;" placeholder="전 직원에게 전달할 공지를 입력하세요"></textarea>
       </div>
-      <div class="ev-sect ev-tint">
+      </div>
+      <div class="nm-col nm-col-l">
+      <div class="ev-sect ev-tint nm-period">
         <label class="form-label">게시 기간</label>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div class="nm-chips" role="group" aria-label="게시 기간 빠른 선택"><button type="button" data-v="0" onclick="_noticeSetPeriod('0')">오늘만</button><button type="button" data-v="2" onclick="_noticeSetPeriod('2')">3일</button><button type="button" data-v="6" onclick="_noticeSetPeriod('6')">1주일</button><button type="button" data-v="13" onclick="_noticeSetPeriod('13')">2주일</button><button type="button" data-v="29" onclick="_noticeSetPeriod('29')">한 달</button></div>
+        <div id="notice-cal"></div>
+        <div class="nm-period-native" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <select id="notice-period" class="form-input" style="width:auto;flex:0 0 auto;cursor:pointer;" onchange="_onNoticePeriodChange()">
             <option value="0">오늘 하루만</option>
             <option value="2">3일간</option>
@@ -373,19 +359,21 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
         </div>
         <p id="notice-period-hint" style="font-size:11px;color:var(--muted);margin:8px 0 0;line-height:1.5;"></p>
       </div>
-      <div class="ev-sect">
+      <div class="ev-sect nm-news8">
         <label class="form-label">오늘의 8뉴스 진입시간 <span style="color:var(--muted);font-weight:400;font-size:11px;">(선택)</span></label>
         <input type="time" id="notice-news8" class="form-input" style="width:150px;" onfocus="if(!this.value)this.value='19:48';">
+        <div id="notice-news8-pick"></div>
         <p style="font-size:11px;color:var(--muted);margin:8px 0 0;line-height:1.5;">입력하면 그 시각 <b style="color:#d65a52;">15분 전</b>에 오늘 8진 근무자에게 알림이 갑니다. 비우면 기본 알림 시각을 사용합니다.</p>
       </div>
-      <div class="ev-sect">
+      <div class="ev-sect nm-silent">
         <label style="display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--text);">
           <input type="checkbox" id="notice-silent" onchange="_updateNoticeSaveBtn()" style="width:18px;height:18px;cursor:pointer;flex-shrink:0;">
           <span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg>조용히 등록</span> <span style="color:var(--muted);font-weight:400;">(전 직원 알림을 보내지 않음)</span>
         </label>
       </div>
+      </div>
     </div>
-    <div style="padding:16px 22px 20px;">
+    <div class="nm-foot" style="padding:16px 22px 20px;">
       <div class="ev-actions">
         <button id="notice-save-btn" class="btn btn-primary" style="flex:1;" onclick="saveNotice()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>저장 + 전직원 알림</button>
         <button class="btn btn-outline" style="width:auto;padding-left:20px;padding-right:20px;" onclick="closeNoticeModal()">취소</button>
@@ -449,26 +437,33 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   </div>
 </div>
 
-<!-- 특정일 인원 설정 모달 -->
-<div id="special-day-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border-radius:16px;padding:24px;width:420px;max-width:92vw;max-height:84vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0;">
-      <div style="font-size:16px;font-weight:700;color:#b8860b;">📌 특정일 적정 인원</div>
-      <button onclick="closeSpecialDayModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">✕</button>
+<!-- 특정일 인원 설정 모달(js/core.js openSpecialDayModal) — 토스 모달. 넓은 화면(≥1001px, css/popup-wide.css): 왼쪽 날짜 달력·인원 입력 / 오른쪽 등록된 특정일 목록 -->
+<div id="special-day-modal" class="modal-overlay" style="display:none;z-index:9999;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="mh-title">특정일 적정 인원</div>
+      <button class="modal-close" onclick="closeSpecialDayModal()" aria-label="닫기">✕</button>
     </div>
-    <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px;flex-shrink:0;">특별히 인원이 다른 날만 따로 지정하세요. 지정 안 한 날은 평일/토/일 기본 설정을 따릅니다. (빈칸은 기본값 사용)</p>
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;flex-shrink:0;">
-      <label class="form-label">날짜</label>
-      <input type="date" id="sp-date" class="form-input" style="margin-bottom:10px;">
-      <div style="display:flex;align-items:flex-end;gap:8px;">
-        <div style="flex:1;"><label class="form-label" style="font-size:11px;">VW 목표</label><input type="number" id="sp-vw" class="form-input" min="0" max="40" placeholder="기본"></div>
-        <div style="flex:1;"><label class="form-label" style="font-size:11px;">CG 목표</label><input type="number" id="sp-cg" class="form-input" min="0" max="40" placeholder="기본"></div>
-        <div style="flex:1;"><label class="form-label" style="font-size:11px;">최대 인원</label><input type="number" id="sp-cap" class="form-input" min="0" max="60" placeholder="기본"></div>
+    <div class="sp-body">
+      <div class="sp-col sp-col-l">
+        <p class="sp-desc">특별히 인원이 다른 날만 따로 지정하세요. 지정 안 한 날은 평일/토/일 기본 설정을 따릅니다. (빈칸은 기본값 사용)</p>
+        <label class="form-label">날짜</label>
+        <input type="date" id="sp-date" class="form-input">
+        <div id="sp-date-cal"></div>
+        <div class="sp-nums">
+          <div><label class="form-label">VW 목표</label><input type="number" id="sp-vw" class="form-input" min="0" max="40" placeholder="기본"></div>
+          <div><label class="form-label">CG 목표</label><input type="number" id="sp-cg" class="form-input" min="0" max="40" placeholder="기본"></div>
+          <div><label class="form-label">최대 인원</label><input type="number" id="sp-cap" class="form-input" min="0" max="60" placeholder="기본"></div>
+        </div>
+        <!-- 작성소 날짜칸 팝업의 'CG 데스크 2명'과 같은 값(data.settings.specialDays[ds].deskPair) — 여기서도 보이고 저장돼야 수정 때 안 사라짐 -->
+        <label class="sp-pair"><input type="checkbox" id="sp-deskpair"><span>CG 데스크 2명 <small>(8데스+5데스 · 휴일/주말용)</small></span></label>
+        <button class="btn btn-primary sp-save" onclick="saveSpecialDay();_spCalSync()">저장 / 수정</button>
       </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="saveSpecialDay()">💾 저장 / 수정</button>
+      <div class="sp-col sp-col-r">
+        <div class="sp-list-hd">등록된 특정일</div>
+        <div id="special-day-list"></div>
+      </div>
     </div>
-    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;flex-shrink:0;">등록된 특정일</div>
-    <div id="special-day-list" style="overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
   </div>
 </div>
 
@@ -496,7 +491,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div class="modal" id="deploy-log-card" style="max-width:460px;max-height:82vh;display:flex;flex-direction:column;"></div>
 </div>
 
-<script src="data-save.js?v=61286ba0"></script>
+<script src="data-save.js?v=8ba7e64b"></script>
 <!-- 로그인 모달 -->
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;overflow:hidden;">
   <div class="li-orbs"><span></span><span></span><span></span></div>
@@ -635,20 +630,23 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 
 <!-- MONTH -->
 <div class="view" id="view-month">
-  <div class="month-nav">
-    <div class="mn-center">
-      <button class="mn-arrow" onclick="_monthNav(-1)" title="이전 달">&#8249;</button>
-      <h2 id="month-title" class="mn-title"></h2>
-      <button class="mn-arrow" onclick="_monthNav(1)" title="다음 달">&#8250;</button>
+  <!-- iOS 캘린더식: 왼쪽 큰 월 제목(연도 작게) / 오른쪽 '오늘' + 이전·다음 달 알약 버튼 -->
+  <div class="month-nav mc-nav">
+    <h2 id="month-title" class="mn-title"></h2>
+    <div class="mc-nav-r">
+      <button id="mn-today-btn" class="mn-today" onclick="_monthNav(-monthOffset)">오늘</button>
+      <div class="mc-arrows">
+        <button class="mn-arrow" onclick="_monthNav(-1)" title="이전 달" aria-label="이전 달"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="mn-arrow" onclick="_monthNav(1)" title="다음 달" aria-label="다음 달"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
     </div>
-    <button id="mn-today-btn" class="mn-today" onclick="_monthNav(-monthOffset)">이번 달</button>
   </div>
   <div class="cal-tabs">
     <button id="cal-mode-mine" class="btn btn-sm" onclick="setCalMode('mine')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>나만의 달력</button>
     <button id="cal-mode-team" class="btn btn-sm btn-outline" onclick="setCalMode('team')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.8 19c0-2.9 2.4-4.8 5.2-4.8s5.2 1.9 5.2 4.8"/><path d="M15.8 5.5a3 3 0 0 1 .2 5.9M17.4 19c0-2.2-.8-3.8-2.2-4.6"/></svg>팀 전체</button>
     <button id="cal-gcal-toggle" class="btn btn-sm btn-outline" onclick="toggleGcalPopover(event)" title="구글 캘린더 일정 표시/숨김"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5a4.2 4.2 0 0 1-.3-8.4 5.2 5.2 0 0 1 10-1.3A3.7 3.7 0 0 1 17.5 18.5z"/></svg>구글</button>
   </div>
-  <div class="calendar-grid" id="month-calendar"></div>
+  <div class="mc-grid" id="month-calendar"></div>
 </div>
 
 <!-- PROJECT (간트) -->
@@ -656,35 +654,38 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div class="pj-outer">
     <div class="pj-head-bar">
       <h2 style="font-size:20px;font-weight:800;letter-spacing:-.02em;margin:0;">프로젝트 진행</h2>
-      <button id="pj-add-btn" class="btn btn-primary" style="width:auto;" onclick="openProjectModal()">＋ 프로젝트 추가</button>
+      <div class="pj-head-actions">
+        <!-- 홈 화면 '프로젝트 현황' 패널 표시 여부(모두에게 적용, 관리자만 바꿈) — js/project-gantt.js pjSetHomeShow -->
+        <label class="pj-home-sw" id="pj-home-sw-wrap" style="display:none;"><span>홈 화면에 표시</span><input type="checkbox" role="switch" id="pj-home-sw" onchange="pjSetHomeShow(this.checked)"><i aria-hidden="true"></i></label>
+        <button id="pj-add-btn" class="btn btn-primary" style="width:auto;" onclick="openProjectModal()">＋ 프로젝트 추가</button>
+      </div>
     </div>
     <div class="pj-wrap" id="pj-wrap"></div>
   </div>
 </div>
-<!-- 프로젝트 편집 모달 -->
+<!-- 프로젝트 편집 모달 — 넓은 화면(≥1001px, css/popup-wide.css): 왼쪽 기간 달력 / 오른쪽 이름·색상·참여자 + 버튼. 모바일은 pj-col이 display:contents + order로 원래 순서(css/gantt-etc.css) -->
 <div id="project-modal" class="modal-overlay" style="display:none;z-index:10012;" onclick="if(event.target===this)closeProjectModal()">
   <div class="modal" style="max-width:460px;">
     <div class="modal-header"><div class="mh-title" id="pj-modal-title">프로젝트</div><button class="modal-close" onclick="closeProjectModal()">✕</button></div>
-    <div class="poll-scroll" style="padding:18px 22px;">
+    <div class="poll-scroll pj-body">
       <input type="hidden" id="pj-id">
-      <div style="margin-bottom:12px;"><label class="form-label">프로젝트명</label><input class="form-input" id="pj-name" maxlength="40" placeholder="예 : 타이틀 제작"></div>
-      <div style="display:flex;gap:10px;margin-bottom:12px;">
-        <div style="flex:1;"><label class="form-label">시작일</label><input type="date" class="form-input" id="pj-start"></div>
-        <div style="flex:1;"><label class="form-label">종료일</label><input type="date" class="form-input" id="pj-end"></div>
-      </div>
-      <div style="margin-bottom:12px;"><label class="form-label">색상</label><br><input type="color" id="pj-color" value="#f4a09a" style="width:52px;height:38px;border:none;border-radius:8px;cursor:pointer;padding:1px;"></div>
-      <div><label class="form-label">참여자</label>
-        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
-          <select class="form-select" id="pj-part-sel" style="flex:1;min-width:0;"></select>
-          <button class="btn btn-sm" style="background:var(--accent);color:#fff;border:none;flex-shrink:0;" onclick="_pjAddPart()">추가</button>
+      <div class="pj-col pj-col-l">
+        <div class="pj-s-when">
+          <div><label class="form-label">시작일</label><input type="date" class="form-input" id="pj-start"></div>
+          <div><label class="form-label">종료일</label><input type="date" class="form-input" id="pj-end"></div>
         </div>
-        <div id="pj-part-list"></div>
+        <div class="pj-cal-wrap"><div class="pj-sec-lbl">기간 <span id="pj-days"></span></div><div id="pj-cal"></div></div>
+      </div>
+      <div class="pj-col pj-col-r">
+        <div class="pj-s-name"><label class="form-label">프로젝트명</label><input class="form-input" id="pj-name" maxlength="40" placeholder="예 : 타이틀 제작"></div>
+        <div class="pj-s-color"><label class="form-label">색상</label><br><input type="color" id="pj-color" value="#f4a09a" oninput="_pjTint()"></div>
+        <div class="pj-s-pt"><label class="form-label">참여자</label><div id="pj-part-pick"></div></div>
       </div>
     </div>
-    <div style="display:flex;gap:8px;padding:13px 22px;border-top:1px solid var(--border);background:var(--surface2);align-items:center;flex-shrink:0;">
+    <div class="pj-foot">
       <button class="btn btn-primary" style="width:auto;" onclick="saveProject()">저장</button>
       <button class="btn btn-outline" onclick="closeProjectModal()">취소</button>
-      <div style="flex:1;"></div>
+      <div class="pj-foot-sp"></div>
       <button id="pj-del-btn" class="btn btn-danger" style="display:none;" onclick="deleteProject()">삭제</button>
     </div>
   </div>
@@ -962,7 +963,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
         <h3 style="margin:0;font-size:15px;font-weight:700;">근무 통계</h3>
         <select id="stats-year" onchange="renderWorkStats()" style="padding:5px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);cursor:pointer;"></select>
         <button class="btn btn-sm btn-outline" onclick="renderWorkStats()">새로고침</button>
-        <button id="stats-edit-btn" class="btn btn-sm" style="background:var(--success-bg);color:var(--success);border:1px solid var(--success-border);" onclick="toggleManualStats()">📝 과거 데이터 직접 입력</button>
+        <button id="stats-edit-btn" class="btn btn-sm" style="background:var(--success-bg);color:var(--success);border:1px solid var(--success-border);" onclick="toggleManualStats()">과거 데이터 직접 입력</button>
         <span id="stats-edit-hint" style="display:none;font-size:11px;color:var(--muted);">표 셀에 숫자를 직접 입력 후 '입력 완료'를 누르세요. 자동 집계분은 그대로 유지됩니다.</span>
       </div>
       <div id="work-stats-area"></div>
@@ -1174,7 +1175,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.05 18:50';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.06 00:32';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1187,24 +1188,28 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
       <button class="modal-close" onclick="tryCloseEventModal()">✕</button>
     </div>
     <div class="ev-body">
-      <div class="ev-sect ev-2col ev-tint">
-        <div><label class="form-label">날짜</label><input type="date" class="form-input" id="ev-date"></div>
-        <div><label class="form-label">시간 <span class="ev-opt">(선택)</span></label><input type="time" class="form-input" id="ev-time" placeholder="14:00"></div>
+      <!-- 넓은 화면: 왼쪽(ev-col-l) 날짜 달력·시간·참여자 / 오른쪽(ev-col-r) 장소·내용(크게)·색상·저장. 모바일은 ev-col이 display:contents + order로 원래 순서 -->
+      <div class="ev-col ev-col-l">
+      <div class="ev-sect ev-2col ev-tint ev-s-when">
+        <div class="ev-f-date"><label class="form-label">날짜</label><input type="date" class="form-input" id="ev-date"><div id="ev-date-cal"></div></div>
+        <div class="ev-f-time"><label class="form-label">시간 <span class="ev-opt">(선택)</span></label><input type="time" class="form-input" id="ev-time" placeholder="14:00"><div id="ev-time-pick"></div></div>
       </div>
-      <div class="ev-sect ev-tint">
-        <label class="form-label">장소 <span class="ev-opt">(선택)</span></label>
-        <input type="text" class="form-input" id="ev-location" placeholder="예: 3층 회의실, 스튜디오 A" maxlength="50">
-      </div>
-      <div class="ev-sect">
-        <label class="form-label">내용</label>
-        <input type="text" class="form-input" id="ev-title" placeholder="일정 내용을 입력하세요" maxlength="60">
-      </div>
-      <input type="hidden" id="ev-author">
-      <div class="ev-sect">
+      <div class="ev-sect ev-s-pt">
         <label class="form-label">참여자 <span class="ev-opt">(선택)</span></label>
         <div id="ev-participants-wrap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;min-height:38px;background:var(--surface);"></div>
       </div>
-      <div class="ev-sect">
+      </div>
+      <div class="ev-col ev-col-r">
+      <div class="ev-sect ev-tint ev-s-loc">
+        <label class="form-label">장소 <span class="ev-opt">(선택)</span></label>
+        <input type="text" class="form-input" id="ev-location" placeholder="예: 3층 회의실, 스튜디오 A" maxlength="50">
+      </div>
+      <div class="ev-sect ev-s-title">
+        <label class="form-label">내용</label>
+        <textarea class="form-input" id="ev-title" placeholder="일정 내용을 입력하세요" maxlength="200" rows="1"></textarea>
+      </div>
+      <input type="hidden" id="ev-author">
+      <div class="ev-sect ev-s-color">
         <label class="form-label">색상</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="radio" name="ev-color" value="#6366f1" checked> <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#6366f1;"></span></label>
@@ -1219,6 +1224,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
         <button class="btn btn-primary" style="flex:1;" onclick="saveEvent()">저장</button>
         <button class="btn btn-outline" style="width:auto;padding-left:20px;padding-right:20px;" onclick="closeEventModal()">취소</button>
       </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1230,7 +1236,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
         <div style="flex:1;">
           <div id="ev-detail-date-label" style="font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.8;"></div>
-          <div id="ev-detail-title" style="font-size:18px;font-weight:800;letter-spacing:-0.02em;"></div>
+          <div id="ev-detail-title" style="font-size:18px;font-weight:800;letter-spacing:-0.02em;white-space:pre-line;overflow-wrap:anywhere;"></div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
           <button onclick="openEventEdit()" style="background:rgba(255,255,255,0.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.65);color:var(--text);padding:6px 14px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:700;box-shadow:0 2px 8px rgba(15,23,42,0.12);">편집</button>
@@ -1243,29 +1249,36 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 
     <!-- 편집 폼 (기본 숨김) -->
     <div id="ev-edit-form" style="display:none;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface2);">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-        <div class="form-group" style="margin:0;">
+      <div class="ev-edit-grid">
+      <!-- 넓은 화면: 왼쪽(ee-col-l) 날짜 달력·시간·참여자 / 오른쪽(ee-col-r) 내용(크게)·장소·색상·저장. 모바일은 ee-col이 display:contents + order로 원래 순서 -->
+      <div class="ee-col ee-col-l">
+      <div class="ee-when" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div class="form-group ee-f-date" style="margin:0;">
           <label class="form-label">날짜</label>
           <input type="date" class="form-input" id="ev-edit-date">
+          <div id="ev-edit-date-cal"></div>
         </div>
-        <div class="form-group" style="margin:0;">
+        <div class="form-group ee-f-time" style="margin:0;">
           <label class="form-label">시간</label>
           <input type="time" class="form-input" id="ev-edit-time">
+          <div id="ev-edit-time-pick"></div>
         </div>
       </div>
-      <div class="form-group" style="margin-bottom:10px;">
-        <label class="form-label">내용</label>
-        <input type="text" class="form-input" id="ev-edit-title" maxlength="60">
-      </div>
-      <div class="form-group" style="margin-bottom:10px;">
-        <label class="form-label">장소 <span class="ev-opt">(선택)</span></label>
-        <input type="text" class="form-input" id="ev-edit-location" placeholder="예: 3층 회의실" maxlength="50">
-      </div>
-      <div class="form-group" style="margin-bottom:10px;">
+      <div class="form-group ee-pt" style="margin-bottom:10px;">
         <label class="form-label">참여자</label>
         <div id="ev-edit-participants-wrap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;min-height:36px;background:var(--bg);"></div>
       </div>
-      <div class="form-group" style="margin-bottom:10px;">
+      </div>
+      <div class="ee-col ee-col-r">
+      <div class="form-group ee-title" style="margin-bottom:10px;">
+        <label class="form-label">내용</label>
+        <textarea class="form-input" id="ev-edit-title" maxlength="200" rows="1"></textarea>
+      </div>
+      <div class="form-group ee-loc" style="margin-bottom:10px;">
+        <label class="form-label">장소 <span class="ev-opt">(선택)</span></label>
+        <input type="text" class="form-input" id="ev-edit-location" placeholder="예: 3층 회의실" maxlength="50">
+      </div>
+      <div class="form-group ee-color" style="margin-bottom:10px;">
         <label class="form-label">색상</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <label style="cursor:pointer;"><input type="radio" name="ev-edit-color" value="#6366f1"> <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#6366f1;vertical-align:middle;"></span></label>
@@ -1276,10 +1289,12 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
           <label style="cursor:pointer;"><input type="radio" name="ev-edit-color" value="#6b7280"> <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#6b7280;vertical-align:middle;"></span></label>
         </div>
       </div>
-      <div style="display:flex;gap:8px;">
+      <div class="ee-act" style="display:flex;gap:8px;">
         <button class="btn btn-primary" style="width:auto;font-size:12px;padding:5px 14px;" onclick="saveEventEdit()">저장</button>
-        <button class="btn btn-sm btn-outline" style="font-size:12px;" onclick="document.getElementById('ev-edit-form').style.display='none'">취소</button>
+        <button class="btn btn-sm btn-outline" style="font-size:12px;" onclick="document.getElementById('ev-edit-form').style.display='none';this.closest('.modal').classList.remove('ev-editing')">취소</button>
         <button class="btn btn-sm btn-danger" style="font-size:12px;margin-left:auto;" onclick="deleteEventById()">삭제</button>
+      </div>
+      </div>
       </div>
     </div>
 
@@ -1388,29 +1403,33 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div id="cell-pop-opts" style="display:flex;flex-direction:column;gap:4px;"></div>
 </div>
 
-<script src="js/core.js?v=8ea54b55"></script>
-<script src="js/project-gantt.js?v=3f50eb57"></script>
+<script src="js/core.js?v=0eb4ff53"></script>
+<script src="js/project-gantt.js?v=ea7ac9ae"></script>
 <script src="js/nav-admin.js?v=10001d39"></script>
-<script src="js/home.js?v=e810ba42"></script>
-<script src="js/table-view.js?v=f62fc051"></script>
-<script src="js/calendar.js?v=dfa59aa0"></script>
+<script src="js/home.js?v=15ea88ff"></script>
+<script src="js/table-view.js?v=e938055c"></script>
+<script src="js/calendar.js?v=13dc0618"></script>
 <script src="js/generation.js?v=5e653836"></script>
 <script src="js/workshop.js?v=84435732"></script>
 <script src="js/excel-import.js?v=9640f693"></script>
-<script src="js/events.js?v=935d8cf8"></script>
+<script src="js/events.js?v=9e18c09f"></script>
 <script src="js/publish.js?v=553b9861"></script>
-<script src="js/leave-request.js?v=752dc907"></script>
+<script src="js/leave-request.js?v=bc9ed88b"></script>
 <script src="js/staff.js?v=702a4a79"></script>
-<script src="js/admin.js?v=28217650"></script>
-<script src="js/cell-edit.js?v=002cd57e"></script>
-<script src="js/login-ui.js?v=175ae551"></script>
-<script src="js/notice.js?v=37836f8e"></script>
-<script src="js/poll.js?v=75be313e"></script>
-<script src="js/schedule-finder.js?v=5d03adc8"></script>
+<script src="js/admin.js?v=41334f8e"></script>
+<script src="js/cell-edit.js?v=fc879e15"></script>
+<script src="js/login-ui.js?v=882273b7"></script>
+<script src="js/notice.js?v=ecd675bf"></script>
+<script src="js/poll.js?v=8556028f"></script>
+<script src="js/schedule-finder.js?v=3257f2aa"></script>
 <script src="js/sync-init.js?v=fb060322"></script>
-<script src="js/a2hs.js?v=b322fc31"></script>
+<script src="js/a2hs.js?v=eec05603"></script>
 <script src="js/staff-modal.js?v=c6bbe3b5"></script>
 <script src="js/pull-refresh.js?v=8849e397"></script>
+<script src="js/nd-select.js?v=07611e9c"></script>
+<script src="js/nd-people.js?v=7bba13fe"></script>
+<script src="js/nd-cal.js?v=dd9a295d"></script>
+<script src="js/nd-comments.js?v=736684f3"></script>
 <script>
 // 모듈 로드 실패 안내 — CSS가 빠졌을 수도 있으니 스타일은 전부 인라인
 (function(){
@@ -1447,5 +1466,5 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
  document.addEventListener('pointerout',function(e){if(active&&!(e.relatedTarget instanceof Node&&active.contains(e.relatedTarget)))clear();},{passive:true});
  window.addEventListener('blur',clear);window.addEventListener('scroll',clear,{passive:true});query.addEventListener('change',clear);
 })();
-</script><script src="work-swap.js?v=d3e449b0"></script></body>
+</script><script src="work-swap.js?v=02c129b4"></script></body>
 </html>

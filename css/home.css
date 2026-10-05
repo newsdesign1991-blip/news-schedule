@@ -69,6 +69,9 @@
 #view-home #hm3-c3 .wm-ev-list { grid-column: 2; grid-row: 1 / span 2; align-self: center; display: flex; flex-direction: column; gap: 6px; margin: 0 !important; }
 #view-home #hm3-c3 .week-day-mini:not(:has(.wm-ev-list))::after { content: '일정 없음'; grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 12px; color: var(--muted); opacity: .7; }
 #view-home #hm3-c3 #home-mobile-ev-list, #view-home #hm3-c3 #home-events-list { display: none !important; }
+/* 홈에선 상단바 폭·위치를 아래 카드 영역(#view-home: 넓은 화면 최대 1180/1720 가운데 정렬)과 같게 → 양끝이 카드 처음·끝에 맞음 */
+@media (min-width: 1120px) { body:has(#view-home.active) > header { box-sizing: border-box; width: min(1180px, calc(100% - 40px)); margin-left: auto !important; margin-right: auto !important; } }
+@media (min-width: 1560px) { body:has(#view-home.active) > header { width: min(1720px, calc(100% - 40px)); } }
 /* 첫 등장(home-anim): 3분할은 통째가 아니라 열 카드가 하나씩 떠오름 */
 #view-home.home-anim > #hm3 { animation: none !important; }
 #view-home.home-anim #hm3 > .hm3-col { animation: homeRise .7s cubic-bezier(.28,0,.05,1) both; animation-delay: .2s; }

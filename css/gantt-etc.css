@@ -40,8 +40,6 @@
 .pj-bar { position:absolute; top:50%; transform:translateY(-50%); height:26px; border-radius:7px; display:flex; align-items:center; padding:0 9px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.12); z-index:1; }
 .pj-bar-fill { position:absolute; left:0; top:0; bottom:0; }
 .pj-bar-lbl { position:relative; z-index:1; font-size:11px; font-weight:700; color:var(--text); white-space:nowrap; }
-.pj-avatar { width:26px; height:26px; border-radius:50%; margin-left:-7px; border:2px solid var(--surface); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-weight:800; flex-shrink:0; }
-.pj-avatar:first-child { margin-left:0; }
 .pj-pchip { padding:3px 9px; border-radius:8px; font-size:11.5px; font-weight:700; line-height:1.4; white-space:nowrap; background:var(--surface2); color:var(--muted); }
 .pj-today-col { position:absolute; top:0; bottom:0; background:rgba(49,130,246,.07); border-left:1.5px solid #4c8ef2; border-right:1.5px solid #4c8ef2; box-sizing:border-box; z-index:3; pointer-events:none; }
 .pj-today-col.pj-today-col-end { border-bottom:1.5px solid #4c8ef2; }
@@ -62,6 +60,21 @@
 #project-modal .mh-title { font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--text); }
 #project-modal .modal-close { width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,0.55); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.65); color:var(--text); font-size:17px; box-shadow:0 2px 8px rgba(15,23,42,0.12); cursor:pointer; flex-shrink:0; }
 [data-theme="dark"] #project-modal .modal-close { background:rgba(50,50,50,0.55); border-color:rgba(255,255,255,0.12); }
+/* 프로젝트 모달 본문(모바일 기본): 좌/우 묶음(pj-col)은 없는 셈(display:contents) + order로 원래 순서 = 이름 → 시작·종료일 → 색상 → 참여자. 넓은 화면 2분할은 css/popup-wide.css */
+#project-modal .modal { display:flex; flex-direction:column; }
+#project-modal .pj-body { flex:1 1 auto; min-height:0; overflow-y:auto; display:flex; flex-direction:column; padding:18px 22px; }
+#project-modal .pj-col { display:contents; }
+#project-modal .pj-s-name { order:1; margin-bottom:12px; }
+#project-modal .pj-s-when { order:2; display:flex; gap:10px; margin-bottom:12px; }
+#project-modal .pj-s-when > div { flex:1; }
+#project-modal .pj-cal-wrap { order:2; display:none; }   /* 기간 달력은 넓은 화면에서만 */
+#project-modal .pj-s-color { order:3; margin-bottom:12px; }
+#project-modal .pj-s-pt { order:4; }
+#pj-color { width:52px; height:38px; border:none; border-radius:8px; cursor:pointer; padding:1px; }
+#project-modal .ndp-box { background:var(--bg); border-radius:12px; }   /* 참여자 검색칸: 다른 입력칸과 같은 모양 */
+[data-theme="dark"] #project-modal .ndp-box { background:#212121; }
+#project-modal .pj-foot { display:flex; gap:8px; padding:13px 22px; border-top:1px solid var(--border); background:var(--surface2); align-items:center; flex-shrink:0; }
+#project-modal .pj-foot-sp { flex:1; }
 .pj-cards { display:none; }
 .pj-card { border:1px solid transparent; border-radius:16px; padding:13px 14px; margin-bottom:10px; background: linear-gradient(var(--card-fill),var(--card-fill)) padding-box, linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box; box-shadow:var(--shadow-card); }
 [data-theme="dark"] .pj-card { background: linear-gradient(var(--card-fill),var(--card-fill)) padding-box, linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box; }
@@ -124,3 +137,15 @@ body.admin-mode-active header { top: 30px; }
 #ws-sticky-toolbar { position: sticky; top: 50px; z-index: 95; background: var(--bg); padding-bottom: 2px; }
 body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 
+/* 프로젝트 진행 머리: '홈 화면에 표시' 스위치(관리자) + 추가 버튼 */
+.pj-head-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.pj-home-sw { display:inline-flex; align-items:center; gap:10px; min-height:40px; padding:0 8px 0 14px; border-radius:999px; background:var(--surface); border:1px solid var(--border); font-size:13px; font-weight:700; color:var(--text); cursor:pointer; user-select:none; }
+.pj-home-sw input { position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
+.pj-home-sw i { position:relative; width:44px; height:26px; border-radius:999px; background:var(--surface2); border:1px solid var(--border); transition:background .2s, border-color .2s; flex-shrink:0; }
+.pj-home-sw i::after { content:''; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.28); transition:transform .24s cubic-bezier(.34,1.5,.64,1); }
+.pj-home-sw input:checked + i { background:#3182f6; border-color:#3182f6; }
+.pj-home-sw input:checked + i::after { transform:translateX(18px); }
+.pj-home-sw input:focus-visible + i { outline:2px solid #3182f6; outline-offset:2px; }
+[data-theme="dark"] .pj-home-sw { background:#212121; border-color:rgba(255,255,255,.1); }
+[data-theme="dark"] .pj-home-sw input:checked + i { background:#4a94ff; border-color:#4a94ff; }
+@media (prefers-reduced-motion: reduce) { .pj-home-sw i, .pj-home-sw i::after { transition:none; } }

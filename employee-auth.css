@@ -25,3 +25,17 @@
 .employee-account[data-password-ready="true"] span{color:#3267ae}
 [data-theme="dark"] .employee-account[data-password-ready="true"]{background:linear-gradient(120deg,rgba(49,130,246,.23),rgba(91,164,255,.07)),var(--surface);border-color:rgba(104,167,255,.32)}
 [data-theme="dark"] .employee-account[data-password-ready="true"] span{color:#97c3ff}
+/* ===== 앱 공통 팝업 스타일로 통일(일정 추가 등 토스 모달 기준): 제목 17/700 · 라벨 12.5/700 파랑 · 입력 14px·48·r20 · 버튼 r20 그라디언트 ===== */
+.employee-dialog{border-radius:22px;overflow:hidden auto}
+.employee-head{padding:20px 22px 15px}
+.employee-head h2{font-size:17px;font-weight:700;letter-spacing:-.01em;margin:0 0 6px;color:var(--text)}
+.employee-head h2:last-child{margin-bottom:0}
+.employee-head p{font-size:12.5px;line-height:1.6}
+.employee-form{padding:18px 22px 22px;gap:12px}
+.employee-form label{font-size:12.5px;font-weight:700;color:#3182f6;line-height:1.5}
+[data-theme="dark"] .employee-form label{color:#6aa8ff}
+.employee-form :is(input,select){min-height:48px;padding:13px 16px;border:.8px solid var(--border);border-radius:20px;font-size:14px;font-weight:400;color:var(--text);background:var(--surface)}
+.employee-form :is(input,select):focus{border-color:#3182f6;box-shadow:0 0 0 3px rgba(49,130,246,.14);outline:none}
+.employee-form p{font-size:13.5px}.employee-form .employee-hint{font-size:12px}
+.employee-form .btn{min-height:48px;border-radius:20px;font-size:14px;font-weight:700}
+.employee-form .btn-primary{min-height:50px;border:0;background:linear-gradient(135deg,#4a94ff,#2f77f6);color:#fff;font-size:15px;font-weight:800;box-shadow:0 4px 12px -4px rgba(49,130,246,.5)}

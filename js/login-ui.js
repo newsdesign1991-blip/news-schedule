@@ -134,14 +134,18 @@ function openAccountSheet(){
     <button onclick="logoutUser();closeSheet();" style="width:100%;margin-top:22px;background:none;border:1px solid #f8a0a0;color:#d65a52;padding:12px;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;">로그아웃</button>`;
   openSheet('계정 정보', html);
 }
-// 알림 설정 시트 — 근무/공지/투표 알림을 각각 토글. 공지·투표는 기본 켜짐, 끄면 확인.
+// 알림 설정 시트 — 성격별 묶음: [근무] 근무 알림 · 8진/뉴오 진행 알림  [팀 소식] 공지 · 투표. 공지·투표는 기본 켜짐, 끄면 확인.
+// news(8진·뉴오 진행)는 근무 알림에서 따로 뺀 항목 — 처음엔 근무 알림과 같은 상태로 시작(근무 알림 켜 둔 사람은 그대로 다 켜짐).
+// 이 기기(localStorage)에 두고, 알림 켠 기기면 서버 구독 정보(push_subs.sub.prefs)에도 저장 → 서버(notify 함수)가 보고 거름
 function getUserNotify(){
   var p; try{ p=JSON.parse(localStorage.getItem('nd_user_notify')||'{}'); }catch(e){ p={}; }
-  return { work:(p.work!==false && p.enabled!==false), notice:(p.notice!==false), poll:(p.poll!==false) };
+  var work=(p.work!==false && p.enabled!==false);
+  return { work:work, news:(p.news===undefined ? work : p.news!==false), notice:(p.notice!==false), poll:(p.poll!==false) };
 }
 function setUserNotify(key, val){
   var p=getUserNotify(); p[key]=val;
-  try{ localStorage.setItem('nd_user_notify', JSON.stringify({ work:p.work, notice:p.notice, poll:p.poll, enabled:p.work })); }catch(e){}
+  try{ localStorage.setItem('nd_user_notify', JSON.stringify({ work:p.work, news:p.news, notice:p.notice, poll:p.poll, enabled:p.work })); }catch(e){}
+  if(typeof _pushSavePrefs==='function') Promise.resolve(_pushSavePrefs()).then(r=>{ if(r==='nosub'){ if(!window._nsNosubShown){ window._nsNosubShown=1; toast('이 기기의 알림 구독이 서버에 없어요. 아래에서 이 기기 알림을 껐다가 다시 켜 주세요.','error'); } } else if(r===false) toast('서버에 알림 설정을 저장하지 못했어요. 다음에 앱을 열 때 다시 저장돼요.','error'); });   // 'na'(이 기기 알림 꺼짐)·true는 조용히
 }
 function _nsToggle(id, el, ev){
   if(ev){ ev.preventDefault(); ev.stopPropagation(); }
@@ -151,20 +155,34 @@ function _nsToggle(id, el, ev){
     if(!confirm('이 알림을 끄면 팀의 공지와 투표 소식을 받지 못할 수 있습니다.\n정말 끄시겠어요?')) return;
   }
   setUserNotify(id, nv);
-  if(el) el.classList.toggle('on', nv);
+  if(el){ el.classList.toggle('on', nv); el.setAttribute('aria-checked', String(nv)); }
   toast(nv?'알림 켜짐':'알림 꺼짐','success');
 }
 function openNotifySheet(){
   closeHdrMenu();
   const n=getUserNotify();
   const BELL='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
-  const row=(id,label,on)=>`<label class="ns-row"><span class="ns-label">${label}</span><span class="nd-switch${on?' on':''}" onclick="_nsToggle('${id}',this,event)"><span class="nd-switch-knob"></span></span></label>`;
+  const IC={
+    work:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+    news:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2.5"/><path d="M8 21h8M12 17v4"/><path d="M10 9l4 2-4 2z" fill="currentColor"/></svg>',
+    notice:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4a1 1 0 0 0 1 1h2l5 4V5L7 9H5a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6"/></svg>',
+    poll:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 20V11M12 20V5M18 20v-6"/></svg>'};
+  const row=(id,label,sub,on)=>`<label class="ns-row"><span class="ns-ic">${IC[id]}</span><span class="ns-txt"><span class="ns-label">${label}</span><span class="ns-sub">${sub}</span></span><span class="nd-switch${on?' on':''}" role="switch" tabindex="0" aria-checked="${on}" aria-label="${label}" onclick="_nsToggle('${id}',this,event)" onkeydown="if(event.key===' '||event.key==='Enter'){_nsToggle('${id}',this,event)}"><span class="nd-switch-knob"></span></span></label>`;
   const html=`
     <div class="ns-sec-title" style="gap:5px;">${BELL} 푸시 알림</div>
-    <div class="ns-card">
-      ${row('work','근무 알림', n.work)}
-      ${row('notice','오늘의 공지 알림', n.notice)}
-      ${row('poll','오늘의 투표 알림', n.poll)}
+    <div class="ns-group ns-g-work">
+      <div class="ns-g-title">근무</div>
+      <div class="ns-card">
+        ${row('work','근무 알림','매일 내 근무(당직·조근·일근 등) 안내', n.work)}
+        ${row('news','8진·뉴오 진행 알림','8진·뉴스오 근무 날 진행 시각 안내', n.news)}
+      </div>
+    </div>
+    <div class="ns-group ns-g-team">
+      <div class="ns-g-title">팀 소식</div>
+      <div class="ns-card">
+        ${row('notice','오늘의 공지 알림','새 공지·휴가 신청 안내', n.notice)}
+        ${row('poll','오늘의 투표 알림','새 투표가 올라오면', n.poll)}
+      </div>
     </div>
     <div id="us-push-status" class="ns-status"></div>
     <button id="us-push-toggle-btn" onclick="togglePush()" class="ns-btn"></button>

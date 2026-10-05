@@ -61,7 +61,9 @@ document.body.insertAdjacentHTML('beforeend', `
     </div>
     <div class="staff-modal-body">
     <input type="hidden" id="modal-edit-staff-id">
-    <div class="form-row">
+    <!-- 넓은 화면(≥1001px, css/popup-wide.css): 왼쪽 기본 정보·계약·파견·수습 / 오른쪽 근무 속성·부서 이동 예약 + 버튼. 모바일은 sm-col이 display:contents라 원래 순서 그대로 -->
+    <div class="sm-col sm-col-l">
+    <div class="form-row sm-s-basic">
       <div class="form-group">
         <label class="form-label">소속 부서</label>
         <select class="form-select" id="modal-staff-dept" onchange="updateStaffModalForm()">
@@ -127,11 +129,13 @@ document.body.insertAdjacentHTML('beforeend', `
         <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;" onclick="document.getElementById('modal-probation-start').value='';document.getElementById('modal-probation-end').value='';">초기화</button>
       </div>
     </div>
-    <div style="margin-top:10px;">
+    </div>
+    <div class="sm-col sm-col-r">
+    <div class="sm-s-tags" style="margin-top:10px;">
       <label class="form-label" style="margin-bottom:4px;">근무 속성</label>
       <div class="tag-sel-pool" id="modal-staff-tag-pool"></div>
     </div>
-    <div style="margin-top:14px;background:rgba(49,130,246,.06);border:1px solid rgba(49,130,246,.14);border-radius:12px;padding:14px 15px;">
+    <div class="sm-s-dsched" style="margin-top:14px;background:rgba(49,130,246,.06);border:1px solid rgba(49,130,246,.14);border-radius:12px;padding:14px 15px;">
       <label class="form-label" style="margin-bottom:6px;">부서 이동 예약 <span style="font-weight:500;color:var(--muted);font-size:11px;">(그 날짜부터 부서 변경 · 과거 달은 원래 부서 유지)</span></label>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
         <input type="date" class="form-input" id="modal-deptsched-date" style="width:150px;">
@@ -145,10 +149,11 @@ document.body.insertAdjacentHTML('beforeend', `
       <div id="modal-deptsched-list"></div>
     </div>
     </div>
+    </div>
     <div class="staff-modal-foot">
       <button class="btn btn-primary" style="width:auto;" onclick="saveStaffModal()">저장</button>
       <button class="btn btn-outline" onclick="closeStaffModal()">취소</button>
-      <div style="flex:1;"></div>
+      <div class="smf-sp" style="flex:1;"></div>
       <button id="modal-active-btn" class="btn btn-outline" style="font-size:12px;" onclick="_modalToggleActive()">비활성화</button>
       <button class="btn btn-danger" style="font-size:12px;" onclick="_modalDeleteStaff()">삭제</button>
     </div>

@@ -5,6 +5,9 @@ function _deptColor(dept){ return _PJ_DEPT_COLORS[dept]||'#94a3b8'; }
 function renderProject(){
   const wrap=document.getElementById('pj-wrap'); if(!wrap) return;
   const addBtn=document.getElementById('pj-add-btn'); if(addBtn) addBtn.style.display='';
+  const sw=document.getElementById('pj-home-sw'), swWrap=document.getElementById('pj-home-sw-wrap');
+  if(sw) sw.checked=!(data.settings&&data.settings.pjHome===false);
+  if(swWrap) swWrap.style.display=isAdmin?'':'none';   // 관리자만 바꿈(설정은 모두의 홈에 적용)
   if(!wrap._pjBound){ wrap._pjBound=true; wrap.addEventListener('click', function(e){ const row=e.target.closest('.pj-row[data-pjid], .pj-card[data-pjid]'); if(row){ const _pid=row.getAttribute('data-pjid'); const _pp=(data.projects||[]).find(x=>x.id===_pid); if(_pjCanEdit(_pp)) openProjectModal(_pid); } }); }
   const projects=(data.projects||[]).slice();
   if(!projects.length){ wrap.innerHTML='<div class="pj-empty">등록된 프로젝트가 없습니다.'+(isAdmin?'<br><span style="font-size:12px;">＋ 프로젝트 추가로 시작하세요.</span>':'')+'</div>'; return; }
@@ -63,29 +66,49 @@ function renderProject(){
     +'<div class="pj-timeline pj-timeline-head" style="width:'+timelineW+'px;">'+dayCells+'</div></div>'
     +rows+'</div></div><div class="pj-cards">'+cards+'</div>';
 }
-let _pjParticipants=[];
-function _pjStaffOptions(){
-  return (data.staff||[]).filter(x=>x.active!==false).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(x=>'<option value="'+x.id+'">'+_pEsc(x.name)+' · '+_pEsc(x.dept||'')+'</option>').join('');
+// '홈 화면에 표시' 토글: 끄면 모든 사람의 홈에서 '프로젝트 현황' 패널이 숨겨짐(js/home.js renderHome이 data.settings.pjHome 확인)
+function pjSetHomeShow(on){
+  if(!isAdmin){ const sw=document.getElementById('pj-home-sw'); if(sw) sw.checked=!on; toast('관리자만 바꿀 수 있어요.','error'); return; }
+  data.settings=data.settings||{};
+  data.settings.pjHome=!!on;
+  saveData(data);
+  renderHome();
+  toast(on?'홈 화면에 프로젝트 현황을 표시합니다':'홈 화면에서 프로젝트 현황을 숨겼습니다','success');
 }
-function _pjRenderParts(){
-  const box=document.getElementById('pj-part-list'); if(!box) return;
-  if(!_pjParticipants.length){ box.innerHTML='<div style="font-size:12px;color:var(--muted);">참여자 없음</div>'; return; }
-  box.innerHTML=_pjParticipants.map((id,i)=>{ const st=staffById(id), nm=st?st.name:'(삭제됨)';
-    return '<span class="avoid-row" style="display:inline-flex;width:auto;margin:0 6px 6px 0;padding:5px 9px;"><span class="pj-avatar" style="width:20px;height:20px;font-size:10px;background:'+_deptColor(st?st.dept:'')+';margin-right:5px;">'+_pEsc((nm||'?').charAt(0))+'</span><span style="font-size:12.5px;font-weight:600;">'+_pEsc(nm)+'</span><button class="avoid-del" style="margin-left:6px;" onclick="_pjRemovePart('+i+')">✕</button></span>';
-  }).join('');
+// 참여자: 검색 + 추천 목록 + 태그(js/nd-people.js). 저장 형식(직원 id 배열, 고른 순서)은 그대로
+function _pjMountPicker(sel){
+  const host=document.getElementById('pj-part-pick'); if(!host||typeof ndPeoplePicker!=='function') return;
+  if(host._ndPicker) host._ndPicker.destroy();
+  // 활성 직원(이름순) + 이미 고른 비활성 직원 / 삭제된 직원은 '(삭제됨)'으로 남겨 직접 빼게
+  const staff=(data.staff||[]).filter(x=>x.active!==false||sel.includes(x.id)).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  sel.forEach(id=>{ if(!staffById(id)) staff.push({id:id,name:'(삭제됨)',dept:''}); });
+  ndPeoplePicker(host,{staff:staff,selected:sel,placeholder:'이름·부서·초성으로 검색해서 추가'});
 }
-function _pjAddPart(){
-  const sel=document.getElementById('pj-part-sel'); const v=sel?sel.value:''; if(!v) return;
-  if(_pjParticipants.includes(v)){ toast('이미 추가됨','error'); return; }
-  _pjParticipants.push(v); _pjRenderParts();
+// 넓은 화면: 기간 달력(시작~끝) — 값은 #pj-start/#pj-end에 그대로(모바일은 그 날짜칸을 씀)
+function _pjMountCal(){
+  const host=document.getElementById('pj-cal'), si=document.getElementById('pj-start'), ei=document.getElementById('pj-end');
+  if(!host||typeof ndCal!=='function') return;
+  si.classList.add('nd-native-src'); ei.classList.add('nd-native-src');
+  ndCal(host,{range:true, get:()=>({from:si.value,to:ei.value}), set:r=>{ si.value=r.from||''; ei.value=r.to||''; _pjDaysLbl(); }});
+  if(!si._pjBound){ si._pjBound=1; [si,ei].forEach(el=>el.addEventListener('change',()=>{ if(host._ndCal) host._ndCal.sync(); _pjDaysLbl(); })); }
+  _pjDaysLbl();
 }
-function _pjRemovePart(i){ _pjParticipants.splice(i,1); _pjRenderParts(); }
+function _pjDaysLbl(){
+  const el=document.getElementById('pj-days'); if(!el) return;
+  const s=document.getElementById('pj-start').value, e=document.getElementById('pj-end').value;
+  el.textContent=(s&&e&&s<=e)?('총 '+(Math.round((new Date(e+'T00:00:00')-new Date(s+'T00:00:00'))/86400000)+1)+'일'):(s?'끝 날짜를 골라 주세요':'');
+}
+// 머리 색 = 고른 프로젝트 색(넓은 화면에서만 쓰임, css/popup-wide.css --pj-tint)
+function _pjTint(){
+  const m=document.querySelector('#project-modal .modal'), c=document.getElementById('pj-color'); if(!m||!c) return;
+  const v=_evHexRgba(c.value, document.documentElement.getAttribute('data-theme')==='dark'?0.17:0.11);
+  if(v) m.style.setProperty('--pj-tint', v); else m.style.removeProperty('--pj-tint');
+}
 function _pjCanEdit(p){ return isAdmin || (!!currentUser && !!currentUser.staffId && !!p && p.createdBy===currentUser.staffId); }
 function openProjectModal(id){
   const m=document.getElementById('project-modal'); if(!m) return;
   const p=id?(data.projects||[]).find(x=>x.id===id):null;
   if(id && !_pjCanEdit(p)){ toast('작성자 또는 관리자만 편집할 수 있어요.','error'); return; }
-  document.getElementById('pj-part-sel').innerHTML='<option value="">참여자 선택…</option>'+_pjStaffOptions();
   document.getElementById('pj-id').value=p?p.id:'';
   document.getElementById('pj-modal-title').textContent=p?(p.name+' 편집'):'새 프로젝트';
   document.getElementById('pj-name').value=p?p.name:'';
@@ -93,12 +116,12 @@ function openProjectModal(id){
   document.getElementById('pj-start').value=p?p.start:today;
   document.getElementById('pj-end').value=p?p.end:today;
   document.getElementById('pj-color').value=p?(p.color||'#f4a09a'):'#f4a09a';
-  _pjParticipants=p?(p.participants||[]).slice():[];
-  _pjRenderParts();
+  _pjMountPicker(p?(p.participants||[]).filter(Boolean):[]);
+  _pjMountCal(); _pjTint();
   document.getElementById('pj-del-btn').style.display=p?'':'none';
   m.style.display='flex';
 }
-function closeProjectModal(){ const m=document.getElementById('project-modal'); if(m) m.style.display='none'; }
+function closeProjectModal(){ const m=document.getElementById('project-modal'); if(m) m.style.display='none'; const h=document.getElementById('pj-part-pick'); if(h&&h._ndPicker) h._ndPicker.close(); }
 function saveProject(){
   const name=document.getElementById('pj-name').value.trim();
   const start=document.getElementById('pj-start').value, end=document.getElementById('pj-end').value;
@@ -107,7 +130,9 @@ function saveProject(){
   if(start>end){ toast('종료일이 시작일보다 빠릅니다','error'); return; }
   if(!Array.isArray(data.projects)) data.projects=[];
   const id=document.getElementById('pj-id').value;
-  const obj={name:name,start:start,end:end,color:document.getElementById('pj-color').value,participants:_pjParticipants.slice()};
+  const pk=document.getElementById('pj-part-pick')._ndPicker, old=id?(data.projects||[]).find(x=>x.id===id):null;
+  const parts=pk?pk.get():((old&&old.participants)||[]).slice();   // 고르기 부품이 없으면(로드 실패) 기존 참여자 유지
+  const obj={name:name,start:start,end:end,color:document.getElementById('pj-color').value,participants:parts};
   if(id){ const p=(data.projects||[]).find(x=>x.id===id); if(p) Object.assign(p,obj); }
   else { obj.id='pj'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); obj.createdBy=(currentUser&&currentUser.staffId)||null; obj.createdByName=(currentUser&&currentUser.name)||''; data.projects.unshift(obj); }
   saveData(data); closeProjectModal(); renderProject(); toast('저장됨','success');

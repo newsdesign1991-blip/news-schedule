@@ -59,3 +59,58 @@
 [data-theme="dark"] .excel-wrap { background: linear-gradient(var(--surface),var(--surface)) padding-box, linear-gradient(155deg, rgba(255,255,255,.16), rgba(255,255,255,.04) 35%, rgba(0,0,0,.28)) border-box; box-shadow: 0 1px 3px rgba(0,0,0,.24), 0 14px 30px -20px rgba(0,0,0,.5); }
 .form-select:focus { border-color: var(--vw); box-shadow: 0 0 0 3px rgba(49,130,246,.12); }
 
+/* ===== 달력 탭: iOS 캘린더식 월 보기(js/calendar.js renderMonth) ===== */
+.month-nav.mc-nav { justify-content: space-between; align-items: flex-end; gap: 12px; margin: 6px 4px 14px; }
+.mc-nav .mn-title { display: flex; align-items: baseline; gap: 10px; margin: 0; }
+.mc-nav .mn-title b { font-size: 36px; font-weight: 800; letter-spacing: -.035em; line-height: 1; color: var(--text); }
+.mc-nav .mn-title span { font-size: 15px; font-weight: 700; color: var(--muted); }
+.mc-nav-r { display: flex; align-items: center; gap: 8px; }
+.month-nav.mc-nav .mn-today { position: static; transform: none; height: 42px; padding: 0 18px; border-radius: 999px; background: rgba(255,255,255,.75); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 2px 10px rgba(15,23,42,.06); font-size: 14px; font-weight: 700; color: var(--text); }
+.mc-arrows { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.75); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 2px 10px rgba(15,23,42,.06); }
+.month-nav.mc-nav .mc-arrows .mn-arrow { width: 36px; height: 36px; background: none; border: 0; color: var(--text); }
+@media (hover: hover) { .month-nav.mc-nav .mc-arrows .mn-arrow:hover, .month-nav.mc-nav .mn-today:hover { background: rgba(120,120,128,.12); } }
+[data-theme="dark"] .month-nav.mc-nav .mn-today, [data-theme="dark"] .mc-arrows { background: rgba(44,44,46,.75); border-color: rgba(255,255,255,.1); box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+/* 나만의 달력 / 팀 전체 / 구글: 세그먼트 */
+#view-month .cal-tabs { justify-content: flex-start; align-items: center; gap: 3px; width: fit-content; max-width: 100%; margin: 0 4px 14px; padding: 4px; border-radius: 14px; background: var(--surface2); }
+#view-month .cal-tabs .btn, #view-month .cal-tabs .btn.btn-outline { background: transparent; border: 0; color: var(--muted); padding: 8px 14px; border-radius: 10px; box-shadow: none; }
+#view-month .cal-tabs .btn:not(.btn-outline) { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(15,23,42,.14); }
+[data-theme="dark"] #view-month .cal-tabs .btn:not(.btn-outline) { background: #3a3a3c; }
+/* 달력 카드 */
+#month-calendar.mc-grid { padding: 2px 6px 6px; border-radius: 22px; background: var(--surface); box-shadow: 0 1px 3px rgba(20,24,40,.05), 0 12px 28px -20px rgba(20,24,40,.18); overflow: hidden; }
+.mc-head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding: 12px 0 9px; }
+.mc-head span { text-align: center; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.mc-head span.we { color: var(--muted); }
+.mc-week { --mc-num-h: 46px; --mc-lane-h: 25px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: max(120px, 14.5vh); padding-bottom: 6px; border-top: 1px solid var(--border); }
+.mc-day { grid-row: 1 / -1; display: flex; justify-content: center; align-items: flex-start; min-width: 0; padding-top: 6px; border-radius: 12px; cursor: pointer; outline: none; transition: background .12s; -webkit-tap-highlight-color: transparent; }
+.mc-day.is-blank { cursor: default; }
+@media (hover: hover) { .mc-day:not(.is-blank):hover { background: rgba(120,120,128,.07); } }
+.mc-day:focus-visible { box-shadow: inset 0 0 0 2px #3182f6; }
+.mc-num { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; font-size: 19px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.mc-day.we .mc-num, .mc-day.hol .mc-num { color: var(--muted); }
+.mc-day.today .mc-num { background: #f04452; color: #fff; font-weight: 800; box-shadow: 0 4px 12px -4px rgba(240,68,82,.6); }
+.mc-bar { position: relative; z-index: 1; pointer-events: none; display: flex; align-items: center; gap: 4px; min-width: 0; height: calc(var(--mc-lane-h) - 3px); margin: 1.5px 3px; padding: 0 7px; border-radius: 7px; background: var(--bg, rgba(120,120,128,.12)); color: var(--fg, var(--text)); font-size: 12.5px; font-weight: 600; line-height: 1; white-space: nowrap; overflow: hidden; }
+.mc-bar > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.mc-bar .mc-ic { flex: none; width: 12px; height: 12px; }
+.mc-bar.is-link { pointer-events: auto; cursor: pointer; }
+.mc-bar.is-link:focus-visible { outline: 2px solid var(--fg, #3182f6); outline-offset: 1px; }
+.mc-bar.hol { --bg: rgba(255,149,0,.16); --fg: #c2410c; }
+.mc-bar.t-vw { --bg: var(--vw-bg); --fg: var(--vw-light); } .mc-bar.t-cg { --bg: var(--cg-bg); --fg: var(--cg-light); }
+.mc-bar.t-project { --bg: var(--project-bg); --fg: var(--project-light); } .mc-bar.t-sports { --bg: var(--sports-bg); --fg: var(--sports-light); }
+.mc-more { position: relative; z-index: 1; pointer-events: none; align-self: center; padding-left: 9px; font-size: 11.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.mc-empty { padding: 44px 16px; text-align: center; color: var(--muted); font-size: 13px; }
+[data-theme="dark"] .mc-day.today .mc-num { background: #ff5a5f; }
+[data-theme="dark"] .mc-bar.hol { --bg: rgba(255,149,0,.18); --fg: #fdba74; }
+@media (max-width: 760px) {
+  .mc-nav .mn-title b { font-size: 30px; }
+  .month-nav.mc-nav .mn-today { height: 38px; padding: 0 14px; font-size: 13px; }
+  .month-nav.mc-nav .mc-arrows .mn-arrow { width: 32px; height: 32px; }
+  #month-calendar.mc-grid { padding: 0 2px 4px; border-radius: 18px; }
+  .mc-week { --mc-num-h: 40px; --mc-lane-h: 21px; min-height: 96px; }
+  .mc-num { width: 31px; height: 31px; font-size: 16.5px; }
+  .mc-bar { gap: 2px; margin: 1px 1.5px; padding: 0 4px; border-radius: 5px; font-size: 11px; }
+  .mc-bar .mc-ic { width: 10px; height: 10px; }
+  .mc-more { padding-left: 4px; font-size: 10.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .mc-day { transition: none; } }
+/* 다크: 근무 막대의 밝은 파스텔 배경 대신 글자색을 옅게 깐 배경 */
+[data-theme="dark"] .mc-bar.r { background: color-mix(in srgb, var(--fg) 22%, transparent); color: color-mix(in srgb, var(--fg) 72%, #fff); }

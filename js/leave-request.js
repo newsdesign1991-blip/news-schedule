@@ -219,12 +219,89 @@ function _lrRowsHtml(staffId){
   });
   return rows;
 }
+// 신휴가 팝업 '달력' 보기: 신청 기간 안의 날짜를 달력에서 눌러 신청/취소(목록과 같은 lrPopupCellClick 사용).
+// 금색 동그라미 = 내 신휴가, 날짜 아래 숫자 = 그날 신청 인원(4명 이상 빨강). 마지막에 고른 보기는 기억.
+let _lrView = (function(){ try{ return localStorage.getItem('nd_lr_view')==='cal'?'cal':'list'; }catch(e){ return 'list'; } })();
+let _lrCalYM = null, _lrFocusDs = null;   // _lrFocusDs: 마지막으로 누른 날짜(오른쪽 목록에서 강조)
+function lrSetView(v, staffId){
+  const nv = v==='cal'?'cal':'list', changed = nv!==_lrView;
+  _lrView = nv; try{ localStorage.setItem('nd_lr_view', _lrView); }catch(e){}
+  document.querySelectorAll('#lr-popup-overlay .lr-view-tabs button').forEach(b=>{ const on=b.dataset.v===_lrView; b.classList.toggle('on',on); b.setAttribute('aria-selected',String(on)); });
+  const card=document.querySelector('#lr-popup-overlay .lr-pop');
+  const apply=()=>{
+    const cal=document.getElementById('lr-cal-view'), list=document.getElementById('lr-popup-scroll');
+    if(cal){ _lrCalPaint(cal, staffId); cal.style.display=_lrView==='cal'?'':'none'; }
+    if(list) list.style.display=_lrView==='cal'?'none':'';
+    card?.classList.toggle('lr-cal-mode', _lrView==='cal');
+  };
+  // 보기 바꿀 때: 내용 블러로 사라짐 → 팝업 크기 슈욱 → 새 내용 또렷하게(js/nd-cal.js ndMorph)
+  if(changed && card && typeof ndMorph==='function') ndMorph(card, apply, { parts: ()=>[document.getElementById('lr-cal-view'), document.getElementById('lr-popup-scroll')] });
+  else apply();
+}
+function lrCalNav(d, staffId){
+  const lr=data.leaveReq||{}; if(!_lrCalYM||!lr.rangeStart||!lr.rangeEnd) return;
+  let [y,m]=_lrCalYM; m+=d; if(m<1){m=12;y--;} if(m>12){m=1;y++;}
+  const k=y*12+m, [sy,sm]=lr.rangeStart.split('-').map(Number), [ey,em]=lr.rangeEnd.split('-').map(Number);
+  if(k<sy*12+sm||k>ey*12+em) return;
+  _lrCalYM=[y,m]; const cal=document.getElementById('lr-cal-view'); if(cal) _lrCalPaint(cal, staffId);
+}
+// 달력을 다시 그려도 키보드 포커스(눌렀던 날짜·이전/다음 달 버튼)를 유지
+function _lrCalPaint(cal, staffId){
+  const fa=document.activeElement, fk=cal.contains(fa)&&fa.dataset?fa.dataset.f:'';
+  cal.innerHTML=_lrCalHtml(staffId);
+  if(fk){ let t=cal.querySelector('[data-f="'+fk+'"]'); if(!t||t.disabled) t=cal.querySelector(fk.indexOf('d:')===0?'.lr-day:not(.out):not(:disabled)':'[data-f="next"]:not(:disabled), [data-f="prev"]:not(:disabled)'); if(t) t.focus(); }
+}
+function _lrCalHtml(staffId){
+  const lr=data.leaveReq||{}, entries=lr.entries||{}, rs=lr.rangeStart, re=lr.rangeEnd;
+  if(!rs||!re) return '';
+  const canEdit = isAdmin || (!!lr.isOpen && _lrMyId() === staffId);
+  const now=new Date(), todayStr=toDateStr(now.getFullYear(),now.getMonth()+1,now.getDate());
+  const [sy,sm]=rs.split('-').map(Number), [ey,em]=re.split('-').map(Number);
+  if(!_lrCalYM || _lrCalYM[0]*12+_lrCalYM[1]<sy*12+sm || _lrCalYM[0]*12+_lrCalYM[1]>ey*12+em){
+    const ty=now.getFullYear(), tm=now.getMonth()+1;   // 오늘이 기간 안이면 이번 달, 아니면 기간 첫 달
+    _lrCalYM = (todayStr>=rs && todayStr<=re) ? [ty,tm] : [sy,sm];
+  }
+  const [y,m]=_lrCalYM, k=y*12+m, lead=new Date(y,m-1,1).getDay(), days=new Date(y,m,0).getDate();
+  const chev=d=>`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d<0?'M15 5l-7 7 7 7':'M9 5l7 7-7 7'}"/></svg>`;
+  let cells='<span></span>'.repeat(lead), mine=0;
+  for(let d=1; d<=days; d++){
+    const ds=toDateStr(y,m,d), inR=ds>=rs&&ds<=re, dow=(lead+d-1)%7;
+    const list=entries[ds]||[], on=list.includes(staffId), cnt=list.length;
+    if(on && inR) mine++;
+    const holi=!!(data.holidays&&data.holidays[ds]);
+    const cls='lr-day'+(on?' on':'')+(ds===todayStr?' today':'')+(dow===0||holi?' sun':dow===6?' sat':'')+(cnt>=4?' over':'');
+    const lbl=`${m}월 ${d}일${on?' 신휴가 신청됨':''}${cnt?' · 신청 '+cnt+'명':''}`;
+    cells += inR
+      ? `<button type="button" data-f="d:${ds}" class="${cls}"${canEdit?` onclick="lrPopupCellClick('${staffId}','${ds}')"`:' disabled'} aria-pressed="${on}" aria-label="${lbl}"><b>${d}</b><i>${cnt||''}</i></button>`
+      : `<span class="lr-day out"><b>${d}</b><i></i></span>`;
+  }
+  const DOW=['일','월','화','수','목','금','토'], DEPT_C={VW:'var(--vw)',CG:'var(--cg)',PROJECT:'var(--project)',SPORTS:'var(--sports)',XR:'var(--xr)'};
+  const myDays=Object.keys(entries).filter(ds=>ds>=rs&&ds<=re&&(entries[ds]||[]).includes(staffId)).sort();
+  const sideRows=myDays.map(ds=>{
+    const dt=new Date(ds+'T00:00:00'), others=(entries[ds]||[]).filter(id=>id!==staffId), cnt=(entries[ds]||[]).length;
+    const chips=others.map(id=>{ const st=staffById(id); return st?`<span class="lr-side-chip" style="--c:${DEPT_C[st.dept]||'var(--muted)'}">${st.name}<small>${st.dept||''}</small></span>`:''; }).join('');
+    return `<div class="lr-side-row${ds===_lrFocusDs?' focus':''}${cnt>=4?' over':''}"><div class="lr-side-date"><b>${dt.getMonth()+1}/${dt.getDate()}</b><small>(${DOW[dt.getDay()]})</small></div><div class="lr-side-names">${chips||'<span class="lr-side-none">나 혼자 신청</span>'}</div><span class="lr-side-cnt">${cnt>=4?'⚠ ':''}총 ${cnt}명</span></div>`;
+  }).join('');
+  const side=`<aside class="lr-cal-side" aria-label="내 신휴가와 같은 날 신청한 사람">
+    <div class="lr-side-hd">내 신휴가 <b>${myDays.length}일</b><span>같은 날 신청한 사람</span></div>
+    <div class="lr-side-list">${sideRows||'<div class="lr-side-empty">달력에서 날짜를 누르면 신휴가가 신청되고,<br>그날 함께 신청한 사람이 여기에 보여요.</div>'}</div>
+  </aside>`;
+  return `<div class="lr-cal-wrap"><div class="lr-cal">
+    <div class="lr-cal-head"><b>${y}년 ${m}월</b><div class="lr-cal-nav">
+      <button type="button" data-f="prev" onclick="lrCalNav(-1,'${staffId}')" aria-label="이전 달"${k<=sy*12+sm?' disabled':''}>${chev(-1)}</button>
+      <button type="button" data-f="next" onclick="lrCalNav(1,'${staffId}')" aria-label="다음 달"${k>=ey*12+em?' disabled':''}>${chev(1)}</button></div></div>
+    <div class="lr-cal-week">${['일','월','화','수','목','금','토'].map(w=>`<span>${w}</span>`).join('')}</div>
+    <div class="lr-cal-grid">${cells}</div>
+    <div class="lr-cal-legend"><span><i class="lg-on"></i>내 신휴가</span><span>숫자 = 그날 신청 인원</span></div>
+  </div>${side}</div>`;
+}
 function openLrPopup(staffId, noAnim) {
   const lr = data.leaveReq || {};
   const entries = lr.entries || {};
   const rs = lr.rangeStart, re = lr.rangeEnd;
   const staff = staffById(staffId);
   if (!staff || !rs || !re) return;
+  document.getElementById('lr-popup-root')?.remove();   // 이전 팝업이 남아 있으면 제거(두 번 열려 겹치는 문제 방지)
   // 비관리자: 로그인한 본인으로 고정 (다른 열은 읽기전용으로 열람)
   if (!isAdmin) { const mine=(currentUser&&currentUser.staffId)?currentUser.staffId:staffId; leaveReqUserId=mine; localStorage.setItem('nd_lr_user',mine); }
 
@@ -248,15 +325,20 @@ function openLrPopup(staffId, noAnim) {
   const TH = 'padding:10px 8px;font-size:11px;font-weight:700;text-align:center;background:var(--surface);position:sticky;top:0;z-index:1;border-bottom:1.5px solid var(--border);';
   const html = `
   <div id="lr-popup-overlay" onclick="dismissLrPopup()" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;display:flex;align-items:center;justify-content:center;">
-    <div onclick="event.stopPropagation()" class="nd-pop${noAnim?' no-anim':''}" style="background:var(--surface);border-radius:20px;box-shadow:0 16px 50px -12px rgba(15,23,42,0.32);max-height:82vh;display:flex;flex-direction:column;width:340px;">
-      <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-        <div>
-          <span style="font-size:16px;font-weight:800;letter-spacing:-.01em;color:${nameColor};">${staff.name}</span>
-          <span style="font-size:11px;color:var(--muted);margin-left:6px;">${staff.dept}</span>
+    <div onclick="event.stopPropagation()" class="nd-pop lr-pop${noAnim?' no-anim':''}${_lrView==='cal'?' lr-cal-mode':''}" style="background:var(--surface);border-radius:20px;box-shadow:0 16px 50px -12px rgba(15,23,42,0.32);max-height:82vh;display:flex;flex-direction:column;width:340px;">
+      <div class="lr-pop-head">
+        <div style="min-width:0;">
+          <div class="lr-pop-title">${staff.name}<span class="lr-pop-dept" style="color:${nameColor};">${staff.dept}</span></div>
+          <div class="lr-pop-sub">${canEdit?'신휴가 신청 · 날짜를 눌러 신청/취소':'신휴가 신청 현황 · 읽기 전용'}</div>
         </div>
-        <button onclick="dismissLrPopup()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);line-height:1;">✕</button>
+        <button type="button" class="lr-pop-close" onclick="dismissLrPopup()" aria-label="닫기">✕</button>
       </div>
-      <div id="lr-popup-scroll" style="overflow-y:auto;padding:0 16px 12px;">
+      <div class="lr-view-tabs" role="tablist" aria-label="보기 방식">
+        <button type="button" role="tab" data-v="list" class="${_lrView==='list'?'on':''}" aria-selected="${_lrView==='list'}" onclick="lrSetView('list','${staffId}')"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>목록</button>
+        <button type="button" role="tab" data-v="cal" class="${_lrView==='cal'?'on':''}" aria-selected="${_lrView==='cal'}" onclick="lrSetView('cal','${staffId}')"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>달력</button>
+      </div>
+      <div id="lr-cal-view" style="${_lrView==='cal'?'':'display:none;'}overflow-y:auto;padding:4px 16px 10px;">${_lrCalHtml(staffId)}</div>
+      <div id="lr-popup-scroll" style="${_lrView==='cal'?'display:none;':''}overflow-y:auto;padding:0 16px 12px;">
         <table style="border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;">
           <colgroup><col style="width:60px"><col style="width:44px"><col><col style="width:72px"></colgroup>
           <thead>
@@ -272,8 +354,8 @@ function openLrPopup(staffId, noAnim) {
       </div>
       <div style="padding:10px 16px 14px;border-top:1px solid var(--border);flex-shrink:0;">
         ${canEdit
-          ? `<div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:8px;">셀을 클릭해 신휴가를 신청/취소하세요</div>
-             <button onclick="lrSaveAndClose()" style="width:100%;background:linear-gradient(135deg,#d6a969,#bf8846);color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">💾 저장하고 닫기</button>`
+          ? `<div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:8px;">날짜를 눌러 신휴가를 신청/취소하세요</div>
+             <button type="button" class="lr-pop-save" onclick="lrSaveAndClose()">저장하고 닫기</button>`
           : `<div style="font-size:11px;color:var(--muted);text-align:center;">읽기 전용</div>`}
       </div>
     </div>
@@ -299,11 +381,14 @@ function dismissLrPopup() {
 }
 
 function lrPopupCellClick(staffId, dateStr) {
+  _lrFocusDs = dateStr;
   lrCellClick(staffId, dateStr);   // 토글 + 저장 + 배경 갱신
   // 팝업을 재생성하지 않고 표(tbody)만 교체 → 번쩍임 없음, 스크롤 위치 유지
   const tb = document.querySelector('#lr-popup-overlay tbody');
   if (tb) tb.innerHTML = _lrRowsHtml(staffId);
-  else { closeLrPopup(); openLrPopup(staffId, true); }   // 폴백
+  else { closeLrPopup(); openLrPopup(staffId, true); return; }   // 폴백
+  const cal = document.getElementById('lr-cal-view');
+  if (cal) _lrCalPaint(cal, staffId);
 }
 async function lrSaveAndClose() {
   if (_lrSyncTimer) { clearTimeout(_lrSyncTimer); _lrSyncTimer=null; }

@@ -319,6 +319,10 @@ function renderHome() {
   if (!window._duty8GlowTimer) window._duty8GlowTimer = setInterval(function(){ _updateDuty8Glow(); _updateNewsOhGlow(); }, 30000);
   (function(){
     var _pjBody=document.getElementById('home-project-body'); if(!_pjBody) return;
+    // 프로젝트 진행 탭의 '홈 화면에 표시' 토글(data.settings.pjHome, 관리자)이 꺼져 있으면 홈에서 패널 숨김
+    var _pjPanel=document.getElementById('home-project-panel'), _pjOn=!(data.settings&&data.settings.pjHome===false);
+    if(_pjPanel) _pjPanel.style.display=_pjOn?'':'none';
+    if(!_pjOn) return;
     var _pjs=(data.projects||[]);
     var _pjTot=document.getElementById('pj-home-total'); if(_pjTot) _pjTot.textContent=_pjs.length+'개';
     if(!_pjs.length){ _pjBody.innerHTML='<div style="padding:22px 0;text-align:center;color:var(--muted);font-size:13px;">등록된 프로젝트가 없습니다.</div>'; return; }

@@ -53,3 +53,24 @@
 .login-box .btn-primary.lb-btn-test { background:linear-gradient(135deg,#64748b,var(--muted)); }
 .login-box .btn-primary.lb-btn-master { background:linear-gradient(135deg,#d9a441,#e8c06a); }
 
+/* 알림 설정: 성격별 묶음(근무=파랑 / 팀 소식=노랑) — 배경색으로 구분 */
+.ns-group { margin-bottom: 14px; }
+.ns-g-title { font-size: 12px; font-weight: 800; margin: 0 4px 6px; }
+.ns-group .ns-card { margin-bottom: 0; border: 1px solid transparent; }
+.ns-g-work .ns-g-title { color: #2f6fe0; }
+.ns-g-work .ns-card { background: rgba(49,130,246,.08); border-color: rgba(49,130,246,.14); }
+.ns-g-team .ns-g-title { color: #b8860b; }
+.ns-g-team .ns-card { background: rgba(251,191,36,.12); border-color: rgba(251,191,36,.24); }
+.ns-group .ns-row { border-top-color: rgba(15,23,42,.07); }
+.ns-ic { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px; }
+.ns-g-work .ns-ic { background: rgba(49,130,246,.14); color: #2f6fe0; }
+.ns-g-team .ns-ic { background: rgba(251,191,36,.22); color: #a16207; }
+.ns-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ns-sub { font-size: 12px; font-weight: 500; color: var(--muted); }
+[data-theme="dark"] .ns-g-work .ns-g-title { color: #6aa8ff; }
+[data-theme="dark"] .ns-g-work .ns-card { background: rgba(76,147,255,.12); border-color: rgba(76,147,255,.2); }
+[data-theme="dark"] .ns-g-work .ns-ic { background: rgba(76,147,255,.2); color: #8dbbff; }
+[data-theme="dark"] .ns-g-team .ns-g-title { color: #e6c14d; }
+[data-theme="dark"] .ns-g-team .ns-card { background: rgba(251,191,36,.1); border-color: rgba(251,191,36,.2); }
+[data-theme="dark"] .ns-g-team .ns-ic { background: rgba(251,191,36,.18); color: #f2d37a; }
+[data-theme="dark"] .ns-group .ns-row { border-top-color: rgba(255,255,255,.08); }

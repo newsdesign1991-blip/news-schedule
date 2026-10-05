@@ -41,4 +41,63 @@ html body :is(#dinner-modal,#swap-modal) button.schedule-dialog-close{position:r
 html body :is(#dinner-modal,#swap-modal) button.schedule-dialog-close::after{content:"";position:absolute;inset:-5px;border-radius:50%}
 html[data-theme=dark] body :is(#dinner-modal,#swap-modal) button.schedule-dialog-close{background:rgba(50,50,50,.55)!important;border-color:rgba(255,255,255,.12)!important}
 html body :is(#dinner-modal,#swap-modal) .nd-pop>div:is(.dinner-body,.swap-body){padding:16px 22px 20px!important}
+/* 큰 화면 신청 창(swapNewWide): 좌 교환 상대·달력 / 우 신청 메시지·버튼 */
+#swap-modal .swap-dialog.swap-dialog-wide{width:min(1080px,calc(100vw - 48px))}
+.swap-wide{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:28px;align-items:stretch;margin-top:12px}
+.swap-wide .swap-wide-left{margin:0}
+.swap-wide-right{display:flex;flex-direction:column;min-width:0}
+.swap-wide-msg{flex:1;display:flex!important;flex-direction:column}
+.swap-wide-msg textarea{flex:1;min-height:240px!important;margin-bottom:14px!important;resize:none!important}
+.swap-pick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:2px 0 12px}
+#swap-modal .swap-pick-btn{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:0;padding:11px 14px;text-align:left;border:1.5px solid var(--border);border-radius:14px;background:var(--surface)}
+.swap-pick-btn small{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted)}
+.swap-pick-btn small i{width:8px;height:8px;border-radius:50%;background:#3478e5}.swap-pick-btn[data-k=to] small i{background:#7c5cff}
+.swap-pick-btn b{font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--text)}.swap-pick-btn.empty b{font-weight:600;color:var(--muted)}
+#swap-modal .swap-pick-btn.on{border-color:#3478e5;background:rgba(52,120,229,.08);box-shadow:0 0 0 3px rgba(52,120,229,.12)}
+#swap-modal .swap-pick-btn[data-k=to].on{border-color:#7c5cff;background:rgba(124,92,255,.08);box-shadow:0 0 0 3px rgba(124,92,255,.13)}
+/* 달력(iOS 날짜 선택기 느낌) */
+.swap-cal{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:14px 14px 10px;margin-bottom:6px}
+.swap-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+#swap-modal .swap-cal-title{display:inline-flex;align-items:center;gap:2px;min-height:0;padding:4px 6px;border:0;background:none;font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--text)}
+.swap-cal-title svg{color:#3478e5}
+.swap-cal-nav{display:flex;gap:4px}
+#swap-modal .swap-cal-nav button{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;min-height:0;padding:0;border:0;border-radius:50%;background:none;color:#3478e5}
+#swap-modal .swap-cal-nav button:disabled{color:var(--muted);opacity:.35;cursor:default}
+.swap-cal-week,.swap-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));justify-items:center}
+.swap-cal-week span{padding:6px 0 4px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.swap-cal-grid{row-gap:4px}
+#swap-modal .swap-cal-day{width:40px;height:40px;min-height:0;padding:0;border:0;border-radius:50%;background:none;font-size:16px;font-weight:500;color:var(--text);font-variant-numeric:tabular-nums}
+#swap-modal .swap-cal-day.is-today{color:#3478e5;font-weight:800}
+#swap-modal .swap-cal-day:disabled{color:var(--muted);opacity:.38;cursor:default}
+#swap-modal .swap-cal-day.is-from{background:#3478e5;color:#fff;font-weight:700;box-shadow:0 4px 10px -4px rgba(52,120,229,.6)}
+#swap-modal .swap-cal-day.is-to{background:#7c5cff;color:#fff;font-weight:700;box-shadow:0 4px 10px -4px rgba(124,92,255,.6)}
+#swap-modal .swap-cal-day.is-from.is-to{background:linear-gradient(135deg,#3478e5 50%,#7c5cff 50%)}
+@media(hover:hover){#swap-modal .swap-cal-day:not(:disabled):not(.is-from):not(.is-to):hover{background:rgba(52,120,229,.1);border:0;box-shadow:none}#swap-modal :is(.swap-cal-nav button,.swap-cal-title):not(:disabled):hover{background:rgba(52,120,229,.08);border:0;box-shadow:none}}
+.swap-cal-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
+#swap-modal .swap-cal-reset{min-height:0;padding:7px 16px;border-radius:999px;font-size:13px;font-weight:700}
+.swap-cal-legend{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)}
+.swap-cal-legend i{width:9px;height:9px;border-radius:50%;margin-left:6px}.swap-cal-legend .lg-from{background:#3478e5}.swap-cal-legend .lg-to{background:#7c5cff}
+@media(max-width:1000px){.swap-wide{grid-template-columns:minmax(0,1fr)}}
 @media(min-width:1001px){html body :is(#dinner-modal,#swap-modal) .nd-pop>div.schedule-dialog-head{padding:24px 32px 17px!important}html body :is(#dinner-modal,#swap-modal) .nd-pop>div:is(.dinner-body,.swap-body){padding:17px 32px 20px!important}}
+/* ===== 앱 공통 팝업 스타일로 통일(일정 추가 등 토스 모달 기준) =====
+   제목 17/700 · 라벨 12.5/700 파랑 · 입력 14px·높이48·둥글기20 · 주 버튼 파란 그라디언트 · 아이콘은 SVG */
+html body :is(#dinner-modal,#swap-modal) :is(#dinner-title,#swap-title){font-weight:700!important;letter-spacing:-.01em}
+#swap-modal .swap-body label,html body #dinner-modal .dinner-period label{font-size:12.5px!important;font-weight:700!important;color:#3182f6!important;line-height:1.5}
+html[data-theme=dark] #swap-modal .swap-body label,html[data-theme=dark] body #dinner-modal .dinner-period label{color:#6aa8ff!important}
+.swap-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.swap-opt{font-size:11px;font-weight:600;color:var(--muted);margin-left:2px}
+#swap-modal .swap-body :is(input:not([type=hidden]),select,textarea),html body #dinner-modal :is(input[type=date],input[type=search]){min-height:48px;padding:13px 16px!important;border:.8px solid var(--border)!important;border-radius:20px!important;background-color:var(--surface)!important;color:var(--text);font:inherit;font-size:14px!important;font-weight:400}
+#swap-modal .swap-body select{padding-right:40px!important}   /* 넓은 화면 앱 드롭다운 화살표(css/nd-select.css) 자리 */
+#swap-modal .swap-body textarea:not([type=hidden]){border-radius:16px!important;line-height:1.6}
+html body #dinner-modal :is(input[type=date],input[type=search]){font-weight:400!important;line-height:normal}
+#swap-modal .swap-body :is(input,select,textarea):focus,#dinner-modal :is(input[type=date],input[type=search]):focus{border-color:#3182f6!important;box-shadow:0 0 0 3px rgba(49,130,246,.14);outline:none}
+#swap-modal button{border-radius:14px;font-size:14px;font-weight:600}
+#swap-modal .swap-body .swap-primary{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:50px;padding:13px 20px;border:0!important;border-radius:20px!important;background:linear-gradient(135deg,#4a94ff,#2f77f6)!important;color:#fff!important;font-size:15px!important;font-weight:800!important;box-shadow:0 4px 12px -4px rgba(49,130,246,.5)!important}
+@media(hover:hover){#swap-modal .swap-body .swap-primary:hover{filter:brightness(1.05)}}
+#swap-modal .swap-back{display:inline-flex;align-items:center;gap:3px;min-height:0;padding:8px 14px 8px 10px;border-radius:999px;font-size:13px;font-weight:700;color:var(--muted)}
+.swap-ico{flex:none;vertical-align:-3px}.swap-row b .swap-ico,.swap-row span .swap-ico,.swap-summary span .swap-ico{margin:0 5px;color:var(--muted)}
+#swap-modal .swap-row{border-radius:16px;padding:14px 16px}.swap-row b{font-size:15px;font-weight:700}
+#swap-modal .swap-body h3{margin:18px 0 6px;font-size:15px;font-weight:700;color:var(--text)}
+#swap-modal details{margin:4px 0 8px}#swap-modal summary{display:inline-flex;align-items:center;gap:7px;list-style:none;cursor:pointer;font-size:13px;font-weight:700;color:var(--muted)}#swap-modal summary::-webkit-details-marker{display:none}
+#swap-modal summary::before{content:'';width:6px;height:6px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}#swap-modal details[open]>summary::before{transform:rotate(45deg)}
+.swap-summary b{font-size:15px;font-weight:800}.swap-summary strong{font-weight:700;color:var(--vw-light)}

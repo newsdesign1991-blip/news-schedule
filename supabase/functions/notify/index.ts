@@ -31,7 +31,61 @@ Deno.serve(async (req) => {
 
   let body: any = {}
   try { body = await req.json() } catch { /* no body */ }
-  const mode = body?.mode || 'cron'
+  // 'schedule' = 예전 pg_cron 설정(push-backend/1_supabase_setup.sql)이 보내던 이름 → cron과 같게
+  const mode = (body?.mode === 'schedule' ? 'cron' : body?.mode) || 'cron'
+  const json = (o: any, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
+  // 모르는 mode는 아무것도 하지 않음(예전엔 cron으로 처리돼, 정각에 다른 호출이 오면 근무 알림이 한 번 더 갈 수 있었음)
+  if (!['cron', 'test', 'notice', 'publish', 'prefs', 'seen'].includes(mode)) return json({ error: 'unknown mode', mode }, 400)
+
+  // ── 공지 '확인함' 기록·조회 모드 ─────────────────────────────────
+  // 앱에서 공지 확인 창을 열면 호출. 근무표 문서(nd_data id='main')에 쓰면 저장 번호가 올라가 다른 사람의 다음 저장이 막히므로
+  // 별도 행(nd_data id='seen', 저장 번호 검사 트리거는 main에만 걸림)에 {공지 id: {at: 처음 기록, s: {직원 id: 시각}}}로 저장.
+  // staff_id가 비어 있으면 조회만. updated_at 낙관적 잠금 + 재시도로 동시에 여러 명이 열어도 빠지지 않음. 60일 지난 공지 기록은 정리.
+  if (mode === 'seen') {
+    const nid = String(body?.notice_id || ''), sid = String(body?.staff_id || '')
+    if (!nid || nid.length > 80 || sid.length > 80) return json({ error: 'notice_id required' }, 400)
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const { data: row, error } = await sb.from('nd_data').select('payload, updated_at').eq('id', 'seen').maybeSingle()
+      if (error) return json({ error: error.message }, 500)
+      const pay: any = (row?.payload && typeof row.payload === 'object') ? row.payload : {}
+      const ent: any = pay[nid] || { at: new Date().toISOString(), s: {} }
+      const until = /^\d{4}-\d{2}-\d{2}$/.test(String(body?.until || '')) ? String(body.until) : ''
+      if (until && (!ent.until || until > ent.until)) ent.until = until   // 게시 종료일(정리 기준) — 늦은 쪽을 보관
+      if (!sid || ent.s?.[sid]) return json({ seen: ent.s || {} })
+      ent.s = { ...(ent.s || {}), [sid]: new Date().toISOString() }
+      pay[nid] = ent
+      const cutoff = Date.now() - 60 * 864e5
+      // 정리: 처음 기록과 게시 종료일 중 늦은 날이 60일 지난 공지만(오래 게시 중인 공지·지금 기록 중인 공지는 안 지움)
+      for (const k of Object.keys(pay)) { if (k === nid) continue; const t = Math.max(Date.parse(pay[k]?.at || '') || 0, Date.parse(pay[k]?.until || '') || 0); if (t && t < cutoff) delete pay[k] }
+      const nowIso = new Date().toISOString()
+      if (!row) {
+        const { error: ie } = await sb.from('nd_data').insert({ id: 'seen', payload: pay, updated_at: nowIso })
+        if (!ie) return json({ seen: ent.s })
+      } else {
+        const { data: upd, error: ue } = await sb.from('nd_data').update({ payload: pay, updated_at: nowIso }).eq('id', 'seen').eq('updated_at', row.updated_at).select('id')
+        if (!ue && upd && upd.length) return json({ seen: ent.s })
+      }
+      await new Promise(r => setTimeout(r, 40 + attempt * 60 + Math.floor(Math.random() * 120)))
+    }
+    return json({ error: 'busy' }, 409)
+  }
+
+  // ── 개인 알림 설정 저장 모드 ─────────────────────────────────────
+  // 앱 '알림 설정' 시트에서 바꾼 값을 이 기기 구독 행(push_subs.sub.prefs)에만 반영. 구독 행을 지우거나 새로 만들지 않음.
+  // 웹(anon)은 push_subs를 읽을 권한이 없어 직접 고칠 수 없으므로 서버(service role)가 대신 고침. endpoint + staff_id가 둘 다 맞는 행만.
+  if (mode === 'prefs') {
+    const ep = String(body?.endpoint || ''), sid = String(body?.staff_id || ''), pr = body?.prefs
+    if (!ep || !sid || !pr || typeof pr !== 'object') return json({ error: 'endpoint, staff_id, prefs required' }, 400)
+    const clean = { work: pr.work !== false, news: pr.news !== false, notice: pr.notice !== false, poll: pr.poll !== false }
+    const { data: rows, error } = await sb.from('push_subs').select('endpoint, sub').eq('endpoint', ep).eq('staff_id', sid)
+    if (error) return json({ error: error.message }, 500)
+    let updated = 0
+    for (const r of rows || []) {
+      const { error: ue } = await sb.from('push_subs').update({ sub: { ...(r.sub || {}), prefs: clean } }).eq('endpoint', r.endpoint).eq('staff_id', sid)
+      if (!ue) updated++
+    }
+    return json({ updated, found: (rows || []).length, mode: 'prefs', prefs: clean })
+  }
 
   webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC, VAPID_PRIVATE)
 
@@ -47,10 +101,16 @@ Deno.serve(async (req) => {
   if (!rawSubs?.length) return new Response(JSON.stringify({ sent: 0, reason: 'no subscribers' }), { headers: { ...CORS, 'Content-Type': 'application/json' } })
   // 같은 사람(staff_id)이 여러 기기/재구독으로 행을 2개 이상 가져도 1건만 발송 → 알림 2번 가는 문제 방지.
   // (staff_id가 없는 행은 endpoint로 폴백 dedup) — 모든 모드(cron/test/notice/publish)가 이 subs를 순회하므로 전부 적용됨.
+  // 같은 사람 행이 여러 개면 가장 최근 행(개인 알림 설정이 최신)을 남김
+  const _t = (s: any) => s.created_at ? Date.parse(s.created_at) : (Number(s.id) || 0)
+  rawSubs.sort((a: any, b: any) => _t(b) - _t(a))
   const _seenKey = new Set<string>()
   const subs = rawSubs.filter((s: any) => { const k = s.staff_id || s.endpoint; if (_seenKey.has(k)) return false; _seenKey.add(k); return true; })
 
   let sent = 0, errors = 0
+  // 개인 알림 설정(앱 '알림 설정' 시트 → push_subs.sub.prefs): work=근무 알림, news=8진·뉴오 진행 알림, notice=공지, poll=투표.
+  // 설정이 없는 예전 구독은 전부 켜진 것으로 봄(지금까지와 같게)
+  const pref = (s: any, key: string) => s?.sub?.prefs?.[key] !== false
 
   // ── 테스트 모드 ──────────────────────────────────────────────────
   // 버튼으로 즉시 호출. staff_id 주면 본인 기기에만, 없으면 전체에 테스트 발송.
@@ -76,6 +136,7 @@ Deno.serve(async (req) => {
 
   // ── 공지 등록 알림 모드 ──────────────────────────────────────────
   if (mode === 'notice') {
+    const kind = body?.kind === 'poll' ? 'poll' : 'notice'
     const text = (body?.text || '').toString().trim()
     const title = (body?.title || '').toString().trim() || '📢 공지사항이 등록되었습니다'
     const payload = JSON.stringify({
@@ -86,13 +147,14 @@ Deno.serve(async (req) => {
       data: { url: './' }
     })
     for (const sub of subs) {
+      if (!pref(sub, kind)) continue
       try { await webpush.sendNotification(sub.sub, payload); sent++ }
       catch (e: any) {
         errors++
         if (e.statusCode === 410 || e.statusCode === 404) await sb.from('push_subs').delete().eq('endpoint', sub.endpoint)
       }
     }
-    return new Response(JSON.stringify({ sent, errors, mode: 'notice' }), { headers: { ...CORS, 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ sent, errors, mode: 'notice', kind }), { headers: { ...CORS, 'Content-Type': 'application/json' } })
   }
 
   // ── 배포 알림 모드 ──────────────────────────────────────────────
@@ -129,11 +191,12 @@ Deno.serve(async (req) => {
     if (!entry) return cfg.types?.find((t: any) => t.key === 'off')?.enabled ? 'off' : null
     if (entry.danjik === staffId) return 'danjik'
     if (entry.morningDesk === staffId || entry.satMorning === staffId) return 'ojende'
-    if (entry.weekday8jin === staffId || entry.weekend8jin === staffId) return '8jin'
+    if ([entry.weekday8jin, entry.weekend8jin, entry.weekday8jin2, entry.weekend8jin2].includes(staffId)) return '8jin'
     if (entry.ilgeun === staffId) return 'ilgeun'
-    if (entry.newsOh === staffId) return 'newsoh'
+    if (entry.newsOh === staffId || entry.newsOh2 === staffId) return 'newsoh'
     if (staff?.dept === '조근') return 'jogeun'
     if (entry.jogeunSubs && Object.values(entry.jogeunSubs as Record<string, string>).includes(staffId)) return 'jogeun'
+    if ((entry.jogeunExtra || []).includes(staffId)) return 'jogeun'   // 엑셀·브러시로 넣은 조근 대체
     if ((entry.vw?.workers || []).includes(staffId)) return 'vw'
     if ((entry.cg?.workers || []).includes(staffId)) return 'cg'
     if ((entry.xr || []).includes(staffId)) return 'general'
@@ -146,6 +209,7 @@ Deno.serve(async (req) => {
     const staff = nd?.staff?.find((s: any) => s.id === sub.staff_id)
     const wt = getWorkType(sub.staff_id, staff)
     if (!wt) continue
+    if (!pref(sub, (wt === '8jin' || wt === 'newsoh') ? 'news' : 'work')) continue   // 8진·뉴오는 '8진·뉴오 진행 알림', 나머지는 '근무 알림'
 
     const typeCfg = (cfg.types || []).find((t: any) => t.key === wt)
     if (!typeCfg?.enabled || !typeCfg.time) continue

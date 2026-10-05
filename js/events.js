@@ -13,10 +13,25 @@ function openEventModal(dateStr) {
   if (firstRadio) firstRadio.checked = true;
   modal.querySelectorAll('input[name="ev-color"]').forEach(function(el){ el.onchange=function(){ _evTintUpdate(this.value); }; });
   _renderParticipantChips('ev-participants-wrap', [], def);
+  _evAttachPickers('ev-date', 'ev-date-cal', 'ev-time', 'ev-time-pick');
+  _evAutoGrow(document.getElementById('ev-title'));
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
   _evTintUpdate();
   setTimeout(()=>document.getElementById('ev-title').focus(), 100);
+}
+// 넓은 화면: 날짜는 달력, 시간은 직접 입력(js/nd-cal.js). 값은 원래 input에 그대로 → 저장 코드는 그대로 .value를 읽음
+function _evAttachPickers(dateId, calId, timeId, timeHostId) {
+  if (typeof ndDateInput !== 'function') return;
+  ndDateInput(document.getElementById(dateId), document.getElementById(calId));
+  ndTimeInput(document.getElementById(timeId), document.getElementById(timeHostId));
+}
+// 내용칸(textarea): 모바일은 한 줄에서 시작해 글 길이만큼 늘어남, 넓은 화면은 CSS가 크게 고정
+function _evAutoGrow(el) {
+  if (!el) return;
+  const fit = () => { if (matchMedia('(min-width:1001px)').matches) { el.style.height = ''; return; } el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; };
+  if (!el._evGrow) { el._evGrow = 1; el.addEventListener('input', fit); }
+  el.style.height = ''; if (el.value) fit();
 }
 function closeEventModal() {
   _animModalClose(document.getElementById('event-add-modal'));
@@ -78,6 +93,7 @@ function deleteEvent(dateStr, idx) {
 }
 
 // ===== 참여자 칩 =====
+// 이름 칩 격자 대신 검색 + 추천 목록 + 고른 사람 태그(js/nd-people.js). 저장 형식(직원 id 배열)은 그대로.
 function _renderParticipantChips(wrapperId, selectedIds, dateStr) {
   const wrap = document.getElementById(wrapperId); if (!wrap) return;
   const _now = new Date();
@@ -85,6 +101,12 @@ function _renderParticipantChips(wrapperId, selectedIds, dateStr) {
   const _sel = selectedIds||[];
   // 현재 계약기간이 아닌 사람은 숨김(단, 이미 선택된 참여자는 유지해 실수로 빠지지 않게)
   const staff = (data.staff||[]).filter(s => s.active!==false && (isContractActive(s, _d) || _sel.includes(s.id)));
+  if (typeof ndPeoplePicker === 'function') {
+    if (wrap._ndPicker) wrap._ndPicker.destroy();
+    wrap.style.cssText = ''; wrap.classList.add('pt-pick');
+    ndPeoplePicker(wrap, { staff, selected: _sel.filter(id => staff.some(s => s.id === id)), placeholder: '이름 검색해서 참여자 추가' });
+    return;
+  }
   wrap.innerHTML = staff.map(s => {
     const on = selectedIds.includes(s.id);
     return `<span onclick="_toggleChip(this,'${wrapperId}','${s.id}')" data-pid="${s.id}" style="display:block;text-align:center;padding:5px 6px;border-radius:12px;font-size:12px;cursor:pointer;border:1.5px solid ${on?'#6366f1':'var(--border)'};background:${on?'#6366f1':'transparent'};color:${on?'#fff':'var(--text)'};transition:all 0.15s;">${s.name}</span>`;
@@ -98,6 +120,10 @@ function _toggleChip(el, wrapperId, staffId) {
 }
 function _getSelectedParticipants(wrapperId) {
   const wrap = document.getElementById(wrapperId); if (!wrap) return [];
+  if (wrap._ndPicker) {   // 근무표 열 순서(data.staff 순서)로 저장 — 예전 칩 격자와 같은 순서
+    const idx = new Map((data.staff||[]).map((s,i)=>[s.id,i]));
+    return wrap._ndPicker.get().sort((a,b)=>(idx.get(a)??1e9)-(idx.get(b)??1e9));
+  }
   return Array.from(wrap.querySelectorAll('[data-pid]'))
     .filter(el => el.style.background === '#6366f1' || el.style.background === 'rgb(99, 102, 241)')
     .map(el => el.dataset.pid);
@@ -134,6 +160,7 @@ function openEventDetail(dateStr, id) {
   document.getElementById('ev-detail-meta').textContent = [ev.location?''+ev.location:'', ev.author?'작성자: '+ev.author:''].filter(Boolean).join('  ·  ');
   _renderDetailParticipants(ev);
   document.getElementById('ev-edit-form').style.display = 'none';
+  document.querySelector('#event-detail-modal .modal')?.classList.remove('ev-editing');   // 넓은 화면 편집용 2분할 해제
   _renderEventComments(ev);
   const _cmtAuthorEl = document.getElementById('ev-cmt-author');
   if (_cmtAuthorEl && currentUser?.name) _cmtAuthorEl.value = currentUser.name;
@@ -154,7 +181,10 @@ function openEventEdit() {
   const radio = document.querySelector(`input[name="ev-edit-color"][value="${ev.color||'#6366f1'}"]`);
   if (radio) radio.checked = true;
   _renderParticipantChips('ev-edit-participants-wrap', ev.participants||[], _evDetailDate);
+  _evAttachPickers('ev-edit-date', 'ev-edit-date-cal', 'ev-edit-time', 'ev-edit-time-pick');
   document.getElementById('ev-edit-form').style.display = 'block';
+  document.querySelector('#event-detail-modal .modal')?.classList.add('ev-editing');   // 넓은 화면: 편집하는 동안 좌우 2분할(css/popup-wide.css)
+  _evAutoGrow(document.getElementById('ev-edit-title'));
 }
 function saveEventEdit() {
   const newDate  = document.getElementById('ev-edit-date').value;

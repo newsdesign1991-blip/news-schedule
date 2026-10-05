@@ -386,26 +386,34 @@ function confirmDeletePublished(){
 // ===== 특정일 적정 인원 =====
 function openSpecialDayModal() {
   ['sp-date','sp-vw','sp-cg','sp-cap'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  { const pr=document.getElementById('sp-deskpair'); if(pr) pr.checked=false; }
+  // 넓은 화면: 날짜는 달력(js/nd-cal.js), 등록된 특정일엔 점 표시. 값은 #sp-date에 그대로(모바일은 그 날짜칸)
+  if (typeof ndDateInput === 'function') ndDateInput(document.getElementById('sp-date'), document.getElementById('sp-date-cal'), { mark: ds => !!((data.settings.specialDays||{})[ds]), markLabel: '등록된 특정일' });
   _renderSpecialDayList();
   document.getElementById('special-day-modal').style.display = 'flex';
 }
+// 날짜칸 값이 코드로 바뀐 뒤(수정 버튼·저장 후 비움·목록 변경) 달력을 따라가게
+function _spCalSync() { const h=document.getElementById('sp-date-cal'); if(h && h._ndCal) h._ndCal.sync(); }
 function closeSpecialDayModal() { const m=document.getElementById('special-day-modal'); if(m) m.style.display='none'; }
 function saveSpecialDay() {
   const ds = document.getElementById('sp-date').value;
   const vw = parseInt(document.getElementById('sp-vw').value);
   const cg = parseInt(document.getElementById('sp-cg').value);
   const cap = parseInt(document.getElementById('sp-cap').value);
+  const pair = !!document.getElementById('sp-deskpair')?.checked;   // 'CG 데스크 2명'(작성소 날짜칸 팝업과 같은 값) — 예전엔 여기서 저장하면 사라졌음
   if (!ds) { toast('날짜를 선택하세요.','error'); return; }
-  if (isNaN(vw) && isNaN(cg) && isNaN(cap)) { toast('VW·CG·최대 중 최소 하나는 입력하세요.','error'); return; }
+  if (isNaN(vw) && isNaN(cg) && isNaN(cap) && !pair) { toast('VW·CG·최대 인원 또는 CG 데스크 2명 중 하나는 정하세요.','error'); return; }
   if (!data.settings.specialDays) data.settings.specialDays = {};
   const o = {};
   if (!isNaN(vw)) o.vw = vw;
   if (!isNaN(cg)) o.cg = cg;
   if (!isNaN(cap)) o.cap = cap;
+  if (pair) o.deskPair = true;
   data.settings.specialDays[ds] = o;
   saveData(data);
   _renderSpecialDayList();
   ['sp-date','sp-vw','sp-cg','sp-cap'].forEach(id=>{document.getElementById(id).value='';});
+  { const pr=document.getElementById('sp-deskpair'); if(pr) pr.checked=false; }
   toast('특정일 인원 저장됨 — 근무 생성 시 반영됩니다.','success');
   if (wsRangeStart && wsRangeEnd) renderWorkshopTable();
 }
@@ -415,6 +423,9 @@ function _editSpecialDay(ds) {
   document.getElementById('sp-vw').value = o.vw ?? '';
   document.getElementById('sp-cg').value = o.cg ?? '';
   document.getElementById('sp-cap').value = o.cap ?? '';
+  { const pr=document.getElementById('sp-deskpair'); if(pr) pr.checked=!!o.deskPair; }
+  _spCalSync();
+  document.querySelectorAll('#special-day-list .sp-item').forEach(el=>el.classList.toggle('on', el.dataset.ds===ds));   // 지금 고치는 날 표시
 }
 function deleteSpecialDay(ds) {
   if (data.settings.specialDays) delete data.settings.specialDays[ds];
@@ -435,7 +446,7 @@ function openDaySpecial(ds, ev) {
   }
   pop.style.cssText = 'position:fixed;z-index:10001;background:var(--surface);border:1px solid #fcd97d;border-radius:12px;box-shadow:0 6px 30px rgba(0,0,0,0.28);padding:13px;width:236px;';
   pop.innerHTML = `
-    <div style="font-size:13px;font-weight:800;color:#b8860b;margin-bottom:9px;">📌 ${m}/${d} 적정 인원<br><span style="font-size:10px;font-weight:500;color:var(--muted);">빈칸은 기본 설정 사용</span></div>
+    <div style="font-size:13px;font-weight:800;color:#b8860b;margin-bottom:9px;">${m}/${d} 적정 인원<br><span style="font-size:10px;font-weight:500;color:var(--muted);">빈칸은 기본 설정 사용</span></div>
     <div style="display:flex;gap:5px;margin-bottom:9px;">
       <div style="flex:1;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">VW</div><input type="number" id="dsp-vw" value="${sp.vw??''}" placeholder="기본" min="0" max="40" style="width:100%;padding:5px 2px;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:6px;text-align:center;"></div>
       <div style="flex:1;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">CG</div><input type="number" id="dsp-cg" value="${sp.cg??''}" placeholder="기본" min="0" max="40" style="width:100%;padding:5px 2px;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:6px;text-align:center;"></div>
@@ -449,7 +460,7 @@ function openDaySpecial(ds, ev) {
       <button onclick="_saveDaySpecial('${ds}')" style="flex:1;background:#4a9fbd;color:#fff;border:none;border-radius:7px;padding:6px;font-size:12px;font-weight:700;cursor:pointer;">저장</button>
       <button onclick="_clearDaySpecial('${ds}')" style="background:#fce8e8;color:#d65a52;border:1px solid #f4bab6;border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer;">해제</button>
     </div>
-    <button onclick="document.getElementById('day-special-pop').style.display='none';wsShowDay('${ds}')" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:6px;font-size:11px;color:var(--muted);font-weight:700;cursor:pointer;">✏ 이 날 근무 상세 편집</button>`;
+    <button onclick="document.getElementById('day-special-pop').style.display='none';wsShowDay('${ds}')" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:6px;font-size:11px;color:var(--muted);font-weight:700;cursor:pointer;">이 날 근무 상세 편집</button>`;
   pop.style.display='block';
   const px = ev ? Math.min(ev.clientX, window.innerWidth-244) : 80;
   const py = ev ? Math.min(ev.clientY+8, window.innerHeight-200) : 80;
@@ -480,23 +491,26 @@ function _clearDaySpecial(ds) {
 function _renderSpecialDayList() {
   const wrap = document.getElementById('special-day-list');
   if (!wrap) return;
+  _spCalSync();   // 달력 점(등록된 날) 갱신
   const sp = data.settings.specialDays || {};
   const keys = Object.keys(sp).sort();
-  if (!keys.length) { wrap.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:12px;padding:16px 0;">등록된 특정일이 없습니다.</div>'; return; }
+  if (!keys.length) { wrap.innerHTML = '<div class="sp-empty">등록된 특정일이 없습니다.</div>'; return; }
   const DOW=['일','월','화','수','목','금','토'];
+  // 모양은 css/admin.css(.sp-item …) — 작성소 날짜칸 팝업에서 켠 'CG 데스크 2명'도 함께 표시
   wrap.innerHTML = keys.map(ds=>{
     const o = sp[ds];
     const parts=[];
     if (o.vw!=null) parts.push(`VW ${o.vw}`);
     if (o.cg!=null) parts.push(`CG ${o.cg}`);
     if (o.cap!=null) parts.push(`최대 ${o.cap}`);
+    if (o.deskPair) parts.push('CG 데스크 2명');
     const [y,m,d]=ds.split('-').map(Number);
-    const dow=DOW[new Date(ds+'T00:00:00').getDay()];
-    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--border);border-radius:8px;padding:8px 11px;background:var(--surface2);">
-      <div style="font-size:12px;"><b style="color:#b8860b;">${m}/${d}(${dow})</b> <span style="color:var(--text);margin-left:4px;">${parts.join(' · ')}</span></div>
-      <div style="display:flex;gap:4px;flex-shrink:0;">
-        <button onclick="_editSpecialDay('${ds}')" style="background:#eef1f9;border:1px solid #c5cce8;color:#5d6fb0;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;">수정</button>
-        <button onclick="deleteSpecialDay('${ds}')" style="background:#fce8e8;border:1px solid #f4bab6;color:#d65a52;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;">삭제</button>
+    const dw=new Date(ds+'T00:00:00').getDay(), dow=DOW[dw];
+    return `<div class="sp-item" data-ds="${ds}">
+      <div class="sp-item-txt"><b class="sp-item-date${dw===0?' sun':dw===6?' sat':''}">${m}/${d}(${dow})</b><span class="sp-item-vals">${parts.join(' · ')}</span></div>
+      <div class="sp-item-btns">
+        <button type="button" class="sp-edit" onclick="_editSpecialDay('${ds}')">수정</button>
+        <button type="button" class="sp-del" onclick="deleteSpecialDay('${ds}')">삭제</button>
       </div>
     </div>`;
   }).join('');
