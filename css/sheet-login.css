@@ -1,0 +1,55 @@
+/* [모듈] css/sheet-login.css — 상단 메뉴·바텀시트·토글·알림 설정·로그인 카드 | dashboard.html 메인 <style>에서 분리됨. 순서 = 우선순위(바꾸지 말 것) */
+/* ===== 상단 통합 메뉴 버튼 + iOS 컨텍스트 메뉴 ===== */
+#hdr-menu-btn { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; font-size:15px; font-weight:800; padding:0; box-shadow:0 2px 6px rgba(0,0,0,0.06); transition:transform .12s; -webkit-tap-highlight-color:transparent; }
+#hdr-menu-btn:active { transform:scale(0.92); }
+#hdr-menu-btn.logged { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+#hdr-menu { position:fixed; z-index:9500; min-width:224px; padding:7px; border-radius:18px; background:rgba(255,255,255,0.72); -webkit-backdrop-filter:blur(28px) saturate(180%); backdrop-filter:blur(30px) saturate(180%); border:1px solid rgba(255,255,255,0.6); box-shadow:0 16px 44px -8px rgba(15,23,42,0.32); transform-origin:top right; animation:hmenuIn .18s cubic-bezier(.22,1,.36,1); }
+@keyframes hmenuIn { from{opacity:0;transform:scale(0.9) translateY(-6px);} to{opacity:1;transform:none;} }
+.hmenu-item { display:flex; align-items:center; gap:12px; width:100%; padding:11px 12px; border:none; background:none; cursor:pointer; font-size:15px; font-weight:500; color:var(--text); border-radius:11px; text-align:left; -webkit-tap-highlight-color:transparent; }
+.hmenu-item:hover, .hmenu-item:active { background:rgba(120,120,128,0.14); }
+.hmenu-item svg { width:20px; height:20px; flex-shrink:0; color:#6366f1; }
+.hmenu-div { height:0.5px; background:rgba(0,0,0,0.08); margin:2px 8px; }
+
+/* ===== 바텀 시트(드로어) ===== */
+#sheet-overlay { position:fixed; inset:0; z-index:9600; display:none; align-items:flex-end; justify-content:center; background:rgba(0,0,0,0); transition:background .3s ease; }
+#sheet-overlay.open { background:rgba(0,0,0,0.32); }
+#sheet-panel { width:100%; max-width:520px; max-height:88vh; position:relative; background:linear-gradient(#f8fafd,#f8fafd) padding-box, linear-gradient(135deg,#ffffff,rgba(255,255,255,.5) 55%,rgba(15,23,42,.1)) border-box; border:1px solid transparent; border-bottom:none; border-radius:26px 26px 0 0; box-shadow:0 -10px 44px rgba(15,23,42,0.24); padding:8px 20px calc(24px + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .36s cubic-bezier(.22,1,.36,1); overflow-y:auto; }
+#sheet-overlay.open #sheet-panel { transform:translateY(0); }
+#sheet-grabber { width:38px; height:5px; border-radius:3px; background:rgba(120,120,128,0.3); margin:6px auto 10px; }
+#sheet-header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px; }
+#sheet-title { font-size:17px; font-weight:800; color:var(--text); flex:1; text-align:center; }
+#sheet-close { width:32px; height:32px; border-radius:50%; border:none; background:rgba(120,120,128,0.14); color:var(--text); font-size:15px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+/* 큰 화면: 바텀시트를 중앙 팝업으로 */
+@media (min-width: 900px) {
+  #sheet-overlay { align-items: center; }
+  #sheet-panel { max-width: 460px; border-radius: 24px; border-bottom: 1px solid transparent; box-shadow: 0 22px 60px -12px rgba(15,23,42,0.34); padding: 22px 26px 26px; transform: translateY(14px) scale(.96); opacity: 0; transition: transform .34s cubic-bezier(.16,1,.3,1), opacity .26s ease; }
+  #sheet-overlay.open #sheet-panel { transform: none; opacity: 1; }
+  #sheet-grabber { display: none; }
+}
+/* 토글 스위치(우리 스타일) */
+.nd-switch { position: relative; width: 46px; height: 27px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); cursor: pointer; flex-shrink: 0; transition: background .2s, border-color .2s; -webkit-tap-highlight-color: transparent; }
+.nd-switch.on { background: #3182f6; border-color: #3182f6; }
+[data-theme="dark"] .nd-switch.on { background: #4a94ff; border-color: #4a94ff; }
+.nd-switch-knob { position: absolute; top: 2px; left: 2px; width: 21px; height: 21px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.28); transition: transform .24s cubic-bezier(.34,1.5,.64,1); }
+.nd-switch.on .nd-switch-knob { transform: translateX(19px); }
+/* 알림 설정 시트 내부 */
+.ns-sec-title { font-size: 13px; font-weight: 800; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; }
+.ns-card { background: var(--surface2); border-radius: 16px; padding: 2px 16px; margin-bottom: 14px; }
+.ns-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; cursor: pointer; border-top: 1px solid var(--border); }
+.ns-row:first-child { border-top: none; }
+.ns-label { font-size: 15px; font-weight: 600; color: var(--text); }
+.ns-status { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.ns-btn { width: 100%; background: none; border: 1px solid var(--border); color: var(--muted); padding: 12px; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 700; margin-bottom: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.ns-btn svg { flex-shrink: 0; }
+.ns-btn-primary { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+/* ===== 로그인 카드 그라디언트 ===== */
+.login-box { width:100%; max-width:none; margin:0; border-radius:20px; padding:26px 24px; border:1px solid transparent !important; position:relative; overflow:hidden; box-shadow:0 1px 2px rgba(20,24,40,.04), 0 12px 28px -16px rgba(20,24,40,.17); }
+.login-box.lb-admin { background:linear-gradient(#eef2ff,#eef2ff) padding-box, linear-gradient(135deg, #ffffff, rgba(255,255,255,.5) 58%, rgba(15,23,42,.13) 100%) border-box; }
+.login-box.lb-test { background:linear-gradient(#f7f9fc,#f7f9fc) padding-box, linear-gradient(135deg, #ffffff, rgba(255,255,255,.5) 58%, rgba(15,23,42,.13) 100%) border-box; }
+.login-box.lb-master { background:linear-gradient(#fdf7e8,#fdf7e8) padding-box, linear-gradient(135deg, #ffffff, rgba(255,255,255,.5) 58%, rgba(15,23,42,.13) 100%) border-box; }
+.login-box h2 { display:flex; align-items:center; gap:8px; }
+.login-box .btn-primary.lb-btn-admin { background:linear-gradient(135deg,#6366f1,#8b5cf6); }
+.login-box .btn-primary.lb-btn-test { background:linear-gradient(135deg,#64748b,var(--muted)); }
+.login-box .btn-primary.lb-btn-master { background:linear-gradient(135deg,#d9a441,#e8c06a); }
+

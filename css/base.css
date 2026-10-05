@@ -1,0 +1,36 @@
+/* [모듈] css/base.css — 기본 변수·리셋·공통 | dashboard.html 메인 <style>에서 분리됨. 순서 = 우선순위(바꾸지 말 것) */
+
+:root {
+  --bg: #f1f4f8; --surface: #ffffff; --surface2: #f7f9fc; --border: #e2e8f0;
+  --text: #334155; --muted: #94a3b8;
+  --vw: #5a7ec6; --vw-bg: #f3f6fb; --vw-light: #486aaa;
+  --cg: #4a9fbd; --cg-bg: #f0f6f9; --cg-light: #437d93;
+  --project: #686dc8; --project-bg: #f3f4fb; --project-light: #565ba4;
+  --sports: #8a6ecf; --sports-bg: #f6f4fb; --sports-light: #6f59a3;
+  --desk: #527dc4; --xr: #4faa9c; --xr-bg: #f0f8f6; --xr-light: #45847a;
+  /* 홈 CG/XR 근무자 칩 색(라이트=기존 그대로) */
+  --cg-chip-bg: #d4e8ee; --cg-chip-text: #437d93; --xr-chip-bg: #d4ede8;
+  /* 공지 카드(노랑) */
+  --notice-bg1: #fffbeb; --notice-bg2: #fef3c7; --notice-border: #fcd97d;
+  --notice-panel: #fffdf5; --notice-stack1: #fdeec1; --notice-stack2: #fbe6a3;
+  /* 미달 경고 카드(연빨강) */
+  --warn-bg1: #fff5f5; --warn-bg2: #fee2e2; --warn-border: #fca5a5;
+  /* 표 주말 셀(휴가 팝업 등 인라인용) */
+  --wk-bg: #d6e2f6; --wk-bd: #b6cbed;
+  /* 근무표 역할 칩(밝은 배경 계열) */
+  --r-exit-bg:#faf6dd; --r-exit-fg:#9c7b4a; --r-edu-bg:#d4edda; --r-edu-fg:#276c3e;
+  --r-news-bg:#f5e2cc; --r-news-fg:#9c6b4a; --r-news2-bg:#f3ddc0; --r-news2-fg:#b07d4a; --r-ilgeun-bg:#f6e0ea; --r-ilgeun-fg:#a34873;
+  /* 근무표 헤더(합계/부서그룹 밝은 배경) */
+  --th-jogeun-bg:#eef1f9; --th-jogeun-fg:#5d6fb0; --th-jogeun-bd:#c5cce8;
+  --th-xr-bg:#e1f1ed; --th-xr-fg:#45847a; --th-xr-bd:#bce0d7;
+  --th-cgsum-bg:#e3eef2; --th-cgsum-fg:#437d93;
+  --th-daysum-bg:#f4f7fc; --th-daysum-fg:#436bb5;
+  --th-remark-bg:#f5f0ff; --th-remark-fg:#7c5cbf;
+  /* 근무표 범례 스와치 */
+  --lg-vwdesk:#6366f1; --lg-cg8:#4a9fbd; --lg-cg5:#bcdde6; --lg-duty:#d65a52;
+  --lg-exit:#faf6dd; --lg-jogeun:#8893dc; --lg-weekend:#f1f3fa; --lg-holiday:#ffc8c8;
+  /* 조근 셀 배지(solid) + XR 이름칸 배경 */
+  --r-jogeun-bg:#8893dc; --r-jogeun-fg:#fff; --th-xr-namebg:#f0fdfa;
+  /* 인물 근무 팝업(openPersonSchedule) 오늘행·요일색 */
+  --pop-today-bg:#f5f2fe; --pop-dow-sun:#6f59a3; --pop-dow-sat:#6366f1;
+}

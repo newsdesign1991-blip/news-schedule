@@ -1,0 +1,559 @@
+/* [모듈] js/notice.js — 오늘의 공지·공감표시(리액션)·공지 삭제/푸시 | dashboard.html 메인 스크립트에서 분리됨. 로드 순서 = dashboard.html의 <script> 순서(바꾸지 말 것) */
+// ===== 오늘의 공지 =====
+function _todayStr() { const n=new Date(); return toDateStr(n.getFullYear(),n.getMonth()+1,n.getDate()); }
+function _genNoticeId(){ return 'n'+Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4); }
+// 공지 컨테이너 정규화: { news8Time, items:[{id,text,postedBy,postedAt,silent}] }. 구형 단일객체도 흡수(읽기 전용).
+function _getNoticeBox(ds){
+  const raw = (data.notices||{})[ds];
+  if (!raw) return { news8Time:'', items:[] };
+  if (Array.isArray(raw.items)) return raw;
+  return { news8Time: raw.news8Time||'', items: raw.text ? [{ id:_genNoticeId(), text:raw.text, postedBy:raw.postedBy||'', postedAt:raw.postedAt||'', silent:false }] : [] };
+}
+// 쓰기용: 정규화한 컨테이너를 data.notices[ds]에 보장하고 반환
+function _ensureNoticeBox(ds){
+  if(!data.notices) data.notices={};
+  const cur = data.notices[ds];
+  if (cur && Array.isArray(cur.items)) return cur;
+  const box = _getNoticeBox(ds);
+  data.notices[ds] = box;
+  return box;
+}
+// ── 게시 기간(until) 유틸 ──
+function _noticeEnd(ds, it){ return (it && it.until && it.until > ds) ? it.until : ds; }   // 공지 게시 종료일(없으면 게시일 당일)
+function _noticeActiveItems(today){   // 오늘이 게시기간 안인 공지를 모든 날짜 박스에서 수집
+  const out = [];
+  Object.keys(data.notices||{}).forEach(ds => {
+    if (ds > today) return;                       // 미래 게시분 제외
+    (_getNoticeBox(ds).items||[]).forEach(it => { if (_noticeEnd(ds, it) >= today) out.push({ ds, it }); });
+  });
+  out.sort((a,b) => b.ds.localeCompare(a.ds) || String(b.it.postedAt||'').localeCompare(String(a.it.postedAt||'')));
+  return out;
+}
+function _findNoticeItem(id){   // id로 공지 항목이 들어있는 박스 찾기(과거 게시분도 수정/삭제 가능)
+  for (const ds of Object.keys(data.notices||{})) {
+    const box = _ensureNoticeBox(ds);
+    const it = (box.items||[]).find(i=>i.id===id);
+    if (it) return { ds, box, it };
+  }
+  return null;
+}
+function _onNoticePeriodChange(){
+  const sel = document.getElementById('notice-period'), dateEl = document.getElementById('notice-until'), hint = document.getElementById('notice-period-hint');
+  if (!sel) return;
+  const today = _todayStr();
+  let until;
+  if (sel.value === 'custom') {
+    dateEl.style.display = ''; dateEl.min = today;
+    if (!dateEl.value || dateEl.value < today) dateEl.value = today;
+    until = dateEl.value;
+  } else { dateEl.style.display = 'none'; until = addDays(today, parseInt(sel.value)||0); }
+  if (hint) {
+    if (until <= today) hint.textContent = '오늘 하루만 홈 화면에 표시됩니다.';
+    else { const p = until.split('-'); hint.textContent = (+p[1]) + '월 ' + (+p[2]) + '일까지 홈 화면에 계속 표시됩니다. (8뉴스 진입시간은 항상 당일만 적용)'; }
+  }
+}
+function toggleNoticeExpand(){
+  const _exp=!_noticeExpanded;
+  const wrap=document.getElementById('home-notice');
+  const _cs=[...document.querySelectorAll('#home-notice .notice-card')];
+  const _animH=function(h0,stagger){
+    const panel=wrap.firstElementChild; if(!panel){ return; }
+    const h1=panel.scrollHeight;
+    // ★ #home-notice(부모)가 아니라 패널 자체 높이를 애니한다 → 패널의 box-shadow는 잘리지 않음(그림자 튐 제거)
+    panel.style.height=h0+'px'; panel.style.overflow='hidden';
+    document.querySelectorAll('#home-notice .notice-card').forEach(function(c,i){ c.style.animation='noticeCardIn .5s cubic-bezier(.5,0,.35,1) both'; c.style.animationDelay=(i*stagger)+'ms'; });
+    setTimeout(function(){ panel.style.transition='height .52s cubic-bezier(.5,0,.35,1)'; panel.style.height=h1+'px'; }, 20);   // 투표와 동일한 부드러운 크기 조정
+    setTimeout(function(){ panel.style.height=''; panel.style.transition=''; panel.style.overflow=''; }, 610);
+  };
+  if(!_exp && _cs.length>1){
+    const n=_cs.length; const h0=wrap.offsetHeight;
+    _cs.forEach(function(c,i){ c.style.animation='noticeCardOut .2s cubic-bezier(.4,0,.7,1) forwards'; c.style.animationDelay=((n-1-i)*26)+'ms'; });
+    _noticeExpanded=false;
+    setTimeout(function(){ renderNoticeBar(); _animH(h0,0); }, (n-1)*26 + 195);
+    return;
+  }
+  const _h0=wrap.offsetHeight;
+  _noticeExpanded=_exp;
+  renderNoticeBar();
+  if(_exp){ _animH(_h0,55); }
+}
+function _updateNoticeSaveBtn(){
+  const b=document.getElementById('notice-save-btn'), s=document.getElementById('notice-silent');
+  if(b&&s) b.innerHTML = s.checked ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>조용히 저장' : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>저장 + 전직원 알림';
+}
+function renderNoticeBar() {
+  const wrap = document.getElementById('home-notice');
+  if (!wrap) return;
+  const ds = _todayStr();
+  // 한 달(30일)이 지난 공지는 자동 삭제 — 단 게시기간(until)이 아직 유효한 항목이 있는 박스는 보존
+  if (data.notices) {
+    const cutoff = addDays(ds, -30);
+    let pruned = false;
+    Object.keys(data.notices).forEach(d => {
+      if (d >= cutoff) return;
+      const bx = _getNoticeBox(d);
+      const anyActive = (bx.items||[]).some(it => _noticeEnd(d, it) >= ds);
+      if (!anyActive) { delete data.notices[d]; pruned = true; }
+    });
+    if (pruned) saveData(data);
+  }
+  const todayBox = _getNoticeBox(ds);
+  const items = _noticeActiveItems(ds).map(a => a.it);   // 오늘 게시기간에 해당하는 공지 전부(과거 게시분 포함)
+  const news8 = todayBox.news8Time || '';
+  const has = items.length>0 || news8;
+  const canWrite = !!(currentUser && currentUser.staffId);   // 로그인한 직원 누구나 작성 가능
+  const writeBtn = canWrite ? `<button onclick="openNoticeModal()" style="background:var(--surface);border:1px solid var(--notice-border);color:#b8860b;padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;"><svg viewBox="0 0 24 24" width="12" height="12" fill="#b8860b" style="vertical-align:-2px;margin-right:3px;"><path d="M4 9v6a1 1 0 0 0 1 1h1v3a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-3l7 4V4L9 8H5a1 1 0 0 0-1 1z"/></svg>공지 작성</button>` : '';
+  const histBtn = canWrite ? `<button onclick="openNoticeHistory()" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" fill-rule="evenodd" style="vertical-align:-2px;margin-right:3px;"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4a1 1 0 1 0-2 0v5a1 1 0 0 0 .45.83l3 2a1 1 0 1 0 1.1-1.66L13 11.46V7z"/></svg>지난 공지</button>` : '';
+  if (!has) {
+    wrap.innerHTML = '';
+    return;
+  }
+  const news8Html = news8 ? `<div style="margin-top:10px;"><span style="font-size:12px;font-weight:700;color:#d65a52;background:var(--surface);border:1px solid #f4bab6;border-radius:6px;padding:3px 9px;">📺 오늘 8뉴스 진입 ${news8}</span></div>` : '';
+  const header = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:15px;">
+      <div style="font-size:16px;font-weight:700;color:#e8890c;"><svg viewBox="0 0 24 24" width="17" height="17" fill="#e8890c" style="vertical-align:-3px;margin-right:4px;"><path d="M4 9v6a1 1 0 0 0 1 1h1v3a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-3l7 4V4L9 8H5a1 1 0 0 0-1 1z"/></svg>오늘의 공지${items.length>1?` <span style="opacity:0.7;">· ${items.length}건</span>`:''}</div>
+      ${canWrite?`<button class="ntc-add-btn" onclick="openNoticeModal()" title="공지 추가"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`:''}
+    </div>`;
+  const card = (it) => {
+    const title = (it.title||'').trim() || (it.text||'').split('\n')[0] || '(제목 없음)';
+    const bell = it.silent ? `<span title="조용한 공지(알림 미발송)" style="opacity:0.65;margin-left:6px;display:inline-flex;vertical-align:middle;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span>` : '';
+    const edit = canWrite ? `<button onclick="event.stopPropagation();openNoticeModal('${it.id}')" style="background:transparent;border:none;color:#b8860b;cursor:pointer;font-size:13px;padding:0 2px;flex-shrink:0;" title="수정"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:-2px;"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>` : '';
+    const span = (it.until && it.until > ds) ? (function(){ const p=it.until.split('-'); return `<span title="게시 기간" style="font-size:10px;font-weight:700;color:#c77f0a;background:rgba(255,176,32,0.16);border:none;border-radius:6px;padding:2px 7px;white-space:nowrap;font-weight:800;"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" style="vertical-align:-1px;margin-right:3px;"><path d="M9 2h6a1 1 0 0 1 0 2h-.6l.9 6.2 2.4 2.4a1 1 0 0 1-.7 1.7H13v5.1a1 1 0 0 1-2 0V14.3H5.9a1 1 0 0 1-.7-1.7l2.4-2.4L8.5 4H8a1 1 0 0 1 0-2z"/></svg>~${+p[1]}/${+p[2]}</span>`; })() : '';
+    const by = it.postedBy ? `<span style="font-size:11.5px;color:var(--muted);font-weight:500;">· ${_pEsc(it.postedBy)}</span>` : '';
+    return `<div class="notice-card" data-nid="${it.id}" onclick="openNoticeDetail('${it.id}')" style="background:linear-gradient(135deg,var(--notice-bg1) 0%,var(--notice-bg2) 100%);border:1px solid var(--notice-border);border-radius:12px;padding:11px 13px;cursor:pointer;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+            <div style="flex:1;min-width:0;">
+              <div class="ntc-title" style="font-size:15px;font-weight:800;line-height:1.4;word-break:break-word;">${_pEsc(title)}${bell}</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:6px;"><span style="font-size:11.5px;color:#b8860b;font-weight:800;">눌러서 전체 보기 ›</span>${by}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">${span}</div>
+          </div>
+        ${_noticeReactBar(it, false)}</div>`;
+  };
+  let body;
+  if (items.length <= 1) {
+    body = items.map(card).join('');
+  } else if (_noticeExpanded) {
+    body = `<div style="display:flex;flex-direction:column;gap:8px;">${items.map(card).join('')}</div>
+      <div style="text-align:center;margin-top:11px;"><button onclick="toggleNoticeExpand()" class="ntc-fold-btn"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>접기</button></div>`;
+  } else {
+    body = `<div onclick="toggleNoticeExpand()" style="position:relative;margin-bottom:20px;cursor:pointer;">
+        <div style="position:relative;z-index:3;">${card(items[0])}</div>
+        <div style="position:absolute;left:6px;right:6px;bottom:-6px;height:18px;background:var(--notice-stack1);border:1px solid var(--notice-border);border-radius:0 0 12px 12px;z-index:2;animation:ncFade .5s ease both;"></div>
+        <div style="position:absolute;left:12px;right:12px;bottom:-12px;height:18px;background:var(--notice-stack2);border:1px solid var(--notice-border);border-radius:0 0 12px 12px;z-index:1;animation:ncFade .5s ease both;"></div>
+      </div>
+      <div style="text-align:center;"><button onclick="toggleNoticeExpand()" class="ntc-fold-btn"><span>공지 ${items.length}건 모두 보기</span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>`;
+  }
+  wrap.innerHTML = `<div style="background:var(--notice-panel);border:1px solid var(--notice-border);border-radius:14px;padding:21.5px 16px 14px;">${header}${body}${news8Html}</div>`;
+  _applyNoticeClamp();
+  _bindNoticeReacts();
+}
+// ===== 오늘의 공지 공감표시 (카톡식 리액션) =====
+const NOTICE_EMOJIS=['@bcheck','👍','👏','🙏','❤️','🔥','😂','😍','😮','😢','😡','🥺','🎉','👌','💪','😎','👀','🤔','😭','😅','🥳','💯','🙌'];
+function _rxIcon(e){ if(e==='@bcheck') return '<svg viewBox=\'0 0 24 24\' width=\'1.05em\' height=\'1.05em\' style=\'vertical-align:-.16em;\'><circle cx=\'12\' cy=\'12\' r=\'11\' fill=\'#3182f6\'/><path d=\'M6.8 12.4l3.4 3.4L17.4 9\' fill=\'none\' stroke=\'#fff\' stroke-width=\'2.5\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/></svg>'; return e; }
+function _ndReactAddIcon(){ return '<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><circle cx=\'11\' cy=\'12\' r=\'8\'/><path d=\'M8.5 14a3.5 3.5 0 0 0 5 0\'/><line x1=\'9\' y1=\'10\' x2=\'9\' y2=\'10.01\'/><line x1=\'13\' y1=\'10\' x2=\'13\' y2=\'10.01\'/><line x1=\'19\' y1=\'5\' x2=\'19\' y2=\'9\'/><line x1=\'17\' y1=\'7\' x2=\'21\' y2=\'7\'/></svg>'; }
+function _ndWhoIcon(){ return '<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><circle cx=\'12\' cy=\'8\' r=\'4\'/><path d=\'M4.5 20.5c0-4 3.4-7 7.5-7s7.5 3 7.5 7\'/></svg>'; }
+// interactive=false(홈 바깥): 공감이 있을 때만 표시(추가/토글 불가, 클릭하면 카드가 팝업 오픈).
+// interactive=true(팝업): 공감 추가(웃는얼굴)+ 누가 공감했는지 보기(사람) 버튼 포함.
+function _noticeReactBar(it, interactive){
+  const rx=it.reactions||{};
+  const byEmoji={};
+  Object.keys(rx).forEach(sid=>{ const e=rx[sid]; (byEmoji[e]=byEmoji[e]||[]).push(sid); });
+  const myId=(currentUser&&currentUser.staffId)||null;
+  const myE=myId?rx[myId]:null;
+  const canReact=!!(currentUser&&currentUser.staffId);
+  const keys=Object.keys(byEmoji);
+  if(!interactive){
+    if(!keys.length) return '';   // 바깥화면: 공감 없으면 아무것도 안 보임
+    const pills=keys.map(e=>`<span class="ntc-rx${myE===e?' mine':''}" style="pointer-events:none;">${_rxIcon(e)}<b>${byEmoji[e].length}</b></span>`).join('');
+    return `<div class="ntc-react ntc-react-ro" data-nid="${it.id}">${pills}</div>`;
+  }
+  const pills=keys.map(e=>`<button class="ntc-rx${myE===e?' mine':''}" onclick="event.stopPropagation();_noticeReactSet('${it.id}','${e}')">${_rxIcon(e)}<b>${byEmoji[e].length}</b></button>`).join('');
+  const addBtn=canReact?`<button class="ntc-rx-add" onclick="event.stopPropagation();openReactPicker('${it.id}',this)" title="공감 추가">${_ndReactAddIcon()}</button>`:'';
+  const whoBtn=`<button class="ntc-rx-add ntc-rx-who" onclick="event.stopPropagation();openReactDetail('${it.id}')" title="누가 공감했는지 보기">${_ndWhoIcon()}</button>`;
+  return `<div class="ntc-react" data-nid="${it.id}">${pills}${addBtn}${whoBtn}</div>`;
+}
+function _noticeReactSet(itemId, emoji){
+  if(!currentUser||!currentUser.staffId){ toast('이름으로 로그인 후 공감할 수 있습니다.','error'); return; }
+  const found=_findNoticeItem(itemId); if(!found) return;
+  const myId=currentUser.staffId; const it=found.it;
+  if(!it.reactions) it.reactions={};
+  if(it.reactions[myId]===emoji) delete it.reactions[myId]; else it.reactions[myId]=emoji;
+  const desired=it.reactions[myId];
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){}
+  closeReactPicker();
+  _noticeReactRefresh(itemId);
+  _ndCommit((rp)=>{
+    let target=null;
+    Object.keys(rp.notices||{}).forEach(ds=>{ const items=((rp.notices[ds]||{}).items)||[]; const t=items.find(x=>x.id===itemId); if(t) target=t; });
+    if(!target) return;
+    if(!target.reactions) target.reactions={};
+    if(desired===undefined) delete target.reactions[myId]; else target.reactions[myId]=desired;
+  }).then(ok=>{ if(ok) _noticeReactRefresh(itemId); });
+}
+// 원격 최신본에 내 공감만 병합 + updated_at 낙관적잠금 + 재시도 (동시 공감 무손실)
+async function _ndCommit(mutate){
+  if(isAdminTest) return true;
+  const url=`${SB_URL}/rest/v1/nd_data?id=eq.main`;
+  for(let attempt=0;attempt<6;attempt++){
+    let remote;
+    try{ const g=await fetch(`${url}&select=payload,updated_at`,{headers:SB_HEADERS}); if(!g.ok) throw new Error('GET'); const a=await g.json(); remote=a&&a[0]; }
+    catch(e){ console.warn('공감 동기화 읽기 실패',e); return false; }
+    if(!remote||!remote.payload) return false;
+    const rp=remote.payload; if(!rp.notices) rp.notices={};
+    try{ mutate(rp); }catch(e){ console.warn('공감 mutate 실패',e); return false; }
+    const nowIso=new Date().toISOString();
+    try{
+      const cond=remote.updated_at?`&updated_at=eq.${encodeURIComponent(remote.updated_at)}`:'';
+      const pr=await fetch(`${url}${cond}`,{method:'PATCH',headers:Object.assign({},SB_HEADERS,{'Prefer':'return=representation'}),body:JSON.stringify({payload:rp,updated_at:nowIso})});
+      if(!pr.ok) throw new Error('PATCH');
+      const rows=await pr.json();
+      if(Array.isArray(rows)&&rows.length>0){ data.notices=rp.notices; _ndUpdatedAt=nowIso; try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){} _localBackup(data); return true; }
+    }catch(e){ console.warn('공감 동기화 쓰기 실패',e); return false; }
+    await new Promise(res=>setTimeout(res, 70+attempt*110));
+  }
+  return false;
+}
+// 이모지 피커
+function openReactPicker(itemId, btn){
+  closeReactPicker();
+  if(!currentUser||!currentUser.staffId){ toast('이름으로 로그인 후 공감할 수 있습니다.','error'); return; }
+  const pop=document.createElement('div'); pop.id='react-picker'; pop.className='react-picker';
+  pop.innerHTML=NOTICE_EMOJIS.map(e=>`<button class="react-emo" onclick="_noticeReactSet('${itemId}','${e}')">${_rxIcon(e)}</button>`).join('');
+  document.body.appendChild(pop);
+  const rc=btn.getBoundingClientRect(); const pw=pop.offsetWidth, ph=pop.offsetHeight;
+  let left=Math.max(10, Math.min(rc.left, window.innerWidth-pw-10));
+  let top=rc.bottom+8; if(top+ph>window.innerHeight-10) top=Math.max(10, rc.top-ph-8);
+  pop.style.left=left+'px'; pop.style.top=top+'px';
+  setTimeout(()=>document.addEventListener('click', _reactPickerOutside, true), 0);
+}
+function _reactPickerOutside(e){ const p=document.getElementById('react-picker'); if(p && !p.contains(e.target)) closeReactPicker(); }
+function closeReactPicker(){ const p=document.getElementById('react-picker'); if(p) p.remove(); document.removeEventListener('click', _reactPickerOutside, true); }
+// 누가 어떤 공감 했나(꾹 눌러서 보기)
+function openReactDetail(itemId){
+  const found=_findNoticeItem(itemId); if(!found) return;
+  closeReactPicker();
+  const ov=document.getElementById('react2-modal'); const card=document.getElementById('react2-card');
+  if(!ov||!card){ _pollShow(_reactDetailHtml(found.it)); return; }
+  card.innerHTML=_reactDetailHtml(found.it);
+  // 위치 초기화
+  card.style.position=''; card.style.left=''; card.style.top=''; card.style.margin='';
+  ov.classList.remove('r2-side');
+  ov.style.display='flex';
+  const notice=document.getElementById('poll-modal-card');
+  const gap=16;
+  const cwEst = 400;
+  const wide = notice && (window.innerWidth >= (notice.getBoundingClientRect().width + gap + cwEst + 24));
+  if(wide){
+    // 넓은 화면: 공지 팝업 카드 옆에 나란히. 정확한 위치 측정 위해 공지 카드의 이전 transform/애니 먼저 정리.
+    notice.getAnimations().forEach(function(a){ try{a.cancel();}catch(e){} });
+    notice.style.transition='none';
+    notice.style.transform='none';
+    void notice.offsetWidth;   // 리플로우로 원위치 확정
+    ov.classList.add('r2-side');   // 배경 투명 + 카드 position:fixed
+    const cw=card.offsetWidth||cwEst, ch=card.offsetHeight||400;
+    const nr=notice.getBoundingClientRect();   // 원위치(중앙)에서 측정
+    const shift=Math.round((cw+gap)/2);   // 공지 카드를 왼쪽으로 이동시켜 쌍을 중앙 정렬
+    notice.style.transition='transform .32s cubic-bezier(.5,0,.35,1)';
+    notice.style.transform='translateX(-'+shift+'px)';
+    let left=(nr.right - shift) + gap;
+    if(left+cw>window.innerWidth-10) left=window.innerWidth-cw-10;
+    if(left<10) left=10;
+    let top=nr.top; if(top+ch>window.innerHeight-10) top=Math.max(10, window.innerHeight-ch-10);
+    card.style.left=Math.round(left)+'px'; card.style.top=Math.round(Math.max(10,top))+'px';
+    // 등장: 블러+오파시티(넓은 화면만 — 데스크톱은 blur 부담 적음)
+    try{ card.animate([{opacity:0,filter:'blur(12px)',transform:'scale(.97)'},{opacity:1,filter:'blur(0px)',transform:'scale(1)'}],{duration:340,easing:'cubic-bezier(.5,0,.35,1)'}); }catch(e){}
+  } else {
+    // 모바일(좁은 화면): 공지 카드 안 건드리고 위에 덮기(transform 리셋/애니취소 안 함 → 덜컹 방지).
+    // 등장은 blur 없이 opacity+scale만 → 모바일 GPU 부담↓, 부드럽게.
+    try{ card.animate([{opacity:0,filter:'blur(12px)',transform:'scale(.97)'},{opacity:1,filter:'blur(0px)',transform:'scale(1)'}],{duration:340,easing:'cubic-bezier(.5,0,.35,1)'}); }catch(e){}
+  }
+}
+function closeReact2(){
+  const notice=document.getElementById('poll-modal-card');
+  if(notice){ notice.style.transition='transform .3s cubic-bezier(.5,0,.35,1)'; notice.style.transform='none'; }
+  _animModalClose(document.getElementById('react2-modal'));
+}
+function _reactDetailHtml(it){
+  const rx=it.reactions||{};
+  const byEmoji={};
+  Object.keys(rx).forEach(sid=>{ (byEmoji[rx[sid]]=byEmoji[rx[sid]]||[]).push(sid); });
+  const emojis=Object.keys(byEmoji);
+  const rxHtml = emojis.length ? emojis.map(e=>{
+    const names=byEmoji[e].map(sid=>{ const st=staffById(sid); return st?st.name:null; }).filter(Boolean);
+    return `<div class="poll-band" style="background:rgba(255,171,0,.1);"><div class="poll-band-hd" style="color:#b7791f;"><span style="font-size:18px;">${_rxIcon(e)}</span> ${names.length}명</div><div class="poll-band-names" style="color:var(--text);">${names.map(n=>`<span>${_pEsc(n)}</span>`).join('')}</div></div>`;
+  }).join('') : `<div style="text-align:center;color:var(--muted);font-size:13px;padding:18px 0;">아직 아무도 공감하지 않았어요</div>`;
+  const reacted=new Set(Object.keys(rx));
+  const notYet=(data.staff||[]).filter(st=>st.active!==false && !reacted.has(st.id)).map(st=>st.name);
+  const notHtml=`<div class="poll-band" style="background:var(--surface2);"><div class="poll-band-hd" style="color:var(--muted);">아직 확인 안 함 · ${notYet.length}명</div><div class="poll-band-names" style="color:var(--muted);">${notYet.length?notYet.map(n=>`<span>${_pEsc(n)}</span>`).join(''):'<span>모두 확인했어요</span>'}</div></div>`;
+  const preview=(it.text||'').replace(/\n/g,' ').slice(0,28);
+  return `<div class="modal-header"><div class="mh-title">공감 현황</div><button class="modal-close" onclick="closeReact2()">✕</button></div>
+    <div class="poll-scroll" style="padding:15px 20px 20px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:13px;line-height:1.5;">“${_pEsc(preview)}${(it.text||'').length>28?'…':''}”</div>
+      ${rxHtml}${notHtml}
+    </div>`;
+}
+function _noticeReactRefresh(itemId){
+  renderNoticeBar();
+  if(window._noticeDetailId===itemId){ const pm=document.getElementById('poll-modal'); if(pm && pm.style.display==='flex'){ const fd=_findNoticeItem(itemId); const c=document.getElementById('poll-modal-card'); if(fd && c) c.innerHTML=_noticeDetailHtml(fd.it); } }
+}
+function openNoticeDetail(itemId){
+  const found=_findNoticeItem(itemId); if(!found) return;
+  closeReactPicker();
+  const src=document.querySelector('#home-notice .notice-card[data-nid="'+itemId+'"]');
+  _pollShow(_noticeDetailHtml(found.it)); window._noticeDetailId=itemId;
+  const pm=document.getElementById('poll-modal'); if(pm) pm.classList.add('nc-yellow');
+  try{
+    const modal=document.getElementById('poll-modal-card');
+    if(src && modal && pm){
+      pm.classList.add('nc-morph');
+      const from=src.getBoundingClientRect(), to=modal.getBoundingClientRect();
+      const dx=(from.left+from.width/2)-(to.left+to.width/2);
+      const dy=(from.top+from.height/2)-(to.top+to.height/2);
+      const sx=Math.max(.2,from.width/to.width), sy=Math.max(.2,from.height/to.height);
+      pm.animate([{opacity:0},{opacity:1}],{duration:300,easing:'ease'});
+      modal.animate([
+        { transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:.55 },
+        { transform:'none', opacity:1 }
+      ], { duration:460, easing:'cubic-bezier(.22,1,.36,1)', fill:'both' });
+      // ★ nc-morph를 유지한다: 제거하면 CSS ndModalPop가 되살아나 팝업이 다시 팝(툭 재생성)됨.
+      //   닫힐 때는 nd-closing이 붙어 CSS 규칙이 풀리며 닫힘 애니가 정상 재생됨. 다음 열림 때 _pollShow가 정리.
+    }
+  }catch(e){ if(pm) pm.classList.remove('nc-morph'); }
+}
+function _noticeIsMine(it){
+  if(!it) return false;
+  if(typeof isMaster!=='undefined' && isMaster) return true;   // 마스터는 항상 가능
+  var u=currentUser||{};
+  if(it.postedById) return it.postedById===u.staffId;
+  return !!(it.postedBy && u.name && it.postedBy===u.name);     // 구버전(작성자ID 없음) 이름 매칭
+}
+// 상세 팝업 → 수정창: 블러+오파시티로 팝업 사라지고, 수정 팝업도 블러+오파시티로 등장
+function _noticeEditFromDetail(id){
+  var pc=document.getElementById('poll-modal-card'), pm=document.getElementById('poll-modal');
+  try{ if(pc) pc.animate([{opacity:1,filter:'blur(0px)'},{opacity:0,filter:'blur(14px)'}],{duration:280,easing:'cubic-bezier(.4,0,.5,1)',fill:'forwards'}); }catch(e){}
+  try{ if(pm) pm.animate([{opacity:1},{opacity:0}],{duration:280,easing:'ease',fill:'forwards'}); }catch(e){}
+  setTimeout(function(){
+    try{ if(pc) pc.getAnimations().forEach(function(a){a.cancel();}); }catch(e){}
+    try{ if(pm) pm.getAnimations().forEach(function(a){a.cancel();}); }catch(e){}
+    if(pm){ pm.style.display='none'; pm.classList.remove('nc-yellow','nc-morph'); }
+    window._noticeDetailId=null;
+    openNoticeModal(id);
+    var nc=document.querySelector('#notice-modal .modal');
+    try{ if(nc) nc.animate([{opacity:0,filter:'blur(14px)',transform:'scale(.97)'},{opacity:1,filter:'blur(0px)',transform:'scale(1)'}],{duration:360,easing:'cubic-bezier(.16,1,.3,1)'}); }catch(e){}
+  }, 275);
+}
+function _noticeDetailHtml(it){
+  const title=(it.title||'').trim() || (it.text||'').split('\n')[0] || '공지';
+  const body=(it.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const by=it.postedBy?`<div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:13px;">${_pEsc(it.postedBy)}님이 올림</div>`:'';
+  const _edit = _noticeIsMine(it) ? `<button class="modal-close" onclick="_noticeEditFromDetail('${it.id}')" title="수정" style="color:#b8860b;"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>` : '';
+  return `<div class="modal-header"><div class="mh-title">${_pEsc(title)}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">${_edit}<button class="modal-close" onclick="closePollModal()">✕</button></div></div>
+    <div class="poll-scroll" style="padding:16px 20px 18px;">
+      ${by}
+      <div style="font-size:14.5px;color:var(--text);line-height:1.75;white-space:pre-wrap;word-break:break-word;">${body}</div>
+    </div>
+    <div class="ntc-detail-foot">${_noticeReactBar(it, true)}</div>`;
+}
+// 롱프레스(꾹 누르기) 바인딩
+function _bindLP(el, fn){
+  let timer=null, fired=false, sx=0, sy=0;
+  const start=(x,y)=>{ fired=false; sx=x; sy=y; timer=setTimeout(()=>{ timer=null; fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} fn(); }, 480); };
+  const move=(x,y)=>{ if(timer && (Math.abs(x-sx)>10||Math.abs(y-sy)>10)){ clearTimeout(timer); timer=null; } };
+  const end=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
+  el.addEventListener('touchstart', e=>{ const t=e.touches[0]; start(t.clientX,t.clientY); }, {passive:true});
+  el.addEventListener('touchmove', e=>{ const t=e.touches[0]; move(t.clientX,t.clientY); }, {passive:true});
+  el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
+  el.addEventListener('click', e=>{ if(fired){ e.stopPropagation(); e.preventDefault(); fired=false; } }, true);
+  el.addEventListener('mousedown', e=>{ if(e.button===0) start(e.clientX,e.clientY); });
+  el.addEventListener('mousemove', e=>move(e.clientX,e.clientY));
+  el.addEventListener('mouseup', end); el.addEventListener('mouseleave', end);
+  el.addEventListener('contextmenu', e=>{ e.preventDefault(); fn(); });
+}
+function _bindNoticeReacts(){ /* 바깥화면 공감은 표시 전용 — 롱프레스/토글 바인딩 없음. 상세는 팝업의 사람 아이콘으로 확인 */ }
+// 팝업이 열려 있을 때, 팝업 내부의 '실제 스크롤되는 영역'이 아니면 터치 스크롤을 막아
+// 뒤 배경이 움직이는 현상을 차단. (body position:fixed 잠금 없이 — 오버레이/레이아웃 변형 방지)
+(function(){
+  function _anyModalOpen(){
+    const els=document.querySelectorAll('.modal-overlay, #lr-popup-overlay, .nd-modal, .staff-modal-overlay');
+    for(let i=0;i<els.length;i++){ const el=els[i]; const cs=getComputedStyle(el); if(cs.display!=='none' && cs.visibility!=='hidden' && el.offsetHeight>0) return true; }
+    return false;
+  }
+  // 이벤트 대상이 '스크롤 가능한 팝업 내부'가 아니면 true(=배경 스크롤이므로 차단)
+  function _shouldBlock(target){
+    let n=target;
+    while(n && n.nodeType===1){
+      if(n.classList && (n.classList.contains('modal-overlay')||n.id==='lr-popup-overlay'||n.classList.contains('nd-modal')||n.classList.contains('staff-modal-overlay'))) break;
+      const cs=getComputedStyle(n);
+      if(/(auto|scroll)/.test(cs.overflowY) && n.scrollHeight>n.clientHeight+1) return false;   // 스크롤 가능한 내부 → 허용
+      n=n.parentElement;
+    }
+    return true;
+  }
+  document.addEventListener('touchmove', function(e){
+    if(e.touches && e.touches.length>1) return;      // 핀치 줌은 허용
+    if(!_anyModalOpen()) return;
+    if(_shouldBlock(e.target)) e.preventDefault();
+  }, {passive:false});
+  document.addEventListener('wheel', function(e){    // 데스크톱 마우스 휠 배경 스크롤 차단
+    if(!_anyModalOpen()) return;
+    if(_shouldBlock(e.target)) e.preventDefault();
+  }, {passive:false});
+})();
+// 각 공지 본문이 접힘 최대높이보다 길면 → 접고 하단 페이드 + '더보기' 노출. 펼침 상태(_noticeTextOpen)면 전문+접기.
+function _applyNoticeClamp(){
+  // 접힘 최대 높이: 화면의 약 30%(120~300px)로 제한 — '길어도 절반 정도만' 보이게
+  const cap = Math.max(120, Math.min(Math.round((window.innerHeight||700)*0.30), 300));
+  // 접힘 시 글자 자체를 하단으로 갈수록 투명하게(mask) → 배경이 그대로 비쳐 경계(사각형) 없이 자연스럽게 흐려짐
+  const MASK = 'linear-gradient(to bottom, #000 calc(100% - 52px), transparent 100%)';
+  document.querySelectorAll('#home-notice .notice-text').forEach(el=>{
+    const id = el.getAttribute('data-nid');
+    const inner = el.querySelector('.notice-text-inner');
+    const moreWrap = el.parentElement.querySelector('.notice-more');
+    const btn = moreWrap ? moreWrap.querySelector('button') : null;
+    const contentH = inner ? inner.scrollHeight : 0;
+    const overflow = contentH > cap + 6;
+    const open = _noticeTextOpen.has(id);
+    const setMask = (on)=>{ el.style.webkitMaskImage = on?MASK:'none'; el.style.maskImage = on?MASK:'none'; };
+    if (open) {
+      el.style.maxHeight = contentH + 'px';
+      setMask(false);
+      if (moreWrap) moreWrap.style.display = overflow ? '' : 'none';
+      if (btn) btn.innerHTML = '▲ 접기';
+    } else {
+      el.style.maxHeight = (overflow ? cap : contentH) + 'px';
+      setMask(overflow);
+      if (moreWrap) moreWrap.style.display = overflow ? '' : 'none';
+      if (btn) btn.innerHTML = '▼ 더보기';
+    }
+  });
+}
+// 개별 공지 본문 펼치기/접기 (재렌더 없이 DOM 직접 조작 → transition으로 부드럽게)
+function toggleNoticeText(id){
+  if (_noticeTextOpen.has(id)) _noticeTextOpen.delete(id); else _noticeTextOpen.add(id);
+  _applyNoticeClamp();
+}
+function openNoticeModal(editId) {
+  if (!currentUser || !currentUser.staffId) { toast('이름으로 로그인 후 작성할 수 있습니다.','error'); return; }
+  _noticeEditId = (typeof editId==='string') ? editId : null;
+  const found = _noticeEditId ? _findNoticeItem(_noticeEditId) : null;
+  const it = found ? found.it : null;
+  const today = _todayStr();
+  const box = _getNoticeBox(today);
+  document.getElementById('notice-modal-title').textContent = it ? '공지 수정' : '공지 작성';
+  document.getElementById('notice-text').value = it ? (it.text||'') : '';
+  document.getElementById('notice-title').value = it ? (it.title||'') : '';
+  document.getElementById('notice-news8').value = box.news8Time || '';
+  const silentEl = document.getElementById('notice-silent'); if (silentEl) silentEl.checked = it ? !!it.silent : false;
+  // 게시 기간 셀렉트 초기화
+  const _psel = document.getElementById('notice-period'), _pdate = document.getElementById('notice-until');
+  if (_psel) {
+    const baseDs = found ? found.ds : today;
+    const until = (it && it.until && it.until > baseDs) ? it.until : baseDs;
+    let matched = (until <= today) ? '0' : null;
+    if (!matched) { ['0','2','6','13','29'].forEach(k => { if (!matched && addDays(today, parseInt(k)) === until) matched = k; }); }
+    if (matched) { _psel.value = matched; if (_pdate) _pdate.style.display = 'none'; }
+    else { _psel.value = 'custom'; if (_pdate) { _pdate.style.display = ''; _pdate.min = today; _pdate.value = until; } }
+  }
+  _onNoticePeriodChange();
+  _updateNoticeSaveBtn();
+  document.getElementById('notice-delete-btn').style.display = it ? '' : 'none';
+  document.getElementById('notice-modal').style.display = 'flex';
+}
+function closeNoticeModal() {
+  _animModalClose(document.getElementById('notice-modal'));
+}
+async function saveNotice() {
+  if (!currentUser || !currentUser.staffId) { toast('이름으로 로그인 후 작성할 수 있습니다.','error'); return; }
+  const ds = _todayStr();
+  const text = document.getElementById('notice-text').value.trim();
+  const title = document.getElementById('notice-title').value.trim();
+  const news8 = document.getElementById('notice-news8').value || '';
+  const silent = !!(document.getElementById('notice-silent')||{}).checked;
+  if (!text && !news8) { toast('공지 내용 또는 8뉴스 진입시간을 입력하세요.','error'); return; }
+  // 게시 종료일(until) 계산
+  const _psel = document.getElementById('notice-period'), _pdate = document.getElementById('notice-until');
+  let until = ds;
+  if (_psel) {
+    if (_psel.value === 'custom') until = (_pdate && _pdate.value && _pdate.value >= ds) ? _pdate.value : ds;
+    else until = addDays(ds, parseInt(_psel.value)||0);
+  }
+  const box = _ensureNoticeBox(ds);
+  box.news8Time = news8;   // 8뉴스 진입시간은 날짜당 1개(공지와 분리, 당일 전용)
+  let isEdit = false;
+  if (_noticeEditId) {
+    const found = _findNoticeItem(_noticeEditId);
+    if (found) { found.it.text = text; found.it.title = title; found.it.silent = silent; if (until > found.ds) found.it.until = until; else delete found.it.until; isEdit = true; }
+  }
+  if (!isEdit && text) {
+    const nit = { id:_genNoticeId(), text, title, postedBy:currentUser.name||'', postedById:(currentUser.staffId||''), postedAt:new Date().toISOString(), silent };  // 새 공지는 맨 앞(최신)
+    if (until > ds) nit.until = until;
+    box.items.unshift(nit);
+  }
+  saveData(data);
+  closeNoticeModal();
+  renderNoticeBar();
+  const doPush = !silent && !isEdit && (text || news8);   // 수정/조용한 공지는 알림 미발송
+  if (doPush) {
+    toast('공지가 등록되었습니다. 전 직원에게 알림을 보냅니다.','success');
+    _sendNoticePush(text || ('오늘 8뉴스 진입시간 ' + news8 + ' 입니다.'));
+  } else {
+    toast(isEdit ? '공지를 수정했습니다.' : (silent ? '조용히 등록되었습니다 (알림 미발송).' : '저장되었습니다.'),'success');
+  }
+  _noticeEditId = null;
+}
+function openNoticeHistory() {
+  const list = document.getElementById('notice-history-list');
+  const today = _todayStr();
+  const rows = [];
+  Object.keys(data.notices||{}).sort((a,b) => b.localeCompare(a)).forEach(d => {   // 최신 날짜순
+    const box = _getNoticeBox(d);
+    const its = box.items || [];
+    its.forEach((it,idx) => rows.push({ d, it, news8: idx===0?box.news8Time:'' }));   // 8뉴스 배지는 날짜 첫 항목에만
+    if (!its.length && box.news8Time) rows.push({ d, it:null, news8:box.news8Time });
+  });
+  if (!rows.length) {
+    list.innerHTML = `<div style="text-align:center;color:var(--muted);font-size:13px;padding:30px 0;">등록된 공지가 없습니다.</div>`;
+  } else {
+    list.innerHTML = rows.map(({d,it,news8}) => {
+      const [y,mo,dd] = d.split('-').map(Number);
+      const isToday = d===today;
+      const by = it && it.postedBy ? ` · ${it.postedBy}` : '';
+      const bell = it && it.silent ? ` <span style="font-size:10px;opacity:0.7;">🔕</span>` : '';
+      const n8 = news8 ? `<span style="font-size:12.5px;font-weight:800;color:#d65a52;background:#fff5f0;border:1px solid #f4bab6;border-radius:8px;padding:3px 10px;margin-left:6px;">8뉴스 ${news8}</span>` : '';
+      const txt = it ? (it.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>') : '';
+      return `<div style="border-radius:14px;padding:12px 15px;box-shadow:0 1px 3px rgba(20,24,40,.05);${isToday?'background:#fffbeb;border:1px solid #fcd97d;':'background:var(--surface);border:1px solid var(--border);'}">
+        <div style="font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:${txt?'6px':'0'};">${mo}월 ${dd}일${isToday?' (오늘)':''}${by}${bell}${n8}</div>
+        ${txt?`<div style="font-size:13.5px;color:var(--text);line-height:1.6;">${txt}</div>`:''}
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('notice-history-modal').style.display = 'flex';
+}
+function closeNoticeHistory() {
+  _animModalClose(document.getElementById('notice-history-modal'));
+}
+
+function deleteNotice() {
+  if (!currentUser || !currentUser.staffId) return;
+  if (_noticeEditId) {
+    const found = _findNoticeItem(_noticeEditId);
+    if (found) {
+      found.box.items = (found.box.items||[]).filter(i=>i.id!==_noticeEditId);   // 게시일 박스에서 개별 공지 삭제
+      if ((!found.box.items || !found.box.items.length) && !found.box.news8Time) delete data.notices[found.ds];  // 0건+8뉴스없음이면 박스 정리
+    }
+  }
+  saveData(data);
+  closeNoticeModal();
+  renderNoticeBar();
+  toast('공지를 삭제했습니다.','success');
+  _noticeEditId = null;
+}
+async function _sendNoticePush(text, title) {
+  try {
+    await fetch(NOTIFY_FN_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY },
+      body: JSON.stringify({ mode:'notice', text, title: title||'' })
+    });
+  } catch(e) { console.warn('notice push failed', e); }
+}

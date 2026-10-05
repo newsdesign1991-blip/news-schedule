@@ -1,0 +1,109 @@
+/* [모듈] css/modal.css — 빠른 링크·달력 이벤트·모달 공통/애니메이션 | dashboard.html 메인 <style>에서 분리됨. 순서 = 우선순위(바꾸지 말 것) */
+/* QUICK LINKS */
+.quick-links { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
+.qlink { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; padding: 12px 6px 10px; border-radius: 14px; border: 1px solid transparent; background: none; color: var(--text); text-decoration: none; font-size: 12.5px; font-weight: 700; letter-spacing: -.01em; transition: background .13s, transform .12s; cursor: pointer; text-align: center; line-height: 1.25; -webkit-tap-highlight-color: transparent; }
+.qlink:hover { background: rgba(0,0,0,.035); }
+.qlink:active { background: rgba(0,0,0,.06); transform: scale(0.97); }
+[data-theme="dark"] .qlink:hover { background: rgba(255,255,255,.05); }
+[data-theme="dark"] .qlink:active { background: rgba(255,255,255,.08); }
+.qlink-icon { width: 42px; height: 42px; border-radius: 13px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 1px rgba(255,255,255,.35); flex-shrink: 0; }
+.qlink-icon svg { width: 22px; height: 22px; }
+.qlink-icon.nds { background: linear-gradient(135deg,#5aa0ff,#2f77f6); }
+.qlink-icon.cms { background: linear-gradient(135deg,#34d9a6,#0fb27e); }
+.qlink-icon.wise { background: linear-gradient(135deg,#a98bff,#7d51f5); }
+.qlink-path { font-size: 10px; color: var(--muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* CALENDAR EVENTS */
+.cal-events { display: flex; flex-direction: column; gap: 3px; margin-top: 3px; min-width: 0; }
+.cal-event-chip { font-size: 11px; padding: 2px 7px; border-radius: 8px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 600; max-width: 100%; box-sizing: border-box; line-height: 1.3; word-break: break-word; }
+.event-add-btn { width: 100%; margin-top: 4px; padding: 3px 6px; border: 1px dashed var(--border); border-radius: 5px; background: none; color: var(--muted); font-size: 10px; cursor: pointer; transition: all 0.1s; text-align: center; }
+.event-add-btn:hover { border-color: var(--vw); color: var(--vw); background: var(--vw-bg); }
+.event-form { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-top: 8px; }
+.event-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.color-opts { display: flex; gap: 5px; }
+.color-opt { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.1s; flex-shrink: 0; }
+.color-opt.selected, .color-opt:hover { border-color: var(--text); }
+.event-tag { display: inline-flex; align-items: center; gap: 4px; border-radius: 4px; padding: 3px 8px; font-size: 12px; font-weight: 500; margin: 2px; }
+.event-tag button { background: none; border: none; cursor: pointer; font-size: 13px; padding: 0; line-height: 1; opacity: 0.6; }
+.event-tag button:hover { opacity: 1; }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 2600; display: flex; align-items: center; justify-content: center; padding: 20px; }
+/* 모달 열려 body 스크롤 잠기면 하단 플로팅바/페이드 숨김(모달 하단 항목 가림 방지) */
+/* 어떤 팝업이든 열리면 플로팅바만 아래로 슬라이드+페이드(하단 그라디언트는 유지) */
+body:has(.modal-overlay:not([style*="display:none"]):not([style*="display: none"])) #floating-nav,
+body:has(#lr-popup-overlay) #floating-nav,
+body:has(.staff-modal-overlay.open) #floating-nav,
+body[style*="overflow: hidden"] #floating-nav {
+  transform: translateX(-50%) translateY(180%) !important; opacity: 0 !important; pointer-events: none !important;
+}
+.modal { background: rgba(255,255,255,0.96); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); border: 1px solid rgba(255,255,255,0.7); border-radius: 20px; padding: 24px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px -10px rgba(15,23,42,0.30); }
+/* 모바일: 팝업이 화면 폭에 맞고 가로 스크롤 안 생기게 */
+@media (max-width: 760px) {
+  .modal-overlay, .nd-modal, #lr-popup-overlay { padding: 12px !important; }
+  .modal { max-width: 100% !important; padding: 18px !important; max-height: 88vh; }
+  .nd-modal > div { max-width: 100% !important; width: 100% !important; }
+  .modal input, .modal textarea, .modal select, .modal .form-input,
+  .nd-modal input, .nd-modal textarea, .nd-modal select { max-width: 100%; min-width: 0; }
+  .modal-header h3 { font-size: 16px; }
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.modal-header h3 { font-size: 17px; font-weight: 700; }
+.modal-close { background: var(--surface2); border: none; color: var(--text); width: 30px; height: 30px; border-radius: 7px; cursor: pointer; font-size: 18px; }
+.modal-sect { margin-bottom: 16px; }
+.modal-sect-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+.modal-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* 날짜 근무현황 모달 — 토스 반사 카드 */
+#day-modal .modal { border: 1px solid transparent; border-radius: 22px; background: linear-gradient(#f8fafd,#f8fafd) padding-box, linear-gradient(135deg,#ffffff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13) 100%) border-box; box-shadow: 0 1px 2px rgba(20,24,40,.05), 0 22px 55px -14px rgba(20,24,40,.30); -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-theme="dark"] #day-modal .modal { background: linear-gradient(#212121,#212121) padding-box, linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.05) 40%, rgba(0,0,0,.32) 100%) border-box; }
+#day-modal .modal-header { margin-bottom: 16px; }
+#day-modal .modal-header h3 { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+#day-modal .modal-close { width: 34px; height: 34px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-size: 17px; }
+.day-sect { margin-bottom: 15px; }
+.day-sect-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.day-hd-label { font-size: 14.5px; font-weight: 800; color: var(--text); letter-spacing: -.01em; }
+.day-dept-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 13px; border-radius: 999px; font-size: 13px; font-weight: 800; letter-spacing: -.01em; }
+.day-dept-cnt { font-size: 12px; font-weight: 700; color: var(--muted); }
+.day-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.day-ev-list { display: flex; flex-direction: column; gap: 8px; }
+.day-empty { color: var(--muted); font-size: 13px; padding: 5px 2px; }
+.day-note { background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.28); border-radius: 12px; padding: 11px 13px; font-size: 13px; color: #b7791f; line-height: 1.5; }
+[data-theme="dark"] .day-note { color: #fbbf24; }
+#day-modal .wchip { font-size: 13.5px; padding: 5px 12px; border-radius: 10px; font-weight: 600; }
+#day-modal .wm-ev-title { white-space: normal; }
+.day-dept-band { width: 100%; box-sizing: border-box; border-radius: 14px; padding: 11px 15px 12px; margin-bottom: 10px; }
+.dd-band-title { font-size: 12.5px; font-weight: 800; letter-spacing: -.01em; opacity: .82; margin-bottom: 7px; }
+.dd-band-names { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+.dd-band-names .nm { white-space: nowrap; }
+.dd-band-names .desk-star { font-size: 11px; margin-right: 2px; color: inherit; }
+
+/* 팝업/모달 등장 애니메이션 — 배경 페이드 + 콘텐츠 팝인 */
+@keyframes ndModalFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ndModalPop { from { opacity: 0; transform: translateY(48px); } to { opacity: 1; transform: translateY(0); } }
+.modal-overlay { animation: ndModalFade .32s ease both; }
+.modal-overlay > .modal { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; }
+.staff-modal-overlay.open { animation: ndModalFade .32s ease both; }
+.staff-modal-overlay.open > * { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; }
+/* 인라인 스타일 모달(공지·설정·지난공지 등)에 클래스로 부여 */
+.nd-modal { animation: ndModalFade .32s ease both; background: rgba(0,0,0,0.3) !important; }
+.nd-modal > div { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 20px !important; box-shadow: 0 20px 60px -10px rgba(15,23,42,0.30) !important; background: rgba(255,255,255,0.96) !important; border: 1px solid rgba(255,255,255,0.7); -webkit-backdrop-filter: blur(28px) saturate(180%); backdrop-filter: blur(28px) saturate(180%); }
+/* 휴가 팝업 콘텐츠(재생성 시엔 .no-anim으로 애니메이션 생략) */
+.nd-pop.nd-pop { animation: ndModalPop .46s cubic-bezier(.16,1,.3,1) both; border-radius: 20px !important; border: 1px solid transparent !important; background: linear-gradient(#f8fafd,#f8fafd) padding-box, linear-gradient(135deg, #ffffff, rgba(255,255,255,.5) 58%, rgba(15,23,42,.13) 100%) border-box !important; box-shadow: 0 1px 2px rgba(20,24,40,.05), 0 22px 55px -14px rgba(20,24,40,.30) !important; }
+.nd-pop.no-anim { animation: none; }
+#lr-popup-overlay { background: rgba(0,0,0,0.3) !important; animation: ndModalFade .32s ease both; }
+.staff-modal-overlay.open {  }
+/* iOS풍 버튼 — 모달 안의 주요 버튼을 더 둥글고 큼직하게 */
+.modal .btn-primary, .nd-modal .btn-primary { border-radius: 14px; padding: 13px; font-size: 15px; font-weight: 700; }
+.modal .btn, .nd-modal .btn { border-radius: 12px; }
+/* 닫힘 애니메이션 — .nd-closing 부여 후 animationend에 실제로 숨김 */
+@keyframes ndModalFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ndModalPopOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(34px); } }
+.modal-overlay.nd-closing { animation: ndModalFadeOut .34s ease both; }
+.modal-overlay.nd-closing > .modal { animation: ndModalPopOut .34s ease both; }
+.nd-modal.nd-closing { animation: ndModalFadeOut .34s ease both; }
+.nd-modal.nd-closing > div { animation: ndModalPopOut .34s ease both; }
+#lr-popup-overlay.nd-closing { animation: ndModalFadeOut .34s ease both; }
+#lr-popup-overlay.nd-closing .nd-pop { animation: ndModalPopOut .34s ease both; }
+.staff-modal-overlay.nd-closing { animation: ndModalFadeOut .34s ease both; }
+.staff-modal-overlay.nd-closing > * { animation: ndModalPopOut .34s ease both; }
+

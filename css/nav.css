@@ -1,0 +1,102 @@
+/* [모듈] css/nav.css — 모바일 플로팅 탭바·탭 전환 슬라이드 | dashboard.html 메인 <style>에서 분리됨. 순서 = 우선순위(바꾸지 말 것) */
+/* 모바일 하단 플로팅 탭바 (네이티브 리퀴드 글라스) — 데스크톱에선 숨김 */
+#floating-nav, #fnav-fade, #hdr-fade, #statusbar-scrim, #hdr-fab { display: none; }
+@media (max-width: 760px) {
+  header nav { display: none; }                 /* 모바일에선 상단 메뉴 숨김 */
+  header { position:static; }
+  #hdr-fab { display:flex; align-items:center; justify-content:center; position:fixed; top:calc(env(safe-area-inset-top) + 8px); right:12px; z-index:150; width:42px; height:42px; border-radius:50%; border:1px solid rgba(255,255,255,.65); background:rgba(255,255,255,.62); -webkit-backdrop-filter:blur(16px) saturate(180%); backdrop-filter:blur(16px) saturate(180%); box-shadow:0 4px 14px -4px rgba(20,24,40,.28); font-size:18px; line-height:1; color:var(--text); cursor:pointer; opacity:0; transform:translateY(-4px); pointer-events:none; transition:opacity .25s ease, transform .25s ease; }
+  body.hdr-scrolled #hdr-fab { opacity:1; transform:none; pointer-events:auto; }
+  [data-theme="dark"] #hdr-fab { background:rgba(40,40,40,.62); border-color:rgba(255,255,255,.14); }
+  header.hdr-hidden { opacity:0; transform:translateY(-6px); pointer-events:none; }   /* 아래로 스크롤 시 페이드로 사라짐 */
+  #hdr-fade { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 90; pointer-events: none; opacity: 0; transition: opacity .3s ease;
+    height: calc(env(safe-area-inset-top) + 104px);
+    background: rgba(244,246,249,0.5);
+    -webkit-backdrop-filter: blur(18px) saturate(180%); backdrop-filter: blur(18px) saturate(180%);
+    -webkit-mask: linear-gradient(to bottom, #000 0, #000 calc(env(safe-area-inset-top) + 50px), rgba(0,0,0,0.55) calc(env(safe-area-inset-top) + 74px), rgba(0,0,0,0.18) calc(env(safe-area-inset-top) + 90px), transparent calc(env(safe-area-inset-top) + 104px));
+    mask: linear-gradient(to bottom, #000 0, #000 calc(env(safe-area-inset-top) + 50px), rgba(0,0,0,0.55) calc(env(safe-area-inset-top) + 74px), rgba(0,0,0,0.18) calc(env(safe-area-inset-top) + 90px), transparent calc(env(safe-area-inset-top) + 104px)); }
+  #hdr-fade.on { opacity: 1; }
+  #statusbar-scrim { display: none; }
+  body main { padding-bottom: calc(124px + env(safe-area-inset-bottom)) !important; }  /* 바+페이드에 안 가리게(기본 padding 덮어쓰기) */
+  /* 바 뒤 콘텐츠가 배경색으로 자연스럽게 사라지는 그라디언트 페이드 */
+  #fnav-fade {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 2400;
+    height: calc(118px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, rgba(241,244,248,0.8) 22%, rgba(241,244,248,0) 100%);
+    pointer-events: none;
+  }
+  #floating-nav {
+    display: inline-flex; align-items: center; gap: 3px; width: auto;
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: max(9px, calc(env(safe-area-inset-bottom) - 8px)); z-index: 2500;   /* 조금 더 아래로 */
+    padding: 6px 8px; max-width: calc(100vw - 14px);
+    background: rgba(255,255,255,0.44);
+    -webkit-backdrop-filter: blur(30px) saturate(190%); backdrop-filter: blur(30px) saturate(190%);
+    border: 0.5px solid rgba(255,255,255,0.65);
+    border-radius: 999px;                        /* 완전 알약 (iOS 가이드라인) */
+    box-shadow: 0 8px 28px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.06);
+    transition: transform .38s cubic-bezier(.34,.9,.3,1), opacity .3s ease;   /* 팝업 시 아래로 슬라이드 */
+  }
+  .fnav-btn {
+    position: relative; flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    background: none; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    padding: 7px 16px; border-radius: 999px; min-width: 50px;
+    color: #1c1c1e; font-size: 10.5px; font-weight: 600; letter-spacing: -0.2px; line-height: 1.1;
+    transition: color .28s ease, background .28s ease, padding .55s cubic-bezier(.22,1,.36,1), min-width .55s cubic-bezier(.22,1,.36,1);
+  }
+  .fnav-btn .fnav-lb { white-space: nowrap; }
+  .fnav-btn .fnav-ic { width: 23px; height: 23px; display: block; transition: transform .32s cubic-bezier(.34,1.56,.64,1); }
+  .fnav-btn.active { color: #007aff; background: rgba(120,120,128,0.14); }
+  /* 관리자 모드: 바를 살짝 더 넉넉하게(6버튼, 좁은 폰까지 안전) */
+  body.admin-mode-active #floating-nav { gap: 2px; }
+  body.admin-mode-active #floating-nav .fnav-btn { padding: 7px 8px; min-width: 44px; }
+  /* 관리자 전용 탭(작성소·관리자): 평소 접힘 → 관리자 진입 시 슈우욱 펼쳐지며 블러+페이드 인 */
+  #floating-nav .fnav-admin-only {
+    max-width: 0; min-width: 0; padding-left: 0; padding-right: 0;
+    opacity: 0; filter: blur(8px); transform: scale(.55);
+    overflow: hidden; pointer-events: none; white-space: nowrap;
+    transition: max-width .6s cubic-bezier(.22,1,.36,1), min-width .6s cubic-bezier(.22,1,.36,1), padding .6s cubic-bezier(.22,1,.36,1), opacity .5s ease, filter .55s ease, transform .6s cubic-bezier(.34,1.4,.5,1);
+  }
+  body.admin-mode-active #floating-nav .fnav-admin-only {
+    max-width: 56px; min-width: 44px; padding-left: 8px; padding-right: 8px;
+    opacity: 1; filter: blur(0); transform: scale(1); pointer-events: auto;
+  }
+  body.admin-mode-active #floating-nav #fnav-admin { transition-delay: .09s; }
+  /* 진입 인트로: 액센트 링 글로우 1회 */
+  @keyframes fnavModeIn {
+    0%   { box-shadow: 0 8px 28px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.06), 0 0 0 0 rgba(0,122,255,0.45); }
+    55%  { box-shadow: 0 8px 28px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.06), 0 0 0 11px rgba(0,122,255,0); }
+    100% { box-shadow: 0 8px 28px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.06), 0 0 0 0 rgba(0,122,255,0); }
+  }
+  #floating-nav.fnav-mode-in { animation: fnavModeIn .95s ease-out; }
+  .fnav-btn.active .fnav-ic { transform: scale(1.05); }
+  .fnav-btn:active .fnav-ic { transform: scale(0.86); }
+  .fnav-btn.has-open::after { content: ''; position: absolute; top: 4px; right: 11px; width: 7px; height: 7px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 0 2px rgba(250,250,252,0.9); }
+}
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.date-badge { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.admin-link { background: none; border: 1px solid var(--border); color: var(--muted); padding: 5px 11px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.12s; }
+.admin-link:hover, .admin-link.active { color: var(--vw); border-color: var(--vw); }
+main { max-width: 100%; margin: 0 auto; padding: 16px 20px; }
+#view-table { max-width: 100%; }
+#view-table .table-nav, #view-table .excel-legend { padding: 0 2px; }
+#view-table.active ~ * { padding: 0; }
+.view { display: none; }
+.view.active { display: block; }
+/* 탭 전환 페이지 슬라이드 (방향: 오른쪽 탭이면 오른쪽에서, 왼쪽 탭이면 왼쪽에서) */
+@keyframes ndViewFromR { from { opacity: 0; transform: translateX(44px); } to { opacity: 1; transform: none; } }
+@keyframes homeRise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+#view-home.home-anim > * { animation: homeRise .7s cubic-bezier(.28,0,.05,1) both; }
+#view-home.home-anim > #home-polls { animation: none !important; }
+#view-home.home-anim > *:nth-child(1){animation-delay:.03s} #view-home.home-anim > *:nth-child(2){animation-delay:.10s} #view-home.home-anim > *:nth-child(3){animation-delay:.17s} #view-home.home-anim > *:nth-child(4){animation-delay:.24s} #view-home.home-anim > *:nth-child(5){animation-delay:.31s} #view-home.home-anim > *:nth-child(6){animation-delay:.38s} #view-home.home-anim > *:nth-child(7){animation-delay:.45s} #view-home.home-anim > *:nth-child(8){animation-delay:.52s}
+/* 넓은 화면: grid order로 시각 순서가 바뀌므로 nth-child 스태거를 없애고, 평탄화된 카드까지 모두 균일하게 상승 */
+@media (min-width: 1120px) {
+  #view-home.home-anim > *,
+  #view-home.home-anim > .home-row > *,
+  #view-home.home-anim > .home-row > div[style*="grid-template-columns"] > * { animation: homeRise .6s cubic-bezier(.28,0,.05,1) both !important; animation-delay: 0s !important; }
+  #view-home.home-anim > #home-polls { animation: none !important; }
+}
+@keyframes ndViewFromL { from { opacity: 0; transform: translateX(-44px); } to { opacity: 1; transform: none; } }
+.view.nd-slide-r { animation: ndViewFromR .3s cubic-bezier(.22,1,.36,1); }
+.view.nd-slide-l { animation: ndViewFromL .3s cubic-bezier(.22,1,.36,1); }
+

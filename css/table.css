@@ -1,0 +1,96 @@
+/* [모듈] css/table.css — 근무표/작성소 표(.excel-table)·작성소 컨트롤 | dashboard.html 메인 <style>에서 분리됨. 순서 = 우선순위(바꾸지 말 것) */
+/* EXCEL TABLE */
+.excel-table thead th { position: sticky; top: 0; z-index: 10; background: var(--surface2); border: 0 solid var(--border); border-width: 0 1px 1px 0; padding: 6px 8px; font-size: 11px; font-weight: 700; white-space: nowrap; text-align: center; }
+.excel-table thead th.date-th { left: 0; z-index: 20; width: 46px; min-width: 46px; border-left: 1px solid var(--border); }
+.excel-table thead th.dow-th { left: 46px; z-index: 20; width: 36px; min-width: 36px; }
+.excel-table tbody td.date-td { left: 0; min-width: 46px; width: 46px; }
+.excel-table thead th.dept-group { font-size: 10px; font-weight: 800; letter-spacing: 0.5px; border-bottom: 2px solid; height: auto; white-space: nowrap; writing-mode: horizontal-tb; transform: none; vertical-align: middle; padding: 6px 4px; }
+.stats-grid { display: grid; grid-template-columns: 1fr; gap: 18px 16px; align-items: start; }
+@media (min-width: 980px) { .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1480px) { .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.excel-table thead th.dept-group.vw { color: #565ba4; border-color: #6366f1; background: #dfe4f2; }
+.excel-table thead th.dept-group.cg { color: #437d93; border-color: #4a9fbd; background: #d4e8ee; }
+.excel-table thead th.dept-group.project { color: var(--project-light); border-color: var(--project); background: var(--project-bg); }
+.excel-table thead th.dept-group.sports { color: var(--sports-light); border-color: var(--sports); background: var(--sports-bg); }
+.excel-table thead th.name-th { font-weight: 600; color: var(--text); font-size: 10px; padding: 5px 3px; white-space: nowrap; top: 26px; }
+.excel-table thead th.sum-col { background: #ede9fe; color: #5d6fb0; font-weight: 800; font-size: 11px; }
+.excel-table th.check-sticky, .excel-table td.check-sticky { position: sticky; right: 0; z-index: 6; box-shadow: -2px 0 4px rgba(0,0,0,0.06); }
+.excel-table tbody tr.sum-row td { background: #fafafa; border-top: 2px solid #c5cce8; font-weight: 700; }
+.excel-table tbody tr.sum-row td.date-td { font-size: 10px; line-height: 1.4; }
+.excel-wrap { overflow-x: auto; border: 1px solid transparent; border-radius: 16px; width: 100%; background: linear-gradient(var(--surface),var(--surface)) padding-box, linear-gradient(155deg, rgba(255,255,255,.9), rgba(255,255,255,.25) 32%, rgba(15,23,42,.05)) border-box; box-shadow: 0 1px 3px rgba(20,24,40,.05), 0 14px 30px -20px rgba(20,24,40,.18); }
+.excel-table { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; }
+/* 카드 라운드에 맞춰 표 네 모서리 셀 둥글리기 (테두리 잘림 방지) */
+.excel-table thead tr:first-child th:first-child { border-top-left-radius: 13px; }
+.excel-table thead tr:first-child th:last-child { border-top-right-radius: 13px; }
+.excel-table tbody tr:last-child td:first-child { border-bottom-left-radius: 13px; }
+.excel-table tbody tr:last-child td:last-child { border-bottom-right-radius: 13px; }
+.excel-table thead tr.dept-row th { border-bottom: 2px solid var(--border); }
+/* 관리자: 작성소 이름열 드래그 재정렬 */
+body.admin-mode-active #ws-thead th.name-th[data-sid] { cursor: grab; touch-action: none; }
+body.admin-mode-active #ws-thead th.name-th[data-sid]:active { cursor: grabbing; }
+body.ws-coldragging, body.ws-coldragging * { user-select: none !important; -webkit-user-select: none !important; cursor: grabbing !important; }
+#ws-thead th.name-th.col-dragsrc { opacity: .35; }
+.ws-col-ghost { position: fixed; z-index: 4000; pointer-events: none; transform: translate(-50%, -150%); background: var(--vw); color: #fff; font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 9px; box-shadow: 0 8px 22px rgba(0,0,0,.28); white-space: nowrap; }
+.ws-col-indicator { position: fixed; z-index: 4000; pointer-events: none; width: 3px; margin-left: -1.5px; background: var(--vw); border-radius: 2px; box-shadow: 0 0 0 1px rgba(255,255,255,.7); display: none; }
+.excel-table tbody td { border: 0 solid var(--border); border-width: 0 1px 1px 0; padding: 0; text-align: center; font-size: 11px; white-space: nowrap; height: 28px; vertical-align: middle; }
+.excel-table tbody td.date-td { position: sticky; left: 0; z-index: 5; background: var(--surface2); font-weight: 700; font-size: 12px; color: var(--text); padding: 0 4px; border-left: 1px solid var(--border); }
+.excel-table tbody td.dow-td { position: sticky; left: 46px; z-index: 5; background: var(--surface2); font-size: 11px; padding: 0 3px; min-width: 36px; width: 36px; }
+.excel-table tbody tr.weekend td { background: #d6e2f6; border-color: #b6cbed; }
+.excel-table tbody tr.weekend td.date-td, .excel-table tbody tr.weekend td.dow-td { background: #bcd2f0; border-color: #9bbae6; }
+.excel-table tbody tr:hover td.date-td, .excel-table tbody tr:hover td.dow-td { background: #e8eff9; }
+.excel-table td.col-hl, .excel-table th.col-hl { box-shadow: inset 0 0 0 1000px rgba(93,111,176,0.13); }
+.excel-table tbody tr.today-row td.date-td { color: #2f77f6; background: #dfe9fd; font-weight: 800; }
+.excel-table tbody tr.today-row td { border-bottom: 2px solid #4c8ef2 !important; }
+.excel-table tbody tr:has(+ tr.today-row) td { border-bottom: 2px solid #4c8ef2 !important; }
+.nd-pop tr:has(+ tr.pop-today) td { border-bottom: 2px solid #4c8ef2 !important; }
+.excel-table tbody tr.today-row td.date-td { border-left: 2px solid #4c8ef2 !important; }
+.excel-table tbody tr.today-row td:last-child { border-right: 2px solid #4c8ef2 !important; }
+.dow-td.sun { color: #6f59a3; } .dow-td.sat { color: #6366f1; }
+.cell-off { color: #cbd5e1; }
+#ws-tbody td[data-sid] { user-select: none; }
+#ws-tbody td[data-sid]:hover { box-shadow: inset 0 0 0 2px #6366f1; position: relative; z-index: 2; background-color: rgba(99,102,241,0.07) !important; }
+.excel-legend { display: flex; gap: 9px 13px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; background: var(--surface2); border-radius: 12px; padding: 9px 13px; }
+#view-table .excel-legend { display: none; }
+.tbl-ctrl { width: 100%; max-width: 540px; display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+.tbl-range { display: flex; align-items: center; gap: 7px; background: var(--surface2); border-radius: 12px; padding: 6px 6px 6px 12px; }
+.tbl-lbl { font-size: 12px; font-weight: 700; color: var(--muted); flex-shrink: 0; }
+.tbl-date { border: 1px solid var(--border); background: var(--surface); border-radius: var(--tw-radius-sm); padding: 8px 10px; font-size: 13px; color: var(--text); outline: none; transition: border-color .12s, box-shadow .12s; }
+.tbl-date:focus { border-color: var(--accent); box-shadow: var(--focus-ring); }
+.tbl-range .tbl-date { flex: 1; min-width: 0; }
+.tbl-tilde { color: var(--muted); font-size: 13px; flex-shrink: 0; }
+.tbl-actions { display: flex; gap: 8px; }
+.tbl-apply { flex-shrink: 0; background: var(--accent-grad); color: #fff; border: 1px solid transparent; border-radius: var(--tw-radius-btn); padding: 8px 15px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px -4px rgba(49,130,246,.5); transition: filter .12s; }
+.tbl-apply:hover { filter: brightness(1.04); }
+.tbl-publish { flex-shrink: 0; background: var(--success); color: #fff; border: 1px solid transparent; border-radius: var(--tw-radius-btn); padding: 8px 15px; font-size: 13px; font-weight: 700; cursor: pointer; transition: filter .12s; }
+.tbl-publish:hover { filter: brightness(1.06); }
+.ws-page-arrow { width: 33px; height: 33px; flex-shrink: 0; border-radius: 999px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 17px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .12s; }
+.ws-page-arrow:hover { border-color: var(--accent); color: var(--accent); }
+/* 작성소 컨트롤 통일 */
+:root { --warn: #b8860b; --warn-bg: #fef3c7; --warn-border: #fcd97d; }
+[data-theme="dark"] { --warn: #e0b34d; --warn-bg: rgba(184,134,11,.16); --warn-border: rgba(184,134,11,.4); }
+.ws-tstrip { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--tw-radius-btn); padding: 9px 12px; margin-bottom: 8px; }
+.ws-tool-btn { color: #fff; border: none; border-radius: var(--tw-radius-btn); padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: filter .12s; }
+.ws-tool-btn:hover { filter: brightness(1.06); }
+.ws-count-block { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--tw-radius-btn); padding: 6px 11px; }
+.ws-count-block.sat { background: var(--vw-bg); border-color: var(--vw); }
+.ws-count-block.sun { background: var(--sports-bg); border-color: var(--sports); }
+.ws-count-block .lbl { font-size: 11px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.ws-count-block.sat .lbl { color: var(--vw-light); }
+.ws-count-block.sun .lbl { color: var(--sports-light); }
+.ws-num { width: 42px; padding: 5px 4px; font-size: 12px; font-weight: 700; border: 1px solid var(--border); border-radius: var(--tw-radius-sm); text-align: center; background: var(--surface); color: var(--text); outline: none; transition: border-color .12s, box-shadow .12s; }
+.ws-num:focus { border-color: var(--accent); box-shadow: var(--focus-ring); }
+.ws-brush-btn { padding: 4px 11px; font-size: 11px; font-weight: 700; border: 1px solid transparent; border-radius: var(--tw-radius-chip); cursor: pointer; transition: all .12s; -webkit-tap-highlight-color: transparent; }
+.ws-brush-btn:hover { filter: brightness(.97); }
+.ws-undo-btn2 { display: flex; align-items: center; gap: 5px; padding: 6px 13px; font-size: 12px; font-weight: 700; border-radius: var(--tw-radius-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--muted); cursor: pointer; transition: all .12s; }
+.ws-reset-btn { display: flex; align-items: center; gap: 5px; padding: 6px 13px; font-size: 12px; font-weight: 700; border-radius: var(--tw-radius-sm); border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger); cursor: pointer; transition: all .12s; }
+.ws-reset-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+.tbl-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--tw-radius-btn); padding: 8px 15px; font-size: 13px; font-weight: 700; color: var(--text); cursor: pointer; white-space: nowrap; transition: all .12s; }
+.tbl-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tbl-btn.tbl-warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-border); }
+.tbl-btn.tbl-warn:hover { border-color: var(--warn); color: var(--warn); }
+[data-theme="dark"] .tbl-date { background: #212121; }
+#view-table .table-nav { flex-direction: column; align-items: stretch; gap: 10px; }
+@media (min-width: 761px) { #view-table .table-nav { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; } #view-table .tbl-ctrl { max-width: none; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 10px; margin-left: auto; } }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.legend-dot { width: 18px; height: 13px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.10); }
+
