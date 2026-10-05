@@ -53,6 +53,7 @@
 #view-home #hm3 .hm3-col > :not(.nd-hover-reflection),
 #view-home #hm3 .hm3-ps > .panel { background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; margin: 0 !important; overflow: visible !important; transform: none !important; order: 0 !important; }
 #view-home #hm3 .hm3-col > :not(.nd-hover-reflection) + :not(.nd-hover-reflection) { background: linear-gradient(var(--border), var(--border)) no-repeat top center / calc(100% - 36px) 1px !important; }
+#view-home #hm3 .hm3-ps > .panel + .panel { background: linear-gradient(var(--border), var(--border)) no-repeat top center / calc(100% - 36px) 1px !important; }   /* PROJECT | SPORTS 사이도 같은 구분선 */
 #view-home #hm3 .summary-row { display: block !important; }
 #view-home #hm3 .dept-list, #view-home #hm3 .today-work { background: none !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; margin: 0 !important; }
 #view-home #hm3 .card-hd, #view-home #hm3 .panel-header { padding: 24px 18px 8px !important; }
