@@ -33,7 +33,7 @@ window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.hre
 <link rel="stylesheet" href="css/base.css?v=49d694c3">
 <link rel="stylesheet" href="css/dark.css?v=8b2248c5">
 <link rel="stylesheet" href="css/nav.css?v=bd336f40">
-<link rel="stylesheet" href="css/home.css?v=86089256">
+<link rel="stylesheet" href="css/home.css?v=d500345d">
 <link rel="stylesheet" href="css/notice-poll.css?v=84636f7c">
 <link rel="stylesheet" href="css/toss-common.css?v=b7c30a91">
 <link rel="stylesheet" href="css/calendar.css?v=64198ed7">
@@ -1174,7 +1174,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.05 12:22';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.05 17:32';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1391,7 +1391,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/core.js?v=8ea54b55"></script>
 <script src="js/project-gantt.js?v=3f50eb57"></script>
 <script src="js/nav-admin.js?v=10001d39"></script>
-<script src="js/home.js?v=563d8c0c"></script>
+<script src="js/home.js?v=e810ba42"></script>
 <script src="js/table-view.js?v=f62fc051"></script>
 <script src="js/calendar.js?v=dfa59aa0"></script>
 <script src="js/generation.js?v=5e653836"></script>
@@ -1437,7 +1437,8 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
  function clear(){if(frame)cancelAnimationFrame(frame);frame=0;if(active){active.classList.remove('nd-hover-active');}active=null;}
  document.addEventListener('pointermove',function(e){
   if(!query.matches||e.pointerType==='touch'){if(active)clear();return;}
-  const card=e.target instanceof Element?e.target.closest(selector):null;
+  let card=e.target instanceof Element?e.target.closest(selector):null;
+  if(card){const col=card.closest('.hm3-col');if(col)card=col;}   // 큰 화면 3분할: 열 카드 단위로 반사광
   if(!card){if(active)clear();return;}
   if(active!==card){clear();active=card;card.dataset.ndHover='';if(!card.querySelector(':scope > .nd-hover-reflection')){const shine=document.createElement('i');shine.className='nd-hover-reflection';shine.setAttribute('aria-hidden','true');card.appendChild(shine);}card.classList.add('nd-hover-active');}
   px=e.clientX;py=e.clientY;

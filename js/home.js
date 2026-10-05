@@ -66,7 +66,7 @@ function _scrollToWorkers(chipsId){
   const off=Math.max(70,(window.innerHeight-rect.height)/2);
   _smoothScrollTo(Math.max(0, window.pageYOffset+rect.top-off), 820);
   panel.style.transition='outline-color .5s ease';
-  panel.style.outline='2px solid rgba(49,130,246,.55)'; panel.style.outlineOffset='3px';
+  panel.style.outline='2px solid rgba(49,130,246,.55)'; panel.style.outlineOffset=panel.closest('.hm3-col')?'-4px':'3px';   // 3분할 열 안에선 바깥 테두리가 잘리므로 안쪽에
   setTimeout(function(){ panel.style.outlineColor='rgba(49,130,246,0)'; }, 700);
   setTimeout(function(){ panel.style.outline=''; panel.style.outlineOffset=''; panel.style.transition=''; }, 1250);
 }
@@ -392,6 +392,7 @@ function renderHome() {
   });
   wsHtml+='</table></div>';
   document.getElementById('home-week-summary').innerHTML=wsHtml;
+  try{ _hm3Sync(); }catch(e){}
   try{ layoutHomeMasonry(); }catch(e){}
 }
 // ===== 넓은 화면 벽돌쌓기(masonry): 각 카드가 자기 높이만큼 grid 행을 차지하게 해 세로 빈틈 제거 =====
@@ -476,18 +477,19 @@ function _hmSpans(items){
 // (grid 셀만 바꾸므로 관찰 대상 content-box는 그대로 → RO 재발생/루프 없음)
 function _hmApplySpans(){
   var grid=document.getElementById('view-home'); if(!grid) return;
-  if(getComputedStyle(grid).display!=='grid'){ grid.classList.remove('hm-on'); _hmResetPlacement(grid); return; }
+  if(getComputedStyle(grid).display!=='grid' || grid.classList.contains('hm3')){ grid.classList.remove('hm-on'); _hmResetPlacement(grid); return; }   // 3분할도 grid지만 벽돌쌓기 대상 아님
   grid.classList.add('hm-on');
   _hmSpans(_hmItems(grid));
 }
 // 재배치 + FLIP(부드러운 이동). renderHome/renderPolls가 호출.
 function _hmApply(){
   var grid=document.getElementById('view-home'); if(!grid) return null;
-  var isGrid=getComputedStyle(grid).display==='grid';
+  var noFlip=_hm3NoFlip; _hm3NoFlip=false;
+  var isGrid=getComputedStyle(grid).display==='grid' && !grid.classList.contains('hm3');   // 3분할(.hm3)은 grid지만 벽돌쌓기 대상 아님
   var items=_hmItems(grid);
   if(!isGrid){ grid.classList.remove('hm-on'); _hmResetPlacement(grid); return items; }
   grid.classList.add('hm-on');
-  var doFlip = !grid.classList.contains('home-anim');   // 초기 등장(home-anim) 중엔 FLIP 생략(homeRise와 충돌/순서 꼬임 방지)
+  var doFlip = !grid.classList.contains('home-anim') && !noFlip;   // 초기 등장(home-anim)·3분할 전환 직후엔 FLIP 생략(homeRise/블러 전환과 충돌 방지)
   var first = doFlip ? new Map() : null;
   if(doFlip) items.forEach(function(it){ first.set(it, it.getBoundingClientRect()); });   // FLIP: 이전 위치
   _hmSpans(items);
@@ -509,4 +511,101 @@ function layoutHomeMasonry(){
   }
 }
 window.addEventListener('resize', function(){ clearTimeout(_hmT); _hmT=setTimeout(layoutHomeMasonry, 140); });
+// ===== 큰 화면(≥1560px) 홈 3분할 =====
+// 1열 CG·VW·PROJECT/SPORTS 근무자·프로젝트 현황 / 2열 오늘의 근무·부서 근무 현황·이번 주 일별 인원 / 3열 이번 주 일정.
+// 기존 패널을 열 카드 3개(#hm3 > .hm3-col)로 옮겨 담고 원래 자리는 주석 표식으로 기억 → 좁아지면 정확히 되돌림.
+// 패널 id는 그대로라 renderHome의 innerHTML 갱신은 어느 배치든 그대로 동작. 스타일은 home.css의 .hm3 블록.
+var _hm3MQ = window.matchMedia ? window.matchMedia('(min-width: 1560px)') : null;
+var _hm3Marks = null, _hm3NoFlip = false, _hm3Busy = false, _hm3Seq = 0, _hm3Anims = [];
+function _hm3Panel(id){ var e=document.getElementById(id); return e && e.closest('.panel'); }
+function _hm3Build(){
+  var vh=document.getElementById('view-home'); if(!vh || _hm3Marks) return false;
+  var cols=[
+    [_hm3Panel('cg-today-chips'), _hm3Panel('vw-today-chips'), [_hm3Panel('project-today-chips'), _hm3Panel('sports-today-chips')], document.getElementById('home-project-panel')],
+    [document.getElementById('home-duty-row'), document.getElementById('home-summary'), _hm3Panel('home-week-summary')],
+    [document.getElementById('home-week-panel')]
+  ];
+  var all=[]; cols.forEach(function(c){ c.forEach(function(x){ all=all.concat(x); }); });
+  // 마크업이 바뀌어 패널을 못 찾거나, 같은 패널이 두 번 잡히거나 서로 포함되면 기존 배치 유지(복원 시 유실 방지)
+  if(all.some(function(x){ return !x; }) || new Set(all).size!==all.length ||
+     all.some(function(a){ return all.some(function(b){ return a!==b && a.contains(b); }); })) return false;
+  var grid=document.createElement('div'); grid.id='hm3';
+  _hm3Marks=[];
+  cols.forEach(function(list, ci){
+    var col=document.createElement('div'); col.className='panel hm3-col'; col.id='hm3-c'+(ci+1);
+    list.forEach(function(x){
+      var host=col;
+      if(Array.isArray(x)){ host=document.createElement('div'); host.className='hm3-ps'; col.appendChild(host); }   // PROJECT·SPORTS는 한 구간
+      [].concat(x).forEach(function(el){ var m=document.createComment('hm3'); el.parentNode.insertBefore(m, el); _hm3Marks.push([m, el]); host.appendChild(el); });
+    });
+    grid.appendChild(col);
+  });
+  var notice=document.getElementById('home-notice');
+  if(notice && notice.parentNode===vh) vh.insertBefore(grid, notice.nextSibling); else vh.appendChild(grid);
+  vh.classList.add('hm3'); vh.classList.remove('hm-on'); _hmResetPlacement(vh);
+  return true;
+}
+function _hm3Restore(){
+  var vh=document.getElementById('view-home'); if(!vh || !_hm3Marks) return false;
+  _hm3Marks.forEach(function(p){ if(p[0].parentNode) p[0].parentNode.replaceChild(p[1], p[0]); else vh.appendChild(p[1]); });   // 표식이 사라졌어도 패널은 #hm3와 함께 지워지지 않게
+  _hm3Marks=null;
+  var g=document.getElementById('hm3'); if(g) g.remove();
+  vh.classList.remove('hm3');
+  return true;
+}
+// 지금 폭에 맞게 즉시(애니메이션 없이) 맞춤 — renderHome 끝에서 매번 호출(멱등). 경계 전환 애니메이션 도중엔 손대지 않음.
+function _hm3Sync(){
+  if(_hm3Busy) return false;
+  var want=!!(_hm3MQ && _hm3MQ.matches), changed=false;
+  if(want && !_hm3Marks) changed=_hm3Build();
+  else if(!want && _hm3Marks) changed=_hm3Restore();
+  if(changed) _hm3NoFlip=true;   // 바로 뒤 layoutHomeMasonry에서 FLIP(날아다님) 생략
+  var vh=document.getElementById('view-home');
+  if(vh) vh.classList.toggle('hm3-fail', want && !_hm3Marks);   // 3분할 구성 실패 시 예비로 3열 벽돌쌓기(home.css)
+  return changed;
+}
+// 애니메이션 대상: 실제로 보이는 카드(3분할이면 열 카드 3개를 각각, 벽돌쌓기면 평탄화된 카드들) — 화면 위→아래, 왼쪽→오른쪽 순
+function _hm3Visible(vh){
+  var list=[];
+  _hmItems(vh).forEach(function(el){ if(el.id==='hm3') list=list.concat([].slice.call(el.children)); else list.push(el); });
+  list=list.filter(function(el){ return el.getClientRects().length && el.offsetHeight>0; });
+  var pos=new Map(list.map(function(el){ return [el, el.getBoundingClientRect()]; }));
+  return list.sort(function(a,b){ var ra=pos.get(a), rb=pos.get(b); return (Math.round(ra.top)-Math.round(rb.top)) || (ra.left-rb.left); });
+}
+// 경계(1560px)를 넘을 때: 지금 배치가 블러+투명으로 스르륵 사라짐 → 새 배치 카드가 하나씩 블러+투명으로 나타남
+function _hm3Transition(){
+  var vh=document.getElementById('view-home'); if(!vh) return;
+  // 진행 중이던 효과는 지금 보이는 값(투명도·블러)을 읽어 두고 취소 → 이어서 그 값부터 움직여 깜빡임 없음
+  var cur=new Map();
+  _hm3Anims.forEach(function(a){ var t=a.effect && a.effect.target; if(t){ var cs=getComputedStyle(t); cur.set(t, {opacity:+cs.opacity, filter:cs.filter==='none'?'blur(0px)':cs.filter}); } });
+  _hm3Anims.forEach(function(a){ try{ a.cancel(); }catch(e){} }); _hm3Anims=[];
+  var seq=++_hm3Seq; _hm3Busy=false;
+  var want=!!(_hm3MQ && _hm3MQ.matches);
+  if(want===!!_hm3Marks){   // 넘었다가 바로 되돌아온 경우: 사라지던 카드를 그 자리에서 다시 부드럽게
+    cur.forEach(function(v, el){ if(v.opacity<0.999 && el.isConnected && el.animate) _hm3Anims.push(el.animate([{opacity:v.opacity, filter:v.filter},{opacity:1, filter:'blur(0px)'}],{duration:220, easing:'ease-out'})); });
+    return;
+  }
+  var shown=vh.classList.contains('active') && vh.getClientRects().length>0;
+  var calm=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!shown || calm || document.hidden || !vh.animate){ if(_hm3Sync()) layoutHomeMasonry(); return; }   // 안 보이는 탭에선 애니메이션 시계가 멈추므로 즉시 교체
+  _hm3Busy=true;
+  var outs=_hm3Visible(vh).map(function(el){
+    var v=cur.get(el) || {opacity:1, filter:'blur(0px)'};   // 등장 대기 중(투명)이던 카드는 투명한 채로
+    return el.animate([{opacity:v.opacity, filter:v.filter},{opacity:0, filter:'blur(10px)'}],{duration:220, easing:'ease-in', fill:'forwards'});
+  });
+  _hm3Anims=outs.slice();
+  var faded=Promise.all(outs.map(function(a){ return a.finished.catch(function(){}); }));
+  Promise.race([faded, new Promise(function(r){ setTimeout(r, 450); })]).then(function(){   // 프레임이 밀려도(느린 기기·백그라운드) 0.45초 안엔 다음 단계로
+    if(seq!==_hm3Seq || !_hm3Busy) return;   // 그 사이 다시 경계를 넘었으면 새 전환이 이어받음
+    _hm3Busy=false;
+    vh.classList.remove('home-anim','home-enter');   // 옮겨진 카드에 첫 등장 애니메이션이 다시 걸리지 않게(블러 등장이 대신함)
+    _hm3Sync(); layoutHomeMasonry();
+    var ins=_hm3Visible(vh), step=_hm3Marks?110:60;
+    _hm3Anims=ins.map(function(el,i){
+      return el.animate([{opacity:0, filter:'blur(14px)'},{opacity:1, filter:'blur(0px)'}],{duration:520, delay:Math.min(i*step, 900), easing:'cubic-bezier(.22,1,.36,1)', fill:'backwards'});
+    });
+    outs.forEach(function(a){ try{ a.cancel(); }catch(e){} });   // 같은 프레임 안에서 해제 → 깜빡임 없음
+  });
+}
+if(_hm3MQ){ if(_hm3MQ.addEventListener) _hm3MQ.addEventListener('change', _hm3Transition); else if(_hm3MQ.addListener) _hm3MQ.addListener(_hm3Transition); }
 

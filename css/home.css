@@ -30,10 +30,49 @@
   #view-home .panel:has(#home-week-summary) { order: 10; }
   #view-home .panel:has(.quick-links) { order: 11; }
 }
-@media (min-width: 1560px) {
-  #view-home.active { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1720px; }
-  #home-week-panel { grid-column: span 2; }            /* 3열일 땐 이번 주 일정 2칸(2개행까지) */
+@media (min-width: 1560px) {   /* 3열 벽돌쌓기는 3분할(.hm3)이 대신함 — 3분할 구성 실패(.hm3-fail) 때만 예비로 사용 */
+  #view-home.active.hm3-fail { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1720px; }
+  #view-home.hm3-fail #home-week-panel { grid-column: span 2; }            /* 3열일 땐 이번 주 일정 2칸(2개행까지) */
 }
+/* ===== 큰 화면(≥1560px) 3분할 — home.js _hm3Build()가 #view-home에 .hm3를 붙이고 패널을 #hm3의 열 카드 3개로 옮김 =====
+   1열 CG·VW·PROJECT/SPORTS·프로젝트 현황 / 2열 오늘의 근무·부서 근무 현황·일별 인원 / 3열 이번 주 일정(세로).
+   열 안의 패널은 카드 장식 없이 내용만, 구간은 얇은 회색선으로 구분. .hm3가 없으면(1560 미만) 아래 규칙은 전부 무효 */
+/* 홈 전체를 3칸 격자로: 이번주 내 근무·3분할·빠른 접속은 가로 전체, 투표 카드·공지(·앞으로 생길 카드)는 한 칸씩 왼쪽부터 채움 */
+#view-home.active.hm3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; max-width: 1720px; }   /* 폭·순서는 미디어쿼리 밖 → 경계 전환(블러) 중에도 배치 고정 */
+#view-home.hm3 > :empty, #view-home.hm3 > .home-summary-duty, #view-home.hm3 > .home-row { display: none !important; }
+#view-home.hm3 > #my-schedule-card, #view-home.hm3 > #hm3, #view-home.hm3 > .panel:has(.quick-links) { grid-column: 1 / -1; }
+#view-home.hm3 > #my-schedule-card { order: 0; }
+#view-home.hm3 > #home-polls { display: contents; }   /* 투표가 여러 개면 카드마다 한 칸 */
+#view-home.hm3 > #home-polls > .poll-card { order: 1; min-width: 0; margin: 0 !important; }
+#view-home.hm3 > #home-notice { order: 3; grid-column: auto; }
+#view-home.hm3 > #hm3 { order: 5; }                    /* 이번주 내 근무·투표·공지(0~3) 아래, 빠른 접속(11) 위 */
+#view-home.hm3 > .panel:has(.quick-links) { order: 11; }
+#hm3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+#hm3 > .hm3-col { display: flex; flex-direction: column; min-width: 0; padding-bottom: 6px; }
+#view-home #hm3 > .hm3-col { order: 0 !important; }   /* 열 카드도 .panel이라 위 '.panel:has(...) order' 규칙에 걸리지 않게 */
+#view-home #hm3 .hm3-col > :not(.nd-hover-reflection),
+#view-home #hm3 .hm3-ps > .panel { background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; margin: 0 !important; overflow: visible !important; transform: none !important; order: 0 !important; }
+#view-home #hm3 .hm3-col > :not(.nd-hover-reflection) + :not(.nd-hover-reflection) { background: linear-gradient(var(--border), var(--border)) no-repeat top center / calc(100% - 36px) 1px !important; }
+#view-home #hm3 .summary-row { display: block !important; }
+#view-home #hm3 .dept-list, #view-home #hm3 .today-work { background: none !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; margin: 0 !important; }
+#view-home #hm3 .card-hd, #view-home #hm3 .panel-header { padding: 24px 18px 8px !important; }
+#view-home #hm3 #home-duty-row, #view-home #hm3 #home-summary { padding-bottom: 10px !important; }
+#hm3 .hm3-col > :not(.nd-hover-reflection) .nd-hover-reflection { display: none !important; }   /* 반사광은 열 카드 단위로만 */
+/* 3열 이번 주 일정: 월~일 7줄이 세로로 꽉 차고, 날짜·일정은 각 줄의 가운데 */
+#view-home #hm3-c3 > #home-week-panel { flex: 1; display: flex !important; flex-direction: column; }
+#view-home #hm3-c3 .week-mini { flex: 1; display: flex !important; flex-direction: column; align-items: stretch !important; gap: 0 !important; padding: 4px 18px 12px !important; }
+#view-home #hm3-c3 .week-day-mini { flex: 1 1 0; min-height: auto; width: auto !important; display: grid !important; grid-template-columns: 46px minmax(0, 1fr); grid-template-rows: 1fr 1fr; column-gap: 12px; align-items: center; padding: 10px 0 !important; overflow: visible;   /* 7줄 같은 높이, 일정 많은 날은 내용만큼 늘어남(겹침 방지) */ border-top: 1px solid var(--border); background: none !important; box-shadow: none !important; border-radius: 0 !important; }
+#view-home #hm3-c3 .week-day-mini:first-child { border-top: 0; }
+#view-home #hm3-c3 .wm-label { grid-column: 1; grid-row: 1; align-self: end; text-align: center; margin: 0 0 2px !important; }
+#view-home #hm3-c3 .wm-num { grid-column: 1; grid-row: 2; align-self: start; margin: 0 auto !important; }
+#view-home #hm3-c3 .wm-ev-list { grid-column: 2; grid-row: 1 / span 2; align-self: center; display: flex; flex-direction: column; gap: 6px; margin: 0 !important; }
+#view-home #hm3-c3 .week-day-mini:not(:has(.wm-ev-list))::after { content: '일정 없음'; grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 12px; color: var(--muted); opacity: .7; }
+#view-home #hm3-c3 #home-mobile-ev-list, #view-home #hm3-c3 #home-events-list { display: none !important; }
+/* 첫 등장(home-anim): 3분할은 통째가 아니라 열 카드가 하나씩 떠오름 */
+#view-home.home-anim > #hm3 { animation: none !important; }
+#view-home.home-anim #hm3 > .hm3-col { animation: homeRise .7s cubic-bezier(.28,0,.05,1) both; animation-delay: .2s; }
+#view-home.home-anim #hm3 > .hm3-col:nth-child(2) { animation-delay: .3s; }
+#view-home.home-anim #hm3 > .hm3-col:nth-child(3) { animation-delay: .4s; }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 10px; border-bottom: 1px solid var(--border); }
 .panel-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }

@@ -34,7 +34,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 | 1 | `js/core.js` | 데이터 로드/저장, 백업, 날짜·직원 헬퍼, 부서 이동(`deptOn`), 초안 되돌리기, 특수일 | `loadData` `saveData` `deptOn` `getStaff` `toDateStr` `isOnLeave` |
 | 2 | `js/project-gantt.js` | 프로젝트 간트 탭 | `renderProject` `openProjectModal` |
 | 3 | `js/nav-admin.js` | 탭 전환 `showView`, 관리자/마스터 로그인 | `showView` `toggleAdmin` `openMasterLogin` |
-| 4 | `js/home.js` | 홈 화면(오늘의 근무, 8진/뉴오 깜빡임, masonry 배치), 테마 전환 | `renderHome` `layoutHomeMasonry` `toggleTheme` |
+| 4 | `js/home.js` | 홈 화면(오늘의 근무, 8진/뉴오 깜빡임, masonry 배치, 큰 화면 ≥1560px 3분할 + 경계 블러 전환), 테마 전환 | `renderHome` `layoutHomeMasonry` `_hm3Sync` `_hm3Transition` `toggleTheme` |
 | 5 | `js/table-view.js` | 근무표 탭(표, 기간 선택·저장, 이미지로 저장) | `renderTable` `captureSchedule` `applyDateRange` |
 | 6 | `js/calendar.js` | 달력 탭, 구글 캘린더(.ics) 병합·댓글 | `renderMonth` `showDayModal` `toggleGcal` |
 | 7 | `js/generation.js` | 근무 자동생성(단계별 desk→danjik→rest, 재시도) | `generateDraftSchedule` `_generateScheduleCore` |
