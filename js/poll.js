@@ -247,12 +247,12 @@ function _pollDetailHtml(p){
   });
   const voted=new Set(Object.keys(votes));
   const nonV=(data.staff||[]).filter(st=>st.active!==false && !voted.has(st.id)).map(st=>st.name);
-  const nonBand=`<div class="poll-band" style="background:var(--surface2);">
-    <div class="poll-band-hd" style="color:var(--muted);"><span class="poll-band-dot" style="background:var(--muted);"></span>아직 투표 안 함 · ${nonV.length}명</div>
-    ${nonV.length?`<div class="poll-band-names" style="color:var(--muted);">${nonV.map(n=>`<span>${esc(n)}</span>`).join('')}</div>`:`<div class="poll-band-empty">모두 참여했어요</div>`}
+  // 아직 투표 안 한 사람은 이름 없이 수만(모바일·넓은 화면 같음)
+  const nonBand=`<div class="poll-band pd-non-m" style="background:var(--surface2);">
+    <div class="poll-band-hd" style="color:var(--muted);margin:0;"><span class="poll-band-dot" style="background:var(--muted);"></span>${nonV.length?`아직 투표 안 함 · ${nonV.length}명`:'모두 참여했어요'}</div>
   </div>`;
   const head=`<div class="modal-header"><div class="mh-title">${esc(p.title)}</div><button class="modal-close" onclick="closePollModal()">✕</button></div>`;
-  // 넓은 화면: 왼쪽 요약(상태·마감·설명·참여율 링·항목별 막대) / 오른쪽 항목별 투표자(2열) + 아직 안 한 사람
+  // 넓은 화면: 왼쪽 요약(상태·마감·설명·참여율 링·항목별 막대) + 그 아래 항목별 투표자 이름·아직 안 한 사람 수 / 오른쪽 댓글만(공지 확인 창과 같은 틀)
   if(_pollWide()){
     const all=total+nonV.length, rate=all?Math.round(total/all*100):0, R=42, C=2*Math.PI*R;
     const bars=(p.options||[]).map((o,i)=>{ const c=POLL_COLORS[i%POLL_COLORS.length], n=Object.values(votes).filter(v=>v===i).length, pct=total?Math.round(n/total*100):0;
@@ -265,8 +265,9 @@ function _pollDetailHtml(p){
         <div class="pd-ring"><svg viewBox="0 0 100 100" width="104" height="104" aria-hidden="true"><circle cx="50" cy="50" r="${R}" fill="none" stroke="rgba(224,72,60,.12)" stroke-width="11"/><circle cx="50" cy="50" r="${R}" fill="none" stroke="#e0483c" stroke-width="11" stroke-linecap="round" stroke-dasharray="${(C*rate/100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg>
           <div><b>${rate}%</b><span>참여 ${total}명 / ${all}명</span></div></div>
         <div class="pd-bars">${bars}</div>
+        <div class="pd-voters">${bands}<div class="poll-band pd-non"><div class="poll-band-hd" style="color:var(--muted);"><span class="poll-band-dot" style="background:var(--muted);"></span>아직 투표 안 함 · ${nonV.length}명</div></div></div>
       </div>
-      <div class="pd-right poll-scroll">${bands}${nonBand.replace('class="poll-band"','class="poll-band pd-non"')}${typeof ndCmtSection==='function'?`<div class="pd-cmt">${ndCmtSection('poll', p.id, p.comments)}</div>`:''}</div>
+      <div class="pd-right poll-scroll">${typeof ndCmtSection==='function'?ndCmtSection('poll', p.id, p.comments):''}</div>
     </div>`;
   }
   return head+`

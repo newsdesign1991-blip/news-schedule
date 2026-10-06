@@ -180,14 +180,21 @@
 }
 @media (min-width: 1001px) {
   /* ===== 투표 자세히 보기(js/poll.js _pollDetailHtml 넓은 화면): 왼쪽 요약(상태·마감·설명·참여율 링·항목 막대) / 오른쪽 항목별 투표자 2열 ===== */
-  #poll-modal .pd-wide { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 400px minmax(0, 1fr); }
+  #poll-modal .pd-wide { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
   html body #poll-modal-card.pc-wide-card:has(.pd-wide) { min-height: min(640px, 88vh); }   /* 자세히 보기는 세로로도 넉넉하게 */
-  #poll-modal .pd-left { padding: 22px 26px 26px; border-right: 1px solid rgba(224, 72, 60, .12); }
-  [data-theme="dark"] #poll-modal .pd-left { border-right-color: rgba(255, 120, 110, .13); }
-  #poll-modal .pd-right { padding: 22px 26px 26px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-content: start; }
-  #poll-modal .pd-right .poll-band { margin: 0; padding: 16px 18px; }
-  #poll-modal .pd-right .poll-band.pd-non { grid-column: 1 / -1; }
-  #poll-modal .pd-right .poll-band-names { font-size: 14.5px; gap: 9px 16px; }
+  #poll-modal .pd-left { padding: 22px 28px 26px; }
+  /* 오른쪽 = 댓글만: 공지 확인 창처럼 옅은 바탕(투표는 빨강 계열) + 목록이 칸을 채우고 입력칸은 바닥 */
+  #poll-modal .pd-right { display: flex; flex-direction: column; padding: 22px 26px 26px; border-left: 1px solid rgba(224, 72, 60, .2); background: rgba(224, 72, 60, .035); }
+  [data-theme="dark"] #poll-modal .pd-right { border-left-color: rgba(255, 120, 110, .18); background: rgba(255, 120, 110, .03); }
+  #poll-modal .pd-right .ndcm { flex: 1 1 auto; display: flex; flex-direction: column; margin: 0; padding: 0; border-top: 0; }
+  #poll-modal .pd-right .ndcm-list { flex: 1 1 auto; }
+  #poll-modal .pd-right .ndcm-form { margin-top: 16px; }
+  /* 왼쪽 아래: 항목별 투표자(2열) + 아직 안 한 사람 수 */
+  #poll-modal .pd-voters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--border); }
+  #poll-modal .pd-voters .poll-band { margin: 0; padding: 14px 16px; }
+  #poll-modal .pd-voters .poll-band.pd-non { grid-column: 1 / -1; padding: 12px 16px; background: rgba(15, 23, 42, .05); }
+  [data-theme="dark"] #poll-modal .pd-voters .poll-band.pd-non { background: rgba(255, 255, 255, .06); }
+  #poll-modal .pd-voters .poll-band.pd-non .poll-band-hd { margin: 0; }
   .pd-status { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 999px; background: rgba(224, 72, 60, .12); color: #d23a2f; font-size: 12.5px; font-weight: 800; }
   .pd-status.ended { background: var(--surface2); color: var(--muted); }
   .pd-meta { margin-top: 10px; font-size: 14px; font-weight: 700; color: var(--text); }
@@ -221,8 +228,6 @@
 }
 @media (min-width: 1001px) {
   /* 댓글(js/nd-comments.js) — 오른쪽 열: 투표는 참석자 이름 아래(두 칸 전체 폭), 공지는 공감 목록 아래. */
-  #poll-modal .pd-cmt { grid-column: 1 / -1; }
-  #poll-modal .pd-right .ndcm { margin-top: 10px; }
   /* 공지: 오른쪽은 댓글만 — 목록이 칸을 채우고 입력칸은 칸 바닥에 */
   #poll-modal .ntd-right .ndcm { flex: 1 1 auto; display: flex; flex-direction: column; margin: 0; padding: 0; border-top: 0; }
   #poll-modal .ntd-right .ndcm-list { flex: 1 1 auto; }
