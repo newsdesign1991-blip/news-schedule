@@ -429,6 +429,10 @@ function _dayGcalCard(ds, ev){
   </div>`;
 }
 function showDayModal(dateStr) {
+  // 같은 날 창이 열린 채 다시 그릴 때(일정 추가·삭제)는 펼친 근무자 목록을 그대로 둠, 새로 열면 항상 접힘
+  const _dm=document.getElementById('day-modal');
+  const _keepWork=!!window._dayWorkOpen && modalDate===dateStr && !!_dm && _dm.style.display==='flex' && !_dm.classList.contains('nd-closing');
+  window._dayWorkOpen=_keepWork;
   modalDate=dateStr;
   const {y,m,d,date}=parseDateStr(dateStr); const dow=date.getDay();
   document.getElementById('modal-date-title').textContent=`${m}월 ${d}일 (${DOW_KR[dow]}) 근무 현황`;
@@ -444,7 +448,7 @@ function showDayModal(dateStr) {
   let evCards='';
   ourEvs.forEach(ev=>{ evCards+=_dayEvCard(dateStr, ev); });
   gEvs.forEach(ev=>{ evCards+=_dayGcalCard(dateStr, ev); });
-  let evHtml=`<div class="day-sect"><div class="day-sect-hd"><span class="day-hd-label">📌 일정</span>${addEvBtn}</div>`;
+  let evHtml=`<div class="day-sect"><div class="day-sect-hd"><span class="day-hd-label">일정</span>${addEvBtn}</div>`;
   evHtml += evCards ? `<div class="day-ev-list">${evCards}</div>` : `<div class="day-empty">등록된 일정 없음</div>`;
   evHtml+=`<div id="event-add-form" style="display:none;margin-top:8px;" class="event-form">
     <div class="event-row" style="margin-bottom:8px;">
@@ -460,13 +464,12 @@ function showDayModal(dateStr) {
   </div>`;
   evHtml+=`</div>`;
 
-  // ===== 근무 (당직 + 부서, 배경색 구분) =====
-  let workHtml='';
-  if (!entry) {
-    workHtml=`<div class="day-empty" style="text-align:center;padding:22px 0;">근무표가 없습니다.</div>`;
-  } else {
+  // ===== 근무 (당직 + 부서, 배경색 구분) — '근무자 보기'를 눌러야 펼쳐짐 =====
+  let workHtml='', bands='';
+  const ppl=new Set();
+  if (entry) {
     if (entry.notes) workHtml+=`<div class="day-sect"><div class="day-note">📝 ${_esc(entry.notes)}</div></div>`;
-    if (entry.danjik) { const s=staffById(entry.danjik); workHtml+=`<div class="day-dept-band" style="background:#fee2e2;color:#d65a52;"><div class="dd-band-title">당직</div><div class="dd-band-names"><span class="nm">${s?.name||'?'}</span></div></div>`; }
+    if (entry.danjik) { const s=staffById(entry.danjik); if(s) ppl.add(entry.danjik); bands+=`<div class="day-dept-band" style="background:#fee2e2;color:#d65a52;"><div class="dd-band-title">당직</div><div class="dd-band-names"><span class="nm">${s?.name||'?'}</span></div></div>`; }
     const depts=[
       {key:'xr',label:'XR',bg:'var(--xr-bg)',fg:'var(--xr-light)',workers:(entry.xr||[]),desk:null},
       {key:'vw',label:'VW',bg:'var(--vw-bg)',fg:'var(--vw-light)',workers:(entry.vw?.workers||[]),desk:entry.vw?.desk},
@@ -476,13 +479,41 @@ function showDayModal(dateStr) {
     ];
     depts.forEach(({key,label,bg,fg,workers,desk})=>{
       if(!workers.length) return;
+      workers.forEach(id=>{ if(staffById(id)) ppl.add(id); });
       const names=workers.map(id=>{ const s=staffById(id); const isDesk=id===desk; return s?`<span class="nm">${isDesk?'<span class="desk-star">★</span>':''}${s.name}</span>`:''; }).join('');
-      workHtml+=`<div class="day-dept-band" style="background:${bg};color:${fg};"><div class="dd-band-title">${label} · ${workers.length}명</div><div class="dd-band-names">${names}</div></div>`;
+      bands+=`<div class="day-dept-band" style="background:${bg};color:${fg};"><div class="dd-band-title">${label} · ${workers.length}명</div><div class="dd-band-names">${names}</div></div>`;
     });
+  }
+  if (!entry) workHtml+=`<div class="day-work-none">이 날 근무표가 없습니다.</div>`;
+  else if (!bands) workHtml+=`<div class="day-work-none">이 날 근무자가 없습니다.</div>`;
+  else {
+    const on=_keepWork;
+    workHtml+=`<button type="button" id="day-work-tg" class="day-work-tg${on?' open':''}" aria-expanded="${on}" aria-controls="day-work" onclick="_dayWorkToggle()">
+      <span class="dwt-l">${on?'근무자 숨기기':'근무자 보기'}</span><span class="dwt-n">${ppl.size}명</span>
+      <svg class="dwt-ch" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div id="day-work" class="day-work${on?' open':''}"${on?'':' inert'}><div class="day-work-in"><div class="day-work-pad">${bands}</div></div></div>`;
   }
 
   document.getElementById('modal-body').innerHTML = evHtml + workHtml;
   document.getElementById('day-modal').style.display='flex';
+}
+// '근무자 보기' 펼침/접기 — 블러·투명도·크기 전환(css/modal.css .day-work), 펼치면 목록이 보이게 창 안에서 살짝 내림
+function _dayWorkToggle(){
+  const w=document.getElementById('day-work'), b=document.getElementById('day-work-tg'); if(!w||!b) return;
+  const on=!w.classList.contains('open');
+  window._dayWorkOpen=on;
+  w.classList.toggle('open',on); b.classList.toggle('open',on);
+  b.setAttribute('aria-expanded',String(on));
+  b.querySelector('.dwt-l').textContent=on?'근무자 숨기기':'근무자 보기';
+  if(on) w.removeAttribute('inert'); else w.setAttribute('inert','');
+  if(!on) return;
+  setTimeout(()=>{
+    const sc=document.getElementById('modal-body'); if(!sc || !w.classList.contains('open')) return;
+    const r=sc.getBoundingClientRect(), wr=w.getBoundingClientRect(), br=b.getBoundingClientRect();
+    const need=Math.min(wr.bottom-r.bottom+8, br.top-r.top-8);   // 목록 끝까지 보이게, 단 버튼이 위로 사라지지 않게
+    if(need>0) sc.scrollBy({top:need, behavior:(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)?'auto':'smooth'});
+  }, 360);
 }
 function toggleEventForm(dateStr) {
   const f=document.getElementById('event-add-form');

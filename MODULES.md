@@ -37,7 +37,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 | 3 | `js/nav-admin.js` | 탭 전환 `showView`, 관리자/마스터 로그인 | `showView` `toggleAdmin` `openMasterLogin` |
 | 4 | `js/home.js` | 홈 화면(오늘의 근무, 8진/뉴오 깜빡임, masonry 배치, 큰 화면 ≥1560px 3분할 + 경계 블러 전환), 테마 전환 | `renderHome` `layoutHomeMasonry` `_hm3Sync` `_hm3Transition` `toggleTheme` |
 | 5 | `js/table-view.js` | 근무표 탭(표, 기간 선택·저장, 이미지로 저장), 칸이 무엇으로 보이는지(`workCellRole`, 통계용) | `renderTable` `workCellRole` `captureSchedule` |
-| 6 | `js/calendar.js` | 달력 탭(iOS 캘린더식 월 보기: 주 줄·이어지는 막대·+N개), 구글 캘린더(.ics) 병합·댓글 | `renderMonth` `showDayModal` `toggleGcal` |
+| 6 | `js/calendar.js` | 달력 탭(iOS 캘린더식 월 보기: 주 줄·이어지는 막대·+N개), 구글 캘린더(.ics) 병합·댓글, 날짜 창(일정 위주·근무자는 "근무자 보기"로 펼침) | `renderMonth` `showDayModal` `_dayWorkToggle` `toggleGcal` |
 | 7 | `js/generation.js` | 근무 자동생성(단계별 desk→danjik→rest, 재시도) | `generateDraftSchedule` `_generateScheduleCore` |
 | 8 | `js/workshop.js` | 근무표 작성소(초안 표, 브러시, 열 순서 드래그) | `renderWorkshopTable` `setWsBrush` `_applyBrush` |
 | 9 | `js/excel-import.js` | 엑셀/이미지 가져오기(파싱·적용, 비고·조근 처리) | `parseExcelSchedule` `_doApplyImageSchedule` |

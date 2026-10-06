@@ -76,6 +76,40 @@ body[style*="overflow: hidden"] #floating-nav {
 .dd-band-names { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
 .dd-band-names .nm { white-space: nowrap; }
 .dd-band-names .desk-star { font-size: 11px; margin-right: 2px; color: inherit; }
+/* 머리·바닥은 고정, 몸통(#modal-body)만 스크롤 — 창이 화면보다 길어도 위가 잘리지 않음 */
+#day-modal .modal { display: flex; flex-direction: column; padding: 0 !important; overflow: hidden; }
+#day-modal .modal-header { flex-shrink: 0; margin: 0; padding: 22px 24px 14px; }
+#day-modal #modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 24px 8px; }
+#day-modal .day-foot { flex-shrink: 0; padding: 12px 24px 18px; border-top: 1px solid var(--border); }
+/* 근무자 보기(접힘 버튼) — 누르면 아래 띠 목록이 블러·투명도·크기로 펼쳐짐 */
+.day-work-tg { width: 100%; display: flex; align-items: center; gap: 8px; margin: 4px 0 0; padding: 13px 16px; border: 1px solid rgba(15,23,42,.07); border-radius: 16px; background: rgba(15,23,42,.045); color: var(--text); font: inherit; font-size: 14px; font-weight: 800; letter-spacing: -.01em; cursor: pointer; transition: background .2s ease, transform .15s ease; }
+.day-work-tg:hover { background: rgba(15,23,42,.075); }
+.day-work-tg:active { transform: scale(.985); }
+.day-work-tg:focus-visible { outline: 2px solid #4a94ff; outline-offset: 2px; }
+.day-work-tg .dwt-n { margin-left: auto; padding: 3px 10px; border-radius: 999px; background: rgba(15,23,42,.07); color: var(--muted); font-size: 12px; font-weight: 700; }
+.day-work-tg .dwt-ch { flex: none; color: var(--muted); transition: transform .35s cubic-bezier(.16,1,.3,1); }
+.day-work-tg.open .dwt-ch { transform: rotate(180deg); }
+[data-theme="dark"] .day-work-tg { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.08); }
+[data-theme="dark"] .day-work-tg:hover { background: rgba(255,255,255,.09); }
+[data-theme="dark"] .day-work-tg .dwt-n { background: rgba(255,255,255,.08); }
+.day-work { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .42s cubic-bezier(.16,1,.3,1); }
+.day-work.open { grid-template-rows: 1fr; }
+.day-work-in { min-height: 0; overflow: hidden; opacity: 0; filter: blur(8px); transform: scale(.96); transform-origin: top center; transition: opacity .3s ease, filter .38s ease, transform .42s cubic-bezier(.16,1,.3,1); }
+.day-work.open .day-work-in { opacity: 1; filter: none; transform: none; }
+.day-work-pad { padding-top: 12px; }
+.day-work-none { margin-top: 4px; padding: 13px 16px; border-radius: 16px; background: rgba(15,23,42,.035); color: var(--muted); font-size: 13px; font-weight: 600; text-align: center; }
+[data-theme="dark"] .day-work-none { background: rgba(255,255,255,.04); }
+@media (prefers-reduced-motion: reduce) { .day-work, .day-work-in, .day-work-tg .dwt-ch { transition: none; } }
+/* 모바일: 상태바(노치)·홈 표시줄 안쪽에서만 열림 → 창이 길어도 위가 블러 영역에 잘리지 않음(넘치면 몸통 스크롤) */
+@media (max-width: 1000px) {
+  #day-modal.modal-overlay { padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px calc(env(safe-area-inset-bottom, 0px) + 12px) !important; }
+  #day-modal .modal { max-height: 100%; }
+}
+@media (max-width: 760px) {
+  #day-modal .modal-header { padding: 18px 18px 12px; }
+  #day-modal #modal-body { padding: 2px 18px 8px; }
+  #day-modal .day-foot { padding: 12px 18px 16px; }
+}
 
 /* 팝업/모달 등장 애니메이션 — 배경 페이드 + 콘텐츠 팝인 */
 @keyframes ndModalFade { from { opacity: 0; } to { opacity: 1; } }
