@@ -49,7 +49,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 | 15 | `js/cell-edit.js` | 토스트, 셀 직접 수정 팝업 | `toast` `cellClick` `setCell` |
 | 16 | `js/login-ui.js` | 직원 로그인, 상단 메뉴, 시트(계정·알림) | `loginUser` `openSheet` `openAccountSheet` |
 | 17 | `js/notice.js` | 오늘의 공지, 공감(리액션), 확인함 기록(`it.seen`, 창 열면 1회 `_noticeMarkSeen`), 댓글, 푸시 발송 | `renderNoticeBar` `openNoticeModal` `deleteNotice` |
-| 18 | `js/poll.js` | 오늘의 투표 | `renderPolls` `openPollCreate` |
+| 18 | `js/poll.js` | 오늘의 투표(만들기·수정·자세히 보기·댓글) | `renderPolls` `openPollCreate` |
 | 19 | `js/schedule-finder.js` | 저녁 같이 먹을 사람 찾기, 개인 근무 보기, 내 근무 카드 | `openDinnerFinder` `openPersonSchedule` `renderMySchedule` |
 | 20 | `js/sync-init.js` | **앱 부팅**(데이터 로드, 2분 자동 동기화, 첫 렌더) | `_migrateRemote` `_rerenderActiveView` |
 | 21 | `js/a2hs.js` | 홈 화면에 추가 안내 (+끝부분에 직원 편집 모달 `#staff-edit-modal` HTML 삽입 → staff-modal.js보다 먼저 와야 함) | `installA2HS` |

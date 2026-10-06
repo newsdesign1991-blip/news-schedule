@@ -67,7 +67,8 @@ function _pollCloseBlur(){
   }catch(e){}
   setTimeout(function(){ pm.style.display='none'; pm.classList.remove('nd-closing'); try{ pm.getAnimations().forEach(x=>x.cancel()); if(pc) pc.getAnimations().forEach(x=>x.cancel()); }catch(_){} }, 440);
 }
-function _pollIsMine(p){ return !!(currentUser && p && ((p.createdById && p.createdById===currentUser.staffId) || (p.createdBy && currentUser.name && p.createdBy===currentUser.name))); }
+// 만든 사람인지: 직원 id가 있으면 id로만 비교(이름이 같은 다른 직원 막기), 옛 투표(id 없음)만 이름으로
+function _pollIsMine(p){ if(!currentUser || !p) return false; if(p.createdById) return p.createdById===currentUser.staffId; return !!(p.createdBy && currentUser.name && p.createdBy===currentUser.name); }
 function _pollState(p){
   if(_pollEnded(p)) return 'results';
   const myId=(currentUser&&currentUser.staffId)||null;
@@ -195,8 +196,14 @@ function _pollVote(pollId, optIdx){
   if(window._pollEdit) delete window._pollEdit[pollId];
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){}
   _pollSwapBody(pollId, true);   // 버튼 블러아웃 -> 그래프 등장
-  _pollCommit((polls)=>{ const q=polls.find(x=>x.id===pollId); if(!q) return false; if(!q.votes) q.votes={}; q.votes[myId]=optIdx; })
-    .then(ok=>{ if(ok==='gone'){ toast('이미 삭제된 투표예요.','error'); renderPolls(); } else if(ok) _pollRefreshResults(pollId); });
+  // 화면에서 누른 선택지 이름 — 그사이 투표가 수정돼 번호가 바뀌었으면(서버 이름이 다름) 엉뚱한 선택지에 넣지 않음
+  const lbl=((p.options||[])[optIdx]||{}).label; let stale=false;
+  _pollCommit((polls)=>{ const q=polls.find(x=>x.id===pollId); if(!q) return false;
+      const op=(q.options||[])[optIdx]; if(!op || op.label!==lbl){ stale=true; return false; }
+      if(!q.votes) q.votes={}; q.votes[myId]=optIdx; })
+    .then(ok=>{
+      if(stale){ toast('투표 내용이 수정됐어요. 다시 골라 주세요.','error'); if(window._pollEdit) window._pollEdit[pollId]=true; renderPolls(); return; }   // data.polls는 서버본으로 맞춰짐
+      if(ok==='gone'){ toast('이미 삭제된 투표예요.','error'); renderPolls(); } else if(ok) _pollRefreshResults(pollId); });
 }
 
 // 지워진 투표: 그 투표의 '자세히 보기'가 열려 있을 때만 닫고(그사이 연 다른 창은 그대로) 홈 카드 다시 그림
@@ -251,7 +258,8 @@ function _pollDetailHtml(p){
   const nonBand=`<div class="poll-band pd-non-m" style="background:var(--surface2);">
     <div class="poll-band-hd" style="color:var(--muted);margin:0;"><span class="poll-band-dot" style="background:var(--muted);"></span>${nonV.length?`아직 투표 안 함 · ${nonV.length}명`:'모두 참여했어요'}</div>
   </div>`;
-  const head=`<div class="modal-header"><div class="mh-title">${esc(p.title)}</div><button class="modal-close" onclick="closePollModal()">✕</button></div>`;
+  const edBtn=_pollCanEdit(p)?`<button class="modal-close" onclick="openPollEdit('${p.id}')" title="투표 수정" aria-label="투표 수정" style="color:#e0483c;"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>`:'';
+  const head=`<div class="modal-header"><div class="mh-title">${esc(p.title)}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">${edBtn}<button class="modal-close" onclick="closePollModal()">✕</button></div></div>`;
   // 넓은 화면: 왼쪽 요약(상태·마감·설명·참여율 링·항목별 막대) + 그 아래 항목별 투표자 이름·아직 안 한 사람 수 / 오른쪽 댓글만(공지 확인 창과 같은 틀)
   if(_pollWide()){
     const all=total+nonV.length, rate=all?Math.round(total/all*100):0, R=42, C=2*Math.PI*R;
@@ -260,7 +268,7 @@ function _pollDetailHtml(p){
     return head+`<div class="pd-wide">
       <div class="pd-left poll-scroll">
         <div class="pd-status${ended?' ended':''}">${ended?'종료됨':'진행 중'}</div>
-        <div class="pd-meta">${_pollFmtEnd(p.endAt)} 종료${ended?'':' 예정'}</div>
+        <div class="pd-meta">${_pollFmtEnd(p.endAt)} 종료${ended?'':' 예정'}${p.editedAt?' <span class="pd-edited">· 수정됨</span>':''}</div>
         ${p.desc?`<div class="pd-desc">${esc(p.desc)}</div>`:''}
         <div class="pd-ring"><svg viewBox="0 0 100 100" width="104" height="104" aria-hidden="true"><circle cx="50" cy="50" r="${R}" fill="none" stroke="rgba(224,72,60,.12)" stroke-width="11"/><circle cx="50" cy="50" r="${R}" fill="none" stroke="#e0483c" stroke-width="11" stroke-linecap="round" stroke-dasharray="${(C*rate/100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg>
           <div><b>${rate}%</b><span>참여 ${total}명 / ${all}명</span></div></div>
@@ -272,7 +280,7 @@ function _pollDetailHtml(p){
   }
   return head+`
   <div class="poll-scroll" style="padding:15px 20px 20px;">
-    <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:${p.desc?'9':'13'}px;">${ended?'종료됨':'진행 중'} · ${_pollFmtEnd(p.endAt)} 종료${ended?'':' 예정'} · 총 ${total}명 참여</div>
+    <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:${p.desc?'9':'13'}px;">${ended?'종료됨':'진행 중'} · ${_pollFmtEnd(p.endAt)} 종료${ended?'':' 예정'} · 총 ${total}명 참여${p.editedAt?' · 수정됨':''}</div>
     ${p.desc?`<div style="font-size:13px;color:var(--text);line-height:1.55;white-space:pre-wrap;margin-bottom:14px;padding-bottom:13px;border-bottom:1px solid var(--border);">${esc(p.desc)}</div>`:''}
     ${bands}${nonBand}
     ${typeof ndCmtSection==='function'?ndCmtSection('poll', p.id, p.comments):''}
@@ -288,9 +296,10 @@ function _pollShow(html, after, morph){ window._noticeDetailId=null; const _pm=d
   if(c._ndMorph) c._ndMorph();   // 진행 중인 전환은 먼저 끝내고 바로 바꿈
   apply(); if(_pm) _pm.style.display='flex'; }
 function closePollModal(){ _animModalClose(document.getElementById('poll-modal')); }
-function _pollOptRow(val){
-  return `<div class="poll-opt-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-    <input class="form-input poll-opt-in" maxlength="30" style="flex:1;" placeholder="선택지" value="${_pEsc(val||'')}">
+// oi = 수정할 때 이 선택지의 원래 번호(표를 이어 주는 열쇠), n = 그 선택지가 받은 표 수
+function _pollOptRow(val, oi, n){
+  return `<div class="poll-opt-row"${oi!=null?` data-oi="${oi}"`:''} style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+    <input class="form-input poll-opt-in" maxlength="30" style="flex:1;" placeholder="선택지" value="${_pEsc(val||'')}">${n?`<span class="poll-opt-votes" title="이 선택지가 받은 표">${n}표</span>`:''}
     <button type="button" onclick="this.parentElement.remove()" style="flex-shrink:0;width:46px;height:46px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:18px;line-height:1;">−</button>
   </div>`;
 }
@@ -298,23 +307,25 @@ function addPollOption(){ const w=document.getElementById('poll-opts-wrap'); if(
 function openPollCreate(){ if(!currentUser||!currentUser.staffId){ toast('이름으로 로그인 후 만들 수 있습니다.','error'); return; } _pollShow(_pollCreateHtml(), ()=>{ if(_pollWide()){ document.getElementById('poll-modal-card')?.classList.add('pc-wide-card'); _pollEndPickers(); } }, true); }
 // 넓은 화면(≥1001px): 투표 만들기 좌우 2분할 — 왼쪽 종료 날짜 달력·마감 시간·조용히 / 오른쪽 제목·선택지·설명 + 버튼(css/popup-wide.css)
 function _pollWide(){ return !!(window.matchMedia && matchMedia('(min-width:1001px)').matches); }
-function _pollCreateHtml(){
-  const head=`<div class="modal-header"><div class="mh-title">투표 만들기</div><button class="modal-close" onclick="closePollModal()">✕</button></div>`;
+// edit = 고칠 투표(있으면 '투표 수정': 값 채움, 조용히 칸 대신 안내, 버튼 '수정 저장'·'취소'는 자세히 보기로)
+function _pollCreateHtml(edit){
+  const ed=edit||null, V=ed?(ed.votes||{}):{};
+  const head=`<div class="modal-header"><div class="mh-title">${ed?'투표 수정':'투표 만들기'}</div><button class="modal-close" onclick="closePollModal()">✕</button></div>`;
   const S=[`    <div class="ev-sect ev-tint">
       <label class="form-label">투표 제목</label>
-      <input id="poll-title-in" class="form-input" maxlength="60" placeholder="예: 회식 참석여부">
+      <input id="poll-title-in" class="form-input" maxlength="60" placeholder="예: 회식 참석여부" value="${ed?_pEsc(ed.title||''):''}">
     </div>
 `,`    <div class="ev-sect">
       <label class="form-label">간단한 설명 <span style="color:var(--muted);font-weight:400;font-size:11px;">(선택)</span></label>
-      <textarea id="poll-desc-in" class="form-input" rows="3" style="resize:vertical;" placeholder="투표에 대한 안내를 적어주세요"></textarea>
+      <textarea id="poll-desc-in" class="form-input" rows="3" style="resize:vertical;" placeholder="투표에 대한 안내를 적어주세요">${ed?_pEsc(ed.desc||''):''}</textarea>
     </div>
 `,`    <div class="ev-sect">
       <label class="form-label">종료 일시</label>
-      <input type="datetime-local" id="poll-end-in" class="form-input" style="width:auto;">
+      <input type="datetime-local" id="poll-end-in" class="form-input" style="width:auto;" value="${ed?_pEsc(ed.endAt||''):''}">
     </div>
 `,`    <div class="ev-sect">
       <label class="form-label">선택지 <span style="color:var(--muted);font-weight:400;font-size:11px;">(2개 이상)</span></label>
-      <div id="poll-opts-wrap">${_pollOptRow('')}${_pollOptRow('')}</div>
+      <div id="poll-opts-wrap">${ed?(ed.options||[]).map((op,i)=>_pollOptRow(op.label, i, Object.values(V).filter(v=>v===i).length)).join(''):_pollOptRow('')+_pollOptRow('')}</div>
       <button type="button" onclick="addPollOption()" style="margin-top:2px;background:rgba(224,72,60,.09);color:#e0483c;border:1px dashed rgba(224,72,60,.4);border-radius:12px;padding:9px;width:100%;font-size:13px;font-weight:700;cursor:pointer;">+ 선택지 추가</button>
     </div>
 `,`    <div class="ev-sect">
@@ -324,14 +335,16 @@ function _pollCreateHtml(){
       </label>
     </div>
 `];   // 0 제목 · 1 설명 · 2 종료 · 3 선택지 · 4 조용히
+  if(ed) S[4]=`    <div class="ev-sect"><div class="poll-edit-note">수정은 전 직원 알림을 보내지 않아요. 선택지 이름을 바꾸거나 추가해도 받은 표는 그대로예요.</div></div>
+`;
   const act=`  <div class="p-actions">
-    <button class="btn btn-primary" style="flex:1;" onclick="submitPoll()">투표 만들기</button>
-    <button class="btn btn-outline" style="width:auto;padding-left:20px;padding-right:20px;" onclick="closePollModal()">취소</button>
+    <button class="btn btn-primary" style="flex:1;" onclick="${ed?`submitPollEdit('${ed.id}')`:'submitPoll()'}">${ed?'수정 저장':'투표 만들기'}</button>
+    <button class="btn btn-outline" style="width:auto;padding-left:20px;padding-right:20px;" onclick="${ed?`_pollEditCancel('${ed.id}')`:'closePollModal()'}">취소</button>
   </div>`;
   // 넓은 화면: 왼쪽 종료 날짜 달력 + 마감 시간 직접 입력 + 조용히 / 오른쪽 제목·선택지·설명 + 버튼 (값은 숨긴 poll-end-in에 그대로 → submitPoll 그대로)
   const SW=`    <div class="ev-sect pc-when">
       <label class="form-label">종료 날짜</label>
-      <input type="datetime-local" id="poll-end-in" class="form-input nd-native-src">
+      <input type="datetime-local" id="poll-end-in" class="form-input nd-native-src" value="${ed?_pEsc(ed.endAt||''):''}">
       <div id="poll-end-cal"></div>
       <label class="form-label pc-time-lbl">마감 시간</label>
       <div id="poll-end-time"></div>
@@ -341,15 +354,77 @@ function _pollCreateHtml(){
   return head+`<div class="poll-scroll">${S[0]}${S[1]}${S[2]}${S[3]}${S[4]}</div>`+act;
 }
 // 종료 날짜 달력·마감 시간(js/nd-cal.js) → poll-end-in 값('YYYY-MM-DDTHH:MM')으로 합침. 오늘 이전 날짜는 못 고름
-function _pollEndPickers(){
+function _pollEndPickers(init){   // init = 'YYYY-MM-DDTHH:MM'(수정 때 원래 종료 일시)
   const inp=document.getElementById('poll-end-in'), ch=document.getElementById('poll-end-cal'), th=document.getElementById('poll-end-time');
   if(!inp||!ch||!th||typeof ndCal!=='function') return;
   const n=new Date(), today=toDateStr(n.getFullYear(), n.getMonth()+1, n.getDate());
-  let d='', t='18:00';
+  const m=/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(init||'');
+  let d=m?m[1]:'', t=m?m[2]:'18:00';
   const sync=()=>{ inp.value = d&&t ? d+'T'+t : ''; };
   ndCal(ch, { get:()=>d, set:v=>{ d=v; sync(); }, min:today });
   ndTime(th, { get:()=>t, set:v=>{ t=v||''; sync(); }, optional:false, presets:['12:00','15:00','18:00','21:00','23:59'] });
 }
+// 수정할 수 있는 사람: 만든 사람 또는 마스터
+function _pollCanEdit(p){ return !!p && (_pollIsMine(p) || (typeof isMaster!=='undefined' && isMaster)); }
+function openPollEdit(id){
+  const p=(data.polls||[]).find(x=>x.id===id); if(!p) return;
+  if(!_pollCanEdit(p)){ toast('투표를 만든 사람만 수정할 수 있어요.','error'); return; }
+  if(isAdminTest){ toast('관리자 테스트 모드에서는 수정이 저장되지 않아요.','error'); return; }
+  window._pollEditBase={ id, labels:(p.options||[]).map(o=>o.label), editedAt:p.editedAt||null, saving:false };   // 연 때의 선택지·수정 시각(저장 직전 서버 것과 비교)
+  _pollShow(_pollCreateHtml(p), ()=>{ if(_pollWide()){ document.getElementById('poll-modal-card')?.classList.add('pc-wide-card'); _pollEndPickers(p.endAt); } }, true);
+}
+async function submitPollEdit(id){
+  const B=window._pollEditBase; if(!B || B.id!==id || B.saving) return;   // 수정 창이 닫혔거나(저장 직후 전환 중) 저장 중이면 무시 — 두 번 눌러도 한 번만
+  const p=(data.polls||[]).find(x=>x.id===id);
+  if(!p){ toast('이미 삭제된 투표예요.','error'); window._pollEditBase=null; closePollModal(); renderPolls(); return; }
+  if(!_pollCanEdit(p)){ toast('투표를 만든 사람만 수정할 수 있어요.','error'); return; }
+  const title=(document.getElementById('poll-title-in').value||'').trim();
+  const desc=(document.getElementById('poll-desc-in').value||'').trim();
+  const endAt=document.getElementById('poll-end-in').value;
+  const rows=Array.prototype.slice.call(document.querySelectorAll('#poll-opts-wrap .poll-opt-row'));
+  const opts=rows.map(r=>({ label:(r.querySelector('.poll-opt-in').value||'').trim(), oi:(r.dataset.oi!==undefined&&r.dataset.oi!=='')?+r.dataset.oi:null })).filter(x=>x.label);
+  if(!title){ toast('투표 제목을 입력하세요.','error'); return; }
+  if(opts.length<2){ toast('선택지를 2개 이상 입력하세요.','error'); return; }
+  if(!endAt){ toast('종료 일시를 선택하세요.','error'); return; }
+  if(endAt!==p.endAt && new Date(endAt).getTime() < Date.now()){ toast('종료 일시가 이미 지났습니다.','error'); return; }
+  const base=B.labels;   // data-oi(원래 번호)는 '수정 창을 연 때'의 선택지 기준
+  const map={}; opts.forEach((x,ni)=>{ if(x.oi!==null && x.oi<base.length) map[x.oi]=ni; });
+  const lostOf=votes=>Object.values(votes||{}).filter(v=>map[v]===undefined).length;
+  // 표가 있는 선택지를 지웠으면 확인(그 표는 사라짐). 저장 직전 서버 표로 다시 세어 더 늘었으면 다시 확인
+  let ok_lost=lostOf(p.votes);
+  if(ok_lost && !confirm('지운 선택지에 표가 '+ok_lost+'개 있어요. 저장하면 그 표는 사라져요. 계속할까요?')) return;
+  B.saving=true;
+  let res, changed=false, moreLost=0;
+  try{
+    for(let round=0; round<3; round++){
+      changed=false; moreLost=0;
+      res=await _pollCommit(polls=>{
+        const q=polls.find(x=>x.id===id); if(!q) return false;
+        // 그사이 다른 곳(마스터·다른 기기)에서 이 투표가 수정됐으면 중단 — 선택지 번호가 어긋나거나 남의 수정을 덮지 않게
+        const now=(q.options||[]).map(o=>o.label);
+        if(now.length!==base.length || now.some((l,i)=>l!==base[i]) || (q.editedAt||null)!==(B.editedAt||null)){ changed=true; return false; }
+        const sl=lostOf(q.votes); if(sl>ok_lost){ moreLost=sl; return false; }   // 그사이 지운 선택지에 표가 더 들어옴
+        const nv={}; Object.keys(q.votes||{}).forEach(sid=>{ const ni=map[q.votes[sid]]; if(ni!==undefined) nv[sid]=ni; });
+        q.title=title; q.desc=desc; q.endAt=endAt; q.options=opts.map(x=>({label:x.label})); q.votes=nv; q.editedAt=new Date().toISOString();
+      });
+      if(!moreLost) break;
+      if(!confirm('그사이 지운 선택지에 표가 들어와 '+moreLost+'개가 됐어요. 저장하면 그 표는 사라져요. 계속할까요?')){ res=null; break; }
+      ok_lost=moreLost;
+    }
+  } finally { B.saving=false; }
+  if(res===null) return;   // 다시 확인에서 취소 — 창은 그대로
+  if(changed){ toast('그사이 다른 곳에서 이 투표가 수정됐어요. 최신 내용으로 다시 열어 주세요.','error'); window._pollEditBase=null; openPollDetail(id); return; }
+  if(moreLost){ toast('저장하지 못했어요. 다시 시도해 주세요.','error'); return; }
+  if(res==='gone'){ toast('이미 삭제된 투표예요.','error'); window._pollEditBase=null; closePollModal(); renderPolls(); return; }
+  if(res!==true){ toast('저장에 실패했습니다. 네트워크 확인 후 다시 시도하세요.','error'); return; }
+  window._pollEditBase=null;
+  if(window._pollEdit) delete window._pollEdit[id];
+  renderPolls();
+  openPollDetail(id);   // 수정한 투표의 자세히 보기로(전환 효과)
+  toast('투표를 수정했어요.','success');
+}
+// 수정 창 '취소': 자세히 보기로(그사이 지워졌으면 안내하고 닫기)
+function _pollEditCancel(id){ window._pollEditBase=null; if((data.polls||[]).some(x=>x.id===id)) openPollDetail(id); else { toast('이미 삭제된 투표예요.','error'); closePollModal(); renderPolls(); } }
 async function submitPoll(){
   if(!currentUser||!currentUser.staffId){ toast('이름으로 로그인 후 만들 수 있습니다.','error'); return; }
   const title=(document.getElementById('poll-title-in').value||'').trim();
