@@ -52,11 +52,11 @@ function _mealLoad(force){
   return _mealLoading;
 }
 
-// ── 카드 위치(개인 설정): 기본 = 홈 맨 아래(예전 빠른 접속 자리) / 위로 = '이번 주 내 근무' 바로 아래 ──
-// 카드를 길게 누르면(PC는 오른쪽 클릭도) 작은 팝업 → '맨 위로 올리기' / '원래 자리로 내리기'. 이 기기에만 기억(localStorage nd_meal_top)
+// ── 카드 위치(개인 설정): 기본 = '이번 주 내 근무' 바로 아래 / 원하면 홈 맨 아래(예전 빠른 접속 자리) ──
+// 카드를 길게 누르면(PC는 오른쪽 클릭도) 작은 팝업 → '맨 아래로 내리기' / '맨 위로 올리기'. 이 기기에만 기억(localStorage nd_meal_top: '0'=아래, 없거나 '1'=위)
 // 실제 DOM을 #my-schedule-card 뒤로 옮김 → 모바일(문서 순서)·넓은 화면 격자(order 0, 같은 order는 문서 순서)·3분할 모두 같은 자리
-let _mealSlot=null;   // 원래 자리 표시(주석 노드)
-function _mealTopOn(){ try{ return localStorage.getItem('nd_meal_top')==='1'; }catch(e){ return false; } }
+let _mealSlot=null;   // 맨 아래 자리(마크업 위치) 표시(주석 노드)
+function _mealTopOn(){ try{ return localStorage.getItem('nd_meal_top')!=='0'; }catch(e){ return true; } }   // 기본 = 위
 function _mealApplyPos(){
   const card=document.getElementById('home-meal'), msc=document.getElementById('my-schedule-card'); if(!card || !msc || !card.parentNode) return;
   if(!_mealSlot){ _mealSlot=document.createComment('home-meal-slot'); card.parentNode.insertBefore(_mealSlot, card); }
@@ -73,7 +73,7 @@ function _mealPosPop(x, y){
   const ic=top?'<path d="M12 5v14M6 13l6 6 6-6"/>':'<path d="M12 19V5M6 11l6-6 6 6"/>';
   const pop=document.createElement('div'); pop.id='meal-pos-pop'; pop.className='meal-pos-pop'; pop.setAttribute('role','menu'); pop.setAttribute('aria-label','오늘의 식사 위치');
   pop.innerHTML=`<div class="mpp-hd">오늘의 식사</div>
-    <button type="button" role="menuitem" class="mpp-item" onclick="mealSetTop(${!top})"><span class="mpp-ic"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ic}</svg></span><span class="mpp-tx"><b>${top?'원래 자리로 내리기':'맨 위로 올리기'}</b><small>${top?'홈 맨 아래':'이번 주 내 근무 바로 아래'}</small></span></button>`;
+    <button type="button" role="menuitem" class="mpp-item" onclick="mealSetTop(${!top})"><span class="mpp-ic"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ic}</svg></span><span class="mpp-tx"><b>${top?'맨 아래로 내리기':'맨 위로 올리기'}</b><small>${top?'홈 맨 아래':'이번 주 내 근무 바로 아래'}</small></span></button>`;
   document.body.appendChild(pop);
   const pw=pop.offsetWidth, ph=pop.offsetHeight, W=window.innerWidth, H=window.innerHeight;
   const px=(typeof x==='number')?x:W/2, py=(typeof y==='number')?y:H/2;
@@ -96,7 +96,7 @@ function mealSetTop(on){
     try{ if(out) out.cancel(); }catch(e){}
     try{ card.scrollIntoView({ block:'nearest', behavior:reduce?'auto':'smooth' }); }catch(e){}
     if(!reduce){ try{ card.animate([{opacity:0,filter:'blur(10px)',transform:'scale(.97)'},{opacity:1,filter:'blur(0px)',transform:'none'}],{duration:420,easing:'cubic-bezier(.16,1,.3,1)'}); }catch(e){} }
-    toast(on?'오늘의 식사를 맨 위로 올렸어요.':'오늘의 식사를 원래 자리로 내렸어요.','success');
+    toast(on?'오늘의 식사를 맨 위로 올렸어요.':'오늘의 식사를 맨 아래로 내렸어요.','success');
   }, reduce?0:230);
 }
 // 홈 카드 — renderHome이 부름

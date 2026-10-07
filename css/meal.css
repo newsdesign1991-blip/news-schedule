@@ -5,7 +5,7 @@
 [data-theme="dark"] .meal-where { background: rgba(251,146,60,.16); color: #fdba74; }
 .meal-get { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(251,146,60,.32); background: rgba(251,146,60,.10); color: #c2410c; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; transition: background .15s, transform .12s; }
 .meal-get:hover { background: rgba(251,146,60,.17); }
-/* 위로 올린 카드: '이번 주 내 근무' 바로 아래(js/meal.js _mealApplyPos가 DOM을 옮김). 넓은 화면 격자에선 order 0(같은 order는 문서 순서) */
+/* 위에 둔 카드(기본): '이번 주 내 근무' 바로 아래(js/meal.js _mealApplyPos가 DOM을 옮김). 넓은 화면 격자에선 order 0(같은 order는 문서 순서) */
 #home-meal.meal-top { margin-top: 0 !important; margin-bottom: 14px; }
 @media (min-width: 1120px) { #home-meal.meal-top { order: 0; } }
 #view-home.hm3 > #home-meal.meal-top { order: 0; }
