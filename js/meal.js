@@ -16,6 +16,19 @@ function _mealItems(t){
   if(a.length===1 && /[,，]/.test(a[0])){ const b=a[0].split(/\s*[,，]\s*/).filter(Boolean); if(b.length>=3) a=b; }
   return a;
 }
+// WISE 목동 식단 한 칸 = '주메뉴*곁들임 / 875kcal' 형식 → { name, extras, kcal }. '운영없음'은 빈 칸
+function _mealOff(t){ return /^운영\s*없음$/.test(String(t||'').trim()); }
+function _mealDish(t){
+  let s=String(t||'').replace(/\r/g,'').trim(), kcal='';
+  const k=/\s*\/\s*(\d{2,5})\s*kcal\s*$/i.exec(s); if(k){ kcal=k[1]; s=s.slice(0,k.index).trim(); }
+  const parts=s.split(/\s*[*＊]\s*/).filter(Boolean);
+  return { name: parts[0]||s, extras: parts.slice(1), kcal };
+}
+function _mealCornerHtml(t){
+  if(/\n/.test(String(t||'').trim())) return `<ul class="meal-t">${_mealItems(t).map(x=>`<li>${_mealEsc(x)}</li>`).join('')}</ul>`;   // 여러 줄 메뉴(다른 형식)는 목록
+  const d=_mealDish(t);
+  return `<div class="meal-dish">${_mealEsc(d.name)}</div>${d.extras.map(x=>`<div class="meal-side">+ ${_mealEsc(x)}</div>`).join('')}${d.kcal?`<div class="meal-kcal">${d.kcal} kcal</div>`:''}`;
+}
 // 지금 시각의 식사(오늘일 때만): 9시 전 조식, 14시 전 점심, 그 뒤 석식
 function _mealNowKind(){ const h=new Date().getHours(); return h<9?'조식':h<14?'중식':'석식'; }
 
@@ -113,8 +126,8 @@ function _mealPaint(){
     const sel=_mealSel||now||'중식';   // 좁은 화면(탭)에서 보이는 식사: 고른 것 → 지금 식사 → 점심
     html+='<div class="meal-tabs" role="tablist">'+MEAL_KINDS.map(([k,name],i)=>`<button type="button" role="tab" id="meal-tab-${i}" aria-controls="meal-col-${i}" data-f="tab${i}" class="meal-tab k${i}${sel===k?' is-sel':''}" aria-selected="${sel===k}" onclick="mealTab('${k}')">${name}${now===k?'<i aria-hidden="true"></i>':''}</button>`).join('')+'</div>';
     html+='<div class="meal-grid">'+MEAL_KINDS.map(([k,name],i)=>{
-      const v=days[ds][k]||{}, cs=['A','B','C'].filter(c=>v[c]);
-      const body=cs.length?cs.map(c=>`<div class="meal-c">${cs.length>1?`<div class="meal-cn">코너${c}</div>`:''}<ul class="meal-t">${_mealItems(v[c]).map(x=>`<li>${_mealEsc(x)}</li>`).join('')}</ul></div>`).join('')
+      const v=days[ds][k]||{}, cs=['A','B','C'].filter(c=>v[c] && !_mealOff(v[c]));   // '운영없음' 코너는 빼고, 하나만 남으면 코너 이름도 생략
+      const body=cs.length?cs.map(c=>`<div class="meal-c">${cs.length>1?`<div class="meal-cn">코너${c}</div>`:''}${_mealCornerHtml(v[c])}</div>`).join('')
                            :`<div class="meal-none">운영 없음</div>`;
       return `<section class="meal-col k${i}${now===k?' is-now':''}${sel===k?' is-sel':''}" id="meal-col-${i}" role="tabpanel" aria-labelledby="meal-tab-${i}" aria-label="${name}"><div class="meal-k"><span>${name}</span>${now===k?'<em class="meal-now">지금</em>':''}</div><div class="meal-cs">${body}</div></section>`;
     }).join('')+'</div>';

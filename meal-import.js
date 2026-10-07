@@ -49,7 +49,7 @@
   function pickArea(rows) {
     var o = {}, any = false;
     rows.forEach(function (r) {
-      if (r.area !== AREA || !r.text) return;
+      if (r.area !== AREA || !r.text || /^운영\s*없음$/.test(r.text)) return;   // 운영 안 하는 코너는 저장 안 함
       var k = { '코너1': 'A', '코너2': 'B', '코너3': 'C', 'A': 'A', 'B': 'B', 'C': 'C' }[r.item.replace(/\s/g, '')];
       if (!k) return;
       o[k] = o[k] ? o[k] + '\n' + r.text : r.text; any = true;
