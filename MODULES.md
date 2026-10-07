@@ -49,7 +49,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 | 14 | `js/admin.js` | 관리자 탭(통계, 하루 수정, 설정, 비밀번호, 알림제어, 로그인 기록), 푸시 구독·개인 알림 설정 서버 저장 | `_workStatsAuto` `renderWorkStats` `_pushSavePrefs` `saveSettings` |
 | 15 | `js/cell-edit.js` | 토스트, 셀 직접 수정 팝업 | `toast` `cellClick` `setCell` |
 | 16 | `js/login-ui.js` | 직원 로그인, 상단 메뉴, 시트(계정·알림) | `loginUser` `openSheet` `openAccountSheet` |
-| 17 | `js/notice.js` | 오늘의 공지, 공감(리액션), 확인함 기록(`it.seen`, 창 열면 1회 `_noticeMarkSeen`), 댓글, 푸시 발송 | `renderNoticeBar` `openNoticeModal` `deleteNotice` |
+| 17 | `js/notice.js` | 오늘의 공지, 공감(리액션), 확인함 기록(서버 별도 칸 nd_data id='seen', `_noticeSyncSeen`), 댓글, 지난 공지(카드 2열 → 누르면 확인 창이 위에, `openNoticeHistory`), 푸시 발송. 게시가 끝난 공지를 수정하면 기간 기본값 '게시 끝남(그대로)'(`keep`) — 홈에 다시 안 올림 | `renderNoticeBar` `openNoticeModal` `openNoticeHistory` `deleteNotice` |
 | 18 | `js/poll.js` | 오늘의 투표(만들기·수정·자세히 보기·댓글) | `renderPolls` `openPollCreate` |
 | 19 | `js/schedule-finder.js` | 저녁 같이 먹을 사람 찾기, 개인 근무 보기, 내 근무 카드 | `openDinnerFinder` `openPersonSchedule` `renderMySchedule` |
 | 20 | `js/sync-init.js` | **앱 부팅**(데이터 로드, 2분 자동 동기화, 첫 렌더) | `_migrateRemote` `_rerenderActiveView` |
@@ -60,7 +60,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 | 25 | `js/nd-people.js` | 사람 고르기 공통 부품(이름·부서·초성 검색 + 추천 목록 + 고른 사람 태그) — 일정·프로젝트·공통 근무일 조회 | `ndPeoplePicker(host,{selected,onChange})` |
 | 26 | `js/nd-cal.js` | 팝업 달력(날짜·기간·시작 고정·점 표시)·시간 직접 입력(넓은 화면에서만 보임, 값은 원래 input에), 메뉴 전환 모핑(블러로 사라짐→크기 슈욱→또렷하게) | `ndCal` `ndTime` `ndDateInput` `ndTimeInput` `ndMorph` |
 | 27 | `js/nd-comments.js` | 투표·공지 댓글 공통 부품(목록 + 입력칸, Enter 등록·Shift+Enter 줄바꿈). 저장은 각 기능이 서버 최신본에 병합(투표 `_pollCmtAdd/_pollCmtDel`→`_pollCommit`, 공지 `_noticeCmtAdd/_noticeCmtDel`→`_ndCommit`) | `ndCmtSection` `ndCmtRefresh` |
-| 28 | `js/meal.js` | 홈 '오늘의 식사'(SBS 목동 조식·점심·석식, 예전 빠른 접속 자리) + '식단 가져오기' 창. 데이터 `nd_data id='meal'`(읽기=REST, 쓰기=notify 함수 mode `meal`만). 가져오기는 회사 PC WISE 탭에서 즐겨찾기(북마클릿 → 루트 `meal-import.js`)가 그 탭 로그인으로 읽어 저장 — WISE는 로그인·사내망이 필요해 앱/서버가 직접 못 읽음. 테스트 `swap-backend/test-meal.cjs` | `renderMeal` `openMealImport` |
+| 28 | `js/meal.js` | 홈 '오늘의 식사'(SBS 목동 조식·점심·석식, 예전 빠른 접속 자리. 카드를 길게 누르면(PC 오른쪽 클릭) '맨 위로 올리기'(이번 주 내 근무 바로 아래, 이 기기에 기억 localStorage nd_meal_top — DOM을 #my-schedule-card 뒤로 옮김) — `_mealPosPop` `mealSetTop`, 길게 누르기는 js/notice.js `_bindLP(el, fn(x,y))`) + '식단 가져오기' 창. 데이터 `nd_data id='meal'`(읽기=REST, 쓰기=notify 함수 mode `meal`만). 가져오기는 회사 PC WISE 탭에서 즐겨찾기(북마클릿 → 루트 `meal-import.js`)가 그 탭 로그인으로 읽어 저장 — WISE는 로그인·사내망이 필요해 앱/서버가 직접 못 읽음. 테스트 `swap-backend/test-meal.cjs` | `renderMeal` `openMealImport` |
 
 참고: `events.js`·`notice.js`는 원래 스크립트의 떨어진 두 구간을 합친 것이고, `excel-import.js`가 `events.js`보다 먼저 로드된다(함수 선언뿐이라 동작 동일). 그래서 js 파일을 태그 순서로 이어 붙여도 원본과 글자 순서가 완전히 같지는 않다.
 

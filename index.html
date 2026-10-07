@@ -34,18 +34,18 @@ window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.hre
 <link rel="stylesheet" href="css/dark.css?v=8b2248c5">
 <link rel="stylesheet" href="css/nav.css?v=bd336f40">
 <link rel="stylesheet" href="css/home.css?v=42e44201">
-<link rel="stylesheet" href="css/notice-poll.css?v=fa553f6a">
+<link rel="stylesheet" href="css/notice-poll.css?v=5d9dbdd0">
 <link rel="stylesheet" href="css/toss-common.css?v=b7c30a91">
 <link rel="stylesheet" href="css/calendar.css?v=fb8bf996">
 <link rel="stylesheet" href="css/table.css?v=803b1db3">
 <link rel="stylesheet" href="css/modal.css?v=89c70bb2">
-<link rel="stylesheet" href="css/admin.css?v=3f666b22">
+<link rel="stylesheet" href="css/admin.css?v=ca835c8f">
 <link rel="stylesheet" href="css/gantt-etc.css?v=82a1d736">
 <link rel="stylesheet" href="css/sheet-login.css?v=a15e1dc2">
 <link rel="stylesheet" href="css/nd-select.css?v=23fbc7fd">
 <link rel="stylesheet" href="css/nd-cal.css?v=f5021ab4">
-<link rel="stylesheet" href="css/popup-wide.css?v=9f175abe">
-<link rel="stylesheet" href="css/meal.css?v=511d3285">
+<link rel="stylesheet" href="css/popup-wide.css?v=2652f942">
+<link rel="stylesheet" href="css/meal.css?v=73e70053">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style id="floating-sidebar-only">
@@ -468,14 +468,14 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   </div>
 </div>
 
-<!-- 지난 공지 모달 -->
+<!-- 지난 공지 모달(js/notice.js openNoticeHistory) — 날짜별 카드, 누르면 공지 확인 창이 위에 열림. 넓은 화면 크기는 css/popup-wide.css -->
 <div id="notice-history-modal" class="modal-overlay" style="display:none;z-index:9999;" onclick="if(event.target===this)closeNoticeHistory()">
-  <div class="modal" style="max-width:440px;max-height:82vh;display:flex;flex-direction:column;">
+  <div class="modal nh-modal">
     <div class="modal-header">
       <div class="mh-title">지난 공지 <span class="mh-sub">(최근 1개월)</span></div>
       <button class="modal-close" onclick="closeNoticeHistory()">✕</button>
     </div>
-    <div id="notice-history-list" style="overflow-y:auto;display:flex;flex-direction:column;gap:9px;padding:14px 18px 20px;"></div>
+    <div id="notice-history-list" class="nh-list"></div>
   </div>
 </div>
 
@@ -1174,7 +1174,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.07 19:37';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.07 21:05';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1447,7 +1447,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/admin.js?v=41334f8e"></script>
 <script src="js/cell-edit.js?v=fc879e15"></script>
 <script src="js/login-ui.js?v=882273b7"></script>
-<script src="js/notice.js?v=ecd675bf"></script>
+<script src="js/notice.js?v=74195e16"></script>
 <script src="js/poll.js?v=0cd98cbc"></script>
 <script src="js/schedule-finder.js?v=3257f2aa"></script>
 <script src="js/sync-init.js?v=fb060322"></script>
@@ -1458,7 +1458,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/nd-people.js?v=7bba13fe"></script>
 <script src="js/nd-cal.js?v=dd9a295d"></script>
 <script src="js/nd-comments.js?v=736684f3"></script>
-<script src="js/meal.js?v=3cde30ec"></script>
+<script src="js/meal.js?v=e07d95a9"></script>
 <script>
 // 모듈 로드 실패 안내 — CSS가 빠졌을 수도 있으니 스타일은 전부 인라인
 (function(){

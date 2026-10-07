@@ -41,6 +41,13 @@ function _onNoticePeriodChange(){
   const sel = document.getElementById('notice-period'), dateEl = document.getElementById('notice-until'), hint = document.getElementById('notice-period-hint');
   if (!sel) return;
   const today = _todayStr();
+  if (sel.value === 'keep') {   // 게시가 끝난 공지 수정 — 홈에 다시 안 올림
+    dateEl.style.display = 'none';
+    if (hint) hint.textContent = '게시가 끝난 공지예요. 내용만 고치고 홈에는 다시 올리지 않아요. 다시 게시하려면 기간을 고르세요.';
+    document.querySelectorAll('#notice-modal .nm-chips button').forEach(b => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); });
+    document.getElementById('notice-cal')?._ndCal?.render();
+    return;
+  }
   let until;
   if (sel.value === 'custom') {
     dateEl.style.display = ''; dateEl.min = today;
@@ -62,7 +69,7 @@ function _noticePickers(){
   if (typeof ndCal !== 'function') return;
   const sel = document.getElementById('notice-period'), dEl = document.getElementById('notice-until'), today = _todayStr();
   const until = () => sel.value === 'custom' ? ((dEl.value && dEl.value >= today) ? dEl.value : today) : addDays(today, parseInt(sel.value)||0);
-  ndCal(document.getElementById('notice-cal'), { range: true, fixedFrom: today, min: today, get: () => ({ from: today, to: until() }),
+  ndCal(document.getElementById('notice-cal'), { range: true, fixedFrom: today, min: today, get: () => sel.value === 'keep' ? {} : ({ from: today, to: until() }),   // keep = 게시 끝남 그대로(달력에 기간 없음)
     set: r => { const to = r.to || today, k = ['0','2','6','13','29'].find(x => addDays(today, parseInt(x)) === to); if (k) sel.value = k; else { sel.value = 'custom'; dEl.min = today; dEl.value = to; } _onNoticePeriodChange(); } });
   ndTimeInput(document.getElementById('notice-news8'), document.getElementById('notice-news8-pick'), { presets: ['19:40','19:45','19:48','19:50','19:55'] });
 }
@@ -96,6 +103,7 @@ function _updateNoticeSaveBtn(){
   if(b&&s) b.innerHTML = s.checked ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>조용히 저장' : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>저장 + 전직원 알림';
 }
 function renderNoticeBar() {
+  _noticeHistRefresh();   // 지난 공지 창이 열려 있으면 그 목록도(공감·댓글·수정·삭제 반영)
   const wrap = document.getElementById('home-notice');
   if (!wrap) return;
   const ds = _todayStr();
@@ -380,11 +388,11 @@ async function _noticeCmtDel(itemId, cid){
   if(!ok){ const f2=_findNoticeItem(itemId); if(f2 && !(f2.it.comments||[]).some(c=>c.id===cid)) (f2.it.comments=f2.it.comments||[]).push(old); toast('댓글을 지우지 못했어요. 다시 시도하세요.','error'); }
   _noticeCmtShow(itemId); return ok;
 }
-function openNoticeDetail(itemId){
+function openNoticeDetail(itemId, srcEl){   // srcEl = 커지는 효과의 시작 카드(없으면 홈 공지 카드)
   const found=_findNoticeItem(itemId); if(!found) return;
   _noticeSyncSeen(itemId);   // 열어 본 사람 = 확인함(서버 별도 저장칸, 근무표 저장 번호 안 올림)
   closeReactPicker();
-  const src=document.querySelector('#home-notice .notice-card[data-nid="'+itemId+'"]');
+  const src=srcEl||document.querySelector('#home-notice .notice-card[data-nid="'+itemId+'"]');
   _pollShow(_noticeDetailHtml(found.it)); window._noticeDetailId=itemId;
   if(typeof _pollWide==='function' && _pollWide()) document.getElementById('poll-modal-card')?.classList.add('pc-wide-card');   // 넓은 화면: 공지+공감 2분할 큰 창
   const pm=document.getElementById('poll-modal'); if(pm) pm.classList.add('nc-yellow');
@@ -423,6 +431,7 @@ function _noticeEditFromDetail(id){
     try{ if(pm) pm.getAnimations().forEach(function(a){a.cancel();}); }catch(e){}
     if(pm){ pm.style.display='none'; pm.classList.remove('nc-yellow','nc-morph'); }
     window._noticeDetailId=null;
+    const hm=document.getElementById('notice-history-modal'); if(hm && hm.style.display==='flex') hm.style.display='none';   // 수정 창이 지난 공지 창 뒤에 가려지지 않게
     openNoticeModal(id);
     var nc=document.querySelector('#notice-modal .modal');
     try{ if(nc) nc.animate([{opacity:0,filter:'blur(14px)',transform:'scale(.97)'},{opacity:1,filter:'blur(0px)',transform:'scale(1)'}],{duration:360,easing:'cubic-bezier(.16,1,.3,1)'}); }catch(e){}
@@ -449,20 +458,24 @@ function _noticeDetailHtml(it){
     </div>
     <div class="ntc-detail-foot">${_noticeReactBar(it, true)}</div>`;
 }
-// 롱프레스(꾹 누르기) 바인딩
+// 롱프레스(꾹 누르기) 바인딩 — fn(x,y) = 누른 자리. 터치 뒤 브라우저가 흉내 내는 마우스 이벤트(약 0.8초 안)는 무시,
+// 두 손가락이면 취소, 안드로이드처럼 길게 누르면 contextmenu도 오는 경우 한 번만 부름. 길게 누른 뒤 따라오는 click은 막음(카드 안 버튼이 같이 눌리지 않게)
 function _bindLP(el, fn){
-  let timer=null, fired=false, sx=0, sy=0;
-  const start=(x,y)=>{ fired=false; sx=x; sy=y; timer=setTimeout(()=>{ timer=null; fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} fn(); }, 480); };
+  let timer=null, fired=false, sx=0, sy=0, lastTouch=0, lastFire=0;
+  const fire=(x,y)=>{ lastFire=Date.now(); fn(x,y); };
+  const start=(x,y)=>{ if(timer) clearTimeout(timer); fired=false; sx=x; sy=y; timer=setTimeout(()=>{ timer=null; fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} fire(sx, sy); }, 480); };
   const move=(x,y)=>{ if(timer && (Math.abs(x-sx)>10||Math.abs(y-sy)>10)){ clearTimeout(timer); timer=null; } };
   const end=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
-  el.addEventListener('touchstart', e=>{ const t=e.touches[0]; start(t.clientX,t.clientY); }, {passive:true});
-  el.addEventListener('touchmove', e=>{ const t=e.touches[0]; move(t.clientX,t.clientY); }, {passive:true});
-  el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
+  const fromTouch=()=>Date.now()-lastTouch<800;
+  el.addEventListener('touchstart', e=>{ lastTouch=Date.now(); fired=false; if(e.touches.length>1){ end(); return; } const t=e.touches[0]; start(t.clientX,t.clientY); }, {passive:true});
+  el.addEventListener('touchmove', e=>{ lastTouch=Date.now(); if(e.touches.length>1){ end(); return; } const t=e.touches[0]; move(t.clientX,t.clientY); }, {passive:true});
+  el.addEventListener('touchend', ()=>{ lastTouch=Date.now(); end(); }); el.addEventListener('touchcancel', ()=>{ lastTouch=Date.now(); end(); });
   el.addEventListener('click', e=>{ if(fired){ e.stopPropagation(); e.preventDefault(); fired=false; } }, true);
-  el.addEventListener('mousedown', e=>{ if(e.button===0) start(e.clientX,e.clientY); });
-  el.addEventListener('mousemove', e=>move(e.clientX,e.clientY));
-  el.addEventListener('mouseup', end); el.addEventListener('mouseleave', end);
-  el.addEventListener('contextmenu', e=>{ e.preventDefault(); fn(); });
+  el.addEventListener('mousedown', e=>{ if(fromTouch()) return; fired=false; if(e.button===0) start(e.clientX,e.clientY); });
+  el.addEventListener('keydown', ()=>{ fired=false; });   // 길게 누른 뒤 click이 안 온 경우(iOS 등) 다음 입력이 먹히지 않게
+  el.addEventListener('mousemove', e=>{ if(!fromTouch()) move(e.clientX,e.clientY); });
+  el.addEventListener('mouseup', ()=>{ if(!fromTouch()) end(); }); el.addEventListener('mouseleave', ()=>{ if(!fromTouch()) end(); });
+  el.addEventListener('contextmenu', e=>{ e.preventDefault(); end(); if(Date.now()-lastFire<800) return; if(fromTouch()) fired=true; fire(e.clientX, e.clientY); });
 }
 function _bindNoticeReacts(){ /* 바깥화면 공감은 표시 전용 — 롱프레스/토글 바인딩 없음. 상세는 팝업의 사람 아이콘으로 확인 */ }
 // 팝업이 열려 있을 때, 팝업 내부의 '실제 스크롤되는 영역'이 아니면 터치 스크롤을 막아
@@ -548,6 +561,12 @@ function openNoticeModal(editId) {
     if (!matched) { ['0','2','6','13','29'].forEach(k => { if (!matched && addDays(today, parseInt(k)) === until) matched = k; }); }
     if (matched) { _psel.value = matched; if (_pdate) _pdate.style.display = 'none'; }
     else { _psel.value = 'custom'; if (_pdate) { _pdate.style.display = ''; _pdate.min = today; _pdate.value = until; } }
+    // 지난 공지에서 연 '이미 게시가 끝난' 공지: 기간을 고르지 않으면 홈에 다시 올리지 않음(오늘 하루만으로 바뀌어 전 직원 홈에 다시 뜨던 문제)
+    let keepOpt = _psel.querySelector('option[value="keep"]');
+    if (found && _noticeEnd(found.ds, it) < today) {
+      if (!keepOpt) { keepOpt = document.createElement('option'); keepOpt.value = 'keep'; keepOpt.textContent = '게시 끝남(그대로)'; _psel.insertBefore(keepOpt, _psel.firstChild); }
+      _psel.value = 'keep'; if (_pdate) _pdate.style.display = 'none';
+    } else if (keepOpt) keepOpt.remove();
   }
   _noticePickers();
   _onNoticePeriodChange();
@@ -569,7 +588,8 @@ async function saveNotice() {
   // 게시 종료일(until) 계산
   const _psel = document.getElementById('notice-period'), _pdate = document.getElementById('notice-until');
   let until = ds;
-  if (_psel) {
+  const keepEnd = !!(_psel && _psel.value === 'keep' && _noticeEditId);   // 게시 끝난 공지 수정: 게시 기간 그대로(홈에 다시 안 올림)
+  if (_psel && !keepEnd) {
     if (_psel.value === 'custom') until = (_pdate && _pdate.value && _pdate.value >= ds) ? _pdate.value : ds;
     else until = addDays(ds, parseInt(_psel.value)||0);
   }
@@ -578,7 +598,7 @@ async function saveNotice() {
   let isEdit = false;
   if (_noticeEditId) {
     const found = _findNoticeItem(_noticeEditId);
-    if (found) { found.it.text = text; found.it.title = title; found.it.silent = silent; if (until > found.ds) found.it.until = until; else delete found.it.until; isEdit = true; }
+    if (found) { found.it.text = text; found.it.title = title; found.it.silent = silent; if (!keepEnd) { if (until > found.ds) found.it.until = until; else delete found.it.until; } isEdit = true; }
   }
   if (!isEdit && text) {
     const nit = { id:_genNoticeId(), text, title, postedBy:currentUser.name||'', postedById:(currentUser.staffId||''), postedAt:new Date().toISOString(), silent };  // 새 공지는 맨 앞(최신)
@@ -597,34 +617,52 @@ async function saveNotice() {
   }
   _noticeEditId = null;
 }
+// 지난 공지(최근 1개월): 최신순 카드(날짜·8뉴스는 카드 머리에) — 누르면 공지 확인 창(공감·확인함·댓글)이 이 창 위에 열리고, 닫으면 다시 이 목록
+// 창이 열려 있는 동안 공지가 바뀌면(공감·댓글·수정·삭제) renderNoticeBar가 _noticeHistRefresh로 목록도 다시 그림
 function openNoticeHistory() {
-  const list = document.getElementById('notice-history-list');
-  const today = _todayStr();
-  const rows = [];
-  Object.keys(data.notices||{}).sort((a,b) => b.localeCompare(a)).forEach(d => {   // 최신 날짜순
-    const box = _getNoticeBox(d);
-    const its = box.items || [];
-    its.forEach((it,idx) => rows.push({ d, it, news8: idx===0?box.news8Time:'' }));   // 8뉴스 배지는 날짜 첫 항목에만
-    if (!its.length && box.news8Time) rows.push({ d, it:null, news8:box.news8Time });
-  });
-  if (!rows.length) {
-    list.innerHTML = `<div style="text-align:center;color:var(--muted);font-size:13px;padding:30px 0;">등록된 공지가 없습니다.</div>`;
-  } else {
-    list.innerHTML = rows.map(({d,it,news8}) => {
-      const [y,mo,dd] = d.split('-').map(Number);
-      const isToday = d===today;
-      const by = it && it.postedBy ? ` · ${it.postedBy}` : '';
-      const bell = it && it.silent ? ` <span style="font-size:10px;opacity:0.7;">🔕</span>` : '';
-      const n8 = news8 ? `<span style="font-size:12.5px;font-weight:800;color:#d65a52;background:#fff5f0;border:1px solid #f4bab6;border-radius:8px;padding:3px 10px;margin-left:6px;">8뉴스 ${news8}</span>` : '';
-      const txt = it ? (it.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>') : '';
-      return `<div style="border-radius:14px;padding:12px 15px;box-shadow:0 1px 3px rgba(20,24,40,.05);${isToday?'background:#fffbeb;border:1px solid #fcd97d;':'background:var(--surface);border:1px solid var(--border);'}">
-        <div style="font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:${txt?'6px':'0'};">${mo}월 ${dd}일${isToday?' (오늘)':''}${by}${bell}${n8}</div>
-        ${txt?`<div style="font-size:13.5px;color:var(--text);line-height:1.6;">${txt}</div>`:''}
-      </div>`;
-    }).join('');
-  }
+  _noticeHistPaint();
   document.getElementById('notice-history-modal').style.display = 'flex';
 }
+function _noticeHistRefresh(){ const m=document.getElementById('notice-history-modal'); if(m && m.style.display==='flex' && !m.classList.contains('nd-closing')) _noticeHistPaint(); }
+function _noticeHistPaint(){
+  const list = document.getElementById('notice-history-list'); if(!list) return;
+  const today = _todayStr();
+  const esc = t => String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  const bellOff = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="조용히(알림 없음)"><path d="M13.7 21a2 2 0 0 1-3.4 0M18.6 13A17.9 17.9 0 0 1 18 8M6.3 6.3A5.9 5.9 0 0 0 6 8c0 7-3 9-3 9h14M18 8a6 6 0 0 0-9.3-5M3 3l18 18"/></svg>';
+  const cmtIc = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M8 2.5c-3.1 0-5.7 1.9-5.7 4.2 0 1.3.8 2.5 2 3.3-.1.6-.4 1.2-.8 1.7-.2.2 0 .5.3.4.9-.1 1.8-.5 2.5-.9.5.1 1.1.2 1.7.2 3.1 0 5.7-1.9 5.7-4.2S11.1 2.5 8 2.5z"/></svg>';
+  const days = Object.keys(data.notices||{}).sort((x,y) => y.localeCompare(x));   // 최신 날짜순
+  let html = '';
+  days.forEach(d => {
+    const box = _ensureNoticeBox(d);   // id가 고정돼야 눌러서 열 수 있음(옛 형식도 정규화)
+    const its = box.items || [];
+    if (!its.length && !box.news8Time) return;
+    const [y,mo,dd] = d.split('-').map(Number), dow = DOW_KR[new Date(y,mo-1,dd).getDay()];
+    const n8 = box.news8Time ? `<span class="nh-n8">8뉴스 ${esc(box.news8Time)}</span>` : '';
+    const dl = `<span class="nh-date">${mo}월 ${dd}일 (${dow})</span>${d===today?'<em class="nh-today">오늘</em>':''}`;
+    if (!its.length) { html += `<div class="nh-card nh-only8"><div class="nh-meta">${dl}${n8}</div></div>`; return; }   // 8뉴스 시간만 있는 날
+    its.forEach((it, k) => {
+      const t = it.postedAt ? new Date(it.postedAt) : null;
+      const hm = t && !isNaN(t) ? `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}` : '';
+      const rx = it.reactions || {}, cnt = {};
+      Object.keys(rx).forEach(id => { const e = rx[id]; if (e) cnt[e] = (cnt[e]||0) + 1; });
+      const tops = Object.keys(cnt).sort((p,q) => cnt[q]-cnt[p]).slice(0,3);
+      const rxN = Object.values(cnt).reduce((p,q) => p+q, 0), cm = (it.comments||[]).length;
+      const live = _noticeEnd(d, it) >= today;
+      html += `<button type="button" class="nh-card${live?' is-live':''}" data-nid="${esc(it.id)}" onclick="_noticeHistOpen(this.dataset.nid, this)">
+        <div class="nh-meta">${dl}${k===0?n8:''}${it.postedBy?`<b>${esc(it.postedBy)}</b>`:''}${hm?`<span>${hm}</span>`:''}${it.silent?`<span class="nh-silent">${bellOff}</span>`:''}${live?'<span class="nh-live">게시 중</span>':''}</div>
+        ${(it.title||'').trim()?`<div class="nh-title">${esc(it.title.trim())}</div>`:''}<div class="nh-text">${esc(it.text).replace(/\n/g,'<br>')}</div>
+        <div class="nh-foot">${rxN?`<span class="nh-rx">${tops.map(e=>_rxIcon(esc(e))).join('')}<b>${rxN}</b></span>`:''}${cm?`<span class="nh-cm">${cmtIc}<b>${cm}</b></span>`:''}<span class="nh-more">자세히 보기<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></span></div>
+      </button>`;
+    });
+  });
+  html = html || '<div class="nh-empty">등록된 공지가 없습니다.</div>';
+  if (list._nhHtml === html) return;   // 바뀐 게 없으면 그대로(읽는 중 깜빡임·포커스 잃음 방지)
+  const fid = list.contains(document.activeElement) ? document.activeElement.getAttribute('data-nid') : null;
+  list._nhHtml = html; list.innerHTML = html;
+  if (fid) { const el = [...list.querySelectorAll('.nh-card')].find(x => x.dataset.nid === fid); if (el) el.focus({ preventScroll: true }); }
+}
+// 지난 공지 카드 → 공지 확인 창(카드에서 커지듯 열림). 확인 창(#poll-modal)은 DOM에서 뒤에 있어 이 창 위에 뜸
+function _noticeHistOpen(id, el){ if(!_findNoticeItem(id)){ toast('이미 삭제된 공지예요.','error'); _noticeHistRefresh(); return; } openNoticeDetail(id, el); }
 function closeNoticeHistory() {
   _animModalClose(document.getElementById('notice-history-modal'));
 }

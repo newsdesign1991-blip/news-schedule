@@ -39,9 +39,57 @@ function _mealLoad(force){
   return _mealLoading;
 }
 
+// ── 카드 위치(개인 설정): 기본 = 홈 맨 아래(예전 빠른 접속 자리) / 위로 = '이번 주 내 근무' 바로 아래 ──
+// 카드를 길게 누르면(PC는 오른쪽 클릭도) 작은 팝업 → '맨 위로 올리기' / '원래 자리로 내리기'. 이 기기에만 기억(localStorage nd_meal_top)
+// 실제 DOM을 #my-schedule-card 뒤로 옮김 → 모바일(문서 순서)·넓은 화면 격자(order 0, 같은 order는 문서 순서)·3분할 모두 같은 자리
+let _mealSlot=null;   // 원래 자리 표시(주석 노드)
+function _mealTopOn(){ try{ return localStorage.getItem('nd_meal_top')==='1'; }catch(e){ return false; } }
+function _mealApplyPos(){
+  const card=document.getElementById('home-meal'), msc=document.getElementById('my-schedule-card'); if(!card || !msc || !card.parentNode) return;
+  if(!_mealSlot){ _mealSlot=document.createComment('home-meal-slot'); card.parentNode.insertBefore(_mealSlot, card); }
+  const top=_mealTopOn();
+  if(top && msc.nextElementSibling!==card) msc.after(card);
+  else if(!top && _mealSlot.nextSibling!==card && _mealSlot.parentNode) _mealSlot.after(card);
+  card.classList.toggle('meal-top', top);
+  if(!card._mealLP && typeof _bindLP==='function'){ card._mealLP=true; _bindLP(card, (x,y)=>_mealPosPop(x,y)); }   // 길게 누르기(js/notice.js)
+}
+// 길게 누른 자리 옆에 뜨는 작은 토스 카드(주황 머리) — 바깥 누르기·Esc·스크롤로 닫힘
+function _mealPosPop(x, y){
+  _mealPosClose();
+  const top=_mealTopOn();
+  const ic=top?'<path d="M12 5v14M6 13l6 6 6-6"/>':'<path d="M12 19V5M6 11l6-6 6 6"/>';
+  const pop=document.createElement('div'); pop.id='meal-pos-pop'; pop.className='meal-pos-pop'; pop.setAttribute('role','menu'); pop.setAttribute('aria-label','오늘의 식사 위치');
+  pop.innerHTML=`<div class="mpp-hd">오늘의 식사</div>
+    <button type="button" role="menuitem" class="mpp-item" onclick="mealSetTop(${!top})"><span class="mpp-ic"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ic}</svg></span><span class="mpp-tx"><b>${top?'원래 자리로 내리기':'맨 위로 올리기'}</b><small>${top?'홈 맨 아래':'이번 주 내 근무 바로 아래'}</small></span></button>`;
+  document.body.appendChild(pop);
+  const pw=pop.offsetWidth, ph=pop.offsetHeight, W=window.innerWidth, H=window.innerHeight;
+  const px=(typeof x==='number')?x:W/2, py=(typeof y==='number')?y:H/2;
+  pop.style.left=Math.max(10, Math.min(px-pw/2, W-pw-10))+'px';
+  pop.style.top=(py+14+ph>H-10 ? Math.max(10, py-ph-14) : py+14)+'px';
+  setTimeout(()=>{ document.addEventListener('pointerdown', _mealPosOutside, true); document.addEventListener('keydown', _mealPosKey, true); window.addEventListener('scroll', _mealPosClose, { passive:true, once:true }); pop.querySelector('.mpp-item')?.focus({ preventScroll:true }); }, 0);
+}
+function _mealPosOutside(e){ const p=document.getElementById('meal-pos-pop'); if(p && !p.contains(e.target)) _mealPosClose(); }
+function _mealPosKey(e){ if(e.key==='Escape'){ e.preventDefault(); _mealPosClose(); } }
+function _mealPosClose(){ const p=document.getElementById('meal-pos-pop'); if(p) p.remove(); document.removeEventListener('pointerdown', _mealPosOutside, true); document.removeEventListener('keydown', _mealPosKey, true); window.removeEventListener('scroll', _mealPosClose); }
+// 위치 바꾸기 — 블러로 사라졌다가 새 자리에서 또렷하게(전환 취향), 옮긴 자리로 부드럽게 스크롤
+function mealSetTop(on){
+  _mealPosClose();
+  const card=document.getElementById('home-meal'); if(!card) return;
+  try{ localStorage.setItem('nd_meal_top', on?'1':'0'); }catch(e){ toast('이 기기에서는 위치를 기억할 수 없어요.','error'); return; }
+  const reduce=!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  let out=null; if(!reduce){ try{ out=card.animate([{opacity:1,filter:'blur(0px)',transform:'none'},{opacity:0,filter:'blur(10px)',transform:'scale(.97)'}],{duration:220,easing:'cubic-bezier(.4,0,.5,1)',fill:'forwards'}); }catch(e){} }
+  setTimeout(()=>{   // 애니메이션 완료를 기다리지 않음(창이 안 보일 때 멈춰도 옮겨지게)
+    _mealApplyPos(); if(typeof layoutHomeMasonry==='function') layoutHomeMasonry();
+    try{ if(out) out.cancel(); }catch(e){}
+    try{ card.scrollIntoView({ block:'nearest', behavior:reduce?'auto':'smooth' }); }catch(e){}
+    if(!reduce){ try{ card.animate([{opacity:0,filter:'blur(10px)',transform:'scale(.97)'},{opacity:1,filter:'blur(0px)',transform:'none'}],{duration:420,easing:'cubic-bezier(.16,1,.3,1)'}); }catch(e){} }
+    toast(on?'오늘의 식사를 맨 위로 올렸어요.':'오늘의 식사를 원래 자리로 내렸어요.','success');
+  }, reduce?0:230);
+}
 // 홈 카드 — renderHome이 부름
 function renderMeal(){
   if(!document.getElementById('meal-body')) return;
+  _mealApplyPos();
   if(!_mealData) _mealData=_mealCacheRead();
   _mealPaint();
   _mealLoad().then(_mealPaint);
