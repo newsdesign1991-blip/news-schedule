@@ -1,18 +1,4 @@
-/* [모듈] css/modal.css — 빠른 링크·달력 이벤트·모달 공통/애니메이션 | dashboard.html 메인 <style>에서 분리됨. 순서 = 우선순위(바꾸지 말 것) */
-/* QUICK LINKS */
-.quick-links { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
-.qlink { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; padding: 12px 6px 10px; border-radius: 14px; border: 1px solid transparent; background: none; color: var(--text); text-decoration: none; font-size: 12.5px; font-weight: 700; letter-spacing: -.01em; transition: background .13s, transform .12s; cursor: pointer; text-align: center; line-height: 1.25; -webkit-tap-highlight-color: transparent; }
-.qlink:hover { background: rgba(0,0,0,.035); }
-.qlink:active { background: rgba(0,0,0,.06); transform: scale(0.97); }
-[data-theme="dark"] .qlink:hover { background: rgba(255,255,255,.05); }
-[data-theme="dark"] .qlink:active { background: rgba(255,255,255,.08); }
-.qlink-icon { width: 42px; height: 42px; border-radius: 13px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 1px rgba(255,255,255,.35); flex-shrink: 0; }
-.qlink-icon svg { width: 22px; height: 22px; }
-.qlink-icon.nds { background: linear-gradient(135deg,#5aa0ff,#2f77f6); }
-.qlink-icon.cms { background: linear-gradient(135deg,#34d9a6,#0fb27e); }
-.qlink-icon.wise { background: linear-gradient(135deg,#a98bff,#7d51f5); }
-.qlink-path { font-size: 10px; color: var(--muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-
+/* [모듈] css/modal.css — 달력 이벤트·모달 공통/애니메이션 | dashboard.html 메인 <style>에서 분리됨. 순서 = 우선순위(바꾸지 말 것) */
 /* CALENDAR EVENTS */
 .cal-events { display: flex; flex-direction: column; gap: 3px; margin-top: 3px; min-width: 0; }
 .cal-event-chip { font-size: 11px; padding: 2px 7px; border-radius: 8px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 600; max-width: 100%; box-sizing: border-box; line-height: 1.3; word-break: break-word; }

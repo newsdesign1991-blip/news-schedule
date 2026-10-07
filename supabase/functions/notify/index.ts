@@ -35,7 +35,55 @@ Deno.serve(async (req) => {
   const mode = (body?.mode === 'schedule' ? 'cron' : body?.mode) || 'cron'
   const json = (o: any, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
   // 모르는 mode는 아무것도 하지 않음(예전엔 cron으로 처리돼, 정각에 다른 호출이 오면 근무 알림이 한 번 더 갈 수 있었음)
-  if (!['cron', 'test', 'notice', 'publish', 'prefs', 'seen'].includes(mode)) return json({ error: 'unknown mode', mode }, 400)
+  if (!['cron', 'test', 'notice', 'publish', 'prefs', 'seen', 'meal'].includes(mode)) return json({ error: 'unknown mode', mode }, 400)
+
+  // ── 식단(WISE 목동) 저장 모드 ────────────────────────────────────
+  // WISE 창에서 즐겨찾기(meal-import.js)가 로그인된 세션으로 읽은 식단을 보냄. 근무표 문서(main)가 아닌 별도 행 nd_data id='meal'.
+  // payload = { days: { 'YYYY-MM-DD': { 조식|중식|석식: { A|B|C: '메뉴' } } }, from, to, upto, fetchedAt }
+  // 이번에 확인한 기간(from~to)은 받은 것으로 통째로 바꿈(그사이 빠진 메뉴도 반영), 나머지 날은 그대로. 45일 지난 날은 정리.
+  // 받은 메뉴가 하나도 없으면 아무것도 지우지 않고 거절(잘못된 가져오기로 저장본이 비는 것 방지).
+  if (mode === 'meal') {
+    const RE = /^\d{4}-\d{2}-\d{2}$/
+    const from = String(body?.from || ''), to = String(body?.to || '')
+    if (!RE.test(from) || !RE.test(to) || from > to || (Date.parse(to) - Date.parse(from)) / 864e5 > 120) return json({ error: 'bad range' }, 400)
+    const inDays = (body?.days && typeof body.days === 'object') ? body.days : {}
+    const clean: any = {}
+    let n = 0
+    for (const ds of Object.keys(inDays).slice(0, 200)) {
+      const d = inDays[ds]
+      if (!RE.test(ds) || ds < from || ds > to || !d || typeof d !== 'object') continue
+      const o: any = {}
+      for (const m of ['조식', '중식', '석식']) {
+        const v = d[m]; if (!v || typeof v !== 'object') continue
+        const c: any = {}
+        for (const k of ['A', 'B', 'C']) { const t = typeof v[k] === 'string' ? v[k].replace(/\r/g, '').trim().slice(0, 600) : ''; if (t) c[k] = t }
+        if (Object.keys(c).length) o[m] = c
+      }
+      if (Object.keys(o).length) { clean[ds] = o; n++ }
+    }
+    if (!n) return json({ error: 'empty' }, 400)
+    const cutoff = new Date(Date.now() + 9 * 3600e3 - 45 * 864e5).toISOString().slice(0, 10)   // 한국 날짜 기준 45일 전
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const { data: row, error } = await sb.from('nd_data').select('payload, updated_at').eq('id', 'meal').maybeSingle()
+      if (error) return json({ error: error.message }, 500)
+      const old: any = (row?.payload && typeof row.payload === 'object' && row.payload.days && typeof row.payload.days === 'object') ? row.payload.days : {}
+      const days: any = {}
+      for (const k of Object.keys(old)) if (k >= cutoff && (k < from || k > to)) days[k] = old[k]
+      Object.assign(days, clean)
+      const keys = Object.keys(days).sort()
+      const nowIso = new Date().toISOString()
+      const pay = { days, from, to, upto: keys[keys.length - 1] || '', fetchedAt: nowIso }
+      if (!row) {
+        const { error: ie } = await sb.from('nd_data').insert({ id: 'meal', payload: pay, updated_at: nowIso })
+        if (!ie) return json({ ok: true, count: n, upto: pay.upto })
+      } else {
+        const { data: upd, error: ue } = await sb.from('nd_data').update({ payload: pay, updated_at: nowIso }).eq('id', 'meal').eq('updated_at', row.updated_at).select('id')
+        if (!ue && upd && upd.length) return json({ ok: true, count: n, upto: pay.upto })
+      }
+      await new Promise(r => setTimeout(r, 40 + attempt * 60 + Math.floor(Math.random() * 120)))
+    }
+    return json({ error: 'busy' }, 409)
+  }
 
   // ── 공지 '확인함' 기록·조회 모드 ─────────────────────────────────
   // 앱에서 공지 확인 창을 열면 호출. 근무표 문서(nd_data id='main')에 쓰면 저장 번호가 올라가 다른 사람의 다음 저장이 막히므로

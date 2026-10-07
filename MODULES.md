@@ -10,6 +10,7 @@ index.html        HTML 뼈대 + 모달 마크업 + 작은 인라인 스크립트
 css/*.css         스타일 12개 (아래 순서대로 <link>)
 js/*.js           메인 스크립트 23개 (아래 순서대로 <script>)
 data-save.js  employee-auth.js/.css  work-swap.js/.css   ← 원래부터 따로 있던 모듈
+meal-import.js   ← 앱이 아니라 WISE 탭에서 즐겨찾기로 실행(식단 가져오기). deploy.py ROOT_FILES에 포함
 sw.js  manifest.json
 ```
 
@@ -59,6 +60,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 | 25 | `js/nd-people.js` | 사람 고르기 공통 부품(이름·부서·초성 검색 + 추천 목록 + 고른 사람 태그) — 일정·프로젝트·공통 근무일 조회 | `ndPeoplePicker(host,{selected,onChange})` |
 | 26 | `js/nd-cal.js` | 팝업 달력(날짜·기간·시작 고정·점 표시)·시간 직접 입력(넓은 화면에서만 보임, 값은 원래 input에), 메뉴 전환 모핑(블러로 사라짐→크기 슈욱→또렷하게) | `ndCal` `ndTime` `ndDateInput` `ndTimeInput` `ndMorph` |
 | 27 | `js/nd-comments.js` | 투표·공지 댓글 공통 부품(목록 + 입력칸, Enter 등록·Shift+Enter 줄바꿈). 저장은 각 기능이 서버 최신본에 병합(투표 `_pollCmtAdd/_pollCmtDel`→`_pollCommit`, 공지 `_noticeCmtAdd/_noticeCmtDel`→`_ndCommit`) | `ndCmtSection` `ndCmtRefresh` |
+| 28 | `js/meal.js` | 홈 '오늘의 식사'(SBS 목동 조식·점심·석식, 예전 빠른 접속 자리) + '식단 가져오기' 창. 데이터 `nd_data id='meal'`(읽기=REST, 쓰기=notify 함수 mode `meal`만). 가져오기는 회사 PC WISE 탭에서 즐겨찾기(북마클릿 → 루트 `meal-import.js`)가 그 탭 로그인으로 읽어 저장 — WISE는 로그인·사내망이 필요해 앱/서버가 직접 못 읽음. 테스트 `swap-backend/test-meal.cjs` | `renderMeal` `openMealImport` |
 
 참고: `events.js`·`notice.js`는 원래 스크립트의 떨어진 두 구간을 합친 것이고, `excel-import.js`가 `events.js`보다 먼저 로드된다(함수 선언뿐이라 동작 동일). 그래서 js 파일을 태그 순서로 이어 붙여도 원본과 글자 순서가 완전히 같지는 않다.
 
@@ -71,7 +73,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 
 ## CSS 모듈 (로드 순서 = 덮어쓰기 우선순위)
 
-`base` → `dark` → `nav` → `home` → `notice-poll` → `toss-common` → `calendar` → `table` → `modal` → `admin` → `gantt-etc` → `sheet-login` → `nd-select`(드롭다운·사람 고르기 목록) → `nd-cal`(팝업 달력·시간 입력) → `popup-wide`(넓은 화면 입력 팝업 2분할: 왼쪽 430px 달력/선택, 오른쪽 내용, 폭 min(1080px, 화면-48px))
+`base` → `dark` → `nav` → `home` → `notice-poll` → `toss-common` → `calendar` → `table` → `modal` → `admin` → `gantt-etc` → `sheet-login` → `nd-select`(드롭다운·사람 고르기 목록) → `nd-cal`(팝업 달력·시간 입력) → `popup-wide`(넓은 화면 입력 팝업 2분할: 왼쪽 430px 달력/선택, 오른쪽 내용, 폭 min(1080px, 화면-48px)) → `meal`(오늘의 식사 카드·식단 가져오기 창)
 (그 뒤에 index.html의 작은 인라인 `<style>`들, `work-swap.css`, `employee-auth.css`가 온다.)
 뒤 파일이 앞 파일을 이긴다. 다크모드 공통 변수는 `dark.css`, 기능별 다크 규칙은 각 기능 CSS 안에 있다(`grep 'data-theme="dark"' css/*.css`).
 

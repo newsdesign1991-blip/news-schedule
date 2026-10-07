@@ -28,7 +28,7 @@
   #home-summary { order: 8; }              /* 부서 근무 현황 */
   #home-duty-row { order: 9; }             /* 오늘의 근무 */
   #view-home .panel:has(#home-week-summary) { order: 10; }
-  #view-home .panel:has(.quick-links) { order: 11; }
+  #home-meal { order: 11; grid-column: 1 / -1; }     /* 오늘의 식사(예전 빠른 접속 자리): 가로 전체 */
 }
 @media (min-width: 1560px) {   /* 3열 벽돌쌓기는 3분할(.hm3)이 대신함 — 3분할 구성 실패(.hm3-fail) 때만 예비로 사용 */
   #view-home.active.hm3-fail { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1720px; }
@@ -37,16 +37,16 @@
 /* ===== 큰 화면(≥1560px) 3분할 — home.js _hm3Build()가 #view-home에 .hm3를 붙이고 패널을 #hm3의 열 카드 3개로 옮김 =====
    1열 CG·VW·PROJECT/SPORTS·프로젝트 현황 / 2열 오늘의 근무·부서 근무 현황·일별 인원 / 3열 이번 주 일정(세로).
    열 안의 패널은 카드 장식 없이 내용만, 구간은 얇은 회색선으로 구분. .hm3가 없으면(1560 미만) 아래 규칙은 전부 무효 */
-/* 홈 전체를 3칸 격자로: 이번주 내 근무·3분할·빠른 접속은 가로 전체, 투표 카드·공지(·앞으로 생길 카드)는 한 칸씩 왼쪽부터 채움 */
+/* 홈 전체를 3칸 격자로: 이번주 내 근무·3분할·오늘의 식사는 가로 전체, 투표 카드·공지(·앞으로 생길 카드)는 한 칸씩 왼쪽부터 채움 */
 #view-home.active.hm3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; max-width: 1720px; }   /* 폭·순서는 미디어쿼리 밖 → 경계 전환(블러) 중에도 배치 고정 */
 #view-home.hm3 > :empty, #view-home.hm3 > .home-summary-duty, #view-home.hm3 > .home-row { display: none !important; }
-#view-home.hm3 > #my-schedule-card, #view-home.hm3 > #hm3, #view-home.hm3 > .panel:has(.quick-links) { grid-column: 1 / -1; }
+#view-home.hm3 > #my-schedule-card, #view-home.hm3 > #hm3, #view-home.hm3 > #home-meal { grid-column: 1 / -1; }
 #view-home.hm3 > #my-schedule-card { order: 0; }
 #view-home.hm3 > #home-polls { display: contents; }   /* 투표가 여러 개면 카드마다 한 칸 */
 #view-home.hm3 > #home-polls > .poll-card { order: 1; min-width: 0; margin: 0 !important; }
 #view-home.hm3 > #home-notice { order: 3; grid-column: auto; }
-#view-home.hm3 > #hm3 { order: 5; }                    /* 이번주 내 근무·투표·공지(0~3) 아래, 빠른 접속(11) 위 */
-#view-home.hm3 > .panel:has(.quick-links) { order: 11; }
+#view-home.hm3 > #hm3 { order: 5; }                    /* 이번주 내 근무·투표·공지(0~3) 아래, 오늘의 식사(11) 위 */
+#view-home.hm3 > #home-meal { order: 11; }
 #hm3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
 #hm3 > .hm3-col { display: flex; flex-direction: column; min-width: 0; padding-bottom: 6px; }
 #view-home #hm3 > .hm3-col { order: 0 !important; }   /* 열 카드도 .panel이라 위 '.panel:has(...) order' 규칙에 걸리지 않게 */

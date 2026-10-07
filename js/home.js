@@ -89,6 +89,7 @@ function renderHome() {
   renderMySchedule();
   renderNoticeBar();
   renderPolls();
+  if (typeof renderMeal === 'function') renderMeal();   // 오늘의 식사(js/meal.js)
   const now = new Date();
   const todayStr = toDateStr(now.getFullYear(), now.getMonth()+1, now.getDate());
   document.getElementById('header-date').textContent = `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 ${DOW_FULL[now.getDay()]}`;

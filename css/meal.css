@@ -1,0 +1,77 @@
+/* [모듈] css/meal.css — 홈 '오늘의 식사'(SBS 목동 조식·점심·석식) 카드 + '식단 가져오기' 창 | js/meal.js. 순서 = 우선순위(맨 끝) */
+/* ===== 홈 카드 ===== */
+#home-meal .panel-title { gap: 7px; }
+.meal-where { margin-left: 2px; padding: 2px 8px; border-radius: 999px; background: rgba(251,146,60,.12); color: #c2410c; font-size: 11px; font-weight: 800; letter-spacing: 0; text-transform: none; }
+[data-theme="dark"] .meal-where { background: rgba(251,146,60,.16); color: #fdba74; }
+.meal-get { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(251,146,60,.32); background: rgba(251,146,60,.10); color: #c2410c; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; transition: background .15s, transform .12s; }
+.meal-get:hover { background: rgba(251,146,60,.17); }
+.meal-get:active { transform: scale(.96); }
+[data-theme="dark"] .meal-get { color: #fdba74; border-color: rgba(251,146,60,.3); background: rgba(251,146,60,.12); }
+.meal-daybar { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 2px 0 12px; }
+.meal-date { min-width: 128px; text-align: center; font-size: 14.5px; font-weight: 800; letter-spacing: -.01em; color: var(--text); }
+.meal-date b { margin-left: 3px; color: #ea580c; }
+[data-theme="dark"] .meal-date b { color: #fb923c; }
+.meal-nav { width: 32px; height: 32px; flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--border); background: var(--surface2); color: var(--text); cursor: pointer; transition: background .15s, transform .12s; }
+.meal-nav:hover:not(:disabled) { background: rgba(251,146,60,.12); }
+.meal-nav:active:not(:disabled) { transform: scale(.92); }
+.meal-nav:disabled { opacity: .32; cursor: default; }
+.meal-nav:focus-visible, .meal-get:focus-visible, .meal-tab:focus-visible { outline: 2px solid #4a94ff; outline-offset: 2px; }
+.meal-tabs { display: none; }
+.meal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.meal-col { --mc-bg: rgba(251,191,36,.10); --mc-bd: rgba(251,191,36,.24); --mc-fg: #b7791f; min-width: 0; padding: 12px 14px 14px; border-radius: 16px; background: var(--mc-bg); border: 1px solid var(--mc-bd); transition: box-shadow .2s, border-color .2s; }
+.meal-col.k1 { --mc-bg: rgba(251,146,60,.10); --mc-bd: rgba(251,146,60,.26); --mc-fg: #c2410c; }
+.meal-col.k2 { --mc-bg: rgba(99,102,241,.08); --mc-bd: rgba(99,102,241,.22); --mc-fg: #4f46e5; }
+[data-theme="dark"] .meal-col { --mc-bg: rgba(251,191,36,.08); --mc-bd: rgba(251,191,36,.18); --mc-fg: #fbbf24; }
+[data-theme="dark"] .meal-col.k1 { --mc-bg: rgba(251,146,60,.09); --mc-bd: rgba(251,146,60,.2); --mc-fg: #fb923c; }
+[data-theme="dark"] .meal-col.k2 { --mc-bg: rgba(129,140,248,.09); --mc-bd: rgba(129,140,248,.2); --mc-fg: #a5b4fc; }
+.meal-col.is-now { border-color: var(--mc-fg); box-shadow: 0 0 0 1px var(--mc-fg) inset, 0 8px 22px -14px var(--mc-fg); }
+.meal-k { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; font-size: 14px; font-weight: 800; letter-spacing: -.01em; color: var(--mc-fg); }
+.meal-now { padding: 2px 8px; border-radius: 999px; background: var(--mc-fg); color: #fff; font-size: 11px; font-style: normal; font-weight: 800; }
+[data-theme="dark"] .meal-now { color: #1a1a1a; }
+.meal-cs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px 14px; }
+.meal-cn { margin-bottom: 3px; font-size: 11.5px; font-weight: 800; color: var(--muted); }
+.meal-t { margin: 0; padding: 0; list-style: none; font-size: 13.5px; font-weight: 600; line-height: 1.6; color: var(--text); word-break: keep-all; overflow-wrap: anywhere; }
+.meal-none { font-size: 13px; color: var(--muted); }
+.meal-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 8px 8px; font-size: 13.5px; color: var(--muted); text-align: center; }
+.meal-empty-btn { padding: 10px 18px; border: 0; border-radius: 14px; background: linear-gradient(135deg,#fb923c,#f97316); color: #fff; font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; }
+.meal-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+.meal-foot.is-soon span:first-child { color: #c2410c; font-weight: 800; }
+[data-theme="dark"] .meal-foot.is-soon span:first-child { color: #fb923c; }
+.meal-foot button { margin-left: auto; padding: 5px 11px; border: 1px solid rgba(251,146,60,.32); border-radius: 999px; background: rgba(251,146,60,.10); color: #c2410c; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+/* 좁은 화면: 조식·점심·석식 탭으로 하나씩(기본 = 지금 식사), 코너는 나란히 */
+@media (max-width: 700px) {
+  .meal-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin-bottom: 10px; border-radius: 14px; background: rgba(15,23,42,.055); }
+  [data-theme="dark"] .meal-tabs { background: rgba(255,255,255,.06); }
+  .meal-tab { position: relative; padding: 8px 0; border: 0; border-radius: 11px; background: none; color: var(--muted); font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; transition: background .2s, color .2s; }
+  .meal-tab.is-sel { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(20,24,40,.12); }
+  .meal-tab i { position: absolute; top: 7px; margin-left: 3px; width: 6px; height: 6px; border-radius: 50%; background: #f97316; }
+  .meal-grid { grid-template-columns: 1fr; }
+  .meal-col { display: none; }
+  .meal-col.is-sel { display: block; animation: mealIn .32s cubic-bezier(.16,1,.3,1) both; }
+  .meal-col .meal-k { display: none; }
+}
+@keyframes mealIn { from { opacity: 0; filter: blur(6px); transform: scale(.97); } to { opacity: 1; filter: none; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .meal-col.is-sel { animation: none; } }
+
+/* ===== 식단 가져오기 창 — 토스 모달(주황 머리) ===== */
+#meal-modal .modal { width: 100%; max-width: min(560px, 94vw) !important; max-height: 88vh; padding: 0 !important; overflow: hidden; display: flex; flex-direction: column; border: 1px solid transparent; border-radius: 22px; background: linear-gradient(#f8fafd,#f8fafd) padding-box, linear-gradient(135deg,#ffffff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13) 100%) border-box; box-shadow: 0 1px 2px rgba(20,24,40,.05), 0 22px 55px -14px rgba(20,24,40,.30); }
+[data-theme="dark"] #meal-modal .modal { background: linear-gradient(#212121,#212121) padding-box, linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.05) 40%, rgba(0,0,0,.32) 100%) border-box; }
+#meal-modal .modal-header { flex-shrink: 0; margin: 0; padding: 20px 22px 15px; background: rgba(251,146,60,.14); }
+[data-theme="dark"] #meal-modal .modal-header { background: rgba(251,146,60,.12); }
+#meal-modal .mh-title { font-size: 17px; font-weight: 800; letter-spacing: -.02em; color: var(--text); }
+#meal-modal .modal-close { width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: rgba(255,255,255,.55); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.65); color: var(--text); font-size: 17px; box-shadow: 0 2px 8px rgba(15,23,42,.12); cursor: pointer; }
+[data-theme="dark"] #meal-modal .modal-close { background: rgba(50,50,50,.55); border-color: rgba(255,255,255,.12); }
+.meal-im { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 22px 22px; }
+.meal-im-status { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(251,146,60,.08); border: 1px solid rgba(251,146,60,.2); font-size: 13.5px; color: var(--text); }
+.meal-im-status span { font-size: 12px; color: var(--muted); }
+.meal-im-steps { counter-reset: mis; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.meal-im-steps > li { counter-increment: mis; position: relative; padding: 13px 14px 14px 52px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); }
+.meal-im-steps > li::before { content: counter(mis); position: absolute; left: 14px; top: 13px; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#fb923c,#f97316); color: #fff; font-size: 13px; font-weight: 800; }
+.mis-h { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 3px; }
+.mis-t { font-size: 13px; line-height: 1.55; color: var(--muted); }
+.mis-t b { color: var(--text); }
+.mis-t kbd { padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); font: inherit; font-size: 11.5px; font-weight: 700; color: var(--text); }
+.meal-bm { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 9px 16px; border-radius: 999px; background: linear-gradient(135deg,#fb923c,#f97316); color: #fff !important; font-size: 13.5px; font-weight: 800; text-decoration: none; cursor: grab; box-shadow: 0 6px 16px -8px rgba(249,115,22,.8); }
+.meal-bm:active { cursor: grabbing; }
+.meal-im-btn { margin-top: 10px; padding: 10px 18px; border: 0; border-radius: 14px; background: linear-gradient(135deg,#4a94ff,#2f77f6); color: #fff; font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; }
+.meal-im-note { margin-top: 14px; font-size: 12px; line-height: 1.55; color: var(--muted); }
