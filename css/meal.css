@@ -75,3 +75,24 @@
 .meal-bm:active { cursor: grabbing; }
 .meal-im-btn { margin-top: 10px; padding: 10px 18px; border: 0; border-radius: 14px; background: linear-gradient(135deg,#4a94ff,#2f77f6); color: #fff; font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; }
 .meal-im-note { margin-top: 14px; font-size: 12px; line-height: 1.55; color: var(--muted); }
+/* 즐겨찾기 등록 그림(브라우저 창 · 즐겨찾기 줄 · 주황 버튼을 끌어 올리는 화살표) */
+.meal-bm-fig { display: block; width: 100%; max-width: 380px; height: auto; margin: 10px 0 4px; }
+.meal-bm-fig .f-win { fill: var(--surface); stroke: var(--border); }
+.meal-bm-fig .f-bar { fill: rgba(15,23,42,.05); }
+.meal-bm-fig .f-dot { fill: rgba(15,23,42,.18); }
+.meal-bm-fig .f-addr { fill: rgba(15,23,42,.06); }
+.meal-bm-fig .f-bmrow { fill: rgba(251,146,60,.10); }
+.meal-bm-fig .f-t { font-size: 10px; font-weight: 600; fill: var(--muted); }
+.meal-bm-fig .f-m { font-size: 9px; font-weight: 800; fill: #c2410c; }
+.meal-bm-fig .f-drop { fill: rgba(251,146,60,.16); stroke: #f97316; stroke-width: 1.4; stroke-dasharray: 4 3; }
+.meal-bm-fig .f-dropt { font-size: 9.5px; font-weight: 800; fill: #c2410c; }
+.meal-bm-fig .f-arrow, .meal-bm-fig .f-head { fill: none; stroke: #f97316; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 5 4; }
+.meal-bm-fig .f-head { stroke-dasharray: none; }
+.meal-bm-fig .f-btn { fill: #f97316; }
+.meal-bm-fig .f-btnt { font-size: 9.5px; font-weight: 800; fill: #fff; }
+.meal-bm-fig .f-hand { fill: #fff; stroke: #1f2937; stroke-width: 1.2; stroke-linejoin: round; }
+[data-theme="dark"] .meal-bm-fig .f-bar, [data-theme="dark"] .meal-bm-fig .f-addr { fill: rgba(255,255,255,.07); }
+[data-theme="dark"] .meal-bm-fig .f-dot { fill: rgba(255,255,255,.25); }
+.meal-bm-how { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.65; color: var(--muted); }
+.meal-bm-how b { color: var(--text); }
+.meal-bm-how kbd { padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); font: inherit; font-size: 11.5px; font-weight: 700; color: var(--text); }

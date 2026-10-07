@@ -34,6 +34,7 @@
     var root = doc.documentElement;
     function child(el, tag) { for (var c = el.firstElementChild; c; c = c.nextElementSibling) if (c.tagName === tag) return c; return null; }
     function val(el, tag) { var c = child(el, tag); return c ? (c.textContent || '') : ''; }
+    if (!child(root, 'RSH_STATUS')) return { kind: 'error', msg: '응답 형식이 달라요.', rows: [] };   // WISE 응답엔 항상 있음 — 없으면 '메뉴 없음'으로 보지 않음(저장본 보호)
     var st = val(root, 'RSH_STATUS').trim(), cd = val(root, 'RSH_ERR_CD').trim(), msg = val(root, 'RSH_MSG').trim();
     if (/쿠키|세션|session|login|로그인/i.test(msg) && (st && st !== '0' || cd === '-1')) return { kind: 'login', msg: msg, rows: [] };
     if (/^[WEICTH]$/.test(st) || cd === 'X') return { kind: 'error', msg: msg || ('오류 ' + st), rows: [] };
@@ -55,11 +56,15 @@
     });
     return any ? o : null;
   }
+  function withTimeout(ms) { var c = typeof AbortController === 'function' ? new AbortController() : null; var t = c ? setTimeout(function () { c.abort(); }, ms) : 0; return { signal: c ? c.signal : undefined, clear: function () { clearTimeout(t); } }; }
   async function fetchMeal(date, gubun) {
-    var r = await fetch('/wise/commonSvcMap.action', { method: 'POST', credentials: 'same-origin', cache: 'no-store',
+    var to = withTimeout(20000);
+    try {
+    var r = await fetch('/wise/commonSvcMap.action', { method: 'POST', credentials: 'same-origin', cache: 'no-store', signal: to.signal,
       headers: { 'Content-Type': 'application/xml; charset=UTF-8' }, body: reqXml(ymd(date).replace(/-/g, ''), gubun) });
     if (!r.ok) return { kind: 'error', msg: 'WISE 응답 ' + r.status, rows: [] };
     return parseRes(await r.text());
+    } finally { to.clear(); }
   }
   // 오늘부터 하루씩(조·중·석 동시) 읽음. 오류가 나면 그 전날까지만 저장(확인 못 한 날의 저장본은 건드리지 않음)
   async function collect(start, onDay) {
@@ -79,13 +84,14 @@
     return { days: days, from: ymd(start), to: lastOk ? ymd(lastOk) : '', found: found, stop: null };
   }
   async function upload(c) {
-    var r = await fetch(FN, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': KEY, 'Authorization': 'Bearer ' + KEY },
-      body: JSON.stringify({ mode: 'meal', from: c.from, to: c.to, days: c.days }) });
+    var to = withTimeout(30000), r;
+    try { r = await fetch(FN, { method: 'POST', signal: to.signal, headers: { 'Content-Type': 'application/json', 'apikey': KEY, 'Authorization': 'Bearer ' + KEY },
+      body: JSON.stringify({ mode: 'meal', from: c.from, to: c.to, days: c.days }) }); } finally { to.clear(); }
     var j = {}; try { j = await r.json(); } catch (e) { }
     if (!r.ok || !j.ok) throw new Error(j.error || ('저장 실패 ' + r.status));
     return j;
   }
-  function md(s) { var p = String(s || '').split('-'); return p.length === 3 ? (+p[1]) + '월 ' + (+p[2]) + '일' : s; }
+  function md(s) { var m = /^(d{4})-(d{2})-(d{2})$/.exec(String(s || '')); return m ? (+m[2]) + '월 ' + (+m[3]) + '일' : ''; }   // 형식이 다르면 빈 글자(서버 값이 HTML로 들어가지 않게)
 
   // ── 화면(WISE 창 위에 뜨는 작은 카드) ──
   var ui = null;
@@ -107,7 +113,7 @@
     var x = ui.querySelector('[data-x]'); if (x) x.onclick = done;
     (btns || []).forEach(function (b, i) { var el = ui.querySelector('[data-b="' + i + '"]'); if (el) el.onclick = b[1]; });
   }
-  function done() { if (ui) { ui.remove(); ui = null; } window.__ndMealRunning = false; }
+  function done() { if (ui) { ui.remove(); ui = null; } var old = document.getElementById('nd-meal-ui'); if (old) old.remove(); }
   function tell(msg) { try { if (window.opener && !window.opener.closed) window.opener.postMessage(msg, '*'); } catch (e) { } }   // 앱 창(이 창을 연 곳)에 바로 알림 — 내용은 기간·건수뿐
 
   async function run() {
@@ -136,7 +142,7 @@
     try {
       var j = await upload(c);
       tell({ type: 'nd-meal', ok: true, upto: j.upto || '', count: c.found });
-      show('목동 식단을 가져왔어요', '<b>' + md(j.upto || c.to) + '</b>까지 ' + c.found + '일치를 저장했어요. 근무표 앱 \'오늘의 식사\'에 바로 보여요.' +
+      show('목동 식단을 가져왔어요', '<b>' + (md(j.upto) || md(c.to)) + '</b>까지 ' + c.found + '일치를 저장했어요. 근무표 앱 \'오늘의 식사\'에 바로 보여요.' +
         (c.stop ? '<br><small style="color:#b45309">중간에 WISE 오류가 나서 ' + md(c.to) + '까지만 확인했어요.</small>' : '') + '<br><small style="color:#6b7280">이 창은 닫아도 돼요.</small>',
         [['근무표로 돌아가기', function () { try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (e) { } done(); }], ['닫기', done]]);
     } catch (e) {
@@ -144,7 +150,13 @@
       show('저장하지 못했어요', '식단은 읽었는데 근무표 서버에 저장하지 못했어요. 잠시 뒤 다시 눌러 주세요.<br><small style="color:#6b7280">' + xmlEsc(e && e.message) + '</small>', [['다시 시도', function () { done(); start(); }], ['닫기', done]]);
     }
   }
-  function start() { if (window.__ndMealRunning) return; window.__ndMealRunning = true; run().catch(function () { done(); }); }
+  // 도는 중에만 막음(끝나면 결과 카드가 떠 있어도 다시 누르면 새로 시작). 즐겨찾기를 누를 때마다 이 파일이 새로 실행되므로 표시는 window에
+  function start() {
+    if (window.__ndMealRunning) return;
+    window.__ndMealRunning = true;
+    var old = document.getElementById('nd-meal-ui'); if (old) old.remove();
+    run().catch(function () { done(); }).then(function () { window.__ndMealRunning = false; });
+  }
 
   if (window.__ndMealTest) { window.__ndMealTest({ reqXml: reqXml, parseRes: parseRes, pickArea: pickArea, collect: collect, ymd: ymd, addDays: addDays }); return; }
   start();

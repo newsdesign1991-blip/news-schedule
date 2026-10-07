@@ -45,7 +45,7 @@ window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.hre
 <link rel="stylesheet" href="css/nd-select.css?v=23fbc7fd">
 <link rel="stylesheet" href="css/nd-cal.css?v=f5021ab4">
 <link rel="stylesheet" href="css/popup-wide.css?v=9f175abe">
-<link rel="stylesheet" href="css/meal.css?v=523f4bf6">
+<link rel="stylesheet" href="css/meal.css?v=511d3285">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style id="floating-sidebar-only">
@@ -1174,7 +1174,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.07 19:25';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.07 19:37';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1319,11 +1319,23 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
     <div class="meal-im">
       <div class="meal-im-status" id="meal-im-status"></div>
       <ol class="meal-im-steps">
-        <li><div class="mis-h">처음 한 번만</div><div class="mis-t">아래 버튼을 브라우저 <b>즐겨찾기 막대</b>로 끌어다 놓으세요. 막대가 안 보이면 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd></div>
-          <a id="meal-bm" class="meal-bm" href="#" onclick="_mealBmClick(event)" title="즐겨찾기 막대로 끌어다 놓기">식단 가져오기</a></li>
+        <li><div class="mis-h">처음 한 번만 — 버튼을 즐겨찾기에 등록</div>
+          <div class="mis-t">주소창 바로 아래, 즐겨찾기가 한 줄로 늘어선 곳(크롬 '북마크바', 엣지 '즐겨찾기 모음')에 아래 주황 버튼을 놓아 두는 거예요.</div>
+          <svg class="meal-bm-fig" viewBox="0 0 360 132" role="img" aria-label="주황 버튼을 마우스로 잡아 주소창 아래 즐겨찾기 줄로 끌어 올리는 그림">
+            <rect class="f-win" x="1" y="1" width="358" height="92" rx="10"/><rect class="f-bar" x="1" y="1" width="358" height="26" rx="10"/><rect class="f-bar" x="1" y="16" width="358" height="11"/>
+            <circle class="f-dot" cx="14" cy="14" r="3.5"/><circle class="f-dot" cx="25" cy="14" r="3.5"/><circle class="f-dot" cx="36" cy="14" r="3.5"/>
+            <rect class="f-addr" x="12" y="33" width="336" height="18" rx="9"/><text class="f-t" x="24" y="46">wise.sbs.co.kr</text>
+            <rect class="f-bmrow" x="1" y="57" width="358" height="22"/><text class="f-t f-m" x="10" y="72">즐겨찾기 줄</text>
+            <rect class="f-drop" x="78" y="60" width="92" height="16" rx="8"/><text class="f-dropt" x="124" y="72" text-anchor="middle">식단 가져오기</text>
+            <path class="f-arrow" d="M150 116 C 200 112, 196 92, 166 82"/><path class="f-head" d="M166 82 l9 0 m-9 0 l3 8"/>
+            <rect class="f-btn" x="70" y="104" width="78" height="22" rx="11"/><text class="f-btnt" x="109" y="119" text-anchor="middle">식단 가져오기</text>
+            <path class="f-hand" d="M140 112 l0 14 l4 -4 l3 7 l3 -1 l-3 -7 l6 0 z"/>
+          </svg>
+          <ol class="meal-bm-how"><li>키보드 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>를 누르면 즐겨찾기 줄이 보여요(이미 보이면 넘어가요).</li><li>아래 주황 버튼을 마우스로 <b>꾹 누른 채</b> 그 줄 위로 옮겨서 손을 떼요.</li><li>즐겨찾기 줄에 '식단 가져오기'가 생기면 끝이에요.</li></ol>
+          <a id="meal-bm" class="meal-bm" href="#" onclick="_mealBmClick(event)" title="이 버튼을 즐겨찾기 줄로 끌어다 놓기">식단 가져오기</a></li>
         <li><div class="mis-h">WISE 열기</div><div class="mis-t">새 탭에서 WISE가 열려요. 로그인이 안 돼 있으면 그 탭에서 로그인하세요.</div>
           <button type="button" class="meal-im-btn" onclick="mealOpenWise()">WISE 열기</button></li>
-        <li><div class="mis-h">즐겨찾기 누르기</div><div class="mis-t">WISE 탭에서 즐겨찾기의 <b>식단 가져오기</b>를 누르면 목동 식단을 나온 데까지 가져와 여기에 바로 보여요.</div></li>
+        <li><div class="mis-h">즐겨찾기 누르기</div><div class="mis-t">WISE 탭에서 즐겨찾기 줄의 <b>식단 가져오기</b>를 누르면 목동 식단을 나온 데까지 가져와 여기에 바로 보여요.</div></li>
       </ol>
       <div class="meal-im-note">회사 PC(사내망)에서만 가져올 수 있어요. 가져온 식단은 모든 직원의 홈에 보여요.</div>
     </div>
@@ -1446,7 +1458,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/nd-people.js?v=7bba13fe"></script>
 <script src="js/nd-cal.js?v=dd9a295d"></script>
 <script src="js/nd-comments.js?v=736684f3"></script>
-<script src="js/meal.js?v=2e0b29ff"></script>
+<script src="js/meal.js?v=3cde30ec"></script>
 <script>
 // 모듈 로드 실패 안내 — CSS가 빠졌을 수도 있으니 스타일은 전부 인라인
 (function(){

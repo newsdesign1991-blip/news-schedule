@@ -22,7 +22,7 @@ function _mealNowKind(){ const h=new Date().getHours(); return h<9?'조식':h<14
 function _mealCacheRead(){ try{ const j=JSON.parse(localStorage.getItem('nd_meal_cache')||'null'); if(j && j.days && typeof j.days==='object') return j; }catch(e){} return null; }
 // 서버에서 읽기(10분 안엔 다시 안 읽음, force면 바로). 실패하면 가진 것(이 기기 보관본) 그대로
 function _mealLoad(force){
-  if(_mealLoading) return _mealLoading;
+  if(_mealLoading) return force ? _mealLoading.then(()=>_mealLoad(true)) : _mealLoading;   // 강제 읽기는 진행 중이던 요청이 끝난 뒤 한 번 더
   if(!force && _mealData && _mealAt && Date.now()-_mealAt<10*60e3) return Promise.resolve(_mealData);
   _mealLoading=(async()=>{
     try{
@@ -53,9 +53,9 @@ function _mealPaint(){
   const {m,d,date}=parseDateStr(ds);
   const rel=ds===today?'오늘':ds===_mealShiftDs(today,1)?'내일':ds===_mealShiftDs(today,-1)?'어제':'';
   const chev=dir=>`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${dir<0?'M15 6l-6 6 6 6':'M9 6l6 6-6 6'}"/></svg>`;
-  let html=`<div class="meal-daybar"><button type="button" class="meal-nav" onclick="mealShift(-1)" aria-label="이전 날"${ds<=(first<today?first:today)?' disabled':''}>${chev(-1)}</button>`+
+  let html=`<div class="meal-daybar"><button type="button" class="meal-nav" onclick="mealShift(-1)" data-f="prev" aria-label="이전 날"${ds<=(first<today?first:today)?' disabled':''}>${chev(-1)}</button>`+
     `<div class="meal-date">${m}월 ${d}일 (${DOW_KR[date.getDay()]})${rel?` <b>${rel}</b>`:''}</div>`+
-    `<button type="button" class="meal-nav" onclick="mealShift(1)" aria-label="다음 날"${ds>=(last>today?last:today)?' disabled':''}>${chev(1)}</button></div>`;
+    `<button type="button" class="meal-nav" onclick="mealShift(1)" data-f="next" aria-label="다음 날"${ds>=(last>today?last:today)?' disabled':''}>${chev(1)}</button></div>`;
   if(!_mealData || !keys.length){
     html+=`<div class="meal-empty"><div>아직 식단을 가져오지 않았어요.</div><button type="button" class="meal-empty-btn" onclick="openMealImport()">식단 가져오기</button></div>`;
   } else if(!days[ds]){
@@ -63,18 +63,21 @@ function _mealPaint(){
   } else {
     const now=ds===today?_mealNowKind():'';
     const sel=_mealSel||now||'중식';   // 좁은 화면(탭)에서 보이는 식사: 고른 것 → 지금 식사 → 점심
-    html+='<div class="meal-tabs" role="tablist">'+MEAL_KINDS.map(([k,name],i)=>`<button type="button" role="tab" class="meal-tab k${i}${sel===k?' is-sel':''}" aria-selected="${sel===k}" onclick="mealTab('${k}')">${name}${now===k?'<i aria-hidden="true"></i>':''}</button>`).join('')+'</div>';
+    html+='<div class="meal-tabs" role="tablist">'+MEAL_KINDS.map(([k,name],i)=>`<button type="button" role="tab" id="meal-tab-${i}" aria-controls="meal-col-${i}" data-f="tab${i}" class="meal-tab k${i}${sel===k?' is-sel':''}" aria-selected="${sel===k}" onclick="mealTab('${k}')">${name}${now===k?'<i aria-hidden="true"></i>':''}</button>`).join('')+'</div>';
     html+='<div class="meal-grid">'+MEAL_KINDS.map(([k,name],i)=>{
       const v=days[ds][k]||{}, cs=['A','B','C'].filter(c=>v[c]);
       const body=cs.length?cs.map(c=>`<div class="meal-c">${cs.length>1?`<div class="meal-cn">코너${c}</div>`:''}<ul class="meal-t">${_mealItems(v[c]).map(x=>`<li>${_mealEsc(x)}</li>`).join('')}</ul></div>`).join('')
                            :`<div class="meal-none">운영 없음</div>`;
-      return `<section class="meal-col k${i}${now===k?' is-now':''}${sel===k?' is-sel':''}" aria-label="${name}"><div class="meal-k"><span>${name}</span>${now===k?'<em class="meal-now">지금</em>':''}</div><div class="meal-cs">${body}</div></section>`;
+      return `<section class="meal-col k${i}${now===k?' is-now':''}${sel===k?' is-sel':''}" id="meal-col-${i}" role="tabpanel" aria-labelledby="meal-tab-${i}" aria-label="${name}"><div class="meal-k"><span>${name}</span>${now===k?'<em class="meal-now">지금</em>':''}</div><div class="meal-cs">${body}</div></section>`;
     }).join('')+'</div>';
   }
   const at=_mealData&&_mealData.fetchedAt?new Date(_mealData.fetchedAt):null;
   const soon=keys.length && _mealShiftDs(today,3)>last;   // 저장된 식단이 사흘 안에 끝남
   if(keys.length) html+=`<div class="meal-foot${soon?' is-soon':''}"><span>${_mealMd(last)}까지 있음</span>${at&&!isNaN(at)?`<span>${_mealAtTxt(at)} 가져옴</span>`:''}${soon?`<button type="button" onclick="openMealImport()">새로 가져오기</button>`:''}</div>`;
-  if(host.innerHTML!==html) host.innerHTML=html;
+  if(host._mealHtml===html) return;   // 브라우저가 innerHTML을 다시 쓰면 글자가 달라져 비교가 안 맞음 → 넣은 글을 따로 기억
+  const f=host.contains(document.activeElement)?document.activeElement.getAttribute('data-f'):null;   // 다시 그려도 키보드 포커스 유지
+  host._mealHtml=html; host.innerHTML=html;
+  if(f){ let el=host.querySelector('[data-f="'+f+'"]'); if(el && el.disabled) el=host.querySelector('[data-f="'+(f==='prev'?'next':'prev')+'"]'); if(el) el.focus(); }
 }
 function _mealAtTxt(at){ return `${at.getMonth()+1}월 ${at.getDate()}일 ${String(at.getHours()).padStart(2,'0')}:${String(at.getMinutes()).padStart(2,'0')}`; }
 function mealTab(k){ _mealSel=k; _mealPaint(); }
@@ -118,3 +121,4 @@ window.addEventListener('message', e=>{
 });
 // 다른 창(WISE)에서 돌아오면 저장본이 바뀌었을 수 있음 → 오래됐으면 다시 읽기
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && document.getElementById('meal-body')){ const open=document.getElementById('meal-modal')?.style.display==='flex'; _mealLoad(open).then(()=>{ _mealPaint(); if(open) _mealImStatus(); }); } });
+renderMeal();   // 첫 화면 — renderHome이 이 파일보다 먼저 불렸어도 바로 채움(데이터는 서버에서 따로 읽음)
