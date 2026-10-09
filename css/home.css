@@ -40,7 +40,8 @@
 /* 홈 전체를 3칸 격자로: 이번주 내 근무·3분할·오늘의 식사는 가로 전체, 투표 카드·공지(·앞으로 생길 카드)는 한 칸씩 왼쪽부터 채움 */
 #view-home.active.hm3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; max-width: 1720px; }   /* 폭·순서는 미디어쿼리 밖 → 경계 전환(블러) 중에도 배치 고정 */
 #view-home.hm3 > :empty, #view-home.hm3 > .home-summary-duty, #view-home.hm3 > .home-row { display: none !important; }
-#view-home.hm3 > #my-schedule-card, #view-home.hm3 > #hm3, #view-home.hm3 > #home-meal { grid-column: 1 / -1; }
+#view-home.hm3 > #my-schedule-card, #view-home.hm3 > #hm3 { grid-column: 1 / -1; }
+#view-home.hm3 > #home-meal { grid-column: span 2; }   /* 오늘의 식사는 3칸 중 2칸 — 남는 1칸엔 다음 카드(투표 등)가 옆에 붙음 */
 #view-home.hm3 > #my-schedule-card { order: 0; }
 #view-home.hm3 > #home-polls { display: contents; }   /* 투표가 여러 개면 카드마다 한 칸 */
 #view-home.hm3 > #home-polls > .poll-card { order: 1; min-width: 0; margin: 0 !important; }
