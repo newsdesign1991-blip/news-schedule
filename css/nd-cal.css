@@ -71,3 +71,16 @@
 #notice-modal .ndt input.ndt-h:focus, #notice-modal .ndt input.ndt-m:focus { background: rgba(251,191,36,.16) !important; }
 #notice-modal .ndt .ndt-chip.on { border-color: #d4a017; background: rgba(251,191,36,.16); color: #a16207; }
 [data-theme="dark"] #notice-modal .ndt .ndt-chip.on { border-color: #e6c14d; color: #f2d37a; }
+
+/* 도구막대의 기간·마감 선택: 공통 달력 팝업 */
+.nd-toolbar-calendar{position:fixed;inset:0;z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;}
+.nd-toolbar-calendar>.nd-pop{width:390px;max-width:calc(100vw - 40px);max-height:90dvh;display:flex;flex-direction:column;overflow:hidden;}
+.nd-toolbar-calendar .modal-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.nd-toolbar-body{padding:16px 20px;overflow-y:auto;min-height:0;}
+.nd-toolbar-time{margin-top:14px;}
+.nd-toolbar-error{font-size:12px;color:var(--danger,#d65a52);margin-top:10px;}
+.nd-toolbar-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 20px 18px;flex-shrink:0;}
+@media(min-width:1001px){
+  :is(#ws-start,#ws-end,#lr-start,#lr-end,#lr-deadline,#range-start,#range-end){border-radius:12px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:inherit;font-weight:600;cursor:pointer;transition:border-color .18s,box-shadow .18s;}
+  :is(#ws-start,#ws-end,#lr-start,#lr-end,#lr-deadline,#range-start,#range-end):not(:disabled):hover{border-color:#8ab4fb;box-shadow:0 0 0 3px rgba(49,130,246,.07);}
+}

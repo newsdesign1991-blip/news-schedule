@@ -222,3 +222,44 @@
     return ndTime(host, o);
   };
 })();
+
+// 작성소·휴가 신청 도구막대도 팝업과 같은 달력/시간 부품을 사용한다.
+(function(){
+  var ids=['ws-start','ws-end','lr-start','lr-end','lr-deadline','range-start','range-end'];
+  function wide(){return window.matchMedia('(min-width:1001px)').matches;}
+  function target(e){var t=e.target;return t && ids.indexOf(t.id)>=0 && !t.disabled && wide()?t:null;}
+  window.ndToolbarCalendar=function(input){
+    if(!input || input.disabled || !wide())return;
+    document.getElementById('nd-toolbar-calendar')?.remove();
+    var deadline=input.id==='lr-deadline',prefix=input.id.split('-')[0];
+    var start=deadline?null:document.getElementById(prefix+'-start'),end=deadline?null:document.getElementById(prefix+'-end');
+    var range={from:start?.value||'',to:end?.value||''},day=deadline?input.value.slice(0,10):'',time=deadline?(input.value.slice(11,16)||'20:00'):'';
+    var ov=document.createElement('div');ov.id='nd-toolbar-calendar';ov.className='nd-modal nd-toolbar-calendar';
+    ov.innerHTML='<div class="nd-pop" role="dialog" aria-modal="true" aria-labelledby="nd-toolbar-title"><div class="modal-header"><div id="nd-toolbar-title" style="font-size:17px;font-weight:800;">'+(deadline?'휴가 신청 마감':'기간 선택')+'</div><button type="button" class="modal-close" aria-label="닫기">✕</button></div><div class="nd-toolbar-body"><div class="nd-toolbar-date"></div>'+(deadline?'<div class="nd-toolbar-time"></div>':'')+'<div class="nd-toolbar-error" role="alert"></div></div><div class="nd-toolbar-actions"><button type="button" class="btn nd-toolbar-cancel">취소</button><button type="button" class="btn btn-primary nd-toolbar-apply">선택 완료</button></div></div>';
+    function close(){window.removeEventListener('resize',resize);ov.remove();if(input.isConnected)input.focus({preventScroll:true});}
+    ov.onclick=function(e){if(e.target===ov)close();};
+    ov.querySelector('.modal-close').onclick=close;ov.querySelector('.nd-toolbar-cancel').onclick=close;
+    document.body.appendChild(ov);
+    ndCal(ov.querySelector('.nd-toolbar-date'),deadline?{get:function(){return day;},set:function(v){day=v;}}:{range:true,get:function(){return range;},set:function(v){range=v;}});
+    if(deadline)ndTime(ov.querySelector('.nd-toolbar-time'),{get:function(){return time;},set:function(v){time=v;},optional:false});
+    ov.querySelector('.nd-toolbar-apply').onclick=function(){
+      if(input.disabled||!input.isConnected||(!deadline&&(!start.isConnected||!end.isConnected||start.disabled||end.disabled))){close();return;}
+      if(deadline?(!day||!/^\d{2}:\d{2}$/.test(time)):(!range.from||!range.to||range.from>range.to)){
+        ov.querySelector('.nd-toolbar-error').textContent=deadline?'날짜와 시간을 모두 선택해 주세요.':'시작일과 종료일을 모두 선택해 주세요.';return;
+      }
+      var inputs=deadline?[input]:[start,end];
+      if(deadline)input.value=day+'T'+time;else{start.value=range.from;end.value=range.to;}
+      inputs.forEach(function(el){el.dispatchEvent(new Event('change',{bubbles:true}));});close();
+    };
+    ov.addEventListener('keydown',function(e){
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close();}
+      if(e.key==='Tab'){var all=Array.from(ov.querySelectorAll('button,input')).filter(function(n){return !n.disabled&&n.tabIndex>=0&&n.getClientRects().length;});var first=all[0],last=all[all.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
+    });
+    ov.querySelector('.modal-close').focus();
+    function resize(){if(!wide())close();if(!ov.isConnected)window.removeEventListener('resize',resize);}
+    window.addEventListener('resize',resize);
+  };
+  document.addEventListener('pointerdown',function(e){if(target(e))e.preventDefault();},true);
+  document.addEventListener('click',function(e){var t=target(e);if(t){e.preventDefault();e.stopPropagation();ndToolbarCalendar(t);}},true);
+  document.addEventListener('keydown',function(e){var t=target(e);if(t&&(e.key==='Enter'||e.key===' '||e.key==='ArrowDown')){e.preventDefault();ndToolbarCalendar(t);}},true);
+})();
