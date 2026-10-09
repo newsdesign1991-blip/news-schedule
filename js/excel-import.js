@@ -611,11 +611,11 @@ function _doApplyImageSchedule(skipNames) {
         entry.newsOh2 = s.id;
       } else if (wt === '8jin') {
         const dow = new Date(ds+'T00:00:00').getDay();
-        if (dow===0||dow===6) { if(!entry.weekend8jin) entry.weekend8jin=s.id; else if(entry.weekend8jin!==s.id&&!entry.weekend8jin2) entry.weekend8jin2=s.id; }
+        if (!isWeekdayForm(ds)) { if(!entry.weekend8jin) entry.weekend8jin=s.id; else if(entry.weekend8jin!==s.id&&!entry.weekend8jin2) entry.weekend8jin2=s.id; }   // 주말 틀(토·일, 설·추석) = 주말 8진
         else { if(!entry.weekday8jin) entry.weekday8jin=s.id; else if(entry.weekday8jin!==s.id&&!entry.weekday8jin2) entry.weekday8jin2=s.id; }
       } else if (wt === '8jin2') {
         const dow = new Date(ds+'T00:00:00').getDay();
-        if (dow===0||dow===6) entry.weekend8jin2 = s.id;
+        if (!isWeekdayForm(ds)) entry.weekend8jin2 = s.id;
         else entry.weekday8jin2 = s.id;
       } else if (wt === 'work') {
         // 부서에 맞는 배열로 배정 (XR→entry.xr, PROJECT→entry.project 등; 브러쉬와 동일 처리)

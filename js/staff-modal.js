@@ -46,6 +46,7 @@ function openStaffModal(id) {
     else if (v==='canNewsOh') on=!!p.canNewsOh;
     else if (v==='canWeekend8jin') on=!!p.canWeekend8jin;
     else if (v==='canWeekday8jin') on=!!p.canWeekday8jin;
+    else if (v==='canJogeunSub') on=!!p.canJogeunSub;
     else if (v.startsWith('day-')) on=(p.availableDays||[]).includes(parseInt(v.replace('day-','')));
     _setModalTag(el, on);
   });
@@ -91,6 +92,7 @@ function _readModalTags(ov) {
     canNewsOh: sel.includes('canNewsOh'),
     canWeekend8jin: sel.includes('canWeekend8jin'),
     canWeekday8jin: sel.includes('canWeekday8jin'),
+    canJogeunSub: sel.includes('canJogeunSub'),
     availableDays: sel.filter(v=>v.startsWith('day-')).map(v=>parseInt(v.replace('day-','')))
   };
 }

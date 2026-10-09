@@ -285,7 +285,7 @@ function setCalMode(m){
   renderMonth();
 }
 // 달력 셀(좁음)용 컴팩트 역할 칩 — 한 사람 하루 근무를 짧은 라벨로. (홈 카드 getRoles와 별도: 라벨 길이 다름)
-function _calRolesShort(entry, sid){
+function _calRolesShort(entry, sid, ds){   // ds 있으면 조근 부서 기본 '조근'은 평일 틀인 날만
   if(!entry) return [];
   if(entry.danjik===sid) return [{label:'당직',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'}];
   const r=[];
@@ -306,7 +306,7 @@ function _calRolesShort(entry, sid){
   if(entry.weekend8jin===sid||entry.weekday8jin===sid) add('8진',C.p);
   if(entry.satMorning===sid) add('조근',C.y);
   if(entry.jogeunSubs&&Object.values(entry.jogeunSubs).includes(sid)) add('조근',C.p);
-  else { const me=staffById(sid); if(me?.dept==='조근'&&!(entry.jogeunSubs&&Object.keys(entry.jogeunSubs).includes(sid))) add('조근',C.p); }
+  else { const me=staffById(sid); if(me?.dept==='조근'&&(!ds||isWeekdayForm(ds))&&!(entry.jogeunSubs&&Object.keys(entry.jogeunSubs).includes(sid))) add('조근',C.p); }
   if((entry.xr||[]).includes(sid)) add('XR',C.xr);
   if((entry.project||[]).includes(sid)) add('P.J',C.pj);
   if((entry.sports||[]).includes(sid)) add('SP',C.sp);
@@ -354,7 +354,7 @@ function renderMonth() {
   function dayItems(ds){
     const out=[], entry=data.schedule[ds];
     if (mine) {
-      const roles = isOnLeave(sid,ds) ? [{label:'휴가',bg:'#fee2e2',color:'#c0524a'}] : _calRolesShort(entry, sid);
+      const roles = isOnLeave(sid,ds) ? [{label:'휴가',bg:'#fee2e2',color:'#c0524a'}] : _calRolesShort(entry, sid, ds);
       roles.forEach(r=>out.push({key:'r:'+r.label, label:r.label, bg:r.bg, fg:r.color, cls:'r', ic:'cal', merge:true}));
     } else if (entry) {
       [['VW',(entry.vw?.workers||[]).length,'vw'],['CG',(entry.cg?.workers||[]).length,'cg'],['P',(entry.project||[]).length,'project'],['S',(entry.sports||[]).length,'sports']]

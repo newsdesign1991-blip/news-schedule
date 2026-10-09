@@ -1,6 +1,6 @@
 /* [모듈] js/schedule-finder.js — 공통 근무일 찾기·개인 일정 보기·내 근무 | dashboard.html 메인 스크립트에서 분리됨. 로드 순서 = dashboard.html의 <script> 순서(바꾸지 말 것) */
 // 한 사람의 특정 날짜 근무 역할 목록(bg/color/border 포함). 본인근무 카드·근무표 열 팝업 공용.
-function _getPersonRoles(entry, sid) {
+function _getPersonRoles(entry, sid, ds) {   // ds 있으면 조근 부서 기본 '조근'은 평일 틀인 날만
   if (!entry) return [];
   if (entry.danjik===sid) return [{label:'당직',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'}];
   const roles = [];
@@ -19,7 +19,7 @@ function _getPersonRoles(entry, sid) {
   if ((entry.xr||[]).includes(sid)) roles.push({label:'XR 근무',bg:'var(--xr-bg)',color:'var(--xr-light)',border:'var(--xr)'});
   if (entry.jogeunSubs) { Object.values(entry.jogeunSubs).forEach(subId => { if (subId===sid) roles.push({label:'조근 대체',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'}); }); }
   const me = staffById(sid);
-  if (me?.dept==='조근') { const subbed = entry.jogeunSubs && Object.keys(entry.jogeunSubs).includes(sid); if (!subbed) roles.push({label:'조근',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'}); }
+  if (me?.dept==='조근' && (!ds || isWeekdayForm(ds)) && !(entry.restWorkers||[]).includes(sid)) { const subbed = entry.jogeunSubs && Object.keys(entry.jogeunSubs).includes(sid); if (!subbed) roles.push({label:'조근',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'}); }
   if ((entry.project||[]).includes(sid)) roles.push({label:'P.J',bg:'var(--project-bg)',color:'var(--project-light)',border:'var(--project)'});
   if ((entry.sports||[]).includes(sid)) roles.push({label:'SPORTS',bg:'var(--sports-bg)',color:'var(--sports-light)',border:'var(--sports)'});
   return roles;
@@ -163,7 +163,7 @@ function openPersonSchedule(staffId){
       _workContent = _td.innerHTML;
     } else {
       const onLv=isOnLeave(staffId,ds);
-      const roles=onLv?[{label:'휴가',bg:'#fee2e2',color:'#d65a52'}]:_getPersonRoles(sched[ds],staffId);
+      const roles=onLv?[{label:'휴가',bg:'#fee2e2',color:'#d65a52'}]:_getPersonRoles(sched[ds],staffId,ds);
       if(roles.length){ const r=roles[0]; _workStyle=base+`font-size:12px;font-weight:700;background:${r.bg};color:${r.color};`; _workContent=roles.map(x=>x.label).join(' '); }
     }
     const label=_td?_td.textContent:(_importCellDisplay(sched[ds],staffId,data.newLeaves?.[ds])?.text ?? _workContent.replace(/<[^>]*>/g,''));
@@ -237,7 +237,7 @@ function renderMySchedule() {
   const weekDays = Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
 
   // bg / text / border 세트로 반환 (근무표 작성소 색상 사용)
-  function getRoles(entry, sid) {
+  function getRoles(entry, sid, ds) {   // ds 있으면 조근 부서 기본 '조근'은 평일 틀인 날만
     if (!entry) return [];
     // 당직이면 당직만 표시 (VW/CG 등 다른 근무 역할 생략)
     if (entry.danjik===sid) return [{label:'당직',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'}];
@@ -261,7 +261,7 @@ function renderMySchedule() {
       });
     }
     const me = staffById(sid);
-    if (me?.dept==='조근') {
+    if (me?.dept==='조근' && (!ds || isWeekdayForm(ds)) && !(entry.restWorkers||[]).includes(sid)) {
       const subbed = entry.jogeunSubs && Object.keys(entry.jogeunSubs).includes(sid);
       if (!subbed) roles.push({label:'조근',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
     }
@@ -292,7 +292,7 @@ function renderMySchedule() {
   }
 
   // 오늘 근무
-  const todayRoles = getRoles(sched[todayStr], sid);
+  const todayRoles = getRoles(sched[todayStr], sid, todayStr);
   const todayOnLeave = isOnLeave(sid, todayStr);
 
   let todayHtml = '';
@@ -310,7 +310,7 @@ function renderMySchedule() {
     const ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
     const isToday=ds===todayStr;
     const onLv=isOnLeave(sid,ds);
-    const roles=getRoles(sched[ds],sid);
+    const roles=getRoles(sched[ds],sid,ds);
     const isExit = !onLv && getDanjikExitStaff(ds)===sid && sched[ds]?.danjik!==sid;
     let tag;
     if(onLv) tag=`<span class="mw-role" style="background:${isToday?'rgba(255,255,255,0.22)':'#e8ecf3'};color:${isToday?'#fff':'#5f6b7d'};">휴가</span>`;

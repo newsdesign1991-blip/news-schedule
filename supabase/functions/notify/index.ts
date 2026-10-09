@@ -234,6 +234,11 @@ Deno.serve(async (req) => {
   const entry = nd?.schedule?.[todayStr] || null
   const leaves = new Set<string>((nd?.newLeaves?.[todayStr]) || [])
 
+  // 그날 '평일 틀'인지(앱 js/core.js isWeekdayForm과 같은 규칙): 토·일 아님 + (공휴일 아님 | 특정일 news 'weekday' | 지정 없고 이름에 설·추석 없음)
+  const _dowT = new Date(todayStr + 'T00:00:00Z').getUTCDay()
+  const _hn = nd?.holidays?.[todayStr]
+  const _news = nd?.settings?.specialDays?.[todayStr]?.news
+  const _wdForm = _dowT !== 0 && _dowT !== 6 && (!_hn || _news === 'weekday' || (_news !== 'weekend' && !/설|추석/.test(String(_hn))))
   function getWorkType(staffId: string, staff: any): string | null {
     if (leaves.has(staffId)) return null
     if (!entry) return cfg.types?.find((t: any) => t.key === 'off')?.enabled ? 'off' : null
@@ -242,7 +247,7 @@ Deno.serve(async (req) => {
     if ([entry.weekday8jin, entry.weekend8jin, entry.weekday8jin2, entry.weekend8jin2].includes(staffId)) return '8jin'
     if (entry.ilgeun === staffId) return 'ilgeun'
     if (entry.newsOh === staffId || entry.newsOh2 === staffId) return 'newsoh'
-    if (staff?.dept === '조근') return 'jogeun'
+    if (staff?.dept === '조근' && _wdForm && !(entry.restWorkers || []).includes(staffId)) return 'jogeun'
     if (entry.jogeunSubs && Object.values(entry.jogeunSubs as Record<string, string>).includes(staffId)) return 'jogeun'
     if ((entry.jogeunExtra || []).includes(staffId)) return 'jogeun'   // 엑셀·브러시로 넣은 조근 대체
     if ((entry.vw?.workers || []).includes(staffId)) return 'vw'

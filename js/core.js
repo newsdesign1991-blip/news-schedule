@@ -273,6 +273,22 @@ function isProbation(s, dateStr) {
   return true;
 }
 
+// 그날을 '평일 틀'로 짜는지 — 평일이면서 공휴일이 아니거나, 공휴일이라도 8뉴스가 평일과 같은 50분 편성인 날.
+// 공휴일 기본값: 설·추석(이름에 '설'·'추석')은 주말 편성, 그 밖의 평일 공휴일은 평일 편성(사람 근무표 3/2·5/5·5/25·7/17·8/17·10/5·10/9 모두 평일 틀).
+// 특정일 설정 news:'weekday'|'weekend'로 날마다 직접 정할 수 있음.
+// 평일 틀 = 평일 인원·데스크 3개(VW데·8데스·5데스=8뉴스 2번 데스크)·조근·평일 8진. 설·추석처럼 주말 편성인 공휴일은 주말 틀(조근조 쉼, 일근·주말 8진).
+// 근무 생성(js/generation.js)·표 표시(js/table-view.js, js/workshop.js)·점검이 모두 이 기준을 씀
+function isWeekdayForm(dateStr) {
+  const dow = new Date(dateStr+'T00:00:00').getDay();
+  if (dow===0 || dow===6) return false;
+  const hn = data.holidays && data.holidays[dateStr];
+  if (!hn) return true;
+  const news = (((data.settings||{}).specialDays||{})[dateStr]||{}).news;
+  if (news === 'weekday') return true;
+  if (news === 'weekend') return false;
+  return !/설|추석/.test(String(hn));
+}
+
 // ===== STATE =====
 let currentView = 'home';
 let leaveReqUserId = localStorage.getItem('nd_lr_user') || '';
@@ -387,6 +403,7 @@ function confirmDeletePublished(){
 function openSpecialDayModal() {
   ['sp-date','sp-vw','sp-cg','sp-cap'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
   { const pr=document.getElementById('sp-deskpair'); if(pr) pr.checked=false; }
+  { const nw=document.getElementById('sp-news'); if(nw) nw.value=''; }
   // 넓은 화면: 날짜는 달력(js/nd-cal.js), 등록된 특정일엔 점 표시. 값은 #sp-date에 그대로(모바일은 그 날짜칸)
   if (typeof ndDateInput === 'function') ndDateInput(document.getElementById('sp-date'), document.getElementById('sp-date-cal'), { mark: ds => !!((data.settings.specialDays||{})[ds]), markLabel: '등록된 특정일' });
   _renderSpecialDayList();
@@ -401,19 +418,22 @@ function saveSpecialDay() {
   const cg = parseInt(document.getElementById('sp-cg').value);
   const cap = parseInt(document.getElementById('sp-cap').value);
   const pair = !!document.getElementById('sp-deskpair')?.checked;   // 'CG 데스크 2명'(작성소 날짜칸 팝업과 같은 값) — 예전엔 여기서 저장하면 사라졌음
+  const news = document.getElementById('sp-news')?.value || '';    // 공휴일 8뉴스 편성: ''(자동: 설·추석=주말, 그 밖=평일) | 'weekday'(50분 평일 편성) | 'weekend'
   if (!ds) { toast('날짜를 선택하세요.','error'); return; }
-  if (isNaN(vw) && isNaN(cg) && isNaN(cap) && !pair) { toast('VW·CG·최대 인원 또는 CG 데스크 2명 중 하나는 정하세요.','error'); return; }
+  if (isNaN(vw) && isNaN(cg) && isNaN(cap) && !pair && !news) { toast('VW·CG·최대 인원, CG 데스크 2명, 8뉴스 편성 중 하나는 정하세요.','error'); return; }
   if (!data.settings.specialDays) data.settings.specialDays = {};
   const o = {};
   if (!isNaN(vw)) o.vw = vw;
   if (!isNaN(cg)) o.cg = cg;
   if (!isNaN(cap)) o.cap = cap;
   if (pair) o.deskPair = true;
+  if (news==='weekday'||news==='weekend') o.news = news;
   data.settings.specialDays[ds] = o;
   saveData(data);
   _renderSpecialDayList();
   ['sp-date','sp-vw','sp-cg','sp-cap'].forEach(id=>{document.getElementById(id).value='';});
   { const pr=document.getElementById('sp-deskpair'); if(pr) pr.checked=false; }
+  { const nw=document.getElementById('sp-news'); if(nw) nw.value=''; }
   toast('특정일 인원 저장됨 — 근무 생성 시 반영됩니다.','success');
   if (wsRangeStart && wsRangeEnd) renderWorkshopTable();
 }
@@ -424,6 +444,7 @@ function _editSpecialDay(ds) {
   document.getElementById('sp-cg').value = o.cg ?? '';
   document.getElementById('sp-cap').value = o.cap ?? '';
   { const pr=document.getElementById('sp-deskpair'); if(pr) pr.checked=!!o.deskPair; }
+  { const nw=document.getElementById('sp-news'); if(nw) nw.value=o.news||''; }
   _spCalSync();
   document.querySelectorAll('#special-day-list .sp-item').forEach(el=>el.classList.toggle('on', el.dataset.ds===ds));   // 지금 고치는 날 표시
 }
@@ -456,14 +477,21 @@ function openDaySpecial(ds, ev) {
       <input type="checkbox" id="dsp-deskpair" ${sp.deskPair?'checked':''} style="width:15px;height:15px;">
       CG 데스크 2명 (8데스+5데스) <span style="color:var(--muted);">— 휴일/주말용</span>
     </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text);margin-bottom:9px;">
+      <span style="flex:none;">8뉴스 편성</span>
+      <select id="dsp-news" style="flex:1;min-width:0;padding:4px 6px;font-size:11px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);">
+        <option value="" ${!sp.news?'selected':''}>자동(설·추석=주말)</option><option value="weekday" ${sp.news==='weekday'?'selected':''}>평일 편성(50분)</option><option value="weekend" ${sp.news==='weekend'?'selected':''}>주말 편성</option>
+      </select>
+    </label>
     <div style="display:flex;gap:5px;margin-bottom:7px;">
       <button onclick="_saveDaySpecial('${ds}')" style="flex:1;background:#4a9fbd;color:#fff;border:none;border-radius:7px;padding:6px;font-size:12px;font-weight:700;cursor:pointer;">저장</button>
       <button onclick="_clearDaySpecial('${ds}')" style="background:#fce8e8;color:#d65a52;border:1px solid #f4bab6;border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer;">해제</button>
     </div>
     <button onclick="document.getElementById('day-special-pop').style.display='none';wsShowDay('${ds}')" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:6px;font-size:11px;color:var(--muted);font-weight:700;cursor:pointer;">이 날 근무 상세 편집</button>`;
   pop.style.display='block';
-  const px = ev ? Math.min(ev.clientX, window.innerWidth-244) : 80;
-  const py = ev ? Math.min(ev.clientY+8, window.innerHeight-200) : 80;
+  const pw = pop.offsetWidth||244, ph = pop.offsetHeight||240;   // 실제 크기로 화면 안에 맞춤
+  const px = ev ? Math.min(ev.clientX, window.innerWidth-pw-8) : 80;
+  const py = ev ? Math.min(ev.clientY+8, window.innerHeight-ph-8) : 80;
   pop.style.left = Math.max(8,px)+'px';
   pop.style.top = Math.max(8,py)+'px';
   setTimeout(()=>{ const f=document.getElementById('dsp-vw'); if(f) f.focus(); }, 30);
@@ -473,9 +501,10 @@ function _saveDaySpecial(ds) {
   const cg=parseInt(document.getElementById('dsp-cg').value);
   const cap=parseInt(document.getElementById('dsp-cap').value);
   const pair=document.getElementById('dsp-deskpair')?.checked;
+  const news=document.getElementById('dsp-news')?.value||'';
   if(!data.settings.specialDays) data.settings.specialDays={};
-  if(isNaN(vw)&&isNaN(cg)&&isNaN(cap)&&!pair){ delete data.settings.specialDays[ds]; }
-  else { const o={}; if(!isNaN(vw))o.vw=vw; if(!isNaN(cg))o.cg=cg; if(!isNaN(cap))o.cap=cap; if(pair)o.deskPair=true; data.settings.specialDays[ds]=o; }
+  if(isNaN(vw)&&isNaN(cg)&&isNaN(cap)&&!pair&&!news){ delete data.settings.specialDays[ds]; }
+  else { const o={}; if(!isNaN(vw))o.vw=vw; if(!isNaN(cg))o.cg=cg; if(!isNaN(cap))o.cap=cap; if(pair)o.deskPair=true; if(news==='weekday'||news==='weekend')o.news=news; data.settings.specialDays[ds]=o; }
   saveData(data);
   const pop=document.getElementById('day-special-pop'); if(pop) pop.style.display='none';
   renderWorkshopTable();
@@ -504,6 +533,8 @@ function _renderSpecialDayList() {
     if (o.cg!=null) parts.push(`CG ${o.cg}`);
     if (o.cap!=null) parts.push(`최대 ${o.cap}`);
     if (o.deskPair) parts.push('CG 데스크 2명');
+    if (o.news==='weekday') parts.push('8뉴스 평일 편성');
+    if (o.news==='weekend') parts.push('8뉴스 주말 편성');
     const [y,m,d]=ds.split('-').map(Number);
     const dw=new Date(ds+'T00:00:00').getDay(), dow=DOW[dw];
     return `<div class="sp-item" data-ds="${ds}">

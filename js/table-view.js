@@ -25,7 +25,7 @@ function workCellRole(entry, s, ds) {
   if (entry?.weekend8jin === s.id || entry?.weekday8jin === s.id) return '8진';
   if (entry?.weekend8jin2 === s.id || entry?.weekday8jin2 === s.id) return '8진2';
   const subbed = Object.values(entry?.jogeunSubs||{}).includes(s.id);
-  if ((!isWeekend && !isHoliday && subbed) || (entry?.jogeunExtra||[]).includes(s.id)) return '조근';
+  if ((isWeekdayForm(ds) && subbed) || (entry?.jogeunExtra||[]).includes(s.id)) return '조근';
   if (entry && s.id === entry.ilgeun) return '일근';
   if (!entry) return '';
   const all = [...(entry.vw?.workers||[]), ...(entry.cg?.workers||[]), ...(entry.xr||[]), ...(entry.project||[]), ...(entry.sports||[])];
@@ -248,7 +248,7 @@ function renderTable() {
     const dw=dt.getDay();
     const ds=toDateStr(dt.getFullYear(),dt.getMonth()+1,dt.getDate());
     const isHoli=!!(data.holidays&&data.holidays[ds]);
-    if(dw!==0&&dw!==6&&!isHoli) weekdaysInMonth++;
+    if(isWeekdayForm(ds)) weekdaysInMonth++;   // 평일 틀인 날(평일 편성 공휴일 포함)
   });
 
   // Work count per staff
@@ -383,7 +383,7 @@ function renderTable() {
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
       else if(entry?.weekend8jin2===s.id||entry?.weekday8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
-      else if(((!isWeekend&&!isHoliday&&jogeunSubReverse[s.id])||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
+      else if(((isWeekdayForm(dateStr)&&jogeunSubReverse[s.id])||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(entry){
         const workers=entry.vw?.workers||[],deskId=entry.vw?.desk;
         if(workers.includes(s.id)||s.id===ilgeunId){
@@ -421,7 +421,7 @@ function renderTable() {
       if(isDispatched(s,dateStr)){bg='';color='';text=' ';extraStyle='box-shadow:inset 0 0 0 1000px rgba(0,0,0,0.08);';}
       else if(hasNL){
         color='#c79a5e';fw='700';text=entry?.leaveLabels?.[s.id]||'신휴가';
-      } else if(isWeekend){
+      } else if(!isWeekdayForm(dateStr)){   // 주말·주말 편성 공휴일: 조근조는 쉼(8진만)
         if(entry?.weekend8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
         else if(entry?.weekend8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
       } else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
@@ -475,7 +475,7 @@ function renderTable() {
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
       else if(entry?.weekend8jin===s.id||entry?.weekday8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
       else if(entry?.weekend8jin2===s.id||entry?.weekday8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
-      else if(((!isWeekend&&!isHoliday&&jogeunSubReverse[s.id])||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
+      else if(((isWeekdayForm(dateStr)&&jogeunSubReverse[s.id])||(entry?.jogeunExtra||[]).includes(s.id))){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(entry){
         const dept=s._dept;
         let workers=[];

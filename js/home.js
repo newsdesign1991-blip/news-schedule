@@ -121,7 +121,7 @@ function renderHome() {
   const sptCnt = (entry?.sports||[]).length;
   // 오늘 요일/공휴일에 맞는 목표 인원 (작성소 설정 반영)
   const _hDow = now.getDay();
-  const _hHoliWE = _hDow===0 || _hDow===6 || !!(data.holidays && data.holidays[todayStr]);
+  const _hHoliWE = !isWeekdayForm(todayStr);   // 생성과 같은 기준(평일 편성 공휴일은 평일 목표)
   const _spToday = (s.specialDays||{})[todayStr];
   const goalVW = _spToday?.vw ?? (_hHoliWE ? (_hDow===6 ? (s.satVW||s.weekendVW||4) : (s.sunVW||s.weekendVW||4)) : (s.weekdayVW||7));
   const goalCG = _spToday?.cg ?? (_hHoliWE ? (_hDow===6 ? (s.satCG||6) : (s.sunCG||7)) : (s.weekdayCG||19));

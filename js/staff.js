@@ -20,6 +20,7 @@ function _tagDefs(dept, employmentType) {
       tags.push({val:'day-'+d.v, label:d.l, bg:dept==='SPORTS'?'#d65a52':'#8893dc'});
     });
   }
+  if (dept!=='조근') tags.push({val:'canJogeunSub', label:'조근 대타', bg:'#8893dc'});   // 조근조 휴가 때 대신 들어갈 사람(자동 생성은 이 표시자만, 아무도 없으면 프리랜서 전체)
   if (employmentType==='freelancer') {
     tags.push({val:'canNewsOh', label:'뉴.오', bg:'#f5e2cc', dark:true});
     tags.push({val:'canWeekend8jin', label:'주말 8진', bg:'#d65a52'});
@@ -72,6 +73,7 @@ function _readTags() {
     canNewsOh: sel.includes('canNewsOh'),
     canWeekend8jin: sel.includes('canWeekend8jin'),
     canWeekday8jin: sel.includes('canWeekday8jin'),
+    canJogeunSub: sel.includes('canJogeunSub'),
     availableDays: sel.filter(v=>v.startsWith('day-')).map(v=>parseInt(v.replace('day-','')))
   };
 }
@@ -86,15 +88,15 @@ function saveStaff() {
   const morningDeskPriority=morningDeskPriorityVal?parseInt(morningDeskPriorityVal):null;
   const editId=document.getElementById('edit-staff-id').value;
   const employmentType=document.getElementById('staff-employment-type').value;
-  const {canDanjik, canSatMorning, canIlgeun, canVW, canCG, can3D, canNewsOh, canWeekend8jin, canWeekday8jin, availableDays}=_readTags();
+  const {canDanjik, canSatMorning, canIlgeun, canVW, canCG, can3D, canNewsOh, canWeekend8jin, canWeekday8jin, canJogeunSub, availableDays}=_readTags();
   const probationStart=document.getElementById('staff-probation-start').value||null;
   const probationEnd=document.getElementById('staff-probation-end').value||null;
   if (editId) {
     const p=data.staff.find(x=>x.id===editId);
-    if (p) { p.name=name; p.dept=dept; p.deskPriority=deskPriority; p.morningDeskPriority=morningDeskPriority; p.canDanjik=canDanjik; p.canSatMorning=canSatMorning; p.canIlgeun=canIlgeun; p.canVW=canVW; p.canCG=canCG; p.can3D=can3D; p.canNewsOh=canNewsOh; p.canWeekend8jin=canWeekend8jin; p.canWeekday8jin=canWeekday8jin; p.availableDays=availableDays; p.employmentType=employmentType; p.probationStart=probationStart; p.probationEnd=probationEnd; }
+    if (p) { p.name=name; p.dept=dept; p.deskPriority=deskPriority; p.morningDeskPriority=morningDeskPriority; p.canDanjik=canDanjik; p.canSatMorning=canSatMorning; p.canIlgeun=canIlgeun; p.canVW=canVW; p.canCG=canCG; p.can3D=can3D; p.canNewsOh=canNewsOh; p.canWeekend8jin=canWeekend8jin; p.canWeekday8jin=canWeekday8jin; p.canJogeunSub=canJogeunSub; p.availableDays=availableDays; p.employmentType=employmentType; p.probationStart=probationStart; p.probationEnd=probationEnd; }
     toast(`${name} 수정됨`,'success');
   } else {
-    data.staff.push({id:Date.now().toString(36)+Math.random().toString(36).substr(2,4),name,dept,deskPriority,morningDeskPriority,canDanjik,canSatMorning,canIlgeun,canVW,canCG,can3D,canNewsOh,canWeekend8jin,canWeekday8jin,active:true,availableDays,employmentType,probationStart,probationEnd});
+    data.staff.push({id:Date.now().toString(36)+Math.random().toString(36).substr(2,4),name,dept,deskPriority,morningDeskPriority,canDanjik,canSatMorning,canIlgeun,canVW,canCG,can3D,canNewsOh,canWeekend8jin,canWeekday8jin,canJogeunSub,active:true,availableDays,employmentType,probationStart,probationEnd});
     toast(`${name} 추가됨`,'success');
   }
   saveData(data); clearStaffForm(); renderStaffTable();
@@ -154,6 +156,7 @@ function renderStaffTable() {
       s.canNewsOh&&chip('#f5e2cc','#9c6b4a','뉴.오'),
       s.canWeekend8jin&&chip('#fde2e0','#c0392b','주말8진'),
       s.canWeekday8jin&&chip('#fde2e0','#c0392b','평일8진'),
+      s.canJogeunSub&&chip('#e8eaf8','#5560b8','조근대타'),
       s.morningDeskPriority&&chip('#e5ecf7','#3a5c9a','오전데'+s.morningDeskPriority+'번'),
       (s.contractStart||s.contractEnd)&&chip('#f0fdf4','#166534','계약','#bbf7d0'),
       (s.dispatchStart||s.dispatchEnd)&&chip('#fef3c7','#92400e','파견','#fde68a')
