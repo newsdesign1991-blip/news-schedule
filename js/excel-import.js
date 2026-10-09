@@ -58,7 +58,7 @@ function handleXlDrop(e) {
 function parseExcelSchedule() {
   if (!_xlArrayBuffer) { toast('엑셀 파일을 먼저 올려주세요','error'); return; }
   try {
-    const wb = XLSX.read(_xlArrayBuffer, {type:'array'});
+    const wb = XLSX.read(_xlArrayBuffer, {type:'array', cellStyles:true});   // cellStyles: 칸 바탕색(회색 = 특별 작업, 총인원 제외)을 읽기 위해
     const sheetIdx = parseInt(document.getElementById('xl-sheet-select')?.value||'0');
     const sheetName = wb.SheetNames[sheetIdx] || wb.SheetNames[0];
     const ws = wb.Sheets[sheetName];
@@ -213,6 +213,15 @@ function parseExcelSchedule() {
 
     // 날짜별 근무 파싱 — 근무표는 월~일 주 단위라 시트가 월을 넘어감(예: 6월 끝에 7월 첫 주).
     // 날짜 열에는 '일'만 있으므로, 날짜가 역행하면(예: 30→1) 자동으로 다음 달로 이어서 인식한다.
+    // 회색 바탕 칸 = 특별 작업으로 따로 빼 둔 사람(예: 회색 '정근') → 총인원에서 제외. 테마 흰색을 어둡게(-15% 등) 또는 회색 RGB(80~E6)
+    const _isGrayCell = cell => {
+      const st = cell && cell.s; if (!st || st.patternType !== 'solid') return false;
+      const f = st.fgColor || {};
+      if (f.theme === 0 && typeof f.tint === 'number' && f.tint <= -0.1) return true;
+      const hex = String(f.rgb || '').replace(/^FF(?=[0-9A-F]{6}$)/i, '');
+      if (/^[0-9A-F]{6}$/i.test(hex)) { const r=parseInt(hex.slice(0,2),16), g=parseInt(hex.slice(2,4),16), b=parseInt(hex.slice(4,6),16); if (r===g && g===b && r>=0x80 && r<=0xE6) return true; }
+      return false;
+    };
     const schedule = [];
     let _prevDay = 0, _curMon = month, _curYear = year;
     for (let r=bodyStart; r<bodyEnd; r++) {
@@ -258,7 +267,10 @@ function parseExcelSchedule() {
       colMap.forEach(({name,colIdx})=>{
         // 셀 안의 공백·줄바꿈을 제거해 표기 변형 흡수 ('오전 데'→'오전데', '뉴.오 2'→'뉴.오2' 등)
         const val=String(row[colIdx]||'').replace(/\s+/g,'').trim();
-        if(val&&val!=='-'&&val!=='0') entries.push({name,workType:val});
+        if(val&&val!=='-'&&val!=='0'){
+          const _cell = (XLSX.utils.encode_cell && ws) ? ws[XLSX.utils.encode_cell({r:r+sheetStart.r, c:colIdx+sheetStart.c})] : null;   // 칸 주소로 바탕색 읽기
+          entries.push(_isGrayCell(_cell) ? {name,workType:val,gray:true} : {name,workType:val});
+        }
       });
       // 비고 열 값 수집(8뉴스 진입 시간·편성 길이 등) → 날짜별 note
       let _note='';
@@ -407,7 +419,11 @@ const WORK_TYPE_MAP = {
   '뉴오': 'newsoh', '뉴.오': 'newsoh', '뉴오1': 'newsoh', '뉴.오1': 'newsoh',
   '뉴오2': 'newsoh2', '뉴.오2': 'newsoh2', '뉴오②': 'newsoh2',
   '일근': 'ilgeun',
-  'XR': 'work', 'N': 'work',
+  'XR': 'work', '정': 'work',
+  'N': 'nocount',   // 신입 적응 기간 등 — 칸에 N으로 보이고 총인원(엑셀 합계)에는 안 셈
+  '경조': 'leave', '공가': 'leave',
+  '교육': 'offsite', '면접관': 'offsite', '대의원': 'offsite', '주.캠': 'offsite', 'NDS': 'offsite',
+  '오전8데': 'ojende8', '오전8데스': 'ojende8',
   // 부서명 라벨 = "그 부서에서 근무". 같은 부서면 정근, 타부서 사람이면 대체로 자동 표시(cg.workers/vw.workers).
   'CG': 'cg-sub', 'VW': 'vw-sub', 'VW2': 'vw2', 'vw2': 'vw2',
   // 당직 지정 시 자동 계산되는 항목 → 가져오기에서 무시
@@ -479,7 +495,7 @@ function _importCellDisplay(entry,id,leaves) {
   if(!cell || cell.signature!==_importCellSignature(entry,id,leaves)) return null;
   const text=cell.text, type=WORK_TYPE_MAP[_normalizeImportedWorkType(text)];
   let bg='',color='var(--muted)',fw='500';
-  const palette={danjik:['#d65a52','#fff'],jogeun:['var(--r-jogeun-bg)','var(--r-jogeun-fg)'],ilgeun:['var(--r-ilgeun-bg)','var(--r-ilgeun-fg)'],offsite:['#ffc1df','#000000'],'vw-sub':['var(--vw-bg)','var(--vw-light)'],vw2:['var(--vw-bg)','var(--vw-light)'],'cg-sub':['var(--cg-bg)','var(--cg-light)'],newsoh:['var(--r-news-bg)','var(--r-news-fg)'],newsoh2:['var(--r-news2-bg)','var(--r-news2-fg)']};
+  const palette={nocount:['var(--surface2)','var(--muted)'],ojende8:['','#436bb5'],danjik:['#d65a52','#fff'],jogeun:['var(--r-jogeun-bg)','var(--r-jogeun-fg)'],ilgeun:['var(--r-ilgeun-bg)','var(--r-ilgeun-fg)'],offsite:['#ffc1df','#000000'],'vw-sub':['var(--vw-bg)','var(--vw-light)'],vw2:['var(--vw-bg)','var(--vw-light)'],'cg-sub':['var(--cg-bg)','var(--cg-light)'],newsoh:['var(--r-news-bg)','var(--r-news-fg)'],newsoh2:['var(--r-news2-bg)','var(--r-news2-fg)']};
   if(palette[type]) [bg,color]=palette[type];
   if(type==='leave')color='#c79a5e';
   if(type==='8jin'||type==='8jin2')color='#d65a52';
@@ -487,6 +503,7 @@ function _importCellDisplay(entry,id,leaves) {
   if(type==='desk5')color='#4a9fbd';
   if(type==='ojende')color='#436bb5';
   if(/^(퇴근|당직퇴근)$/.test(text)){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';}
+  if(cell.gray){bg='#d9d9d9';color='#333333';}   // 회색 바탕 = 특별 작업(총인원 제외)
   if(text && type!=='work')fw='700';
   const count=!!text && text!=='-' && text!=='0' && type!=='leave' && !/^(비번|당직비번)$/.test(text);
   return {text,bg,color,fw,count};
@@ -509,7 +526,7 @@ function _doApplyImageSchedule(skipNames) {
     delete data.draft.newLeaves[ds];
     const entry = data.draft.schedule[ds];
     if (day.note) entry.notes = day.note;   // 엑셀 비고(8뉴스 진입·편성 길이)
-    day.entries.forEach(({name, workType}) => {
+    day.entries.forEach(({name, workType, gray}) => {
       if (skipSet.has(name)) return;
       const s = (data.staff||[]).find(x=>x.name===name);
       if (!s) return;
@@ -521,11 +538,17 @@ function _doApplyImageSchedule(skipNames) {
         entry.notes = (entry.notes ? entry.notes + ', ' : '') + `${name}:${workType}(수동입력 필요)`;
         applied++; return;
       }
+      if (gray && (wt === 'work' || wt === 'nocount')) {
+        // 회색 바탕(특별 작업으로 따로 빼 둔 사람): 칸에는 그 글자를 회색으로, 총인원(근무자 명단)에는 넣지 않음
+        if (!entry.customCells) entry.customCells = {};
+        entry.customCells[s.id] = {text:workType, bg:'#d9d9d9', color:'#333333', excl:true};
+        applied++; return;
+      }
       if (wt === 'leave') {
         if (!data.draft.newLeaves) data.draft.newLeaves = {};
         if (!data.draft.newLeaves[ds]) data.draft.newLeaves[ds] = [];
         if (!data.draft.newLeaves[ds].includes(s.id)) data.draft.newLeaves[ds].push(s.id);
-        if(workType==='Jr.휴가'){if(!entry.leaveLabels)entry.leaveLabels={};entry.leaveLabels[s.id]='Jr.휴가';}
+        if(workType!=='신휴가'){if(!entry.leaveLabels)entry.leaveLabels={};entry.leaveLabels[s.id]=workType;}   // Jr.휴가·경조·공가 등은 그 이름으로 표시
       } else if (wt === 'offsite') {
         if(!entry.customCells)entry.customCells={};
         entry.customCells[s.id]={text:workType,bg:'#ffc1df',color:'#000000'};
@@ -549,6 +572,15 @@ function _doApplyImageSchedule(skipNames) {
           if (!entry.cg.workers.includes(s.id)) entry.cg.workers.push(s.id);
           entry.cg.desk8 = s.id;
         }
+      } else if (wt === 'nocount') {
+        // N 등 — 칸에는 보이되 총인원(근무자 명단)에는 넣지 않음
+        if (!entry.customCells) entry.customCells = {};
+        entry.customCells[s.id] = {text:workType, bg:'var(--surface2)', color:'var(--muted)', excl:true};
+      } else if (wt === 'ojende8') {
+        // 오전데 + 8데스를 한 사람이 함께(1·2순위 데스크가 모두 없을 때)
+        entry.morningDesk = s.id;
+        if (!entry.cg.workers.includes(s.id)) entry.cg.workers.push(s.id);
+        entry.cg.desk8 = s.id;
       } else if (wt === 'ojende') {
         entry.morningDesk = s.id;
         _brushAddWorker(entry, s.id, dOn || '');   // cg.workers에 넣어야 렌더에서 '오전데'로 표시됨
@@ -612,7 +644,9 @@ function _doApplyImageSchedule(skipNames) {
         if(skipSet.has(name))return;
         const person=(data.staff||[]).find(p=>p.name===name);if(!person)return;
         const text=_normalizeImportedWorkType(originals.get(name)||'');
+        const _g=(day.entries||[]).find(e=>e.name===name&&e.gray);
         entry.importedCells[person.id]={text,signature:_importCellSignature(entry,person.id,data.draft.newLeaves[ds])};
+        if(_g) entry.importedCells[person.id].gray=true;   // 회색 바탕(특별 작업) — 표시 색
       });
     }
   });
