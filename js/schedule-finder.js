@@ -309,7 +309,8 @@ function renderMySchedule() {
 
   // 이번 주 요약 — 칩은 한 줄(넘치면 …), 마우스를 올리면 전체 이름
   const _mwEsc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const _mwChip=(label,bg,color,second)=>`<span class="mw-role${String(label).length>=7?' mw-xs':String(label).length>=5?' mw-s':''}" title="${_mwEsc(label)}" style="${second?'margin-top:4px;':''}background:${bg};color:${color};">${_mwEsc(label)}</span>`;
+  const _mwShort=t=>/교육$/.test(String(t).replace(/\s/g,''))?'교육':t;   // 'AI 교육'·'신입 교육' 등 ○○ 교육은 칩에선 '교육'(마우스를 올리면 원래 이름)
+  const _mwChip=(full,bg,color,second)=>{ const label=_mwShort(full); return `<span class="mw-role${String(label).length>=7?' mw-xs':String(label).length>=5?' mw-s':''}" title="${_mwEsc(full)}" style="${second?'margin-top:4px;':''}background:${bg};color:${color};">${_mwEsc(label)}</span>`; };
   const DOW_S=['월','화','수','목','금','토','일'];
   let weekHtml = weekDays.map((d,i)=>{
     const ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
