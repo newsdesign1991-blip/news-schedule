@@ -238,10 +238,10 @@ function renderWorkshopTable() {
       if(entry?.morningDesk&&[entry.cg?.desk8,entry.cg?.desk5,entry.vw?.desk].includes(entry.morningDesk)) missing.push('오전데 겹침');
       // 인원: 평일 틀은 VW 목표·하루 합계 하한(20, 상한이 더 작으면 상한), 주말 틀은 VW·CG 목표 — 특정일 인원 설정이 있으면 그 값
       { const _st=data.settings||{}, _sd=(_st.specialDays||{})[dateStr]||{}, _wd=isWeekdayForm(dateStr);
-        const _vt=_sd.vw ?? (_wd?(_st.weekdayVW||7):(dow===6?(_st.satVW||_st.weekendVW||4):(_st.sunVW||_st.weekendVW||4)));
+        const _vt=_sd.vw ?? (_wd?(_st.weekdayVW||7):(dow!==0?(_st.satVW||_st.weekendVW||4):(_st.sunVW||_st.weekendVW||4)));
         if(entry&&vwCnt<_vt) missing.push('VW '+vwCnt+'/'+_vt);
         if(entry&&_wd&&_sd.cg==null){ const _cap=_sd.cap ?? (_st.wdDailyCap||_st.dailyCap||22), _fl=Math.min(20,_cap); if(dailyCnt<_fl) missing.push('인원 '+dailyCnt+'/'+_fl); }
-        if(entry&&!_wd){ const _ct=_sd.cg ?? (dow===6?(_st.satCG||6):(_st.sunCG||7)); if(cgCnt<_ct) missing.push('CG '+cgCnt+'/'+_ct); }
+        if(entry&&!_wd){ const _ct=_sd.cg ?? (dow!==0?(_st.satCG||6):(_st.sunCG||7)); if(cgCnt<_ct) missing.push('CG '+cgCnt+'/'+_ct); }
       }
       if(isWeekdayForm(dateStr)){   // 평일 틀(8뉴스 평일 편성 공휴일 포함)
         if(!entry?.cg?.desk5) missing.push('5데스');   // 8뉴스 2번 데스크
