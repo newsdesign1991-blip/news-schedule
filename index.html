@@ -7,8 +7,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>뉴스디자인 근무 대시보드</title>
-<link rel="icon" href="icon.svg">
-<link rel="icon" type="image/png" href="favicon.png">
+<link rel="icon" href="icon.svg?v=3">
+<link rel="icon" type="image/png" href="favicon.png?v=3">
 <!-- PWA: 홈화면 추가 시 주소창 없는 독립 실행(standalone) -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f1f4f8">
@@ -18,7 +18,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="근무표">
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-20260926.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-20261010.png">
 
 <script>
 // 핀치줌 방지 — iOS Safari가 viewport의 user-scalable=no를 무시하는 경우 대비(제스처 이벤트 차단)
@@ -499,7 +499,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;overflow:hidden;">
   <div class="li-orbs"><span></span><span></span><span></span></div>
   <div class="lg-card" style="padding:32px 28px;width:320px;text-align:center;position:relative;z-index:2;">
-    <img src="logo.png" alt="ND" style="width:72px;height:72px;border-radius:18px;margin-bottom:12px;">
+    <img src="logo.png?v=3" alt="ND" style="width:72px;height:72px;border-radius:18px;margin-bottom:12px;">
     <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:4px;letter-spacing:-.01em;">NewsDesign DashBoard</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:24px;">이름과 6자리 비밀번호로 로그인하세요</div>
     <input type="text" id="login-name-input" class="form-input" placeholder="이름 입력 (예: 홍길동)" maxlength="10" aria-label="이름" autocomplete="name" onkeydown="if(event.key==='Enter')loginUser()">
@@ -1176,7 +1176,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.10 13:04';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.10 13:13';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
