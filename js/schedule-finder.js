@@ -1,14 +1,16 @@
 /* [모듈] js/schedule-finder.js — 공통 근무일 찾기·개인 일정 보기·내 근무 | dashboard.html 메인 스크립트에서 분리됨. 로드 순서 = dashboard.html의 <script> 순서(바꾸지 말 것) */
+// 데스크 표기(엑셀과 같게): 평일 틀 VW데·8데스·5데스, 주말 틀(토·일·설·추석)은 VW·CG 모두 데스크. [긴 이름, 짧은 캡슐]
+function _DL(ds){ return (!ds||isWeekdayForm(ds)) ? {vw:['VW 데스크','VW데'],c8:['CG 8데스크','8데스'],c5:['CG 5데스크','5데스']} : {vw:['VW 데스크','데스크'],c8:['CG 데스크','데스크'],c5:['CG 데스크','데스크']}; }
 // 한 사람의 특정 날짜 근무 역할 목록(bg/color/border 포함). 본인근무 카드·근무표 열 팝업 공용.
 function _getPersonRoles(entry, sid, ds) {   // ds 있으면 조근 부서 기본 '조근'은 평일 틀인 날만
   if (!entry) return [];
   if (entry.danjik===sid) return [{label:'당직',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'}];
   const roles = [];
   if ((entry.vw?.workers||[]).includes(sid)) roles.push({label:'VW 근무',bg:'var(--vw-bg)',color:'var(--vw-light)',border:'var(--vw)'});
-  if (entry.vw?.desk===sid) roles.push({label:'VW 데스크',bg:'var(--vw-bg)',color:'var(--vw-light)',border:'var(--vw)'});
+  if (entry.vw?.desk===sid) roles.push({label:_DL(ds).vw[0],short:_DL(ds).vw[1],bg:'var(--vw-bg)',color:'var(--vw-light)',border:'var(--vw)'});
   if ((entry.cg?.workers||[]).includes(sid)) roles.push({label:'CG 근무',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
-  if (entry.cg?.desk8===sid||entry.cg?.desk===sid) roles.push({label:'CG 8데스크',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
-  if (entry.cg?.desk5===sid) roles.push({label:'CG 5데스크',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
+  if (entry.cg?.desk8===sid||entry.cg?.desk===sid) roles.push({label:_DL(ds).c8[0],short:_DL(ds).c8[1],bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
+  if (entry.cg?.desk5===sid) roles.push({label:_DL(ds).c5[0],short:_DL(ds).c5[1],bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
   if (entry.newsOh===sid) roles.push({label:'뉴.오',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
   if (entry.newsOh2===sid) roles.push({label:'뉴.오2',bg:'#f3ddc0',color:'#b07d4a',border:'#d9b483'});
   if (entry.weekend8jin===sid) roles.push({label:'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
@@ -243,10 +245,10 @@ function renderMySchedule() {
     if (entry.danjik===sid) return [{label:'당직',bg:'#fee2e2',color:'#d65a52',border:'#f8a0a0'}];
     const roles = [];
     if ((entry.vw?.workers||[]).includes(sid)) roles.push({label:'VW 근무',bg:'var(--vw-bg)',color:'var(--vw-light)',border:'var(--vw)'});
-    if (entry.vw?.desk===sid) roles.push({label:'VW 데스크',bg:'var(--vw-bg)',color:'var(--vw-light)',border:'var(--vw)'});
+    if (entry.vw?.desk===sid) roles.push({label:_DL(ds).vw[0],short:_DL(ds).vw[1],bg:'var(--vw-bg)',color:'var(--vw-light)',border:'var(--vw)'});
     if ((entry.cg?.workers||[]).includes(sid)) roles.push({label:'CG 근무',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
-    if (entry.cg?.desk8===sid||entry.cg?.desk===sid) roles.push({label:'CG 8데스크',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
-    if (entry.cg?.desk5===sid) roles.push({label:'CG 5데스크',bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
+    if (entry.cg?.desk8===sid||entry.cg?.desk===sid) roles.push({label:_DL(ds).c8[0],short:_DL(ds).c8[1],bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
+    if (entry.cg?.desk5===sid) roles.push({label:_DL(ds).c5[0],short:_DL(ds).c5[1],bg:'var(--cg-bg)',color:'var(--cg-light)',border:'var(--cg)'});
     if (entry.newsOh===sid) roles.push({label:'뉴.오',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
     if (entry.newsOh2===sid) roles.push({label:'뉴.오2',bg:'#f3ddc0',color:'#b07d4a',border:'#d9b483'});
     if (entry.weekend8jin===sid) roles.push({label:'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
@@ -280,13 +282,14 @@ function renderMySchedule() {
   function shortRoles(roles){
     if(!roles||!roles.length) return [];
     const hasVwDesk=roles.some(r=>r.label==='VW 데스크');
-    const hasCgDesk=roles.some(r=>r.label==='CG 8데스크'||r.label==='CG 5데스크');
-    const RE={'VW 데스크':'데스크','CG 8데스크':'8데스','CG 5데스크':'5데스','VW 근무':'VW','CG 근무':'CG','XR 근무':'XR','주말 8진':'8진','평일 8진':'8진'};
+    const hasCgDesk=roles.some(r=>/^CG (8|5)?데스크$/.test(r.label));
+    // 칸 폭(62px)에 한 줄로 들어가게 근무표·엑셀과 같은 짧은 표기('토요 조근'·'조근 대체'는 표처럼 '조근')
+    const RE={'VW 데스크':'데스크','CG 8데스크':'8데스','CG 5데스크':'5데스','VW 근무':'VW','CG 근무':'CG','XR 근무':'XR','주말 8진':'8진','평일 8진':'8진','토요 조근':'조근','조근 대체':'조근','SPORTS':'SP'};
     const out=[];
     roles.forEach(r=>{
       if(r.label==='VW 근무'&&hasVwDesk) return;
       if(r.label==='CG 근무'&&hasCgDesk) return;
-      out.push({label:RE[r.label]||r.label, bg:r.bg, color:r.color, border:r.border});
+      out.push({label:r.short||RE[r.label]||r.label, bg:r.bg, color:r.color, border:r.border});   // 데스크는 그날 틀에 맞춘 짧은 표기(r.short)
     });
     return out;
   }
@@ -304,7 +307,9 @@ function renderMySchedule() {
     todayHtml = `<span style="font-size:13px;color:var(--muted);">오늘 배정된 근무 없음</span>`;
   }
 
-  // 이번 주 요약
+  // 이번 주 요약 — 칩은 한 줄(넘치면 …), 마우스를 올리면 전체 이름
+  const _mwEsc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const _mwChip=(label,bg,color,second)=>`<span class="mw-role${String(label).length>=7?' mw-xs':String(label).length>=5?' mw-s':''}" title="${_mwEsc(label)}" style="${second?'margin-top:4px;':''}background:${bg};color:${color};">${_mwEsc(label)}</span>`;
   const DOW_S=['월','화','수','목','금','토','일'];
   let weekHtml = weekDays.map((d,i)=>{
     const ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
@@ -313,9 +318,11 @@ function renderMySchedule() {
     const roles=getRoles(sched[ds],sid,ds);
     const isExit = !onLv && getDanjikExitStaff(ds)===sid && sched[ds]?.danjik!==sid;
     let tag;
-    if(onLv) tag=`<span class="mw-role" style="background:${isToday?'rgba(255,255,255,0.22)':'#e8ecf3'};color:${isToday?'#fff':'#5f6b7d'};">휴가</span>`;
-    else if(isExit) tag=`<span class="mw-role" style="background:${isToday?'rgba(255,255,255,0.22)':'var(--r-exit-bg)'};color:${isToday?'#fff':'var(--r-exit-fg)'};">퇴근</span>`;
-    else if(roles.length){ const dr=shortRoles(roles).slice(0,2); tag=dr.map((r,ci)=>`<span class="mw-role" style="${ci>0?'margin-top:4px;':''}background:${isToday?'rgba(255,255,255,0.22)':r.bg};color:${isToday?'#fff':r.color};">${r.label}</span>`).join(''); }
+    const _cc=sched[ds]?.customCells?.[sid], _ccTxt=String(_cc?.text||'').trim(), _lvTxt=String(sched[ds]?.leaveLabels?.[sid]||'').trim();
+    if(onLv) tag=_mwChip(_lvTxt||'휴가', isToday?'rgba(255,255,255,0.22)':'#e8ecf3', isToday?'#fff':'#5f6b7d');   // 경조·공가·Jr.휴가 같은 휴가 이름도
+    else if(isExit) tag=_mwChip('퇴근', isToday?'rgba(255,255,255,0.22)':'var(--r-exit-bg)', isToday?'#fff':'var(--r-exit-fg)');
+    else if(roles.length){ const dr=shortRoles(roles).slice(0,2); tag=dr.map((r,ci)=>_mwChip(r.label, isToday?'rgba(255,255,255,0.22)':r.bg, isToday?'#fff':r.color, ci>0)).join(''); }
+    else if(_ccTxt&&!/^(-|0)$/.test(_ccTxt)) tag=_mwChip(_ccTxt, isToday?'rgba(255,255,255,0.22)':(_cc.bg||'#eef1f5'), isToday?'#fff':(_cc.color&&_cc.color!=='#000000'?_cc.color:'#4b5563'));   // 출장·교육·Jr.캠프 같은 손입력 근무도 보이게
     else tag=`<span class="mw-role mw-none">-</span>`;
     return `<div class="mw-day ${isToday?'today':''}">
       <div class="mw-dow">${DOW_S[i]}</div>

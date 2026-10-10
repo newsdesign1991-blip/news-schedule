@@ -24,26 +24,36 @@
     function cur(){ return o.range ? rng().from : ((o.get && o.get()) || ''); }
     function jump(){ var b = cur() || today(); y = +b.slice(0, 4); m = +b.slice(5, 7); }
     function ds(d){ return y + '-' + pad(m) + '-' + pad(d); }
+    // months:2 이면 두 달을 나란히(기간 고르기용). 앞 달 머리에 '이전', 마지막 달 머리에 '다음'
     function render(fk){
-      var c = cur(), t = today(), lead = new Date(y, m - 1, 1).getDay(), days = new Date(y, m, 0).getDate();
+      var c = cur(), t = today(), N = Math.max(1, o.months || 1);
       var R = o.range ? rng() : null;
       var min = o.min || '', atMin = min && (y * 12 + m <= +min.slice(0, 4) * 12 + +min.slice(5, 7));
-      var tabDs = (c && c.slice(0, 7) === y + '-' + pad(m)) ? c : (t.slice(0, 7) === y + '-' + pad(m) ? t : ds(1));
-      if(min && tabDs < min) tabDs = min.slice(0, 7) === y + '-' + pad(m) ? min : tabDs;
-      var cells = '<span></span>'.repeat(lead);
-      for(var d = 1; d <= days; d++){
-        var s = ds(d), dow = (lead + d - 1) % 7, hol = holiday(s), dis = min && s < min;
-        var sel = R ? (s === R.from || s === R.to) : s === c, mid = R && R.from && R.to && s > R.from && s < R.to;
-        var rc = R && R.from && R.to && R.from !== R.to ? (s === R.from ? ' r-start' : s === R.to ? ' r-end' : '') : '';
-        var mk = o.mark && o.mark(s);
-        cells += '<span class="ndc-cell' + (mid ? ' in-range' : '') + rc + '"><button type="button" class="ndc-day' + (dow === 0 || hol ? ' sun' : dow === 6 ? ' sat' : '') + (s === t ? ' is-today' : '') + (sel ? ' is-sel' : '') + (mk ? ' has-mark' : '') + '" data-d="' + s + '" tabindex="' + (s === tabDs ? 0 : -1) + '"' +
-          (dis ? ' disabled' : '') + ' aria-pressed="' + sel + '" aria-label="' + m + '월 ' + d + '일 ' + W[dow] + '요일' + (hol ? ' ' + hol : '') + (s === t ? ', 오늘' : '') + (R && s === R.from ? ', 시작일' : '') + (R && s === R.to ? ', 종료일' : '') + (mk ? ', ' + (o.markLabel || '표시된 날') : '') + '"' + (hol ? ' title="' + hol + '"' : '') + '>' + d + '</button></span>';
-      }
-      var selTxt = R ? (R.from ? (R.to === R.from ? fmtLong(R.from) + ' 하루' : fmtLong(R.from) + ' ~ ' + (R.to ? fmtLong(R.to) : '<em>끝 날짜 선택</em>')) : '시작 날짜를 골라 주세요') : (c ? fmtLong(c) : '날짜를 골라 주세요');
-      host.innerHTML = '<div class="ndc-head"><button type="button" class="ndc-title" data-a="today" data-f="title" title="이번 달로">' + y + '년 ' + m + '월</button>' +
-        '<div class="ndc-nav"><button type="button" data-a="prev" data-f="prev" aria-label="이전 달"' + (atMin ? ' disabled' : '') + '>' + chev(-1) + '</button><button type="button" data-a="next" data-f="next" aria-label="다음 달">' + chev(1) + '</button></div></div>' +
-        '<div class="ndc-week" aria-hidden="true">' + W.split('').map(function(w, i){ return '<span' + (i === 0 ? ' class="sun"' : i === 6 ? ' class="sat"' : '') + '>' + w + '</span>'; }).join('') + '</div>' +
-        '<div class="ndc-grid" role="group" aria-label="' + y + '년 ' + m + '월">' + cells + '</div>' +
+      var mons = []; for(var k = 0; k < N; k++){ var yy = y, mo = m + k; while(mo > 12){ mo -= 12; yy++; } mons.push([yy, mo]); }
+      var keys = mons.map(function(a){ return a[0] + '-' + pad(a[1]); });
+      var tabDs = (c && keys.indexOf(c.slice(0, 7)) >= 0) ? c : (keys.indexOf(t.slice(0, 7)) >= 0 ? t : ds(1));
+      if(min && tabDs < min) tabDs = keys.indexOf(min.slice(0, 7)) >= 0 ? min : tabDs;
+      var week = '<div class="ndc-week" aria-hidden="true">' + W.split('').map(function(w, i){ return '<span' + (i === 0 ? ' class="sun"' : i === 6 ? ' class="sat"' : '') + '>' + w + '</span>'; }).join('') + '</div>';
+      var body = mons.map(function(a, k){
+        var yy = a[0], mo = a[1], lead = new Date(yy, mo - 1, 1).getDay(), days = new Date(yy, mo, 0).getDate();
+        var cells = '<span></span>'.repeat(lead);
+        for(var d = 1; d <= days; d++){
+          var s = yy + '-' + pad(mo) + '-' + pad(d), dow = (lead + d - 1) % 7, hol = holiday(s), dis = min && s < min;
+          var sel = R ? (s === R.from || s === R.to) : s === c, mid = R && R.from && R.to && s > R.from && s < R.to;
+          var rc = R && R.from && R.to && R.from !== R.to ? (s === R.from ? ' r-start' : s === R.to ? ' r-end' : '') : '';
+          var mk = o.mark && o.mark(s);
+          cells += '<span class="ndc-cell' + (mid ? ' in-range' : '') + rc + '"><button type="button" class="ndc-day' + (dow === 0 || hol ? ' sun' : dow === 6 ? ' sat' : '') + (s === t ? ' is-today' : '') + (sel ? ' is-sel' : '') + (mk ? ' has-mark' : '') + '" data-d="' + s + '" tabindex="' + (s === tabDs ? 0 : -1) + '"' +
+            (dis ? ' disabled' : '') + ' aria-pressed="' + sel + '" aria-label="' + mo + '월 ' + d + '일 ' + W[dow] + '요일' + (hol ? ' ' + hol : '') + (s === t ? ', 오늘' : '') + (R && s === R.from ? ', 시작일' : '') + (R && s === R.to ? ', 종료일' : '') + (mk ? ', ' + (o.markLabel || '표시된 날') : '') + '"' + (hol ? ' title="' + hol + '"' : '') + '>' + d + '</button></span>';
+        }
+        var first = k === 0, last = k === N - 1;
+        var nav = '<div class="ndc-nav">' + (first ? '<button type="button" data-a="prev" data-f="prev" aria-label="이전 달"' + (atMin ? ' disabled' : '') + '>' + chev(-1) + '</button>' : '') + (last ? '<button type="button" data-a="next" data-f="next" aria-label="다음 달">' + chev(1) + '</button>' : '') + '</div>';
+        var head = '<div class="ndc-head">' + (first ? '<button type="button" class="ndc-title" data-a="today" data-f="title" title="이번 달로">' + yy + '년 ' + mo + '월</button>' : '<span class="ndc-title">' + yy + '년 ' + mo + '월</span>') + nav + '</div>';
+        return (N > 1 ? '<div class="ndc-month">' : '') + head + week + '<div class="ndc-grid" role="group" aria-label="' + yy + '년 ' + mo + '월">' + cells + '</div>' + (N > 1 ? '</div>' : '');
+      }).join('');
+      var yrs = R && R.from && R.to && (R.from.slice(0, 4) !== R.to.slice(0, 4) || R.from.slice(0, 4) !== t.slice(0, 4));   // 해를 넘기거나 올해가 아니면 연도도
+      var fl = function(v){ return (yrs ? v.slice(0, 4) + '년 ' : '') + fmtLong(v); };
+      var selTxt = R ? (R.from ? (R.to === R.from ? fl(R.from) + ' 하루' : fl(R.from) + ' ~ ' + (R.to ? fl(R.to) : '<em>끝 날짜 선택</em>')) : '시작 날짜를 골라 주세요') : (c ? fmtLong(c) : '날짜를 골라 주세요');
+      host.innerHTML = (N > 1 ? '<div class="ndc-months">' + body + '</div>' : body) +
         '<div class="ndc-foot"><span class="ndc-sel' + (c ? '' : ' empty') + '">' + selTxt + '</span>' +
         (R ? '' : '<button type="button" class="ndc-today" data-a="pick-today" data-f="pt">오늘</button>') + '</div>';
       if(fk){ var el = host.querySelector(fk.indexOf('d:') === 0 ? '[data-d="' + fk.slice(2) + '"]' : '[data-f="' + fk + '"]'); if(!el || el.disabled) el = host.querySelector('.ndc-day[tabindex="0"]'); if(el) el.focus(); }
@@ -223,7 +233,7 @@
   };
 })();
 
-// 작성소·휴가 신청 도구막대도 팝업과 같은 달력/시간 부품을 사용한다.
+// 작성소·휴가 신청 도구막대도 팝업과 같은 달력/시간 부품을 사용한다(기간 한 번에). 그 밖의 모든 날짜 칸도 넓은 화면에선 같은 팝업 달력(한 칸씩, ndDatePopup).
 (function(){
   var ids=['ws-start','ws-end','lr-start','lr-end','lr-deadline','range-start','range-end'];
   function wide(){return window.matchMedia('(min-width:1001px)').matches;}
@@ -234,13 +244,13 @@
     var deadline=input.id==='lr-deadline',prefix=input.id.split('-')[0];
     var start=deadline?null:document.getElementById(prefix+'-start'),end=deadline?null:document.getElementById(prefix+'-end');
     var range={from:start?.value||'',to:end?.value||''},day=deadline?input.value.slice(0,10):'',time=deadline?(input.value.slice(11,16)||'20:00'):'';
-    var ov=document.createElement('div');ov.id='nd-toolbar-calendar';ov.className='nd-modal nd-toolbar-calendar';
+    var ov=document.createElement('div');ov.id='nd-toolbar-calendar';ov.className='nd-modal nd-toolbar-calendar'+(deadline?'':' two');   // 기간은 두 달 나란히
     ov.innerHTML='<div class="nd-pop" role="dialog" aria-modal="true" aria-labelledby="nd-toolbar-title"><div class="modal-header"><div id="nd-toolbar-title" style="font-size:17px;font-weight:800;">'+(deadline?'휴가 신청 마감':'기간 선택')+'</div><button type="button" class="modal-close" aria-label="닫기">✕</button></div><div class="nd-toolbar-body"><div class="nd-toolbar-date"></div>'+(deadline?'<div class="nd-toolbar-time"></div>':'')+'<div class="nd-toolbar-error" role="alert"></div></div><div class="nd-toolbar-actions"><button type="button" class="btn nd-toolbar-cancel">취소</button><button type="button" class="btn btn-primary nd-toolbar-apply">선택 완료</button></div></div>';
     function close(){window.removeEventListener('resize',resize);ov.remove();if(input.isConnected)input.focus({preventScroll:true});}
     ov.onclick=function(e){if(e.target===ov)close();};
     ov.querySelector('.modal-close').onclick=close;ov.querySelector('.nd-toolbar-cancel').onclick=close;
     document.body.appendChild(ov);
-    ndCal(ov.querySelector('.nd-toolbar-date'),deadline?{get:function(){return day;},set:function(v){day=v;}}:{range:true,get:function(){return range;},set:function(v){range=v;}});
+    ndCal(ov.querySelector('.nd-toolbar-date'),deadline?{get:function(){return day;},set:function(v){day=v;}}:{range:true,months:2,get:function(){return range;},set:function(v){range=v;}});
     if(deadline)ndTime(ov.querySelector('.nd-toolbar-time'),{get:function(){return time;},set:function(v){time=v;},optional:false});
     ov.querySelector('.nd-toolbar-apply').onclick=function(){
       if(input.disabled||!input.isConnected||(!deadline&&(!start.isConnected||!end.isConnected||start.disabled||end.disabled))){close();return;}
@@ -259,7 +269,81 @@
     function resize(){if(!wide())close();if(!ov.isConnected)window.removeEventListener('resize',resize);}
     window.addEventListener('resize',resize);
   };
-  document.addEventListener('pointerdown',function(e){if(target(e))e.preventDefault();},true);
-  document.addEventListener('click',function(e){var t=target(e);if(t){e.preventDefault();e.stopPropagation();ndToolbarCalendar(t);}},true);
-  document.addEventListener('keydown',function(e){var t=target(e);if(t&&(e.key==='Enter'||e.key===' '||e.key==='ArrowDown')){e.preventDefault();ndToolbarCalendar(t);}},true);
+  // 그 밖의 날짜 칸(관리자 패널·직원 정보·특정일·프로젝트·공지 등 모든 <input type=date|datetime-local>)도 넓은 화면에선 같은 팝업 달력으로.
+  // 값은 원래 input에 넣고 input·change를 보냄 → 저장 코드 그대로. 날짜 하나 칸은 한 달 달력(고르면 바로 들어감), '…-start'/'…-end' 짝은 두 달 기간 달력(rangePopup)
+  function isDateIn(t){return !!t&&t.tagName==='INPUT'&&(t.type==='date'||t.type==='datetime-local');}
+  function anyTarget(e){var t=e.target;if(!isDateIn(t)||t.disabled||t.readOnly||!wide())return null;if(t.classList.contains('nd-native-src')||t.hasAttribute('data-nd-native'))return null;return t;}
+  function clean(s){return String(s||'').replace(/\s+/g,' ').replace(/\(.*$/,'').trim().slice(0,24);}
+  function labelOf(input){
+    var l=input.id&&document.querySelector('label[for="'+input.id+'"]');if(l)return clean(l.textContent);
+    var p=input.closest('label');if(p)return clean(p.textContent);
+    for(var n=input.parentElement,i=0;n&&i<3;n=n.parentElement,i++){var f=n.querySelector(':scope > .form-label, :scope > label');if(f&&!f.contains(input))return clean(f.textContent);}
+    return '';
+  }
+  window.ndDatePopup=function(input){
+    if(!input||input.disabled||!wide())return;
+    document.getElementById('nd-toolbar-calendar')?.remove();
+    var dt=input.type==='datetime-local',mm=/^(.*)-(start|end)$/.exec(input.id||''),partner=mm&&document.getElementById(mm[1]+'-'+(mm[2]==='start'?'end':'start'));
+    if(partner&&partner.type!=='date')partner=null;
+    var isEnd=!!(partner&&mm[2]==='end');
+    if(partner) return rangePopup(isEnd?partner:input, isEnd?input:partner, input);   // 시작·끝 짝 → 두 달 달력에서 기간을 한 번에
+    var day=(input.value||'').slice(0,10),time=dt?(input.value.slice(11,16)||''):'';
+    var min=(input.min||'').slice(0,10);if(isEnd&&partner.value&&(!min||partner.value>min))min=partner.value;
+    var lab=labelOf(input),title=(lab||(dt?'날짜·시간':'날짜'))+(partner?(isEnd?' · 끝 날짜':' · 시작 날짜'):'');
+    var ov=document.createElement('div');ov.id='nd-toolbar-calendar';ov.className='nd-modal nd-toolbar-calendar';
+    ov.innerHTML='<div class="nd-pop" role="dialog" aria-modal="true" aria-labelledby="nd-toolbar-title"><div class="modal-header"><div id="nd-toolbar-title" style="font-size:17px;font-weight:800;"></div><button type="button" class="modal-close" aria-label="닫기">✕</button></div><div class="nd-toolbar-body"><div class="nd-toolbar-date"></div>'+(dt?'<div class="nd-toolbar-time"></div>':'')+'<div class="nd-toolbar-error" role="alert"></div></div><div class="nd-toolbar-actions">'+(input.required?'':'<button type="button" class="btn nd-toolbar-clear" style="margin-right:auto;">지우기</button>')+'<button type="button" class="btn nd-toolbar-cancel">취소</button>'+(dt?'<button type="button" class="btn btn-primary nd-toolbar-apply">선택 완료</button>':'')+'</div></div>';
+    ov.querySelector('#nd-toolbar-title').textContent=title;
+    function close(){window.removeEventListener('resize',resize);ov.remove();if(input.isConnected)input.focus({preventScroll:true});}
+    function put(v){if(!input.isConnected||input.disabled){close();return;}input.value=v;['input','change'].forEach(function(t){input.dispatchEvent(new Event(t,{bubbles:true}));});close();}
+    ov.onclick=function(e){if(e.target===ov)close();};
+    ov.querySelector('.modal-close').onclick=close;ov.querySelector('.nd-toolbar-cancel').onclick=close;
+    var clr=ov.querySelector('.nd-toolbar-clear');if(clr)clr.onclick=function(){put('');};
+    document.body.appendChild(ov);
+    var mk=partner&&partner.value?{mark:function(s){return s===partner.value;},markLabel:isEnd?'시작 날짜':'끝 날짜'}:{};
+    ndCal(ov.querySelector('.nd-toolbar-date'),Object.assign({min:min,get:function(){return day;},set:function(v){day=v;},onPick:function(v){if(!dt)put(v);}},mk));   // 날짜만이면 고르면 바로 들어감
+    if(dt){
+      ndTime(ov.querySelector('.nd-toolbar-time'),{get:function(){return time;},set:function(v){time=v;},optional:false});
+      ov.querySelector('.nd-toolbar-apply').onclick=function(){
+        if(!day||!/^\d{2}:\d{2}$/.test(time)){ov.querySelector('.nd-toolbar-error').textContent='날짜와 시간을 모두 선택해 주세요.';return;}
+        put(day+'T'+time);
+      };
+    }
+    ov.addEventListener('keydown',function(e){
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close();}
+      if(e.key==='Tab'){var all=Array.from(ov.querySelectorAll('button,input')).filter(function(n){return !n.disabled&&n.tabIndex>=0&&n.getClientRects().length;});var first=all[0],last=all[all.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
+    });
+    (ov.querySelector('.ndc-day.is-sel')||ov.querySelector('.ndc-day[tabindex="0"]')||ov.querySelector('.modal-close')).focus();
+    function resize(){if(!wide())close();if(!ov.isConnected)window.removeEventListener('resize',resize);}
+    window.addEventListener('resize',resize);
+  };
+  // 시작·끝 짝 칸(계약·파견·수습 기간, 초기화·배포 삭제 기간, 프로젝트 기간 등): 두 달 나란히, 시작→끝 순서로 눌러 고름. 끝을 안 고르면 기존 끝 날짜가 시작 이후일 때만 그대로 둠
+  function rangePopup(S,E,from){
+    document.getElementById('nd-toolbar-calendar')?.remove();
+    var rg={from:S.value||'',to:E.value||''}, opt=!(S.required||E.required);
+    var ov=document.createElement('div');ov.id='nd-toolbar-calendar';ov.className='nd-modal nd-toolbar-calendar two';
+    ov.innerHTML='<div class="nd-pop" role="dialog" aria-modal="true" aria-labelledby="nd-toolbar-title"><div class="modal-header"><div id="nd-toolbar-title" style="font-size:17px;font-weight:800;"></div><button type="button" class="modal-close" aria-label="닫기">✕</button></div><div class="nd-toolbar-body"><div class="nd-toolbar-date"></div><div class="nd-toolbar-error" role="alert"></div></div><div class="nd-toolbar-actions">'+(opt?'<button type="button" class="btn nd-toolbar-clear" style="margin-right:auto;">지우기</button>':'')+'<button type="button" class="btn nd-toolbar-cancel">취소</button><button type="button" class="btn btn-primary nd-toolbar-apply">선택 완료</button></div></div>';
+    ov.querySelector('#nd-toolbar-title').textContent=(labelOf(S)||labelOf(E)||'기간')+' 선택';
+    function close(){window.removeEventListener('resize',resize);ov.remove();if(from.isConnected)from.focus({preventScroll:true});}
+    function put(a,b){if(!S.isConnected||!E.isConnected||S.disabled||E.disabled){close();return;}S.value=a;E.value=b;[S,E].forEach(function(el){['input','change'].forEach(function(t){el.dispatchEvent(new Event(t,{bubbles:true}));});});close();}
+    ov.onclick=function(e){if(e.target===ov)close();};
+    ov.querySelector('.modal-close').onclick=close;ov.querySelector('.nd-toolbar-cancel').onclick=close;
+    var clr=ov.querySelector('.nd-toolbar-clear');if(clr)clr.onclick=function(){put('','');};
+    document.body.appendChild(ov);
+    ndCal(ov.querySelector('.nd-toolbar-date'),{range:true,months:2,min:(S.min||'').slice(0,10),get:function(){return rg;},set:function(v){rg=v;ov.querySelector('.nd-toolbar-error').textContent='';}});
+    ov.querySelector('.nd-toolbar-apply').onclick=function(){
+      if(!rg.from){ov.querySelector('.nd-toolbar-error').textContent='시작 날짜를 골라 주세요.';return;}
+      put(rg.from, rg.to||(E.value&&E.value>=rg.from?E.value:''));
+    };
+    ov.addEventListener('keydown',function(e){
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close();}
+      if(e.key==='Tab'){var all=Array.from(ov.querySelectorAll('button,input')).filter(function(n){return !n.disabled&&n.tabIndex>=0&&n.getClientRects().length;});var first=all[0],last=all[all.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
+    });
+    (ov.querySelector('.ndc-day.is-sel')||ov.querySelector('.ndc-day[tabindex="0"]')||ov.querySelector('.modal-close')).focus();
+    function resize(){if(!wide())close();if(!ov.isConnected)window.removeEventListener('resize',resize);}
+    window.addEventListener('resize',resize);
+  }
+  function openFor(t){if(ids.indexOf(t.id)>=0)ndToolbarCalendar(t);else ndDatePopup(t);}
+  document.addEventListener('pointerdown',function(e){if(anyTarget(e))e.preventDefault();},true);
+  document.addEventListener('click',function(e){var t=anyTarget(e);if(t){e.preventDefault();e.stopPropagation();openFor(t);}},true);
+  document.addEventListener('keydown',function(e){var t=anyTarget(e);if(t&&(e.key==='Enter'||e.key===' '||e.key==='ArrowDown')){e.preventDefault();openFor(t);}},true);
 })();

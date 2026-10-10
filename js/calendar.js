@@ -292,11 +292,12 @@ function _calRolesShort(entry, sid, ds){   // ds 있으면 조근 부서 기본 
   const C={vw:['var(--vw-bg)','var(--vw-light)','var(--vw)'], cg:['var(--cg-bg)','var(--cg-light)','var(--cg)'], xr:['var(--xr-bg)','var(--xr-light)','var(--xr)'], pj:['var(--project-bg)','var(--project-light)','var(--project)'], sp:['var(--sports-bg)','var(--sports-light)','var(--sports)'], y:['#fef3c7','#c79a5e','#fcd97d'], g:['#d1fae5','#45847a','#6ee7b7'], p:['#ede9fe','#6366f1','#c4b5fd']};
   const add=(label,c)=>r.push({label,bg:c[0],color:c[1],border:c[2]});
   // VW: 데스크 > 근무
-  if(entry.vw?.desk===sid) add('VW데',C.vw);
+  const _wd=!ds||isWeekdayForm(ds);   // 엑셀처럼 주말 틀은 데스크
+  if(entry.vw?.desk===sid) add(_wd?'VW데':'데스크',C.vw);
   else if((entry.vw?.workers||[]).includes(sid)) add('VW',C.vw);
   // CG: 8데스 > 5데스 > 오전데 > 근무 (가장 구체적 1개)
-  if(entry.cg?.desk8===sid||entry.cg?.desk===sid) add('8데스',C.cg);
-  else if(entry.cg?.desk5===sid) add('5데스',C.cg);
+  if(entry.cg?.desk8===sid||entry.cg?.desk===sid) add(_wd?'8데스':'데스크',C.cg);
+  else if(entry.cg?.desk5===sid) add(_wd?'5데스':'데스크',C.cg);
   else if(entry.morningDesk===sid) add('오전데',C.y);
   else if((entry.cg?.workers||[]).includes(sid)) add('CG',C.cg);
   // 독립 역할

@@ -275,7 +275,7 @@ function renderWorkshopTable() {
         if(workers.includes(s.id)||s.id===ilgeunId){
           workCount[s.id]++;
           if(s.id===ilgeunId){bg='var(--r-ilgeun-bg)';color='var(--r-ilgeun-fg)';fw='700';text='일근';}
-          else if(s.id===deskId){bg='';color='#6366f1';fw='700';text='데스크';}
+          else if(s.id===deskId){bg='';color='#6366f1';fw='700';text=isWeekdayForm(dateStr)?'VW데':'데스크';}   // 엑셀처럼 평일 VW데·주말 데스크
           else{color='var(--muted)';text='정근';}
         } else if((entry.cg?.workers||[]).includes(s.id)){
           workCount[s.id]++;bg='var(--cg-bg)';color='var(--cg-light)';fw='700';text='CG';
@@ -372,8 +372,8 @@ function renderWorkshopTable() {
           const isDesk5=dept==='cg'&&s.id===entry.cg?.desk5;
           if(s.id===ilgeunId){bg='var(--r-ilgeun-bg)';color='var(--r-ilgeun-fg)';fw='700';text='일근';}
           else if(dept==='cg'&&s.id===entry.morningDesk){bg='';color='#436bb5';fw='700';text='오전데';}
-          else if(isDesk8){bg='';color='#6366f1';fw='700';text='8데스';}
-          else if(isDesk5){bg='';color='#4a9fbd';fw='700';text='5데스';}
+          else if(isDesk8){bg='';color='#6366f1';fw='700';text=isWeekdayForm(dateStr)?'8데스':'데스크';}   // 엑셀처럼 주말(주말 틀)은 데스크
+          else if(isDesk5){bg='';color='#4a9fbd';fw='700';text=isWeekdayForm(dateStr)?'5데스':'데스크';}
           else{color='var(--muted)';text='정근';}
         } else if(dept!=='VW'&&(entry.vw?.workers||[]).includes(s.id)){
           workCount[s.id]++;bg='var(--vw-bg)';color='var(--vw-light)';fw='700';text='VW';

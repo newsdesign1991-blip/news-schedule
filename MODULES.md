@@ -58,7 +58,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 | 23 | `js/pull-refresh.js` | 당겨서 새로고침 | — |
 | 24 | `js/nd-select.js` | 넓은 화면(≥1001px·마우스) 드롭다운을 앱 스타일 목록으로(원래 select가 값의 주인, change 이벤트 그대로) | `ndSelectClose` |
 | 25 | `js/nd-people.js` | 사람 고르기 공통 부품(이름·부서·초성 검색 + 추천 목록 + 고른 사람 태그) — 일정·프로젝트·공통 근무일 조회 | `ndPeoplePicker(host,{selected,onChange})` |
-| 26 | `js/nd-cal.js` | 팝업 달력(날짜·기간·시작 고정·점 표시)·시간 직접 입력(넓은 화면에서만 보임, 값은 원래 input에), 메뉴 전환 모핑(블러로 사라짐→크기 슈욱→또렷하게) | `ndCal` `ndTime` `ndDateInput` `ndTimeInput` `ndMorph` |
+| 26 | `js/nd-cal.js` | 팝업 달력(날짜·기간·시작 고정·점 표시, `months:2` 두 달 나란히)·시간 직접 입력(넓은 화면에서만 보임, 값은 원래 input에), 메뉴 전환 모핑. 넓은 화면에선 앱의 모든 날짜 칸이 이 달력 팝업으로 열림: 도구막대 기간(`ndToolbarCalendar`), `…-start`/`…-end` 짝은 두 달 기간 팝업, 날짜 하나는 한 달 팝업(`ndDatePopup`). 빼려면 input에 `data-nd-native` | `ndCal` `ndTime` `ndDateInput` `ndTimeInput` `ndMorph` `ndDatePopup` |
 | 27 | `js/nd-comments.js` | 투표·공지 댓글 공통 부품(목록 + 입력칸, Enter 등록·Shift+Enter 줄바꿈). 저장은 각 기능이 서버 최신본에 병합(투표 `_pollCmtAdd/_pollCmtDel`→`_pollCommit`, 공지 `_noticeCmtAdd/_noticeCmtDel`→`_ndCommit`) | `ndCmtSection` `ndCmtRefresh` |
 | 28 | `js/meal.js` | 홈 '오늘의 식사'(SBS 목동 조식·점심·석식, 예전 빠른 접속 자리. 기본 위치 = 이번 주 내 근무 바로 아래(DOM을 #my-schedule-card 뒤로 옮김), 카드를 길게 누르면(PC 오른쪽 클릭) '맨 아래로 내리기/맨 위로 올리기' — 이 기기에 기억 localStorage nd_meal_top('0'=아래) — `_mealPosPop` `mealSetTop`, 길게 누르기는 js/notice.js `_bindLP(el, fn(x,y))`) + '식단 가져오기' 창. 데이터 `nd_data id='meal'`(읽기=REST, 쓰기=notify 함수 mode `meal`만). 가져오기는 회사 PC WISE 탭에서 즐겨찾기(북마클릿 → 루트 `meal-import.js`)가 그 탭 로그인으로 읽어 저장 — WISE는 로그인·사내망이 필요해 앱/서버가 직접 못 읽음. 테스트 `swap-backend/test-meal.cjs` | `renderMeal` `openMealImport` |
 
