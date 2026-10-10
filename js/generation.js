@@ -375,6 +375,13 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     // 일요일에 시작하면 같은 주 토요일(범위 밖) 근무자는 일요일에 안 뽑음(토·일 하루만). 금요 당직자의 토요 퇴근은 빼고 셈
     { const _sat0=addDays(_wk0,5); if(_sat0<_s0){ const ww=(weekendWorked[_wk0]=weekendWorked[_wk0]||new Set()); _genDayUnits(_src(_sat0),null).forEach(id=>ww.add(id)); } }
   }
+  // 평일 8진 주 1회: 같은 주 범위 밖 날(앞·뒤)과 보존된 칸의 8진도 그 주 배정으로 셈
+  { const _add8=(d,e)=>{ if(e&&e.weekday8jin){ const k=getWeekKey(d); (weekday8jinWeekDone[k]=weekday8jinWeekDone[k]||new Set()).add(e.weekday8jin); } };
+    const _s0=genDateStrs[0], _eN=genDateStrs[genDateStrs.length-1];
+    for(let d=getWeekKey(_s0); d<_s0; d=addDays(d,1)) _add8(d,_genSchedOn(targetSchedule,d));
+    for(let d=addDays(_eN,1); getWeekKey(d)===getWeekKey(_eN); d=addDays(d,1)) _add8(d,_genSchedOn(targetSchedule,d));
+    genDateStrs.forEach(d=>_add8(d,_prevSnap[d]));
+  }
   for (const date of genDates) {
     const dow=date.getDay();
     const isWeekend=dow===0||dow===6;
@@ -680,7 +687,8 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       ? cgTarget
       : Math.max(
           (cgDesk8?1:0)+(cgDesk5?1:0),
-          dailyCap - vwPicked.length - xrPicked.length - projectPicked.length
+          // 하루 인원 = 근무표 "당일" 칸·엑셀 합계와 같은 셈: VW + CG + XR, 오전데·평일 PJ는 빼고 셈(10월 엑셀 평일 20~21명)
+          dailyCap - vwPicked.length - xrPicked.length - (isHoliOrWE ? projectPicked.length : 0) + (morningDeskAssign ? 1 : 0)
         ));
 
     // 수동 입력 보존: 스냅샷에 cg.desk8/desk5/workers가 있으면 우선 사용
@@ -758,7 +766,8 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       const _ok=p=>!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&!_deskIds.has(p.id)&&isContractActive(p,dateStr)&&_freeOk(p)&&!(dow===5&&weekendDeskPlan[wk]?.sat===p.id);   // 금요일엔 토요 조근 예약자 제외
       // 이번 주 미배정자 우선, 없으면 전체 허용. 같은 횟수면 이미 그날 근무자인 사람 우선
       let cand = weekday8jinPool.filter(p=>_ok(p)&&!weekDone.has(p.id));
-      if (!cand.length) cand = weekday8jinPool.filter(_ok);
+      // 한 사람 주 1회는 지킴(같은 주 두 번 없음): 후보가 없으면 '주 5일·연속' 같은 부드러운 규칙만 풀고(주 6일까지), 그래도 없으면 비워 두고 재시도
+      if (!cand.length) cand = weekday8jinPool.filter(p=>!weekDone.has(p.id)&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&!_deskIds.has(p.id)&&_okAvail(p)&&(_inLists(p.id)||_cap(p.id))&&!(dow===5&&weekendDeskPlan[wk]?.sat===p.id));
       const sorted = shuffleSort(cand, p=>(weekday8jinCount[p.id]||0)*2+(_inLists(p.id)?0:1));
       if (sorted.length) {
         weekday8jinAssign = sorted[0].id;
@@ -800,7 +809,8 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       const _ok=p=>p.id!==_wp.sat&&!_inLists(p.id)&&p.id!==weekday8jinAssign&&p.id!==newsOhAssign&&_okAvail(p)&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&_cap(p.id)&&!(isHoliOrWE&&(isProbation(p,dateStr)||_meets(p.id,'work',dateStr)));
       const _tier=p=>p.id===_wp.ilgeun?3:((getWC(p.id,wk)<5&&!consecBlocked(p.id,_prevDay1)&&!_rsv(p.id))?0:(_planIds.has(p.id)?2:1));   // 일근 예약자는 맨 마지막(일근은 6일째·돌림으로도 채워짐)
       const _byTier=([a],[b])=>(_tier(a)-_tier(b))||(getWC(a.id,wk)-getWC(b.id,wk))||((workDays[a.id]||0)-(workDays[b.id]||0));
-      let _tot=vwPicked.length+cgPicked.length+xrPicked.length+projectPicked.length;
+      // 근무표 "당일" 칸과 같은 셈(오전데·평일 PJ 제외)
+      let _tot=vwPicked.length+cgPicked.length-(morningDeskAssign&&cgPicked.includes(morningDeskAssign)?1:0)+xrPicked.length+(isHoliOrWE?projectPicked.length:0);
       // VW 목표(7명) 먼저 — 사람 근무표는 평일 VW 7명 고정(39/39주). 하루 상한을 넘으면 CG 일반 근무자 1명과 바꿈(3D 2명·데스크·8진·뉴오는 유지)
       if (vwPicked.length<vwTarget) {
         const _vc=[...vwPool.filter(_ok),...data.staff.filter(p=>p.canVW&&deptOn(p,dateStr)!=='VW'&&!p.deskPriority&&!p.morningDeskPriority&&_ok(p))].map(p=>[p]).sort(_byTier);
@@ -996,6 +1006,7 @@ function _validateScheduleRange(targetSchedule, genDateStrs, phase) {
   const ilgeunHasPool=data.staff.some(s=>s.canIlgeun&&s.employmentType!=='freelancer'&&s.active!==false);
   const satHasPool=data.staff.some(s=>s.canSatMorning&&s.active!==false);
   const djHasPool=data.staff.some(s=>s.canDanjik&&s.active!==false);
+  const w8HasPool=data.staff.some(s=>s.canWeekday8jin&&s.employmentType!=='freelancer'&&s.active!==false);
   for (const ds of genDateStrs) {
     const entry=targetSchedule[ds];
     const d=new Date(ds+'T00:00:00');
@@ -1008,9 +1019,10 @@ function _validateScheduleRange(targetSchedule, genDateStrs, phase) {
     if(!(entry.cg?.desk8||entry.cg?.desk)) issues.push({date:ds,what:'CG데스'});
     if(entry.cg?.desk8&&entry.cg.desk8===entry.cg.desk5) issues.push({date:ds,what:'CG데스 중복'});
     if(entry.morningDesk&&[entry.cg?.desk8,entry.cg?.desk5,entry.vw?.desk].includes(entry.morningDesk)) issues.push({date:ds,what:'오전데 중복'});
+    if(isWeekdayForm(ds)&&w8HasPool&&!entry.weekday8jin&&phase!=='danjik') issues.push({date:ds,what:'8진'});
     if(isWeekdayForm(ds)&&phase!=='desk'&&phase!=='danjik'&&((data.settings.specialDays||{})[ds]||{}).cg==null){   // 평일 인원 하한(20명, 하루 상한이 더 작으면 상한) — 특정일 CG 인원을 정한 날은 그 수를 따름
       const _c0=((data.settings.specialDays||{})[ds]||{}).cap ?? (data.settings.wdDailyCap||data.settings.dailyCap||22);
-      const _t0=(entry.vw?.workers||[]).length+(entry.cg?.workers||[]).length+(entry.xr||[]).length+(entry.project||[]).length;
+      const _t0=(entry.vw?.workers||[]).length+(entry.cg?.workers||[]).length-(entry.morningDesk&&(entry.cg?.workers||[]).includes(entry.morningDesk)?1:0)+(entry.xr||[]).length+(isHoliday?(entry.project||[]).length:0);   // 근무표 "당일" 칸과 같은 셈
       if(_t0<Math.min(20,_c0)) issues.push({date:ds,what:'인원 '+_t0+'명'});
     }
     if(isWeekdayForm(ds)){   // 평일 틀: 8데스+5데스(8뉴스 2번 데스크), 공휴일이 아니면 오전데
@@ -1022,6 +1034,9 @@ function _validateScheduleRange(targetSchedule, genDateStrs, phase) {
     // 일근 누락 점검: 일요일 + 평일 공휴일 (canIlgeun 직원이 있을 때만)
     if((dow===0||(isHoliday&&!isWeekend))&&ilgeunHasPool&&!entry.ilgeun&&phase!=='danjik') issues.push({date:ds,what:'일근'});
   }
+  // 평일 8진 한 사람 주 2회 이상
+  { const w8={}; genDateStrs.forEach(ds=>{ const e=targetSchedule[ds]; if(e&&e.weekday8jin){ const k=getWeekKey(ds)+'|'+e.weekday8jin; (w8[k]=w8[k]||[]).push(ds); } });
+    Object.entries(w8).forEach(([k,l])=>{ if(l.length>1){ const st=staffById(k.split('|')[1]); issues.push({date:l[1],what:'8진 주2회 '+(st?.name||'')}); } }); }
   // 주 7일(월~일 매일 근무) — 생성 결과가 낀 경우만(그 주 7일이 모두 손입력 칸이면 사용자가 정한 것). 조근 부서는 평일 기본 근무가 칸에 없어 제외
   const _inR=new Set(genDateStrs), _src=d=>_inR.has(d)?(targetSchedule[d]||null):_genSchedOn(targetSchedule,d);
   for (const wk of [...new Set(genDateStrs.map(getWeekKey))]) {
