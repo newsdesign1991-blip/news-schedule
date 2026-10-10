@@ -230,10 +230,56 @@ function renderWorkshopTable() {
     const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_excl(id)&&!_vwSet.has(id)).length+(entry?.xr||[]).filter(id=>!_excl(id)).length+(!_ilgeunIsVW&&_ilgeunOk&&!_vwSet.has(entry.ilgeun)?1:0)+_8jinCgAdd+_newsOhCgAdd+_pjAdd;
     const dailyCnt=vwCnt+cgCnt;
     const dm=date.getMonth()+1,dd=date.getDate();
-    tbody+=`<tr class="${isWeekend||isHoliday?'weekend':''} ${isHoliday?'holiday':''} ${isToday?'today-row':''}">`;
+    // 이날 부족한 것(확인 칸과 같은 목록) — 행을 옅게 물들이고 날짜 칸을 빨갛게 강조
+    const _miss=(()=>{ const missing=[];
+      if(!entry?.vw?.desk) missing.push('VW데스');
+      if(!(entry?.cg?.desk8||entry?.cg?.desk)) missing.push('CG데스');
+      if(entry?.cg?.desk8&&entry.cg.desk8===entry.cg.desk5) missing.push('데스 겹침');
+      if(entry?.morningDesk&&[entry.cg?.desk8,entry.cg?.desk5,entry.vw?.desk].includes(entry.morningDesk)) missing.push('오전데 겹침');
+      // 인원: 평일 틀은 VW 목표·하루 합계 하한(20, 상한이 더 작으면 상한), 주말 틀은 VW·CG 목표 — 특정일 인원 설정이 있으면 그 값
+      { const _st=data.settings||{}, _sd=(_st.specialDays||{})[dateStr]||{}, _wd=isWeekdayForm(dateStr);
+        const _vt=_sd.vw ?? (_wd?(_st.weekdayVW||7):(dow===6?(_st.satVW||_st.weekendVW||4):(_st.sunVW||_st.weekendVW||4)));
+        if(entry&&vwCnt<_vt) missing.push('VW '+vwCnt+'/'+_vt);
+        if(entry&&_wd&&_sd.cg==null){ const _cap=_sd.cap ?? (_st.wdDailyCap||_st.dailyCap||22), _fl=Math.min(20,_cap); if(dailyCnt<_fl) missing.push('인원 '+dailyCnt+'/'+_fl); }
+        if(entry&&!_wd){ const _ct=_sd.cg ?? (dow===6?(_st.satCG||6):(_st.sunCG||7)); if(cgCnt<_ct) missing.push('CG '+cgCnt+'/'+_ct); }
+      }
+      if(isWeekdayForm(dateStr)){   // 평일 틀(8뉴스 평일 편성 공휴일 포함)
+        if(!entry?.cg?.desk5) missing.push('5데스');   // 8뉴스 2번 데스크
+        if(!isHoliday&&!entry?.morningDesk) missing.push('오전데');
+        if(!entry?.danjik) missing.push('당직');
+        if(!entry?.weekday8jin) missing.push('8진');
+        if(!isHoliday&&!entry?.newsOh) missing.push('오.뉴');   // 공휴일엔 뉴.오 없음
+        if(isHoliday&&!entry?.ilgeun) missing.push('일근');   // 평일 편성 공휴일 = 평일 틀 + 일근
+        // 평일 조근 인원 체크: 실제 조근 커버 인원이 풀 인원보다 적으면 경고
+        const jogeunPoolForCheck = getStaff('조근', dateStr);
+        if (jogeunPoolForCheck.length > 0) {
+          const jogeunSubsForDay = entry?.jogeunSubs || {};
+          let jogeunCovered = 0;
+          jogeunPoolForCheck.forEach(jp => {
+            const onLv = (_newLvs?.[dateStr]||[]).includes(jp.id);
+            const subId = jogeunSubsForDay[jp.id];
+            const subValid = subId && !(_newLvs?.[dateStr]||[]).includes(subId);
+            if (!onLv || subValid) jogeunCovered++;
+          });
+          // jogeunExtra(브러시로 추가한 조근 인원)로 부족분 보충
+          const _extraJogeun = (entry?.jogeunExtra||[]).filter(id=>!(_newLvs?.[dateStr]||[]).includes(id));
+          jogeunCovered = Math.min(jogeunPoolForCheck.length, jogeunCovered + _extraJogeun.length);
+          if (jogeunCovered < jogeunPoolForCheck.length) {
+            missing.push(`조근${jogeunCovered}/${jogeunPoolForCheck.length}`);
+          }
+        }
+      } else {
+        if(!entry?.danjik) missing.push('당직');
+        if(!entry?.weekend8jin) missing.push('8진');   // 주말·주말 편성 공휴일
+        if(dow===6&&!entry?.satMorning) missing.push('조근');
+        if((dow===0||(isHoliday&&!isWeekend))&&!entry?.ilgeun) missing.push('일근');
+      }
+      return missing; })();
+    const _missHi=_miss.length>0 && !!entry && !!((entry.vw?.workers||[]).length||(entry.cg?.workers||[]).length);   // 아직 안 짠 빈 날은 강조 안 함
+    tbody+=`<tr class="${isWeekend||isHoliday?'weekend':''} ${isHoliday?'holiday':''} ${isToday?'today-row':''} ${_missHi?'ws-miss':''}">`;
     const shortHoliWs=holidayName.length>4?holidayName.slice(0,4)+'…':holidayName;
     const _isSp = !!(data.settings.specialDays||{})[dateStr];
-    tbody+=`<td class="date-td" onclick="openDaySpecial('${dateStr}', event)" style="cursor:pointer;${_isSp?'box-shadow:inset 3px 0 0 #f0a500;':''}" title="${_isSp?'특정일 인원 지정됨 — 클릭하여 수정':'클릭: 적정 인원/상세 편집'}">${dm}/${dd}${_isSp?'<span style="color:#f0a500;">📌</span>':''}${isHoliday?`<br><span style="font-size:8px;color:#a8657f;white-space:nowrap;">${shortHoliWs}</span>`:''}</td>`;
+    tbody+=`<td class="date-td${_missHi?' ws-miss-date':''}" onclick="openDaySpecial('${dateStr}', event)" style="cursor:pointer;${_isSp?'box-shadow:inset 3px 0 0 #f0a500;':''}" title="${_miss.length?'부족: '+_miss.join(', ')+' — ':''}${_isSp?'특정일 인원 지정됨 — 클릭하여 수정':'클릭: 적정 인원/상세 편집'}">${dm}/${dd}${_isSp?'<span style="color:#f0a500;">📌</span>':''}${isHoliday?`<br><span style="font-size:8px;color:#a8657f;white-space:nowrap;">${shortHoliWs}</span>`:''}</td>`;
     tbody+=`<td class="dow-td ${dowClass}">${DOW_KR[dow]}</td>`;
 
     // VW cells
@@ -396,51 +442,9 @@ function renderWorkshopTable() {
       tbody+=`<td title="${_cgTip}" style="text-align:center;font-size:11px;font-weight:700;color:${cgCnt?'var(--cg-light)':'var(--muted)'};cursor:help;">${cgCnt||'-'}</td>`;
     }
     tbody+=`<td style="text-align:center;font-size:11px;font-weight:700;color:${dailyCnt?'var(--vw-light)':'var(--muted)'};">${dailyCnt||'-'}</td>`;
-    // 확인 열: 누락 항목 표시
+    // 확인 열: 누락 항목 표시(목록은 행 시작 전에 계산한 _miss)
     {
-      const missing=[];
-      if(!entry?.vw?.desk) missing.push('VW데스');
-      if(!(entry?.cg?.desk8||entry?.cg?.desk)) missing.push('CG데스');
-      if(entry?.cg?.desk8&&entry.cg.desk8===entry.cg.desk5) missing.push('데스 겹침');
-      if(entry?.morningDesk&&[entry.cg?.desk8,entry.cg?.desk5,entry.vw?.desk].includes(entry.morningDesk)) missing.push('오전데 겹침');
-      // 인원: 평일 틀은 VW 목표·하루 합계 하한(20, 상한이 더 작으면 상한), 주말 틀은 VW·CG 목표 — 특정일 인원 설정이 있으면 그 값
-      { const _st=data.settings||{}, _sd=(_st.specialDays||{})[dateStr]||{}, _wd=isWeekdayForm(dateStr);
-        const _vt=_sd.vw ?? (_wd?(_st.weekdayVW||7):(dow===6?(_st.satVW||_st.weekendVW||4):(_st.sunVW||_st.weekendVW||4)));
-        if(entry&&vwCnt<_vt) missing.push('VW '+vwCnt+'/'+_vt);
-        if(entry&&_wd&&_sd.cg==null){ const _cap=_sd.cap ?? (_st.wdDailyCap||_st.dailyCap||22), _fl=Math.min(20,_cap); if(dailyCnt<_fl) missing.push('인원 '+dailyCnt+'/'+_fl); }
-        if(entry&&!_wd){ const _ct=_sd.cg ?? (dow===6?(_st.satCG||6):(_st.sunCG||7)); if(cgCnt<_ct) missing.push('CG '+cgCnt+'/'+_ct); }
-      }
-      if(isWeekdayForm(dateStr)){   // 평일 틀(8뉴스 평일 편성 공휴일 포함)
-        if(!entry?.cg?.desk5) missing.push('5데스');   // 8뉴스 2번 데스크
-        if(!isHoliday&&!entry?.morningDesk) missing.push('오전데');
-        if(!entry?.danjik) missing.push('당직');
-        if(!entry?.weekday8jin) missing.push('8진');
-        if(!isHoliday&&!entry?.newsOh) missing.push('오.뉴');   // 공휴일엔 뉴.오 없음
-        if(isHoliday&&!entry?.ilgeun) missing.push('일근');   // 평일 편성 공휴일 = 평일 틀 + 일근
-        // 평일 조근 인원 체크: 실제 조근 커버 인원이 풀 인원보다 적으면 경고
-        const jogeunPoolForCheck = getStaff('조근', dateStr);
-        if (jogeunPoolForCheck.length > 0) {
-          const jogeunSubsForDay = entry?.jogeunSubs || {};
-          let jogeunCovered = 0;
-          jogeunPoolForCheck.forEach(jp => {
-            const onLv = (_newLvs?.[dateStr]||[]).includes(jp.id);
-            const subId = jogeunSubsForDay[jp.id];
-            const subValid = subId && !(_newLvs?.[dateStr]||[]).includes(subId);
-            if (!onLv || subValid) jogeunCovered++;
-          });
-          // jogeunExtra(브러시로 추가한 조근 인원)로 부족분 보충
-          const _extraJogeun = (entry?.jogeunExtra||[]).filter(id=>!(_newLvs?.[dateStr]||[]).includes(id));
-          jogeunCovered = Math.min(jogeunPoolForCheck.length, jogeunCovered + _extraJogeun.length);
-          if (jogeunCovered < jogeunPoolForCheck.length) {
-            missing.push(`조근${jogeunCovered}/${jogeunPoolForCheck.length}`);
-          }
-        }
-      } else {
-        if(!entry?.danjik) missing.push('당직');
-        if(!entry?.weekend8jin) missing.push('8진');   // 주말·주말 편성 공휴일
-        if(dow===6&&!entry?.satMorning) missing.push('조근');
-        if((dow===0||(isHoliday&&!isWeekend))&&!entry?.ilgeun) missing.push('일근');
-      }
+      const missing=_miss;
       if(missing.length){
         // 한 줄만: 첫 항목 + 나머지는 "+N" (전체는 title hover로 보존)
         const _mhtml = missing.length===1

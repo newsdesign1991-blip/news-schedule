@@ -245,3 +245,10 @@ tr.dragging { opacity:0.35; }
 #special-day-modal .sp-news { flex-wrap: wrap; cursor: default; }
 #special-day-modal .sp-news > span { flex: 1 1 100%; }
 #special-day-modal .sp-news select { width: 100%; min-height: 40px; padding: 8px 12px; border-radius: 12px; }
+/* 작성소: 부족한 것이 있는 날(확인 칸과 같은 목록) — 행을 옅게 물들이고 날짜·요일 칸을 빨갛게 */
+.excel-table tbody tr.ws-miss td { background-image: linear-gradient(rgba(229,72,77,.07), rgba(229,72,77,.07)); }
+.excel-table tbody tr.ws-miss td.date-td.ws-miss-date { background: #fde2e1 !important; color: #d0343a !important; font-weight: 800; box-shadow: inset 4px 0 0 #e5484d !important; }
+.excel-table tbody tr.ws-miss td.dow-td { background: #fdecea !important; color: #d0343a !important; }
+[data-theme="dark"] .excel-table tbody tr.ws-miss td { background-image: linear-gradient(rgba(255,99,99,.09), rgba(255,99,99,.09)); }
+[data-theme="dark"] .excel-table tbody tr.ws-miss td.date-td.ws-miss-date { background: #4a2326 !important; color: #ff9a9a !important; box-shadow: inset 4px 0 0 #ff6b6b !important; }
+[data-theme="dark"] .excel-table tbody tr.ws-miss td.dow-td { background: #3d2224 !important; color: #ff9a9a !important; }

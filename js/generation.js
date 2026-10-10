@@ -759,15 +759,16 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       list.push(id);   // 바꿀 일반 근무자가 없으면 추가
     };
     // 평일 8진 (평일 틀, canWeekday8jin 직원, 공평 순환, 주 1회 제한)
+    const _no8XR=p=>String(deptOn(p,dateStr)||'').toUpperCase()!=='XR';   // XR 부서(그날 기준)는 8진 안 맡음 — 8진 표시가 남아 있어도
     let weekday8jinAssign = _prevSnap[dateStr]?.weekday8jin || null;
     if (!weekday8jinAssign && !tmplWE && weekday8jinPool.length > 0) {
       if (!weekday8jinWeekDone[wk]) weekday8jinWeekDone[wk] = new Set();
       const weekDone = weekday8jinWeekDone[wk];
       const _ok=p=>!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&!_deskIds.has(p.id)&&isContractActive(p,dateStr)&&_freeOk(p)&&!(dow===5&&weekendDeskPlan[wk]?.sat===p.id);   // 금요일엔 토요 조근 예약자 제외
       // 이번 주 미배정자 우선, 없으면 전체 허용. 같은 횟수면 이미 그날 근무자인 사람 우선
-      let cand = weekday8jinPool.filter(p=>_ok(p)&&!weekDone.has(p.id));
+      let cand = weekday8jinPool.filter(p=>_ok(p)&&!weekDone.has(p.id)&&_no8XR(p));
       // 한 사람 주 1회는 지킴(같은 주 두 번 없음): 후보가 없으면 '주 5일·연속' 같은 부드러운 규칙만 풀고(주 6일까지), 그래도 없으면 비워 두고 재시도
-      if (!cand.length) cand = weekday8jinPool.filter(p=>!weekDone.has(p.id)&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&!_deskIds.has(p.id)&&_okAvail(p)&&(_inLists(p.id)||_cap(p.id))&&!(dow===5&&weekendDeskPlan[wk]?.sat===p.id));
+      if (!cand.length) cand = weekday8jinPool.filter(p=>_no8XR(p)&&!weekDone.has(p.id)&&!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&!_deskIds.has(p.id)&&_okAvail(p)&&(_inLists(p.id)||_cap(p.id))&&!(dow===5&&weekendDeskPlan[wk]?.sat===p.id));
       const sorted = shuffleSort(cand, p=>(weekday8jinCount[p.id]||0)*2+(_inLists(p.id)?0:1));
       if (sorted.length) {
         weekday8jinAssign = sorted[0].id;
@@ -795,7 +796,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
     let weekend8jinAssign = _prevSnap[dateStr]?.weekend8jin || null;
     if (!weekend8jinAssign && tmplWE && weekend8jinPool.length > 0) {
       const _ok=p=>!isOnLeave(p.id,dateStr)&&!blockedIds.includes(p.id)&&!_deskIds.has(p.id)&&isContractActive(p,dateStr)&&!(isHoliOrWE&&_meets(p.id,'work',dateStr))&&_freeOk(p);
-      const cand = weekend8jinPool.filter(_ok);
+      const cand = weekend8jinPool.filter(p=>_ok(p)&&_no8XR(p));
       const sorted = shuffleSort(cand, p=>(weekend8jinCount[p.id]||0)*2+(_inLists(p.id)?0:1));
       if (sorted.length) { weekend8jinAssign=sorted[0].id; weekend8jinCount[sorted[0].id]=(weekend8jinCount[sorted[0].id]||0)+1; _addIv(weekend8jinAssign,'work',dateStr); }
     }
