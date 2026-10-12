@@ -102,7 +102,7 @@ function chooseSpecialDuty(index){
     const key='special:'+duty.key;
     WS_BRUSH_LABELS[key]=duty.label||duty.text;
     const btn=document.getElementById('ws-special-duty');
-    if(btn){btn.dataset.brush=key;btn.textContent=duty.label||duty.text;}
+    if(btn){btn.dataset.brush=key;btn.textContent='특수 근무 ▾';btn.title='선택: '+(duty.label||duty.text);}
     setWsBrush(key);closeSpecialDutyPicker();return;
   }
   const {staffId,ds,draft}=target;

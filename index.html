@@ -45,7 +45,7 @@ window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.hre
 <link rel="stylesheet" href="css/notice-poll.css?v=5d9dbdd0">
 <link rel="stylesheet" href="css/toss-common.css?v=f6f7ca81">
 <link rel="stylesheet" href="css/calendar.css?v=fb8bf996">
-<link rel="stylesheet" href="css/table.css?v=99f1d91c">
+<link rel="stylesheet" href="css/table.css?v=b98a1388">
 <link rel="stylesheet" href="css/modal.css?v=cbec7bd9">
 <link rel="stylesheet" href="css/admin.css?v=26623598">
 <link rel="stylesheet" href="css/gantt-etc.css?v=82a1d736">
@@ -773,10 +773,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <!-- 브러쉬 바 -->
   <div id="ws-brush-bar" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:6px 8px;margin-bottom:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
     <span style="font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;margin-right:2px;">🖌</span>
-    <button class="ws-brush-btn" data-brush="select" onclick="setWsBrush('select')">마우스 선택</button>
-    <button class="ws-brush-btn" data-brush="special:excluded-work" onclick="setWsBrush('special:excluded-work')" style="background:#d9d9d9;color:#333">정근 · 집계 제외</button>
-    <button class="ws-brush-btn" data-brush="special:n" onclick="setWsBrush('special:n')">N</button>
-    <button class="ws-brush-btn" data-brush="special:vw2" onclick="setWsBrush('special:vw2')" style="background:var(--vw-bg);color:var(--vw-light)">VW2</button>
+    <button class="ws-brush-btn" data-brush="select" onclick="setWsBrush('select')" aria-label="마우스 선택" title="마우스 선택 · Shift로 범위 선택, Ctrl+C / Ctrl+V" style="display:inline-flex;align-items:center;justify-content:center;width:34px;padding:4px;color:var(--text);background:var(--surface);border-color:var(--border)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="6"/><path d="M12 6v4"/></svg></button>
     <button class="ws-brush-btn" data-brush="work"     onclick="setWsBrush('work')"     style="border-color:#d1d5db;background:#fff;color:#475569;">정근</button>
     <button class="ws-brush-btn" data-brush="vw-desk"  onclick="setWsBrush('vw-desk')"  style="border-color:#c5cce8;background:#eef1f9;color:#5d6fb0;">VW데스크</button>
     <button class="ws-brush-btn" data-brush="desk8"    onclick="setWsBrush('desk8')"    style="border-color:#a8d8e2;background:#e3f4f8;color:#4a9fbd;">8데스크</button>
@@ -792,7 +789,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
     <button class="ws-brush-btn" data-brush="cg-sub"   onclick="setWsBrush('cg-sub')"   style="border-color:#a8d8e2;background:#e3f4f8;color:#437d93;">CG대체</button>
     <button class="ws-brush-btn" data-brush="leave"    onclick="setWsBrush('leave')"    style="border-color:#e2d2a8;background:#fdf8ee;color:#c79a5e;">신휴가</button>
     <button class="ws-brush-btn" data-brush="jogeun-edu" onclick="setWsBrush('jogeun-edu')" style="border-color:#a8d5b8;background:#d4edda;color:#276c3e;">조근교육</button>
-    <button class="ws-brush-btn" id="ws-special-duty" onclick="openSpecialDutyPicker()" style="border-color:var(--border);background:var(--surface2);color:var(--text);">특수 근무 ▾</button>
+    <button class="ws-brush-btn" id="ws-special-duty" onclick="openSpecialDutyPicker()" title="집계 제외 정근 · N · VW2 · 출장 · 교육 · 기타 휴가">특수 근무 ▾</button>
     <button class="ws-brush-btn" data-brush="off"      onclick="setWsBrush('off')"      style="border-color:var(--border);background:#f8fafc;color:var(--muted);">지우기</button>
     <span id="ws-brush-label" style="font-size:11px;color:#6366f1;font-weight:600;margin-left:4px;display:none;"></span>
   </div>
@@ -1188,7 +1185,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.12 21:13';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.12 21:57';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1459,7 +1456,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/leave-request.js?v=bc9ed88b"></script>
 <script src="js/staff.js?v=e69bc478"></script>
 <script src="js/admin.js?v=8196790b"></script>
-<script src="js/cell-edit.js?v=3a4d1d0e"></script>
+<script src="js/cell-edit.js?v=799de12b"></script>
 <script src="js/login-ui.js?v=882273b7"></script>
 <script src="js/notice.js?v=74195e16"></script>
 <script src="js/poll.js?v=0cd98cbc"></script>
