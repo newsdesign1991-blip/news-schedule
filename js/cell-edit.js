@@ -18,6 +18,7 @@ function cellClick(staffId, dateStr, event) {
   const isMorning=curMorning===staffId;
   let optHtml=`<div style="font-size:10px;color:#888;font-weight:700;padding:2px 4px 4px;">${s.name}</div>`;
   const _hasCustom=!!((_draftCellMode?data.draft?.schedule:data.schedule)?.[dateStr]?.customCells?.[staffId]);
+  optHtml+=`<button class="pop-opt" onclick="event.stopPropagation();openSpecialDutyPicker('${staffId}','${dateStr}')">특수 근무 선택</button>`;
   optHtml+=`<button class="pop-opt" style="background:${_hasCustom?'#6366f1':'#f0f3f8'};color:${_hasCustom?'#fff':'#64748b'};border:1px solid #c5cce8;" onclick="event.stopPropagation();openCustomCell('${staffId}','${dateStr}')">${_hasCustom?'직접입력(수정)':'직접입력'}</button>`;
   opts.innerHTML=optHtml;
   const rect=event.currentTarget.getBoundingClientRect();
@@ -49,6 +50,72 @@ function morningCellClick(dateStr, event) {
 }
 
 function closeCellPop() { document.getElementById('cell-popover').style.display='none'; }
+
+// Excel imports and manual choices use the same assignment fields and palette.
+const SPECIAL_DUTIES = [
+  {key:'excluded-work',text:'정근',label:'정근 · 집계 제외',group:'인원 집계 제외',bg:'#d9d9d9',color:'#333333',excl:true},
+  {key:'n',text:'N',group:'인원 집계 제외',bg:'var(--surface2)',color:'var(--muted)',excl:true},
+  {key:'vw2',text:'VW2',group:'인원 집계 제외',bg:'var(--vw-bg)',color:'var(--vw-light)'},
+  ...['출장','Jr.캠프','AI 교육','교육','면접관','대의원','주.캠','NDS'].map(text=>({key:text,text,group:'출장 · 교육 · 기타',bg:'#ffc1df',color:'#000000'})),
+  ...['Jr.휴가','경조','공가'].map(text=>({key:text,text,group:'휴가',kind:'leave'})),
+  {key:'ojende8',text:'오전8데',group:'복합 근무',kind:'ojende8'}
+];
+let _specialDutyTarget = null;
+function _assignSpecialDuty(entry, staffId, ds, key, leaves) {
+  const duty=SPECIAL_DUTIES.find(d=>d.key===key);
+  if(!duty)return false;
+  _brushClearStaff(entry,staffId,ds,leaves);
+  if(duty.kind==='leave'){
+    (leaves[ds] ||= []).push(staffId);
+    (entry.leaveLabels ||= {})[staffId]=duty.text;
+  }else if(duty.kind==='ojende8'){
+    entry.morningDesk=staffId;
+    _brushAddWorker(entry,staffId,'cg');
+    entry.cg.desk8=staffId;
+  }else{
+    (entry.customCells ||= {})[staffId]={text:duty.text,bg:duty.bg,color:duty.color,...(duty.excl?{excl:true}:{})};
+  }
+  return true;
+}
+function closeSpecialDutyPicker(){
+  document.getElementById('special-duty-modal')?.remove();
+  _specialDutyTarget=null;
+}
+function openSpecialDutyPicker(staffId,ds){
+  if(!isAdmin)return;
+  closeCellPop(); closeSpecialDutyPicker();
+  _specialDutyTarget=staffId?{staffId,ds,draft:!!_draftCellMode}:null;
+  const modal=document.createElement('div');
+  modal.id='special-duty-modal'; modal.className='special-duty-overlay';
+  modal.innerHTML=`<section class="special-duty-panel" role="dialog" aria-modal="true" aria-labelledby="special-duty-title">
+    <div class="modal-header"><div class="mh-title" id="special-duty-title">특수 근무 선택</div><button class="modal-close" aria-label="닫기" onclick="closeSpecialDutyPicker()">✕</button></div>
+    <div class="special-duty-body"><p>${staffId?'선택한 날짜의 근무를 변경합니다.':'근무를 선택한 뒤 표의 칸을 누르면 적용됩니다.'} 출장·교육은 기존 엑셀과 동일하게 인원 집계에서 제외됩니다.</p>
+    ${[...new Set(SPECIAL_DUTIES.map(d=>d.group))].map(group=>`<h3>${group}</h3><div class="special-duty-grid">${SPECIAL_DUTIES.map((d,i)=>d.group===group?`<button type="button" onclick="chooseSpecialDuty(${i})"><span style="background:${d.bg||'var(--surface2)'};color:${d.color||'var(--text)'}">${d.label||d.text}</span></button>`:'').join('')}</div>`).join('')}</div></section>`;
+  document.body.appendChild(modal);
+  modal.querySelector('.modal-close').focus();
+}
+function chooseSpecialDuty(index){
+  if(!isAdmin)return;
+  const duty=SPECIAL_DUTIES[index]; if(!duty)return;
+  const target=_specialDutyTarget;
+  if(!target){
+    const key='special:'+duty.key;
+    WS_BRUSH_LABELS[key]=duty.label||duty.text;
+    const btn=document.getElementById('ws-special-duty');
+    if(btn){btn.dataset.brush=key;btn.textContent=duty.label||duty.text;}
+    setWsBrush(key);closeSpecialDutyPicker();return;
+  }
+  const {staffId,ds,draft}=target;
+  const staff=staffById(staffId);
+  if(!staff||!isContractActive(staff,ds)||isDispatched(staff,ds)){toast('계약 외 기간 또는 파견 기간에는 지정할 수 없습니다.','error');return;}
+  if(draft)_pushWsHistory();
+  const entry=draft?_ensureDraftEntry(ds):(data.schedule[ds] ||= {vw:{workers:[],desk:null},cg:{workers:[],desk8:null,desk5:null}});
+  const leaves=draft?(data.draft.newLeaves ||= {}):(data.leaves ||= {});
+  _assignSpecialDuty(entry,staffId,ds,duty.key,leaves);
+  closeSpecialDutyPicker();_draftCellMode=false;
+  saveData(data);if(draft)renderWorkshopTable();else{renderTable();renderHome();}
+  toast((duty.label||duty.text)+' 적용됨','success');
+}
 
 function openCustomCell(staffId, dateStr) {
   const pop=document.getElementById('cell-popover');

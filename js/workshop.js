@@ -499,6 +499,7 @@ function renderWorkshopTable() {
   cgCols.forEach(s=>{const cnt=workCount[s.id]||0;tbody+=`<td style="text-align:center;font-size:11px;font-weight:700;color:${cnt>weekdaysInMonth?'#d65a52':cnt?'var(--text)':'var(--muted)'};">${cnt||'-'}</td>`;});
   tbody+=`<td></td><td></td><td></td><td></td></tr>`;
   document.getElementById('ws-tbody').innerHTML=tbody;
+  _wsPaintSelection();
   // 비고 열 폭을 가장 긴 비고 내용에 맞춰 동적 조정(내용 없으면 기본, 길면 늘림)
   (function(){
     const col=document.getElementById('ws-bigo-col'); const tb=document.getElementById('ws-tbody');
@@ -512,12 +513,16 @@ function renderWorkshopTable() {
 
 let wsBrushType = null;
 const WS_BRUSH_LABELS = {
+  'select':'마우스 선택','special:excluded-work':'정근 · 집계 제외','special:n':'N','special:vw2':'VW2',
   'work':'정근','vw-desk':'VW데스크','desk8':'8데스크','desk5':'5데스크',
   'danjik':'당직','jogeun':'조근','ojende':'오전데','8jin':'8진',
   'ilgeun':'일근','newsoh':'뉴.오','newsoh2':'뉴.오2','leave':'신휴가','off':'지우기'
 };
 function setWsBrush(type) {
-  wsBrushType = (wsBrushType === type) ? null : type;
+  wsBrushType = (wsBrushType === type && type !== 'select') ? null : type;
+  closeCellPop();
+  if(wsBrushType!=='select')_wsSelection=null;
+  _wsPaintSelection();
   document.querySelectorAll('.ws-brush-btn').forEach(b => {
     const on = b.dataset.brush === wsBrushType;
     b.style.outline = on ? '2px solid var(--accent)' : 'none';
@@ -526,6 +531,7 @@ function setWsBrush(type) {
   const lbl = document.getElementById('ws-brush-label');
   if (lbl) {
     lbl.textContent = wsBrushType ? ('✏ ' + (WS_BRUSH_LABELS[wsBrushType]||wsBrushType) + ' 브러쉬 — 셀 클릭 시 즉시 적용') : '💡 셀 더블클릭 → 근무명 타이핑 (당직·일근·정근·조근·8진·뉴.오·오전데·VW데스크 등)';
+    if(wsBrushType==='select')lbl.textContent='셀 클릭 · Shift+클릭 범위 선택 · Ctrl+C 복사 · Ctrl+V 붙여넣기';
     lbl.style.display = 'inline';
   }
   const tbody = document.getElementById('ws-tbody');
@@ -536,8 +542,12 @@ function _ensureDraftEntry(ds) {
   if (!data.draft.schedule[ds]) data.draft.schedule[ds] = {vw:{workers:[],desk:null},cg:{workers:[],desk8:null,desk5:null},project:[],sports:[],xr:[],danjik:null,morningDesk:null,notes:''};
   return data.draft.schedule[ds];
 }
-function _brushClearStaff(entry, staffId, ds) {
+function _brushClearStaff(entry, staffId, ds, leaves = data.draft?.newLeaves) {
   if(entry.importedCells)delete entry.importedCells[staffId];
+  if(entry.customCells)delete entry.customCells[staffId];
+  if(entry.leaveLabels)delete entry.leaveLabels[staffId];
+  for(const key of ['weekday8jin2','weekend8jin2']) if(entry[key]===staffId)entry[key]=null;
+  if(entry.restWorkers)entry.restWorkers=entry.restWorkers.filter(id=>id!==staffId);
   if (entry.vw?.workers) entry.vw.workers = entry.vw.workers.filter(id=>id!==staffId);
   if (entry.vw?.desk===staffId) entry.vw.desk = null;
   if (entry.cg?.workers) entry.cg.workers = entry.cg.workers.filter(id=>id!==staffId);
@@ -555,7 +565,7 @@ function _brushClearStaff(entry, staffId, ds) {
   if (entry.weekend8jin===staffId) entry.weekend8jin = null;
   if (entry.newsOh===staffId)      entry.newsOh = null;
   if (entry.newsOh2===staffId)     entry.newsOh2 = null;
-  if (data.draft?.newLeaves?.[ds]) data.draft.newLeaves[ds] = data.draft.newLeaves[ds].filter(id=>id!==staffId);
+  if (leaves?.[ds]) leaves[ds] = leaves[ds].filter(id=>id!==staffId);
   if (entry.jogeunExtra) entry.jogeunExtra = entry.jogeunExtra.filter(id=>id!==staffId);
   if (entry.jogeunEdu)   entry.jogeunEdu   = entry.jogeunEdu.filter(id=>id!==staffId);
   if (entry.jogeunSubs) {
@@ -601,6 +611,10 @@ function _applyBrush(staffId, ds, skipRender) {
   if (isDispatched(s, ds)) { toast('파견 기간으로 입력이 불가능합니다.', 'error'); return; }
   const dept = (s.dept||'').toLowerCase();
   const bt = wsBrushType;
+  if (bt?.startsWith('special:')) {
+    _assignSpecialDuty(_ensureDraftEntry(ds), staffId, ds, bt.slice(8), data.draft.newLeaves ||= {});
+    saveData(data); if(!skipRender)renderWorkshopTable(); return;
+  }
   const dow = new Date(ds+'T00:00:00').getDay();
   const isWE  = dow===0 || dow===6 || !!(data.holidays&&data.holidays[ds]);
   const isSat = dow===6;
@@ -620,6 +634,7 @@ function _applyBrush(staffId, ds, skipRender) {
 
   if (bt === 'leave') {
     if (!data.draft) data.draft = {schedule:{}, newLeaves:{}};
+    _brushClearStaff(_ensureDraftEntry(ds),staffId,ds);
     if (!data.draft.newLeaves) data.draft.newLeaves = {};
     if (!data.draft.newLeaves[ds]) data.draft.newLeaves[ds] = [];
     if (!data.draft.newLeaves[ds].includes(staffId)) data.draft.newLeaves[ds].push(staffId);
@@ -710,6 +725,7 @@ function wsCellClick(td, event) {
   event.stopPropagation();
   const staffId = td.dataset.sid;
   const dateStr = td.dataset.ds;
+  if(wsBrushType==='select'){_wsSelectCell(td,event.shiftKey);return;}
   if (wsBrushType) { _pushWsHistory(); _applyBrush(staffId, dateStr); return; }
   _draftCellMode = true;
   cellClick(staffId, dateStr, event);
@@ -790,3 +806,115 @@ function wsCellType(td){
   const _lbl=document.getElementById('ws-brush-label');
   if (_lbl && !wsBrushType){ _lbl.textContent='💡 셀 더블클릭 → 근무명 타이핑 (당직·일근·정근·조근·8진·뉴.오·오전데·VW데스크 등)'; _lbl.style.display='inline'; }
 })();
+// Rectangular, in-app clipboard: store assignment data, never just cell text.
+let _wsSelection=null, _wsClipboard=null;
+const WS_COPY_SINGLE=['danjik','morningDesk','satMorning','ilgeun','weekday8jin','weekend8jin','weekday8jin2','weekend8jin2','newsOh','newsOh2'];
+const WS_COPY_ARRAY=['project','sports','xr','jogeunExtra','jogeunEdu','restWorkers'];
+function _wsGrid(){
+  return [...document.querySelectorAll('#ws-tbody tr')].map(tr=>[...tr.querySelectorAll('td[data-sid][data-ds]')]).filter(row=>row.length);
+}
+function _wsSelectionBounds(grid){
+  if(!_wsSelection)return null;
+  const pos=point=>{for(let r=0;r<grid.length;r++){const c=grid[r].findIndex(td=>td.dataset.sid===point.sid&&td.dataset.ds===point.ds);if(c>=0)return {r,c};}return null;};
+  const a=pos(_wsSelection.anchor),b=pos(_wsSelection.end);if(!a||!b)return null;
+  return {r:Math.min(a.r,b.r),c:Math.min(a.c,b.c),rows:Math.abs(a.r-b.r)+1,cols:Math.abs(a.c-b.c)+1};
+}
+function _wsPaintSelection(){
+  const grid=_wsGrid(),b=wsBrushType==='select'?_wsSelectionBounds(grid):null;
+  grid.forEach((row,r)=>row.forEach((td,c)=>{
+    const on=!!b&&r>=b.r&&r<b.r+b.rows&&c>=b.c&&c<b.c+b.cols;
+    td.classList.toggle('ws-selected-cell',on);
+    if(on)td.setAttribute('aria-selected','true');else td.removeAttribute('aria-selected');
+  }));
+}
+function _wsSelectCell(td,extend){
+  const point={sid:td.dataset.sid,ds:td.dataset.ds};
+  _wsSelection={anchor:extend&&_wsSelection?_wsSelection.anchor:point,end:point};
+  window.getSelection()?.removeAllRanges();_wsPaintSelection();
+  const tb=document.getElementById('ws-tbody');tb.tabIndex=-1;tb.focus({preventScroll:true});
+}
+function _wsCaptureAssignment(entry,id,leaves,text,dept){
+  const e=entry||{},copy={single:[],arrays:[],groups:{},leave:(leaves||[]).includes(id)};
+  for(const k of WS_COPY_SINGLE)if(e[k]===id)copy.single.push(k);
+  for(const k of WS_COPY_ARRAY)if(e[k]?.includes(id))copy.arrays.push(k);
+  for(const group of ['vw','cg']){
+    const roles=[];for(const k of ['desk','desk8','desk5'])if(e[group]?.[k]===id)roles.push(k);
+    if(e[group]?.workers?.includes(id))roles.push('workers');
+    if(roles.length)copy.groups[group]=roles;
+  }
+  if(Object.values(e.jogeunSubs||{}).includes(id)&&!copy.arrays.includes('jogeunExtra'))copy.arrays.push('jogeunExtra');
+  for(const k of ['customCells','leaveLabels'])if(e[k]?.[id]!=null)copy[k]=JSON.parse(JSON.stringify(e[k][id]));
+  const imported=_importCellDisplay(e,id,leaves);
+  if(imported)copy.imported=JSON.parse(JSON.stringify(e.importedCells[id]));
+  // Automatically derived cells also need a concrete destination assignment.
+  if(!copy.single.length&&!copy.arrays.length&&!Object.keys(copy.groups).length&&!copy.leave&&!copy.customCells){
+    const label=(imported?.text??text??'').trim();
+    if(label==='정근'){
+      const d=String(dept).toLowerCase();
+      if(['vw','cg'].includes(d))copy.groups[d]=['workers'];
+      else if(['xr','sports','project'].includes(d))copy.arrays.push(d);
+    }else if(label==='조근')copy.arrays.push('jogeunExtra');
+    else if(['신휴가','Jr.휴가','공가','경조'].includes(label)){copy.leave=true;if(label!=='신휴가')copy.leaveLabels=label;}
+    else if(label&&label!=='-')copy.customCells={text:label,bg:'var(--surface2)',color:'var(--muted)',excl:true};
+    else copy.arrays.push('restWorkers');
+  }
+  return copy;
+}
+function _wsWriteAssignment(entry,id,ds,leaves,copy){
+  // Reject occupied unique duties instead of silently replacing another person.
+  for(const k of copy.single){if(entry[k]&&entry[k]!==id)throw Error(ds+'에 해당 역할의 다른 담당자가 있습니다.');entry[k]=id;}
+  for(const k of copy.arrays){entry[k] ||= [];if(!entry[k].includes(id))entry[k].push(id);}
+  for(const [group,roles] of Object.entries(copy.groups)){
+    entry[group] ||= {workers:[]};
+    for(const k of roles){
+      if(k==='workers'){entry[group].workers ||= [];if(!entry[group].workers.includes(id))entry[group].workers.push(id);}
+      else{if(entry[group][k]&&entry[group][k]!==id)throw Error(ds+'에 해당 데스크의 다른 담당자가 있습니다.');entry[group][k]=id;}
+    }
+  }
+  if(copy.leave)(leaves[ds] ||= []).push(id);
+  for(const k of ['customCells','leaveLabels'])if(copy[k]!=null)(entry[k] ||= {})[id]=JSON.parse(JSON.stringify(copy[k]));
+  if(copy.imported)(entry.importedCells ||= {})[id]={...copy.imported,signature:_importCellSignature(entry,id,leaves[ds])};
+}
+function _wsCopySelection(){
+  const grid=_wsGrid(),b=_wsSelectionBounds(grid);if(!b)return;
+  _wsClipboard=Array.from({length:b.rows},(_,r)=>Array.from({length:b.cols},(_,c)=>{
+    const td=grid[b.r+r][b.c+c],{sid,ds}=td.dataset,staff=staffById(sid);
+    return _wsCaptureAssignment(data.draft?.schedule?.[ds],sid,data.draft?.newLeaves?.[ds],td.textContent,deptOn(staff,ds));
+  }));
+  toast(`${b.rows*b.cols}개 셀 복사됨 · 붙여넣을 시작 셀을 선택하세요`,'success');
+}
+function _wsPasteSelection(){
+  const grid=_wsGrid(),b=_wsSelectionBounds(grid);if(!b||!_wsClipboard)return;
+  const rows=_wsClipboard.length,cols=_wsClipboard[0].length;
+  if(b.r+rows>grid.length||Array.from({length:rows},(_,r)=>grid[b.r+r].length).some(n=>b.c+cols>n)){toast('복사 범위가 표 밖으로 나갑니다. 시작 칸을 바꿔주세요.','error');return;}
+  const draft=JSON.parse(JSON.stringify(data.draft||{schedule:{},newLeaves:{}}));
+  draft.schedule ||= {};draft.newLeaves ||= {};
+  try{
+    // Clear the entire destination first so roles can move within the pasted block.
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+      const {sid,ds}=grid[b.r+r][b.c+c].dataset,s=staffById(sid);
+      if(!s||!isContractActive(s,ds)||isDispatched(s,ds))throw Error('계약 외 기간 또는 파견 기간이 포함되어 있습니다.');
+      const entry=draft.schedule[ds] ||= {vw:{workers:[]},cg:{workers:[]}};
+      _brushClearStaff(entry,sid,ds,draft.newLeaves);
+    }
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+      const {sid,ds}=grid[b.r+r][b.c+c].dataset;
+      _wsWriteAssignment(draft.schedule[ds],sid,ds,draft.newLeaves,_wsClipboard[r][c]);
+    }
+  }catch(err){toast(err.message+' 붙여넣기를 취소했습니다.','error');return;}
+  _pushWsHistory();data.draft=draft;
+  _wsSelection={anchor:{...grid[b.r][b.c].dataset},end:{...grid[b.r+rows-1][b.c+cols-1].dataset}};
+  saveData(data);renderWorkshopTable();toast(`${rows*cols}개 셀 붙여넣기 완료`,'success');
+}
+document.addEventListener('keydown',event=>{
+  if(!isAdmin||wsBrushType!=='select'||event.defaultPrevented)return;
+  const target=event.target;
+  if(target?.closest('input,textarea,select,[contenteditable="true"],[role="dialog"]'))return;
+  const table=document.getElementById('ws-tbody');
+  if(!table?.getClientRects().length||!table.contains(target))return;
+  if((event.ctrlKey||event.metaKey)&&!event.altKey){
+    const key=event.key.toLowerCase();
+    if(key==='c'){event.preventDefault();_wsCopySelection();}
+    if(key==='v'){event.preventDefault();_wsPasteSelection();}
+  }else if(event.key==='Escape'){_wsSelection=null;_wsPaintSelection();}
+});

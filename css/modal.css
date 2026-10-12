@@ -200,3 +200,15 @@ body[style*="overflow: hidden"] #floating-nav {
   .lr-pop.lr-cal-mode .lr-side-row{padding:12px 14px}.lr-pop.lr-cal-mode .lr-side-chip{font-size:13px;padding:4px 10px}
   .lr-pop.lr-cal-mode .lr-cal-head>b{font-size:20px}
 }
+/* Special duty picker: one scroll area, touch-sized choices. */
+.special-duty-overlay{position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.32);display:flex;align-items:center;justify-content:center;padding:16px}
+.special-duty-panel{width:min(520px,100%);max-height:calc(100dvh - 32px);display:flex;flex-direction:column;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:24px;overflow:hidden;box-shadow:0 20px 60px #0003}
+.special-duty-panel .modal-header{flex-shrink:0}.special-duty-panel .modal-close{flex:0 0 36px;width:36px;height:36px}
+.special-duty-body{overflow-y:auto;overscroll-behavior:contain;padding:8px 20px 24px}
+.special-duty-body p{font-size:13px;line-height:1.65;color:var(--muted)}
+.special-duty-body h3{font-size:14px;margin:20px 0 10px}
+.special-duty-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.special-duty-grid button{min-height:48px;padding:6px;border:1px solid var(--border);border-radius:12px;background:var(--surface2);cursor:pointer;font:inherit;font-size:14px;font-weight:700}
+.special-duty-grid span{display:block;padding:8px 4px;border-radius:7px;overflow-wrap:anywhere}
+.special-duty-grid button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(hover:hover){.special-duty-grid button:hover{border-color:var(--accent);background:rgba(49,130,246,.06)}}
