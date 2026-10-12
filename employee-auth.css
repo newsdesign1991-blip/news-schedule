@@ -51,3 +51,13 @@
 .employee-form p{font-size:13.5px}.employee-form .employee-hint{font-size:12px}
 .employee-form .btn{min-height:48px;border-radius:20px;font-size:14px;font-weight:700}
 .employee-form .btn-primary{min-height:50px;border:0;background:linear-gradient(135deg,#4a94ff,#2f77f6);color:#fff;font-size:15px;font-weight:800;box-shadow:0 4px 12px -4px rgba(49,130,246,.5)}
+
+/* 직원 A/B 구분과 비밀번호 설정 상태를 카드 전체로 표시 */
+.employee-account-group{margin-top:24px;}
+.employee-account-heading{display:flex;align-items:center;gap:9px;margin:0;font-size:16px;font-weight:800;color:var(--text);}
+.employee-account-heading span{font-size:12px;font-weight:600;color:var(--muted);}
+.employee-account[data-password-ready="true"]{background:linear-gradient(135deg,#deebff 0%,#ebf3ff 65%,#dfecff 100%) padding-box,linear-gradient(135deg,#a9cdff,#bed9ff) border-box;box-shadow:0 3px 12px rgba(49,130,246,.10);}
+[data-theme="dark"] .employee-account[data-password-ready="true"]{background:linear-gradient(135deg,#203859 0%,#243349 65%,#1c304e 100%) padding-box,linear-gradient(135deg,#426da5,#344c70) border-box;box-shadow:0 3px 12px rgba(0,0,0,.18);}
+.employee-account[data-password-ready="true"] .ea-st{background:rgba(255,255,255,.65);color:#245fb5;}
+[data-theme="dark"] .employee-account[data-password-ready="true"] .ea-st{background:rgba(103,167,255,.16);color:#b3d4ff;}
+@media(max-width:420px){.employee-account{flex-wrap:wrap;}.employee-account .ea-bot{flex-wrap:wrap;}.employee-account .ea-id b{font-size:15px;}}
