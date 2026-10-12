@@ -19,12 +19,24 @@
 .employee-head{padding:22px;background:rgba(49,130,246,.09);border-bottom:1px solid rgba(49,130,246,.18)}
 .employee-head h2{font-size:20px;margin:0 0 8px}.employee-head p,.employee-hint{font-size:14px;color:var(--muted);line-height:1.65}
 .employee-form{padding:20px;display:grid;gap:14px}.employee-form label{font-size:14px;font-weight:650}.employee-form input{display:block;width:100%;box-sizing:border-box;min-width:0;min-height:48px;padding:12px;margin-top:7px;font-size:16px;border-radius:12px;border:1px solid var(--border);color:var(--text);background:var(--surface)}
-.employee-form button,.employee-account button{min-height:44px}.employee-form [role=status]{color:#c5534b;font-size:14px}.employee-account-list{display:grid;gap:10px;margin-top:14px}.employee-account{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--border);border-radius:14px;padding:14px;background:var(--surface)}
+.employee-form button,.employee-account button{min-height:44px}.employee-form [role=status]{color:#c5534b;font-size:14px}/* 직원 계정 카드 — 직원 관리 카드(css/admin.css .staff-card)와 같은 반사 카드. 넓은 화면은 격자, 휴대폰은 한 줄에 하나 */
+.employee-account-list{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px}
+@media(min-width:1001px){.employee-account-list{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}}
+.employee-account{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid transparent;border-radius:16px;background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box;box-shadow:var(--shadow-card)}
+[data-theme="dark"] .employee-account{background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box}
+.employee-account .ea-top{display:flex;align-items:center;gap:10px;min-width:0}
+.employee-account .ea-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px}
+.employee-account .ea-id{min-width:0}
+.employee-account .ea-id b{display:block;font-size:14.5px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.employee-account .ea-id span{margin-top:2px;font-size:12px}
+.employee-account .ea-bot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto}
+.employee-account .ea-st{font-style:normal;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(240,140,40,.13);color:#b4621a;white-space:nowrap}
+.employee-account[data-password-ready="true"] .ea-st{background:rgba(49,130,246,.13);color:#2f6fd6}
+[data-theme="dark"] .employee-account .ea-st{background:rgba(240,140,40,.2);color:#f3b373}
+[data-theme="dark"] .employee-account[data-password-ready="true"] .ea-st{background:rgba(49,130,246,.24);color:#97c3ff}
+.employee-account .ea-bot .btn{min-height:40px;padding:0 16px;border-radius:12px;font-size:13px}
+@media(max-width:1000px){.employee-account{flex-direction:row;align-items:center;justify-content:space-between}.employee-account .ea-bot{margin-top:0}.employee-account details{display:none}}
 .employee-account>div{min-width:0}.employee-account span{display:block;font-size:13px;color:var(--muted);margin-top:5px}.employee-account summary{padding:12px 0;cursor:pointer;font-size:14px}.employee-account output{font-size:18px;letter-spacing:.15em}.employee-account button{flex-shrink:0}
-.employee-account[data-password-ready="true"]{background:linear-gradient(120deg,rgba(49,130,246,.15),rgba(91,164,255,.05)),var(--surface);border-color:rgba(49,130,246,.25)}
-.employee-account[data-password-ready="true"] span{color:#3267ae}
-[data-theme="dark"] .employee-account[data-password-ready="true"]{background:linear-gradient(120deg,rgba(49,130,246,.23),rgba(91,164,255,.07)),var(--surface);border-color:rgba(104,167,255,.32)}
-[data-theme="dark"] .employee-account[data-password-ready="true"] span{color:#97c3ff}
 /* ===== 앱 공통 팝업 스타일로 통일(일정 추가 등 토스 모달 기준): 제목 17/700 · 라벨 12.5/700 파랑 · 입력 14px·48·r20 · 버튼 r20 그라디언트 ===== */
 .employee-dialog{border-radius:22px;overflow:hidden auto}
 .employee-head{padding:20px 22px 15px}

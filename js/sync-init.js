@@ -1,6 +1,7 @@
 /* [모듈] js/sync-init.js — 자동 동기화·앱 시작(INIT) | dashboard.html 메인 스크립트에서 분리됨. 로드 순서 = dashboard.html의 <script> 순서(바꾸지 말 것) */
 // ===== 자동 동기화 (절약형: updated_at만 폴링 → 변경됐을 때만 전체 1회 로드) =====
 let _autoSyncTimer = null;
+let _bootRemoteOk = false;   // 부팅 때 원격 데이터를 받았는지 — 못 받았으면 첫 동기화 확인에서 바로 다시 받음
 const _AUTO_SYNC_MS = 120000; // 2분
 function _migrateRemote(remote) {
   if (!remote.leaves) remote.leaves = {};
@@ -63,7 +64,7 @@ async function _checkRemoteUpdate() {
     const rows = await res.json();
     const ua = rows?.[0]?.updated_at;
     if (!ua) return;
-    if (_ndUpdatedAt === null) { _ndUpdatedAt = ua; return; }
+    if (_ndUpdatedAt === null) { _ndUpdatedAt = ua; if (!_bootRemoteOk) await _reloadRemoteData(); return; }
     if (ua !== _ndUpdatedAt) { _ndUpdatedAt = ua; await _reloadRemoteData(); }
   } catch(e) {}
 }
@@ -83,12 +84,15 @@ function _looksEmptyData(d){
 (async () => {
   let _remoteLoadOk = false;   // 원격 fetch가 성공적으로 끝났는지(빈 응답 포함). 실패 시엔 절대 저장하지 않음.
   try {
-    const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload,updated_at`, {
+    const _bm = window.__ndBootMain; window.__ndBootMain = null;   // dashboard.html <head>에서 미리 시작한 요청(없으면 지금 요청)
+    const _get = () => fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload,updated_at`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
     });
+    let res;
+    try { res = await (_bm || _get()); } catch(e) { if (!_bm) throw e; res = await _get(); }   // 미리 요청이 연결 오류면 한 번 더
     if (!res.ok) throw new Error('HTTP '+res.status);
     const rows = await res.json();
-    _remoteLoadOk = true;
+    _remoteLoadOk = true; _bootRemoteOk = true;
     _ndUpdatedAt = rows?.[0]?.updated_at || null;
     const remote = rows?.[0]?.payload;
     if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
@@ -123,5 +127,6 @@ function _looksEmptyData(d){
   renderHome();
   if (currentUser) { var _vh0=document.getElementById('view-home'); if(_vh0){ _vh0.classList.remove('home-anim'); void _vh0.offsetWidth; _vh0.classList.add('home-anim'); setTimeout(function(){ _vh0.classList.remove('home-anim'); }, 1200); } }
   _startAutoSync();
+  setTimeout(()=>{ if (typeof ndLoadLib==='function') ndLoadLib('h2c').catch(()=>{}); }, 4000);   // 이미지 저장 라이브러리는 앱이 뜬 뒤 미리 받아 둠
 })();
 

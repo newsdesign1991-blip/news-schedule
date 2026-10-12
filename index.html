@@ -27,6 +27,14 @@
 });
 // 테마: 저장값을 즉시 적용(깜빡임 방지) — 파싱 시점에 <html>에 표시
 (function(){ try { var t=localStorage.getItem('nd_theme'); var sysDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches; var isDark=(t==='dark' || (!t && sysDark)); if (isDark) document.documentElement.setAttribute('data-theme','dark'); var mc=document.querySelector('meta[name="theme-color"]'); if(mc) mc.setAttribute('content', isDark?'#0f0f0f':'#f1f4f8'); } catch(e){} })();
+// 앱 시작 빠르게: 근무표 데이터와 로그인 확인을 스크립트를 기다리지 않고 맨 먼저 동시에 요청 — js/sync-init.js·employee-auth.js가 이 응답을 씀
+//  (예전엔 스크립트 → 데이터 → 로그인 확인 순서로 기다려 '불러오는 중'이 길었음). 주소·키는 js/core.js의 SB_URL·SB_KEY와 같게 유지(공개 anon 키)
+(function(){ try {
+  var U='https://ntpoaqnhnwrpenstqhwb.supabase.co', K='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50cG9hcW5obndycGVuc3RxaHdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNzEyMzQsImV4cCI6MjA5Nzg0NzIzNH0.MyX2v56Q8SFqcU56tQfmZZVVr1R-X6BF4iBJautOANs', H={apikey:K,Authorization:'Bearer '+K};
+  window.__ndBootMain=fetch(U+'/rest/v1/nd_data?id=eq.main&select=payload,updated_at',{headers:H}); window.__ndBootMain.catch(function(){});
+  var u=null; try { u=JSON.parse(localStorage.getItem('nd_user')||'null'); } catch(e){}
+  if (u && u.authToken) { window.__ndBootSession={token:u.authToken, res:fetch(U+'/functions/v1/employee-auth',{method:'POST',headers:{apikey:K,Authorization:'Bearer '+K,'Content-Type':'application/json'},body:JSON.stringify({action:'session',token:u.authToken})})}; window.__ndBootSession.res.catch(function(){}); }
+} catch(e){} })();
 // 모듈(js/·css/) 로드 실패 기록 — 하나라도 못 받으면 아래 #nd-modfail 안내로 새로고침 유도(반쯤 깨진 채 저장되는 것 방지)
 window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.href)||''; if(u.indexOf(location.origin)===0 && /\/(js|css)\/[\w.-]+\.(js|css)(\?|$)/.test(u)) (window.__ndModFail=window.__ndModFail||[]).push(u); }, true);
 </script>
@@ -46,8 +54,6 @@ window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.hre
 <link rel="stylesheet" href="css/nd-cal.css?v=cdcf9f62">
 <link rel="stylesheet" href="css/popup-wide.css?v=2652f942">
 <link rel="stylesheet" href="css/meal.css?v=bbd4d819">
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style id="floating-sidebar-only">
 /* Header material measured from https://www.apple.com/kr/iphone-duo/ localnav-wrap (2026-09-21). Keep the app sidebar alignment and full available width. */
 @media (min-width:1001px) {
@@ -184,7 +190,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
  html body #dinner-modal input[type=date]::-webkit-date-and-time-value { text-align:left; min-width:0; }
  html body #dinner-modal .dinner-body { overflow-anchor:none; }
 }
-</style><link rel="stylesheet" href="employee-auth.css?v=448cadd6"><script src="employee-auth.js?v=adcee455"></script><style>html,body{overscroll-behavior-y:none}</style></head>
+</style><link rel="stylesheet" href="employee-auth.css?v=615c4878"><script src="employee-auth.js?v=6148546b"></script><style>html,body{overscroll-behavior-y:none}</style></head>
 <body>
 <div id="employee-loading" role="status"><span>불러오는 중…</span></div>
 
@@ -828,7 +834,8 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
       </div>
       <div class="login-box lb-test">
         <h2>👁 관리자 테스트</h2>
-        <p class="login-sub">같은 화면 · <b>읽기 전용</b>(수정 저장 안 됨)</p>
+        <p class="login-sub">관리자 모드와 똑같이 볼 수 있어요 · 바꾼 내용은 <b>실제로 반영되지 않습니다</b></p>
+        <p class="login-sub" id="test-pw-hint"></p>
         <div class="form-group">
           <input type="password" class="form-input" id="pw-test" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLoginMode('test')">
         </div>
@@ -859,7 +866,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
       <button class="admin-tab active" onclick="showAdminTab('staff')">직원 관리</button>
       <button class="admin-tab" onclick="showAdminTab('leave')">근무 통계</button>
       <button class="admin-tab" onclick="showAdminTab('edit')">일정 편집</button>
-      <button class="admin-tab" onclick="showAdminTab('avoid')">특수근무 제외</button>
+      <button class="admin-tab" id="tab-avoid" onclick="showAdminTab('avoid')">특수근무 제외</button>
       <button class="admin-tab" onclick="showAdminTab('guide')">근무 안내</button>
       <button class="admin-tab" onclick="showAdminTab('notify')">알림 제어</button>
       <button class="admin-tab" onclick="showAdminTab('settings')">설정</button>
@@ -1176,7 +1183,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.10 19:43';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.12 16:54';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1433,26 +1440,26 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div id="cell-pop-opts" style="display:flex;flex-direction:column;gap:4px;"></div>
 </div>
 
-<script src="js/core.js?v=8302f44c"></script>
+<script src="js/core.js?v=30dc3f79"></script>
 <script src="js/project-gantt.js?v=ea7ac9ae"></script>
-<script src="js/nav-admin.js?v=10001d39"></script>
+<script src="js/nav-admin.js?v=4fe072da"></script>
 <script src="js/home.js?v=9ed62af1"></script>
-<script src="js/table-view.js?v=b1083150"></script>
+<script src="js/table-view.js?v=73dd2efd"></script>
 <script src="js/calendar.js?v=3ac614cc"></script>
 <script src="js/generation.js?v=7ffa8399"></script>
 <script src="js/workshop.js?v=9e3269ad"></script>
-<script src="js/excel-import.js?v=22ba4911"></script>
+<script src="js/excel-import.js?v=9c4ecc29"></script>
 <script src="js/events.js?v=9e18c09f"></script>
 <script src="js/publish.js?v=553b9861"></script>
 <script src="js/leave-request.js?v=bc9ed88b"></script>
 <script src="js/staff.js?v=e69bc478"></script>
-<script src="js/admin.js?v=41334f8e"></script>
+<script src="js/admin.js?v=8196790b"></script>
 <script src="js/cell-edit.js?v=fc879e15"></script>
 <script src="js/login-ui.js?v=882273b7"></script>
 <script src="js/notice.js?v=74195e16"></script>
 <script src="js/poll.js?v=0cd98cbc"></script>
 <script src="js/schedule-finder.js?v=60c7f69a"></script>
-<script src="js/sync-init.js?v=fb060322"></script>
+<script src="js/sync-init.js?v=349862fa"></script>
 <script src="js/a2hs.js?v=eec05603"></script>
 <script src="js/staff-modal.js?v=a45e2556"></script>
 <script src="js/pull-refresh.js?v=8849e397"></script>

@@ -2,8 +2,9 @@ let employeePending=null,employeeBusy=false,employeeAdminPass='',employeeAdminMo
 const employeeEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function employeeApi(action,extra={}){
  let res;try{res=await fetch(SB_URL+'/functions/v1/employee-auth',{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({action,token:currentUser?.authToken||employeePending?.authToken||'',...extra})});}catch(e){throw new Error(e.message==='Design preview is read-only'?'디자인 시안에서는 로그인할 수 없습니다. 실제 앱에서 로그인해 주세요.':'로그인 서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.')}
- const r=await res.json();if(!res.ok){const e=new Error(r.error||'연결하지 못했습니다.');e.status=res.status;throw e}return r;
+ return employeeParse(res);
 }
+async function employeeParse(res){const r=await res.json();if(!res.ok){const e=new Error(r.error||'연결하지 못했습니다.');e.status=res.status;throw e}return r}
 function employeeAdminCredential(mode,password){employeeAdminPass=mode==='test'?'':password;employeeAdminMode=mode==='test'?'':mode}
 function employeeClearAdmin(){employeeAdminPass='';employeeAdminMode='';const host=document.getElementById('employee-accounts');if(host)host.replaceChildren()}
 function employeeLoginScreen(message=''){
@@ -25,7 +26,12 @@ function employeeLegacyNotice(saved){
 async function employeeRestore(){
  const saved=currentUser;currentUser=null;document.getElementById('login-overlay').style.display='none';
  if(!saved?.authToken){if(saved)employeeLegacyNotice(saved);else employeeLoginScreen();return}
- try{const r=await employeeApi('session',{token:saved.authToken});const user={...r.user,authToken:saved.authToken};
+ try{
+  // dashboard.html <head>에서 데이터와 함께 미리 시작한 로그인 확인이 있으면 그 응답을 씀(연결 실패면 지금 다시 요청)
+  const b=globalThis.__ndBootSession;globalThis.__ndBootSession=null;let r=null;
+  if(b&&b.token===saved.authToken){try{r=await employeeParse(await b.res)}catch(e){if(e.status)throw e;r=null}}
+  if(!r)r=await employeeApi('session',{token:saved.authToken});
+  const user={...r.user,authToken:saved.authToken};
   document.getElementById('employee-loading')?.remove();
   if(r.mustChange){employeePending=user;localStorage.removeItem(USER_KEY);employeeChangeDialog();return}
   currentUser=user;localStorage.setItem(USER_KEY,JSON.stringify(user));_updateUserHeader();
@@ -71,7 +77,7 @@ async function employeeAccounts(){
  if(!isAdmin||isAdminTest){host.textContent='관리자 또는 마스터 계정으로 이용해 주세요.';return}
  if(!employeeAdminPass&&!currentUser?.adminRole){host.innerHTML='<form class="employee-form" onsubmit="event.preventDefault();employeeUnlock()"><label>관리자 확인<input id="employee-admin-password" type="password" autocomplete="current-password" required placeholder="현재 모드의 비밀번호"></label><button class="btn btn-primary">확인</button><p id="employee-admin-error" role="status"></p></form>';return}
  host.textContent='직원 계정을 불러오는 중…';
- try{const r=await employeeApi('accounts',{adminPassword:employeeAdminPass,mode:employeeAdminMode});host.innerHTML=`<p class="employee-hint">${r.master?'마스터 모드에서는 직원 비밀번호를 조회하고 초기화할 수 있습니다.':'관리자 모드에서는 직원 비밀번호를 초기화할 수 있습니다.'}</p><div class="employee-account-list">${r.accounts.map(a=>`<div class="employee-account" data-password-ready="${a.mustChange===false}"><div><b>${employeeEsc(a.name)}</b><span>${employeeEsc(a.dept)} · ${a.mustChange?'변경 필요':'설정 완료'}</span>${r.master?`<details><summary>비밀번호 보기</summary><output>${employeeEsc(a.pin)}</output></details>`:''}</div><button class="btn btn-outline" data-reset-id="${employeeEsc(a.staffId)}">초기화</button></div>`).join('')}</div>`;host.querySelectorAll('[data-reset-id]').forEach(button=>button.onclick=()=>employeeReset(button.dataset.resetId,r.accounts.find(a=>a.staffId===button.dataset.resetId)?.name))}
+ try{const r=await employeeApi('accounts',{adminPassword:employeeAdminPass,mode:employeeAdminMode});host.innerHTML=`<p class="employee-hint">${r.master?'마스터 모드에서는 직원 비밀번호를 조회하고 초기화할 수 있습니다.':'관리자 모드에서는 직원 비밀번호를 초기화할 수 있습니다.'}</p><div class="employee-account-list">${r.accounts.map(a=>`<div class="employee-account" data-password-ready="${a.mustChange===false}"><div class="ea-top"><span class="ea-av" style="background:${employeeEsc(typeof _deptColor==='function'?_deptColor(a.dept):'#94a3b8')}">${employeeEsc(String(a.name||'?').trim().charAt(0)||'?')}</span><div class="ea-id"><b>${employeeEsc(a.name)}</b><span>${employeeEsc(a.dept)}</span></div></div>${r.master?`<details><summary>비밀번호 보기</summary><output>${employeeEsc(a.pin)}</output></details>`:''}<div class="ea-bot"><em class="ea-st">${a.mustChange?'변경 필요':'설정 완료'}</em><button class="btn btn-outline" data-reset-id="${employeeEsc(a.staffId)}">초기화</button></div></div>`).join('')}</div>`;host.querySelectorAll('[data-reset-id]').forEach(button=>button.onclick=()=>employeeReset(button.dataset.resetId,r.accounts.find(a=>a.staffId===button.dataset.resetId)?.name))}
  catch(e){employeeClearAdmin();host.textContent=e.message;const retry=document.createElement('button');retry.className='btn';retry.textContent='다시 확인';retry.onclick=employeeAccounts;host.appendChild(retry)}
 }
 function employeeUnlock(){employeeAdminCredential(isMaster?'master':'admin',document.getElementById('employee-admin-password').value);employeeAccounts()}

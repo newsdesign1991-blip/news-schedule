@@ -106,6 +106,16 @@ function openPath(path) {
 }
 const SB_URL = 'https://ntpoaqnhnwrpenstqhwb.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50cG9hcW5obndycGVuc3RxaHdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNzEyMzQsImV4cCI6MjA5Nzg0NzIzNH0.MyX2v56Q8SFqcU56tQfmZZVVr1R-X6BF4iBJautOANs';
+// 큰 외부 라이브러리는 첫 화면에서 빼고 쓸 때 받음(엑셀 가져오기 XLSX ~900KB, 근무표 이미지 저장 html2canvas) — 예전엔 <head>에서 받느라 앱 시작이 2초 넘게 멈췄음
+const _ndLibUrl={ xlsx:'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js', h2c:'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js' }, _ndLibP={};
+function ndLoadLib(k){
+  if ((k==='xlsx'&&typeof XLSX!=='undefined')||(k==='h2c'&&typeof html2canvas!=='undefined')) return Promise.resolve();
+  const _has=()=>k==='xlsx'?typeof XLSX!=='undefined':typeof html2canvas!=='undefined';
+  return _ndLibP[k] || (_ndLibP[k]=new Promise((ok,no)=>{ const s=document.createElement('script'); s.src=_ndLibUrl[k];
+    const fail=()=>{ delete _ndLibP[k]; s.remove(); no(new Error('라이브러리를 받지 못했습니다. 인터넷 연결을 확인해 주세요.')); };
+    s.onload=()=>{ if(_has()) ok(); else fail(); };   // 받았는데 전역이 없으면(차단·이상 응답) 실패 — 무한 재호출 방지
+    s.onerror=fail; document.head.appendChild(s); }));
+}
 const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
 
 let _ndUpdatedAt = null;   // 마지막으로 확인한 서버 수정시각 (자동 동기화 기준)

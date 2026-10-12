@@ -113,7 +113,7 @@ function quickGenerate() {
 }
 
 async function captureSchedule() {
-  if (typeof html2canvas === 'undefined') { toast('캡쳐 라이브러리 로딩 중...',''); return; }
+  if (typeof html2canvas === 'undefined') { toast('캡쳐 준비 중...',''); try { await ndLoadLib('h2c'); } catch(e) { toast(e.message,'error'); return; } }
   const titleEl = document.getElementById('table-title');
   const tableEl = document.getElementById('excel-table');
   if (!tableEl) { toast('근무표가 없습니다',''); return; }

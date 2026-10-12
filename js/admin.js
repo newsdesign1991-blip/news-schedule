@@ -338,6 +338,7 @@ function renderAdminPanel() {
   const _ge=document.getElementById('gen-end'); if(_ge) _ge.value=`${_ny}-${_nm}-${String(_nLast).padStart(2,'0')}`;
 }
 function showAdminTab(tab) {
+  if (tab==='avoid' && isAdminTest) tab='staff';   // 관리자 테스트엔 특수근무 제외 탭 없음
   document.querySelectorAll('.admin-tab').forEach(btn=>{
     const m=(btn.getAttribute('onclick')||'').match(/showAdminTab\('([^']+)'\)/);
     btn.classList.toggle('active', !!m && m[1]===tab);

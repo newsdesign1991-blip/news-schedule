@@ -52,7 +52,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 | 17 | `js/notice.js` | 오늘의 공지, 공감(리액션), 확인함 기록(서버 별도 칸 nd_data id='seen', `_noticeSyncSeen`), 댓글, 지난 공지(카드 2열 → 누르면 확인 창이 위에, `openNoticeHistory`), 푸시 발송. 게시가 끝난 공지를 수정하면 기간 기본값 '게시 끝남(그대로)'(`keep`) — 홈에 다시 안 올림 | `renderNoticeBar` `openNoticeModal` `openNoticeHistory` `deleteNotice` |
 | 18 | `js/poll.js` | 오늘의 투표(만들기·수정·자세히 보기·댓글) | `renderPolls` `openPollCreate` |
 | 19 | `js/schedule-finder.js` | 저녁 같이 먹을 사람 찾기, 개인 근무 보기, 내 근무 카드 | `openDinnerFinder` `openPersonSchedule` `renderMySchedule` |
-| 20 | `js/sync-init.js` | **앱 부팅**(데이터 로드, 2분 자동 동기화, 첫 렌더) | `_migrateRemote` `_rerenderActiveView` |
+| 20 | `js/sync-init.js` | **앱 부팅**(데이터 로드, 2분 자동 동기화, 첫 렌더). 데이터·로그인 확인 요청은 `dashboard.html` `<head>` 인라인 스크립트가 맨 먼저 동시에 시작(`window.__ndBootMain`·`__ndBootSession`) — 여기서와 `employee-auth.js` `employeeRestore`가 그 응답을 씀. head의 주소·키는 `core.js` `SB_URL`·`SB_KEY`와 같게 유지 | `_migrateRemote` `_rerenderActiveView` |
 | 21 | `js/a2hs.js` | 홈 화면에 추가 안내 (+끝부분에 직원 편집 모달 `#staff-edit-modal` HTML 삽입 → staff-modal.js보다 먼저 와야 함) | `installA2HS` |
 | 22 | `js/staff-modal.js` | 직원 편집 모달(카드 UI) | `openStaffModal` `saveStaffModal` |
 | 23 | `js/pull-refresh.js` | 당겨서 새로고침 | — |
@@ -69,7 +69,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 폰 네트워크가 끊겨 js/·css/ 파일 하나라도 못 받으면, 반쯤 깨진 채 저장되는 것을 막기 위해 화면 전체에 "앱을 다 불러오지 못했어요 — 새로고침" 안내(`#nd-modfail`)가 뜬다.
 - 실패 기록: `<head>` 첫 인라인 스크립트의 `error` 캡처 리스너(`window.__ndModFail`)
 - 안내 표시: `pull-refresh.js` 태그 바로 뒤 인라인 스크립트
-- CDN 라이브러리(xlsx, html2canvas, 폰트) 실패는 대상 아님(예전처럼 해당 기능만 안 됨)
+- CDN 라이브러리(xlsx, html2canvas, 폰트) 실패는 대상 아님(예전처럼 해당 기능만 안 됨). xlsx·html2canvas는 `<head>`에서 받지 않고 `ndLoadLib('xlsx'|'h2c')`(core.js)로 쓸 때 받음(엑셀 가져오기 창 열 때, 이미지 저장 때 / html2canvas는 부팅 4초 뒤 미리)
 
 ## CSS 모듈 (로드 순서 = 덮어쓰기 우선순위)
 

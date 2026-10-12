@@ -18,6 +18,7 @@ function openImageImport() {
   document.body.style.overflow = 'hidden';
   _imgParsedData = null; _xlArrayBuffer = null;
   switchImportTab('excel');
+  if (typeof ndLoadLib==='function') ndLoadLib('xlsx').catch(()=>{});   // 엑셀 라이브러리는 이 창을 열 때 받기 시작(첫 화면에선 안 받음)
 }
 function closeImageImport() {
   _animModalClose(document.getElementById('img-import-modal'));
@@ -33,19 +34,23 @@ function handleXlFile(input) {
   document.getElementById('xl-file-name').style.display = 'block';
   document.getElementById('xl-drop-label').style.display = 'none';
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     _xlArrayBuffer = e.target.result;
-    try {
-      const wb = XLSX.read(_xlArrayBuffer, {type:'array'});
-      const sel = document.getElementById('xl-sheet-select');
-      sel.innerHTML = wb.SheetNames.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
-      // 기본 선택: "최종" 포함 시트 우선
-      const preferred = wb.SheetNames.findIndex(n=>n.includes('최종'));
-      if (preferred>=0) sel.value = preferred;
-      document.getElementById('xl-sheet-select-wrap').style.display = '';
-    } catch(e) { /* ignore */ }
+    if (typeof XLSX==='undefined') { try { await ndLoadLib('xlsx'); } catch(err) { toast(err.message,'error'); return; } }
+    _xlFillSheets();
   };
   reader.readAsArrayBuffer(file);
+}
+// 시트 목록(기본: "최종" 포함 시트) — 파일을 고를 때, 또는 그때 라이브러리를 못 받았으면 '파싱하기'에서
+function _xlFillSheets() {
+  try {
+    const wb = XLSX.read(_xlArrayBuffer, {type:'array'});
+    const sel = document.getElementById('xl-sheet-select');
+    sel.innerHTML = wb.SheetNames.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
+    const preferred = wb.SheetNames.findIndex(n=>n.includes('최종'));
+    if (preferred>=0) sel.value = preferred;
+    document.getElementById('xl-sheet-select-wrap').style.display = '';
+  } catch(e) { /* ignore */ }
 }
 function handleXlDrop(e) {
   e.preventDefault();
@@ -57,6 +62,7 @@ function handleXlDrop(e) {
 }
 function parseExcelSchedule() {
   if (!_xlArrayBuffer) { toast('엑셀 파일을 먼저 올려주세요','error'); return; }
+  if (typeof XLSX==='undefined') { ndLoadLib('xlsx').then(()=>{ if(typeof XLSX==='undefined'){ toast('엑셀 라이브러리를 불러오지 못했습니다','error'); return; } if(!document.getElementById('xl-sheet-select')?.options?.length) _xlFillSheets(); parseExcelSchedule(); }, err=>toast(err.message,'error')); return; }   // 라이브러리를 아직 못 받았으면 받은 뒤(시트 목록부터) 다시
   try {
     const wb = XLSX.read(_xlArrayBuffer, {type:'array', cellStyles:true});   // cellStyles: 칸 바탕색(회색 = 특별 작업, 총인원 제외)을 읽기 위해
     const sheetIdx = parseInt(document.getElementById('xl-sheet-select')?.value||'0');

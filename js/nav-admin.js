@@ -35,6 +35,7 @@ function toggleAdmin() {
   if (!isAdmin) {
     document.getElementById('login-area').style.display='block';
     document.getElementById('admin-area').style.display='none';
+    _updateTestPwHint();
   } else { renderAdminPanel(); }
 }
 function adminLogout() {
@@ -46,9 +47,18 @@ function adminLogout() {
   document.getElementById('login-area').style.display='block';
   document.getElementById('admin-area').style.display='none';
   ['pw-admin','pw-test','pw-master'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  _updateTestPwHint();
   if(standalone)employeeCancel();
 }
 
+// 관리자 테스트 상자 안내: 비밀번호를 그대로 보여 줌(누구나 둘러볼 수 있게 — 테스트 모드는 저장이 안 됨). 마스터가 바꾸면 따라 바뀜, 비우면 꺼짐
+function _updateTestPwHint() {
+  const el=document.getElementById('test-pw-hint'); if(!el) return;
+  let pw=''; try { pw=data.adminTestPass?atob(data.adminTestPass):''; } catch(e) { pw=''; }
+  el.textContent='';
+  if (!pw) { el.textContent='지금은 꺼져 있습니다'; return; }
+  el.append('비밀번호 '); const b=document.createElement('b'); b.textContent=pw; el.append(b);
+}
 // ===== LOGIN ===== (모드별 명시 로그인: 관리자/관리자테스트 박스 + 마스터 하단 투명버튼)
 function doLoginMode(mode) {
   const inMap = { admin:'pw-admin', test:'pw-test', master:'pw-master' };
@@ -101,6 +111,7 @@ function _updateAdminModeUI() {
   const ab = document.getElementById('admin-pw-box'); if (ab) ab.style.display = (isAdmin && !isMaster && !isAdminTest) ? '' : 'none';
   const mb = document.getElementById('master-pw-box'); if (mb) mb.style.display = isMaster ? '' : 'none';
   const lt = document.getElementById('tab-loginlog'); if (lt) lt.style.display = isMaster ? '' : 'none';  // 로그인 기록 탭은 마스터만
+  const av = document.getElementById('tab-avoid'); if (av) av.style.display = isAdminTest ? 'none' : '';  // 관리자 테스트엔 특수근무 제외 탭 숨김
 }
 function masterSetPw(which) {
   if (!isMaster) { toast('마스터 모드에서만 변경할 수 있습니다.','error'); return; }
