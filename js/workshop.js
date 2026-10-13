@@ -509,6 +509,7 @@ function renderWorkshopTable() {
     tb.querySelectorAll('tr').forEach(tr=>{ const last=tr.lastElementChild; if(last) maxW=Math.max(maxW, last.scrollWidth); });
     col.style.width=Math.min(Math.max(maxW+6,160),460)+'px';   // 최소 160, 최대 460
   })();
+  wsInfoRefresh();   // 참고 자료 창이 열려 있으면 같이 다시 계산
 }
 
 let wsBrushType = null;
@@ -918,3 +919,136 @@ document.addEventListener('keydown',event=>{
     if(key==='v'){event.preventDefault();_wsPasteSelection();}
   }else if(event.key==='Escape'){_wsSelection=null;_wsPaintSelection();}
 });
+
+// ===== 작성소 참고 자료 창(떠 있는 창): 근무 통계 · 직원B 근무일(평일 수 대비 지난 기간 초과분) · 직원B 남은 휴가(직접 입력) =====
+// 근무표를 고치는 동안 열어 둠(모달 아님, 머리를 끌어 옮김). 표가 다시 그려질 때마다 wsInfoRefresh로 새로 셈
+let _wiTab=(()=>{ try{ return localStorage.getItem('nd_wsinfo_tab')||'stats'; }catch(e){ return 'stats'; } })();
+const _wiEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// 넓은 화면: 브라우저 밖으로도 옮길 수 있는 별도 창(크롬·엣지 '문서 PiP' = 항상 위, 안 되면 일반 새 창). 휴대폰: 화면 안 패널
+let _wiEl=null, _wiWin=null;
+function wsInfoToggle(){
+  if(_wiEl){ _wiClose(); return; }
+  _wiOpen();
+}
+function _wiClose(){
+  const w=_wiWin; _wiWin=null; if(_wiEl&&!w) _wiEl.remove(); _wiEl=null;
+  if(w){ try{ w.close(); }catch(e){} }
+  document.getElementById('ws-info-btn')?.classList.remove('active');
+}
+function _wiBuild(doc){
+  const el=doc.createElement('div'); el.id='ws-info'; el.className='ws-info';
+  el.setAttribute('role','dialog'); el.setAttribute('aria-label','근무표 참고 자료');
+  el.innerHTML=`<div class="wi-head"><div class="wi-title">참고 자료</div><button class="wi-close" aria-label="닫기" onclick="wsInfoToggle()">✕</button></div>
+    <div class="wi-tabs" role="tablist">${[['stats','근무 통계'],['flwork','직원B 근무일'],['flleave','직원B 남은 휴가']].map(([k,t])=>`<button role="tab" data-wi="${k}" onclick="wsInfoTab('${k}')">${t}</button>`).join('')}</div>
+    <div class="wi-body"></div>`;
+  return el;
+}
+async function _wiOpen(){
+  document.getElementById('ws-info-btn')?.classList.add('active');
+  if(window.innerWidth>1000){
+    let w=null;
+    try{
+      if(window.documentPictureInPicture) w=await documentPictureInPicture.requestWindow({width:480,height:640});
+      else w=window.open('','nd_ws_info','popup,width=480,height=640');
+    }catch(e){ w=null; }
+    if(w){
+      const d=w.document; d.title='참고 자료';
+      if(!window.documentPictureInPicture) d.body.innerHTML='';
+      document.querySelectorAll('link[rel="stylesheet"],style').forEach(n=>d.head.appendChild(n.cloneNode(true)));   // 앱 스타일 그대로
+      const th=document.documentElement.getAttribute('data-theme'); if(th) d.documentElement.setAttribute('data-theme',th);
+      d.body.style.cssText='margin:0;padding:0;background:var(--bg);';
+      // 창 안의 onclick이 이 앱 함수를 부르게
+      w.wsInfoToggle=wsInfoToggle; w.wsInfoTab=wsInfoTab; w.wsInfoSaveLeave=wsInfoSaveLeave;
+      const el=_wiBuild(d); el.classList.add('wi-win'); d.body.appendChild(el);
+      _wiEl=el; _wiWin=w;
+      w.addEventListener('pagehide',()=>{ if(_wiWin===w){ _wiWin=null; _wiEl=null; document.getElementById('ws-info-btn')?.classList.remove('active'); } });
+      wsInfoRefresh(); return;
+    }
+  }
+  const el=_wiBuild(document); document.body.appendChild(el); _wiEl=el;
+  wsInfoRefresh();
+}
+function wsInfoTab(k){ _wiTab=k; try{localStorage.setItem('nd_wsinfo_tab',k);}catch(e){} wsInfoRefresh(); }
+// 근무표 한 달 기간: 그달 첫 월요일 ~ 다음 달 첫 월요일 전날(엑셀 시트와 같음)
+function _wiFirstMon(y,m){ const d=new Date(y,m-1,1); while(d.getDay()!==1) d.setDate(d.getDate()+1); return toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate()); }
+function _wiPeriodOf(ds){ const d=new Date(ds+'T00:00:00'); let y=d.getFullYear(), m=d.getMonth()+1;
+  if(ds<_wiFirstMon(y,m)){ m--; if(m<1){m=12;y--;} }
+  const ny=m===12?y+1:y, nm=m===12?1:m+1; return [_wiFirstMon(y,m), addDays(_wiFirstMon(ny,nm),-1), y, m]; }
+function _wiDates(a,b){ const r=[]; for(let d=a; d<=b; d=addDays(d,1)) r.push(d); return r; }
+const _wiRest=/^(휴무|휴|쉼|대휴|비번|당직비번|신휴가|휴가|연차|반차|Jr\.?휴가|경조|공가|-|0)$/i;
+// 그 사람이 그날 일했는지(퇴근 포함, 휴가 제외) — 자동 생성과 같은 셈(_genDayUnits)
+function _wiWorked(src, s, ds){ if(isOnLeave(s.id,ds)) return false; const e=src(ds)||{}, pe=src(addDays(ds,-1))||{};
+  const c=e.customCells?.[s.id]; if(c&&c.text) return !_wiRest.test(String(c.text).replace(/\s/g,''));
+  return _genDayUnits(e,pe).has(s.id); }
+function _wiFreelancers(ds){ return data.staff.filter(s=>s.employmentType==='freelancer'&&s.active!==false&&String(deptOn(s,ds)||'')!=='조근'&&isContractActive(s,ds)); }
+function wsInfoRefresh(){
+  if(!_wiEl) return; const body=_wiEl.querySelector('.wi-body'); if(!body) return;
+  _wiEl.querySelectorAll('.wi-tabs button').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.wi===_wiTab)));
+  const rs=wsRangeStart, re=wsRangeEnd;
+  if(!rs||!re){ body.innerHTML='<div class="wi-empty">작성소 기간을 먼저 정하세요.</div>'; return; }
+  try{ body.innerHTML=_wiTab==='flwork'?_wiFlWork(rs,re):_wiTab==='flleave'?_wiFlLeave(rs):_wiStats(rs,re); }
+  catch(e){ body.innerHTML='<div class="wi-empty">계산하지 못했습니다: '+_wiEsc(e.message)+'</div>'; }
+}
+// ① 근무 통계: 올해(배포본 + 이번 초안, 과거 직접 입력분 포함) 토요 숙직·금요 당직·토요 조근·일근, 직원B 조근
+function _wiStats(rs,re){
+  const year=+rs.slice(0,4);
+  const { employees, jflPool, satA, friA, jsubA, ilgeunA, jflA } = _workStatsAuto(year);
+  const man=data.manualStats?.[year]||{};
+  const cats=[['sat','토 숙직',satA],['fri','금 당직',friA],['jsub','토 조근',jsubA],['ilgeun','일근',ilgeunA]];
+  // 초안 기간: 배포본으로 센 것을 빼고 초안으로 다시 셈(고치는 대로 바로 반영)
+  const dr=_wiDates(rs,re).filter(d=>d.startsWith(year+''));
+  const roleCnt=(srcEntry,s)=>{ const o={sat:0,fri:0,jsub:0,ilgeun:0,jfl:0}; dr.forEach(ds=>{ const en=srcEntry(ds); if(!en) return; if(String(deptOn(s,ds)||'')==='조근') return; const dow=new Date(ds+'T00:00:00').getDay(), r=workCellRole(en,s,ds);
+      if(r==='당직'&&dow===6)o.sat++; if(r==='당직'&&dow===5)o.fri++; if(r==='조근'&&dow===6)o.jsub++; if(r==='일근')o.ilgeun++; if(r==='조근')o.jfl++; }); return o; };
+  const dep=ds=>data.schedule[ds], dft=ds=>data.draft?.schedule?.[ds];
+  const tot=(s,k,auto)=>{ const a=(auto[s.id]||[]).reduce((x,y)=>x+y,0), m=(man[k]?.[s.id]||[]).reduce((x,y)=>x+(+y||0),0); return a+m; };
+  const rows=employees.map(s=>{ const d0=roleCnt(dep,s), d1=roleCnt(dft,s);
+    return `<tr><td class="wi-name">${_wiEsc(s.name)}</td>${cats.map(([k,,A])=>{ const add=d1[k], v=tot(s,k,A)-d0[k]+add; return `<td>${v||'<span class="wi-dim">-</span>'}${add?`<small class="wi-add">+${add}</small>`:''}</td>`; }).join('')}</tr>`; }).join('');
+  const jrows=jflPool.map(s=>{ const d0=roleCnt(dep,s), d1=roleCnt(dft,s), v=tot(s,'jfl',jflA)-d0.jfl+d1.jfl; return `<tr><td class="wi-name">${_wiEsc(s.name)}</td><td>${v||'<span class="wi-dim">-</span>'}${d1.jfl?`<small class="wi-add">+${d1.jfl}</small>`:''}</td></tr>`; }).join('');
+  return `<p class="wi-note">${year}년 누적(지금 초안 포함). <small class="wi-add">+n</small> = 이번 초안에서 맡은 횟수</p>
+    <table class="wi-table"><thead><tr><th>이름</th>${cats.map(c=>`<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
+    ${jrows?`<div class="wi-sub">직원B 조근</div><table class="wi-table"><thead><tr><th>이름</th><th>조근</th></tr></thead><tbody>${jrows}</tbody></table>`:''}`;
+}
+// ② 직원B 근무일: 근무 + 평일 휴가 = 그 기간 평일 수(계약 기간 안)가 기준(자동 생성과 같음) — 지난 기간에 더(덜) 일한 날만큼 이번에 덜(더)
+function _wiFlWork(rs,re){
+  const [ps,pe,,pm]=_wiPeriodOf(addDays(rs,-1));
+  const prevDates=_wiDates(ps,pe), curDates=_wiDates(rs,re);
+  const dep=ds=>data.schedule[ds], dft=ds=>data.draft?.schedule?.[ds]||data.schedule[ds];
+  const list=_wiFreelancers(rs).filter(s=>['VW','CG','XR'].includes(String(deptOn(s,rs)||'').toUpperCase()));
+  if(!list.length) return '<div class="wi-empty">직원B가 없습니다.</div>';
+  const tally=(s,dates,src)=>{ const on=dates.filter(d=>isContractActive(s,d)&&!isDispatched(s,d)), wdays=on.filter(d=>isWeekdayForm(d));
+    return { wd:wdays.length, lv:wdays.filter(d=>isOnLeave(s.id,d)).length, work:on.filter(d=>_wiWorked(src,s,d)).length }; };
+  const sg=n=>n>0?`<b class="wi-plus">+${n}</b>`:n<0?`<b class="wi-minus">${n}</b>`:'<span class="wi-dim">0</span>';
+  const rows=list.map(s=>{
+    const p=tally(s,prevDates,dep), c=tally(s,curDates,dft);
+    const had=p.work+p.lv>0;                         // 지난 기간에 근무·휴가가 없으면(신입·복귀) 넘어온 것 없음
+    const over=had?p.work+p.lv-p.wd:0, target=c.wd-c.lv-over, gap=c.work-target;
+    return `<tr><td class="wi-name">${_wiEsc(s.name)}<small>${_wiEsc(deptOn(s,rs))}</small></td>
+      <td>${had?p.work:'<span class="wi-dim">-</span>'}${p.lv?`<small class="wi-dim"> 휴${p.lv}</small>`:''}</td><td>${had?sg(over):'<span class="wi-dim">-</span>'}</td>
+      <td>${target}<small class="wi-dim"> /${c.wd}</small></td><td>${c.work}${c.lv?`<small class="wi-dim"> 휴${c.lv}</small>`:''}</td><td>${sg(gap)}</td></tr>`; }).join('');
+  return `<p class="wi-note">지난 기간 ${pm}월(${ps.slice(5)}~${pe.slice(5)}) · 이번 기간(${rs.slice(5)}~${re.slice(5)})<br>
+    기준: 근무일 + 평일 휴가 = 평일 수(계약 기간 안). <b>지난 초과</b>만큼 이번 목표에서 뺌 → 이번 목표 = 평일 수 − 평일 휴가 − 지난 초과. 근무일엔 당직 다음날 퇴근 포함</p>
+    <table class="wi-table"><thead><tr><th>이름</th><th>지난 근무</th><th>지난 초과</th><th>이번 목표</th><th>이번 초안</th><th>목표 대비</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+// ③ 직원B 남은 휴가(직접 입력, data.freelancerLeave[id]={days,memo,at})
+function _wiFlLeave(rs){
+  const list=_wiFreelancers(rs); const fl=data.freelancerLeave||{};
+  if(!list.length) return '<div class="wi-empty">직원B가 없습니다.</div>';
+  const ro=typeof isAdminTest!=='undefined'&&isAdminTest;
+  const rows=list.map(s=>{ const v=fl[s.id]||{};
+    return `<tr data-sid="${s.id}"><td class="wi-name">${_wiEsc(s.name)}</td>
+      <td><input type="number" class="wi-in" min="0" max="99" step="0.5" value="${v.days??''}" placeholder="-" aria-label="${_wiEsc(s.name)} 남은 휴가 일수" ${ro?'disabled':''}></td>
+      <td><input type="text" class="wi-in wi-memo" value="${_wiEsc(v.memo||'')}" placeholder="메모" aria-label="${_wiEsc(s.name)} 메모" ${ro?'disabled':''}></td>
+      <td class="wi-dim">${v.at?_wiEsc(v.at.slice(5,10).replace('-','/')):''}</td></tr>`; }).join('');
+  return `<p class="wi-note">직원B별 남은 휴가 일수를 직접 적어 두세요(나중에 언제든 고칠 수 있음).</p>
+    <table class="wi-table wi-leave"><thead><tr><th>이름</th><th>남은 휴가(일)</th><th>메모</th><th>고친 날</th></tr></thead><tbody>${rows}</tbody></table>
+    ${ro?'<p class="wi-note">관리자 테스트 모드에서는 저장되지 않습니다.</p>':'<button class="wi-save" onclick="wsInfoSaveLeave()">저장</button>'}`;
+}
+function wsInfoSaveLeave(){
+  if(typeof isAdminTest!=='undefined'&&isAdminTest){ toast('관리자 테스트 모드에서는 저장되지 않습니다.','error'); return; }
+  data.freelancerLeave=data.freelancerLeave||{}; const now=new Date().toISOString(); let n=0;
+  _wiEl?.querySelectorAll('.wi-leave tbody tr').forEach(tr=>{ const id=tr.dataset.sid, [d,m]=tr.querySelectorAll('input'); const days=d.value===''?null:Math.max(0,+d.value), memo=m.value.trim();
+    const old=data.freelancerLeave[id]||{}; if((old.days??null)===days&&(old.memo||'')===memo) return;
+    if(days===null&&!memo) delete data.freelancerLeave[id]; else data.freelancerLeave[id]={days,memo,at:now}; n++; });
+  if(!n){ toast('바뀐 내용이 없습니다.',''); return; }
+  saveData(data); toast('직원B 남은 휴가를 저장했습니다.','success'); wsInfoRefresh();
+}
