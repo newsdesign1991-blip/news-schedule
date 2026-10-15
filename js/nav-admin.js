@@ -1,6 +1,12 @@
 /* [모듈] js/nav-admin.js — 탭 전환(showView)·관리자/마스터 로그인 | dashboard.html 메인 스크립트에서 분리됨. 로드 순서 = dashboard.html의 <script> 순서(바꾸지 말 것) */
 // ===== NAV =====
+let _ndAppLanded = false;
 function showView(v) {
+  if (ND_APP && isAdmin) {   // 작성 앱: 작성소·관리자 화면만(로그인 직후 관리자 화면 요청은 작성소로)
+    if (v !== 'workshop' && v !== 'admin') v = 'workshop';
+    else if (v === 'admin' && !_ndAppLanded) v = 'workshop';
+    _ndAppLanded = true;
+  }
   const _prevView = currentView;   // 슬라이드 방향 판단용
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active','nd-slide-r','nd-slide-l'));
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -18,6 +24,7 @@ function showView(v) {
   document.querySelectorAll('.fnav-btn').forEach(el => el.classList.toggle('active', el.getAttribute('data-view')===v));
   document.querySelectorAll('.snav-btn').forEach(el => el.classList.toggle('active', el.getAttribute('data-view')===v));
   currentView = v;
+  if (ND_APP && typeof _ndTitlebarSync === 'function') _ndTitlebarSync();
   if (v==='home'){ renderHome(); const _lov=document.getElementById('login-overlay'); const _login=(_lov && getComputedStyle(_lov).display!=='none') || _tv.classList.contains('home-enter'); if(!_login){ _tv.classList.remove('home-anim'); void _tv.offsetWidth; _tv.classList.add('home-anim'); setTimeout(function(){_tv.classList.remove('home-anim');},1200); } }
   else if (v==='table') renderTable();
   else if (v==='month') setCalMode('mine');
@@ -41,7 +48,7 @@ function toggleAdmin() {
 function adminLogout() {
   const standalone=!!currentUser?.adminRole;
   employeeClearAdmin();
-  isAdmin = false; isMaster = false; isAdminTest = false;
+  isAdmin = false; isMaster = false; isAdminTest = false; _ndAppLanded = false;
   try{ sessionStorage.removeItem('nd_admin'); }catch(e){}
   _setAdminNav(false);
   document.getElementById('login-area').style.display='block';

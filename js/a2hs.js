@@ -61,7 +61,7 @@ document.body.insertAdjacentHTML('beforeend', `
     </div>
     <div class="staff-modal-body">
     <input type="hidden" id="modal-edit-staff-id">
-    <!-- 넓은 화면(≥1001px, css/popup-wide.css): 왼쪽 기본 정보·계약·파견·수습 / 오른쪽 근무 속성·부서 이동 예약 + 버튼. 모바일은 sm-col이 display:contents라 원래 순서 그대로 -->
+    <!-- 넓은 화면(≥1001px, css/popup-wide.css): 왼쪽 기본 정보·근무 속성·(접힘)계약·파견·수습·부서 이동 예약 / 오른쪽 WISE 휴가 내역(직원B만, 직원A는 한 칸 창) + 버튼. 모바일은 sm-col이 display:contents라 원래 순서 그대로 -->
     <div class="sm-col sm-col-l">
     <div class="form-row sm-s-basic">
       <div class="form-group">
@@ -103,50 +103,56 @@ document.body.insertAdjacentHTML('beforeend', `
         </select>
       </div>
     </div>
-    <div id="modal-contract-group" style="display:none;margin-top:10px;">
-      <label class="form-label" style="margin-bottom:4px;">계약기간 (직원B)</label>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <input type="date" class="form-input" id="modal-contract-start" style="width:140px;">
-        <span style="color:var(--muted);font-size:12px;">~</span>
-        <input type="date" class="form-input" id="modal-contract-end" style="width:140px;">
-      </div>
-    </div>
-    <div id="modal-dispatch-group" style="display:none;margin-top:10px;">
-      <label class="form-label" style="margin-bottom:4px;">파견기간 (직원A)</label>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <input type="date" class="form-input" id="modal-dispatch-start" style="width:140px;">
-        <span style="color:var(--muted);font-size:12px;">~</span>
-        <input type="date" class="form-input" id="modal-dispatch-end" style="width:140px;">
-        <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;" onclick="document.getElementById('modal-dispatch-start').value='';document.getElementById('modal-dispatch-end').value='';">초기화</button>
-      </div>
-    </div>
-    <div id="modal-probation-group" style="margin-top:10px;">
-      <label class="form-label" style="margin-bottom:4px;">수습기간 <span style="font-weight:500;color:var(--muted);font-size:11px;">(주말·휴일 근무·인원 카운트 제외)</span></label>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <input type="date" class="form-input" id="modal-probation-start" style="width:140px;">
-        <span style="color:var(--muted);font-size:12px;">~</span>
-        <input type="date" class="form-input" id="modal-probation-end" style="width:140px;">
-        <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;" onclick="document.getElementById('modal-probation-start').value='';document.getElementById('modal-probation-end').value='';">초기화</button>
-      </div>
-    </div>
-    </div>
-    <div class="sm-col sm-col-r">
     <div class="sm-s-tags" style="margin-top:10px;">
       <label class="form-label" style="margin-bottom:4px;">근무 속성</label>
       <div class="tag-sel-pool" id="modal-staff-tag-pool"></div>
     </div>
-    <div class="sm-s-dsched" style="margin-top:14px;background:rgba(49,130,246,.06);border:1px solid rgba(49,130,246,.14);border-radius:12px;padding:14px 15px;">
-      <label class="form-label" style="margin-bottom:6px;">부서 이동 예약 <span style="font-weight:500;color:var(--muted);font-size:11px;">(그 날짜부터 부서 변경 · 과거 달은 원래 부서 유지)</span></label>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
-        <input type="date" class="form-input" id="modal-deptsched-date" style="width:150px;">
-        <span style="color:var(--muted);font-size:12px;">부터</span>
-        <select class="form-select" id="modal-deptsched-dept" style="width:auto;">
-          <option value="VW">VW</option><option value="CG">CG</option><option value="조근">조근</option>
-          <option value="XR">XR</option><option value="PROJECT">PROJECT</option><option value="SPORTS">SPORTS</option>
-        </select>
-        <button class="btn btn-sm" style="background:var(--accent);color:#fff;border:none;" onclick="_deptSchedAdd()">추가</button>
+    <details id="modal-contract-group" class="sm-fold" style="display:none;">
+      <summary><span class="form-label">계약기간 (직원B)</span><em class="sm-fold-sum" data-sum="contract"></em></summary>
+      <div class="sm-fold-body" style="display:flex;align-items:center;gap:8px;">
+        <input type="date" class="form-input" id="modal-contract-start" style="width:140px;" oninput="_smFoldSummary()">
+        <span style="color:var(--muted);font-size:12px;">~</span>
+        <input type="date" class="form-input" id="modal-contract-end" style="width:140px;" oninput="_smFoldSummary()">
       </div>
-      <div id="modal-deptsched-list"></div>
+    </details>
+    <details id="modal-dispatch-group" class="sm-fold" style="display:none;">
+      <summary><span class="form-label">파견기간 (직원A)</span><em class="sm-fold-sum" data-sum="dispatch"></em></summary>
+      <div class="sm-fold-body" style="display:flex;align-items:center;gap:8px;">
+        <input type="date" class="form-input" id="modal-dispatch-start" style="width:140px;" oninput="_smFoldSummary()">
+        <span style="color:var(--muted);font-size:12px;">~</span>
+        <input type="date" class="form-input" id="modal-dispatch-end" style="width:140px;" oninput="_smFoldSummary()">
+        <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;" onclick="document.getElementById('modal-dispatch-start').value='';document.getElementById('modal-dispatch-end').value='';_smFoldSummary();">초기화</button>
+      </div>
+    </details>
+    <details id="modal-probation-group" class="sm-fold">
+      <summary><span class="form-label">수습기간 <span style="font-weight:500;color:var(--muted);font-size:11px;">(주말·휴일 근무·인원 카운트 제외)</span></span><em class="sm-fold-sum" data-sum="probation"></em></summary>
+      <div class="sm-fold-body" style="display:flex;align-items:center;gap:8px;">
+        <input type="date" class="form-input" id="modal-probation-start" style="width:140px;" oninput="_smFoldSummary()">
+        <span style="color:var(--muted);font-size:12px;">~</span>
+        <input type="date" class="form-input" id="modal-probation-end" style="width:140px;" oninput="_smFoldSummary()">
+        <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;" onclick="document.getElementById('modal-probation-start').value='';document.getElementById('modal-probation-end').value='';_smFoldSummary();">초기화</button>
+      </div>
+    </details>
+    <details class="sm-fold sm-s-dsched-fold">
+      <summary><span class="form-label">부서 이동 예약 <span style="font-weight:500;color:var(--muted);font-size:11px;">(그 날짜부터 부서 변경 · 과거 달은 원래 부서 유지)</span></span><em class="sm-fold-sum" data-sum="dsched"></em></summary>
+      <div class="sm-fold-body sm-s-dsched" style="background:rgba(49,130,246,.06);border:1px solid rgba(49,130,246,.14);border-radius:12px;padding:14px 15px;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+          <input type="date" class="form-input" id="modal-deptsched-date" style="width:150px;">
+          <span style="color:var(--muted);font-size:12px;">부터</span>
+          <select class="form-select" id="modal-deptsched-dept" style="width:auto;">
+            <option value="VW">VW</option><option value="CG">CG</option><option value="조근">조근</option>
+            <option value="XR">XR</option><option value="PROJECT">PROJECT</option><option value="SPORTS">SPORTS</option>
+          </select>
+          <button class="btn btn-sm" style="background:var(--accent);color:#fff;border:none;" onclick="_deptSchedAdd()">추가</button>
+        </div>
+        <div id="modal-deptsched-list"></div>
+      </div>
+    </details>
+    </div>
+    <div class="sm-col sm-col-r">
+    <div id="modal-wise-group" class="sm-s-wise" style="display:none;">
+      <label class="form-label" style="margin-bottom:6px;">WISE 휴가 내역</label>
+      <div id="modal-wise-leave" class="wl-host"></div>
     </div>
     </div>
     </div>

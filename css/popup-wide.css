@@ -122,7 +122,7 @@
   #project-modal .pj-foot .btn-outline { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
 }
 @media (min-width: 1001px) {
-  /* ===== 직원 편집(#staff-edit-modal, 마크업 js/a2hs.js · 동작 js/staff-modal.js): 왼쪽(고정 폭) 기본 정보·계약·파견·수습 / 오른쪽 근무 속성·부서 이동 예약 + 버튼(맨 아래)
+  /* ===== 직원 편집(#staff-edit-modal, 마크업 js/a2hs.js · 동작 js/staff-modal.js): 왼쪽(고정 폭) 기본 정보·근무 속성·(접힘)계약·파견·수습·부서 이동 예약 / 오른쪽 WISE 휴가 내역(직원B만) + 버튼(맨 아래)
      그룹 표시/숨김은 JS가 style.display로 바꾸므로 여기선 display를 건드리지 않음. 삭제 확인(#staff-del-confirm)은 absolute라 칸을 차지하지 않음 ===== */
   html body #staff-edit-modal .staff-modal { width: min(1080px, calc(100vw - 48px)); max-width: none; max-height: 92vh; display: grid; grid-template-columns: 430px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "head head" "left right" "left foot"; }
   #staff-edit-modal .staff-modal-head { grid-area: head; padding: 22px 26px; }
@@ -130,10 +130,15 @@
   #staff-edit-modal .sm-col { display: block; min-width: 0; min-height: 0; overflow-y: auto; }
   #staff-edit-modal .sm-col-l { grid-area: left; padding: 20px 26px 22px; }
   #staff-edit-modal .sm-col-r { grid-area: right; padding: 20px 26px 8px; }
+  /* 직원A(오른쪽 WISE 칸 없음): 한 칸 창, 버튼은 아래 */
+  html body #staff-edit-modal .staff-modal.sm-one { width: min(520px, calc(100vw - 48px)); grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "left" "foot"; }
+  #staff-edit-modal .sm-one .sm-col-r { display: none; }
+  #staff-edit-modal .sm-one .staff-modal-foot { border-left: 0; }
   #staff-edit-modal :is(.sm-col-r, .staff-modal-foot) { border-left: 1px solid rgba(49, 130, 246, .12); }
   [data-theme="dark"] #staff-edit-modal :is(.sm-col-r, .staff-modal-foot) { border-left-color: rgba(106, 168, 255, .13); }
   /* 왼쪽 묶음 사이 구분선(숨겨진 묶음은 자리 없음) */
   #staff-edit-modal .sm-col-l > div + div { margin-top: 18px !important; padding-top: 18px; border-top: 1px solid rgba(49, 130, 246, .10); }
+  #staff-edit-modal .sm-col-l > details.sm-fold { margin-top: 14px !important; }   /* 접는 칸은 테두리 카드로(위 구분선 대신) */
   [data-theme="dark"] #staff-edit-modal .sm-col-l > div + div { border-top-color: rgba(106, 168, 255, .11); }
   #staff-edit-modal .sm-s-basic { gap: 14px 12px; margin: 0; }
   #staff-edit-modal .sm-s-basic .form-group { margin: 0; }
@@ -144,11 +149,11 @@
   [data-theme="dark"] #staff-edit-modal :is(.form-input, .form-select) { background: #212121; }
   #staff-edit-modal .sm-col input[type="date"] { flex: 1 1 0; width: auto !important; min-width: 0; }
   #staff-edit-modal .sm-col-l .btn-sm { flex: none; min-height: 36px; padding: 0 12px !important; border-radius: 999px; font-size: 12px !important; font-weight: 700; }
-  /* 오른쪽: 근무 속성 태그 · 부서 이동 예약 */
+  /* 왼쪽: 근무 속성 태그 · 부서 이동 예약 */
   #staff-edit-modal .sm-s-tags { margin: 0 !important; }
   #staff-edit-modal .sm-s-tags .tag-sel-pool { gap: 8px; margin-top: 0; }
   #staff-edit-modal .sm-s-tags .tag-sel-item { padding: 8px 15px; border-radius: 999px; font-size: 13px; }
-  #staff-edit-modal .sm-s-dsched { margin-top: 22px !important; padding: 18px 20px !important; border-radius: 20px !important; }
+  #staff-edit-modal .sm-s-dsched { padding: 16px 18px !important; border-radius: 16px !important; }
   #staff-edit-modal .sm-s-dsched > div:first-of-type { gap: 8px !important; margin-bottom: 12px !important; }
   #staff-edit-modal .sm-s-dsched .form-select { width: auto !important; min-width: 120px; }
   #staff-edit-modal .sm-s-dsched .btn-sm { min-height: 46px; padding: 0 18px; border-radius: 16px; font-size: 13.5px; font-weight: 800; }

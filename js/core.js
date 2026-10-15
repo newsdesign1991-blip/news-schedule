@@ -104,6 +104,8 @@ function openPath(path) {
   a.target = '_blank';
   a.click();
 }
+// 근무표 작성 앱(desktop/ Electron — 배포 사이트를 ?app=ws 로 띄움): 작성소·관리자만, 로그인은 관리자 로그인 바로. window.ndApp = 앱 기능(WISE 휴가 가져오기)
+const ND_APP = document.documentElement.classList.contains('nd-app');
 const SB_URL = 'https://ntpoaqnhnwrpenstqhwb.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50cG9hcW5obndycGVuc3RxaHdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNzEyMzQsImV4cCI6MjA5Nzg0NzIzNH0.MyX2v56Q8SFqcU56tQfmZZVVr1R-X6BF4iBJautOANs';
 // 큰 외부 라이브러리는 첫 화면에서 빼고 쓸 때 받음(엑셀 가져오기 XLSX ~900KB, 근무표 이미지 저장 html2canvas) — 예전엔 <head>에서 받느라 앱 시작이 2초 넘게 멈췄음

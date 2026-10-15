@@ -5,6 +5,7 @@ function _renderDeptSched(){
   const box=document.getElementById('modal-deptsched-list'); if(!box) return;
   const base=(document.getElementById('modal-staff-dept')||{}).value||'';
   _modalDeptSched.sort((a,b)=>a.start<b.start?-1:1);
+  _smFoldSummary();
   if(!_modalDeptSched.length){ box.innerHTML='<div style="font-size:12px;color:var(--muted);padding:2px;">예약 없음 — 항상 '+_pEsc(base)+' 부서.</div>'; return; }
   box.innerHTML=_modalDeptSched.map((h,i)=>`<div class="avoid-row" style="margin-bottom:6px;"><span class="avoid-chip">${_pEsc(h.start)} 부터 <b style="color:var(--accent);margin-left:3px;">${_pEsc(h.dept)}</b></span><button class="avoid-del" onclick="_deptSchedRemove(${i})" title="삭제">✕</button></div>`).join('');
 }
@@ -50,8 +51,10 @@ function openStaffModal(id) {
     else if (v.startsWith('day-')) on=(p.availableDays||[]).includes(parseInt(v.replace('day-','')));
     _setModalTag(el, on);
   });
+  _wlStaffModalRefresh(p.id);
   _modalDeptSched = Array.isArray(p.deptSchedule) ? p.deptSchedule.map(h=>({start:h.start,dept:h.dept})) : [];
   _renderDeptSched();
+  ov.querySelectorAll('details.sm-fold').forEach(d=>{ d.open=false; });   // 계약·파견·수습·부서 이동 예약은 접어서 열기(필요할 때만 펼침)
   const _ab=document.getElementById('modal-active-btn'); if(_ab) _ab.textContent = p.active===false ? '활성화' : '비활성화';
   ov.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -76,6 +79,8 @@ function updateStaffModalForm() {
   ov.querySelector('#modal-morning-desk-group').style.display = (dept==='CG' && employmentType!=='freelancer') ? 'block' : 'none';
   ov.querySelector('#modal-contract-group').style.display = employmentType==='freelancer' ? 'block' : 'none';
   ov.querySelector('#modal-dispatch-group').style.display = employmentType==='employee' ? 'block' : 'none';
+  const _wg=ov.querySelector('#modal-wise-group'); if(_wg) _wg.style.display = employmentType==='freelancer' ? 'block' : 'none';   // WISE 휴가 내역은 직원B만
+  ov.querySelector('.staff-modal')?.classList.toggle('sm-one', employmentType!=='freelancer');   // 직원A는 오른쪽 칸이 비므로 넓은 화면에서도 한 칸 창
   const defs = _tagDefs(dept, employmentType);
   const pool = ov.querySelector('#modal-staff-tag-pool');
   pool.innerHTML = defs.map(t => `<div class="tag-sel-item modal-tag-sel-item" data-val="${t.val}" data-bg="${t.bg}" data-dark="${t.dark||false}" onclick="_setModalTag(this,!this.classList.contains('selected'))">${t.label}</div>`).join('');
@@ -116,6 +121,7 @@ function saveStaffModal() {
   const _ds=_modalDeptSched.filter(h=>h.start&&h.dept).sort((a,b)=>a.start<b.start?-1:1);
   if(_ds.length) p.deptSchedule=_ds; else delete p.deptSchedule;
   saveData(data); renderStaffTable(); closeStaffModal(); toast('저장됨','success');
+  if(typeof wsInfoRefresh==='function') wsInfoRefresh();   // 참고 자료 창이 열려 있으면 바뀐 계약·부서 반영
 }
 function _modalToggleActive(){
   const id=(document.getElementById('modal-edit-staff-id')||{}).value;
@@ -187,4 +193,16 @@ document.addEventListener('click', function(e){
     if(!e.relatedTarget?.closest('.excel-table')){clearHl(lastTable);lastTable=null;lastMidX=-1;}
   });
 })();
-
+// 직원B 편집 창의 WISE 휴가 내역(가져오기 버튼·붙여넣기 포함) — 내용은 js/workshop.js _wlListHTML·_wlBar
+let _wlModalId=null;
+function _wlStaffModalRefresh(id){
+  if(id) _wlModalId=id; const box=document.getElementById('modal-wise-leave'); if(!box||!_wlModalId) return;
+  box.innerHTML=_wlBar(typeof isAdminTest!=='undefined'&&isAdminTest)+_wlListHTML(_wlModalId);
+}
+// 접어 둔 칸(계약·파견·수습·부서 이동 예약) 제목 옆 요약 — 접혀 있어도 값이 있는지 보이게
+function _smFoldSummary(){
+  const v=id=>(document.getElementById(id)||{}).value||'', rng=(a,b)=>{ const x=v(a), y=v(b); return x||y ? (x||'…')+' ~ '+(y||'…') : '없음'; };
+  const sum={ contract:rng('modal-contract-start','modal-contract-end'), dispatch:rng('modal-dispatch-start','modal-dispatch-end'), probation:rng('modal-probation-start','modal-probation-end'),
+    dsched:_modalDeptSched.length ? _modalDeptSched.map(h=>h.start.slice(2).replace(/-/g,'.')+' '+h.dept).join(', ') : '없음' };
+  document.querySelectorAll('#staff-edit-modal .sm-fold-sum').forEach(el=>{ const t=sum[el.dataset.sum]||''; el.textContent=t; el.classList.toggle('empty', t==='없음'); });
+}

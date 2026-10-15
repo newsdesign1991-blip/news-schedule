@@ -125,3 +125,33 @@ nav { display: flex; gap: 2px; }
 }
 .nav-btn:hover { color: var(--text); background: var(--surface2); }
 .nav-btn.active { color: var(--text); background: var(--surface2); }
+/* ===== 근무표 작성 앱(html.nd-app — desktop/ Electron이 ?app=ws 로 띄움): 작성소·관리자만 남김 ===== */
+html.nd-app #floating-nav, html.nd-app header > nav, html.nd-app #side-nav .snav-sub, html.nd-app #side-nav .snav-bottom,
+html.nd-app #side-nav .snav-btn:not([data-view="workshop"]):not([data-view="admin"]) { display:none !important; }
+/* 빨간 '관리자 모드' 띠는 앱에선 숨김(로그아웃은 관리자 화면 오른쪽 위). 띠 자리(30px) 대신 앱 제목줄(44px) 자리만큼 내림 */
+html.nd-app #admin-mode-bar { display:none !important; }
+html.nd-app body, html.nd-app body.admin-mode-active { padding-top:44px; }
+html.nd-app header, html.nd-app body.admin-mode-active header { top:44px; }
+html.nd-app body #side-nav, html.nd-app body.admin-mode-active #side-nav { top:56px; }   /* dashboard.html head 스타일(12px·띠 42px) 대신 */
+html.nd-app #ws-sticky-toolbar, html.nd-app body.admin-mode-active #ws-sticky-toolbar { top:94px; }
+/* 앱 제목줄(js/app-mode.js #nd-titlebar) — 높이 44px = desktop/main.js TITLEBAR_H. 오른쪽 150px는 윈도 창 버튼 자리, 빈 곳을 끌면 창 이동 */
+#nd-titlebar { display:none; }
+html.nd-app #nd-titlebar { position:fixed; top:0; left:0; right:0; height:44px; z-index:10001; display:flex; align-items:center; gap:10px; padding:0 150px 0 16px; box-sizing:border-box; background:var(--bg); color:var(--text); -webkit-app-region:drag; user-select:none; }
+html.nd-app #nd-titlebar .ndt-brand { display:flex; align-items:center; gap:8px; flex:none; margin-right:6px; font-size:13px; font-weight:800; letter-spacing:-.01em; }
+html.nd-app #nd-titlebar .ndt-brand img { width:18px; height:18px; border-radius:5px; }
+html.nd-app #nd-titlebar .ndt-nav { display:none; align-items:center; gap:2px; min-width:0; overflow-x:auto; scrollbar-width:none; }
+html.nd-app body.admin-mode-active #nd-titlebar .ndt-nav { display:flex; }
+html.nd-app #nd-titlebar .admin-tabs { display:flex; flex-wrap:nowrap; gap:2px; margin:0; padding:0; background:none; border-radius:0; }
+html.nd-app #nd-titlebar :is(.ndt-ws, .admin-tab) { -webkit-app-region:no-drag; flex:none; height:30px; padding:0 11px; border:0; border-radius:9px; background:transparent; box-shadow:none; color:var(--muted); font:inherit; font-size:12.5px; font-weight:600; white-space:nowrap; cursor:pointer; }
+html.nd-app #nd-titlebar :is(.ndt-ws, .admin-tab):hover { background:var(--surface2); color:var(--text); }
+html.nd-app #nd-titlebar.on-ws .ndt-ws, html.nd-app #nd-titlebar:not(.on-ws) .admin-tab.active { background:var(--surface); color:#2f77f6; font-weight:800; box-shadow:0 1px 4px rgba(15,23,42,.12); }
+[data-theme="dark"].nd-app #nd-titlebar.on-ws .ndt-ws, [data-theme="dark"].nd-app #nd-titlebar:not(.on-ws) .admin-tab.active { color:#6aa8ff; box-shadow:none; }
+html.nd-app #nd-titlebar .ndt-sep { width:1px; height:16px; margin:0 6px; flex:none; background:var(--border); }
+html.nd-app #side-nav .snav-brand { font-size:0; }
+html.nd-app #side-nav .snav-brand::after { content:'근무표 작성'; font-size:17px; }
+/* 로그인 화면: 직원 로그인 칸은 숨기고 관리자 로그인만 */
+html.nd-app #login-overlay .lg-card > :is(input, p, .btn-primary) { display:none !important; }
+html.nd-app #login-overlay .lg-card > div:nth-of-type(2) { font-size:0 !important; }
+html.nd-app #login-overlay .lg-card > div:nth-of-type(2)::after { content:'근무표 작성 · 관리자 비밀번호로 로그인하세요'; font-size:13px; }
+html.nd-app #login-overlay .employee-master-entry { display:none; }
+html.nd-app #login-overlay .employee-admin-entry { font-size:14px; font-weight:800; padding:12px 26px; border-radius:14px; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; border:0; }

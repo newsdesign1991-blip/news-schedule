@@ -20,6 +20,7 @@
 <meta name="apple-mobile-web-app-title" content="근무표">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-20261010.png">
 
+<script>/* 근무표 작성 앱(Electron, desktop/ — 주소 ?app=ws, 앱 표시 NDScheduleApp/)이면 작성소 전용 화면(html.nd-app — js/core.js ND_APP) */if(/[?&]app=ws(&|$)/.test(location.search)||/ NDScheduleApp\//.test(navigator.userAgent))document.documentElement.classList.add('nd-app');</script>
 <script>
 // 핀치줌 방지 — iOS Safari가 viewport의 user-scalable=no를 무시하는 경우 대비(제스처 이벤트 차단)
 ['gesturestart','gesturechange','gestureend'].forEach(function(ev){
@@ -39,7 +40,7 @@
 window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.href)||''; if(u.indexOf(location.origin)===0 && /\/(js|css)\/[\w.-]+\.(js|css)(\?|$)/.test(u)) (window.__ndModFail=window.__ndModFail||[]).push(u); }, true);
 </script>
 <link rel="stylesheet" href="css/base.css?v=49d694c3">
-<link rel="stylesheet" href="css/dark.css?v=8b2248c5">
+<link rel="stylesheet" href="css/dark.css?v=1147228f">
 <link rel="stylesheet" href="css/nav.css?v=bd336f40">
 <link rel="stylesheet" href="css/home.css?v=85b5ea28">
 <link rel="stylesheet" href="css/notice-poll.css?v=5d9dbdd0">
@@ -47,12 +48,12 @@ window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.hre
 <link rel="stylesheet" href="css/calendar.css?v=fb8bf996">
 <link rel="stylesheet" href="css/table.css?v=b98a1388">
 <link rel="stylesheet" href="css/modal.css?v=cbec7bd9">
-<link rel="stylesheet" href="css/admin.css?v=9b4c9f5c">
+<link rel="stylesheet" href="css/admin.css?v=b3bb664f">
 <link rel="stylesheet" href="css/gantt-etc.css?v=82a1d736">
 <link rel="stylesheet" href="css/sheet-login.css?v=a15e1dc2">
 <link rel="stylesheet" href="css/nd-select.css?v=23fbc7fd">
 <link rel="stylesheet" href="css/nd-cal.css?v=cdcf9f62">
-<link rel="stylesheet" href="css/popup-wide.css?v=2652f942">
+<link rel="stylesheet" href="css/popup-wide.css?v=a03d24fe">
 <link rel="stylesheet" href="css/meal.css?v=bbd4d819">
 <style id="floating-sidebar-only">
 /* Header material measured from https://www.apple.com/kr/iphone-duo/ localnav-wrap (2026-09-21). Keep the app sidebar alignment and full available width. */
@@ -190,7 +191,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
  html body #dinner-modal input[type=date]::-webkit-date-and-time-value { text-align:left; min-width:0; }
  html body #dinner-modal .dinner-body { overflow-anchor:none; }
 }
-</style><link rel="stylesheet" href="employee-auth.css?v=bed2b578"><script src="employee-auth.js?v=4eb92224"></script><style>html,body{overscroll-behavior-y:none}</style></head>
+</style><link rel="stylesheet" href="employee-auth.css?v=bed2b578"><script src="employee-auth.js?v=04f194d0"></script><style>html,body{overscroll-behavior-y:none}</style></head>
 <body>
 <div id="employee-loading" role="status"><span>불러오는 중…</span></div>
 
@@ -1186,7 +1187,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.13 15:02';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.15 20:32';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1443,34 +1444,35 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div id="cell-pop-opts" style="display:flex;flex-direction:column;gap:4px;"></div>
 </div>
 
-<script src="js/core.js?v=30dc3f79"></script>
+<script src="js/core.js?v=1ecdef7e"></script>
 <script src="js/project-gantt.js?v=ea7ac9ae"></script>
-<script src="js/nav-admin.js?v=4fe072da"></script>
+<script src="js/nav-admin.js?v=1eb24849"></script>
 <script src="js/home.js?v=9ed62af1"></script>
 <script src="js/table-view.js?v=73dd2efd"></script>
 <script src="js/calendar.js?v=3ac614cc"></script>
 <script src="js/generation.js?v=7ffa8399"></script>
-<script src="js/workshop.js?v=37853f2e"></script>
+<script src="js/workshop.js?v=d2719a55"></script>
 <script src="js/excel-import.js?v=9c4ecc29"></script>
 <script src="js/events.js?v=9e18c09f"></script>
 <script src="js/publish.js?v=553b9861"></script>
 <script src="js/leave-request.js?v=bc9ed88b"></script>
 <script src="js/staff.js?v=e69bc478"></script>
-<script src="js/admin.js?v=8196790b"></script>
+<script src="js/admin.js?v=c84d830e"></script>
 <script src="js/cell-edit.js?v=799de12b"></script>
 <script src="js/login-ui.js?v=882273b7"></script>
 <script src="js/notice.js?v=74195e16"></script>
 <script src="js/poll.js?v=0cd98cbc"></script>
 <script src="js/schedule-finder.js?v=60c7f69a"></script>
 <script src="js/sync-init.js?v=349862fa"></script>
-<script src="js/a2hs.js?v=eec05603"></script>
-<script src="js/staff-modal.js?v=a45e2556"></script>
+<script src="js/a2hs.js?v=f3c426b9"></script>
+<script src="js/staff-modal.js?v=702c9379"></script>
 <script src="js/pull-refresh.js?v=8849e397"></script>
 <script src="js/nd-select.js?v=07611e9c"></script>
 <script src="js/nd-people.js?v=7bba13fe"></script>
 <script src="js/nd-cal.js?v=e3d3ed58"></script>
 <script src="js/nd-comments.js?v=736684f3"></script>
 <script src="js/meal.js?v=81b42c26"></script>
+<script src="js/app-mode.js?v=4ac09584"></script>
 <script>
 // 모듈 로드 실패 안내 — CSS가 빠졌을 수도 있으니 스타일은 전부 인라인
 (function(){

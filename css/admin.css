@@ -279,9 +279,79 @@ tr.dragging { opacity:0.35; }
 .ws-info .wi-in{width:100%;box-sizing:border-box;min-height:34px;padding:6px 8px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;font-size:13px;text-align:center}
 .ws-info .wi-memo{text-align:left}
 .ws-info .wi-in:focus{outline:none;border-color:#3182f6;box-shadow:0 0 0 3px rgba(49,130,246,.14)}
-.ws-info .wi-leave td:nth-child(2){width:84px}
 .ws-info .wi-save{margin-top:12px;width:100%;min-height:42px;border:0;border-radius:14px;background:linear-gradient(135deg,#4a94ff,#2f77f6);color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer}
 #ws-info-btn.active{background:rgba(49,130,246,.12);color:#2f77f6;border-color:rgba(49,130,246,.35)}
 @media(max-width:1000px){.ws-info{left:8px;right:8px;top:auto;bottom:calc(84px + env(safe-area-inset-bottom));width:auto;max-width:none;max-height:60dvh}}
 /* 별도 창(문서 PiP·새 창) 안에서는 창을 꽉 채움 */
 .ws-info.wi-win{position:static;width:auto;max-width:none;height:100vh;max-height:none;border-radius:0;border:0;box-shadow:none}
+.ws-info .wi-statbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}.ws-info .wi-year{width:auto;min-width:96px}
+.ws-info .wi-stats .stats-grid{grid-template-columns:1fr!important;gap:16px}
+.ws-info.wi-win{width:auto}
+/* 직원B 근무일 표: 지난 기간(회색)·이번 기간(파랑)·목표 대비(노랑) 칸 바탕, 줄 번갈아 */
+.ws-info .wi-fl tbody tr:nth-child(even) td{box-shadow:inset 0 0 0 999px rgba(15,23,42,.025)}
+.ws-info .wi-fl .c-prev{background:rgba(100,116,139,.08)}
+.ws-info .wi-fl .c-cur{background:rgba(49,130,246,.08)}
+.ws-info .wi-fl .c-gap{background:rgba(245,166,35,.12)}
+.ws-info .wi-fl th.c-prev{background:rgba(100,116,139,.16);color:#475569}
+.ws-info .wi-fl th.c-cur{background:rgba(49,130,246,.16);color:#2563eb}
+.ws-info .wi-fl th.c-gap{background:rgba(245,166,35,.22);color:#b45309}
+[data-theme="dark"] .ws-info .wi-fl th.c-prev{color:#cbd5e1}[data-theme="dark"] .ws-info .wi-fl th.c-cur{color:#93c5fd}[data-theme="dark"] .ws-info .wi-fl th.c-gap{color:#fcd34d}
+[data-theme="dark"] .ws-info .wi-fl tbody tr:nth-child(even) td{box-shadow:inset 0 0 0 999px rgba(255,255,255,.03)}
+/* WISE 휴가 내역(참고 자료·직원 편집) */
+.wi-namebtn{border:0;background:none;padding:0;font:inherit;font-weight:800;color:var(--text);cursor:pointer;text-decoration:underline dotted rgba(49,130,246,.6);text-underline-offset:3px}
+.wi-namebtn.open,.wi-namebtn:hover{color:#2f77f6}
+.wl-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
+.wl-btn{min-height:34px;padding:0 14px;border:1px solid rgba(49,130,246,.35);border-radius:10px;background:rgba(49,130,246,.08);color:#2f77f6;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.wl-bm{margin-left:auto;display:inline-flex;align-items:center;min-height:34px;padding:0 12px;border-radius:10px;background:linear-gradient(135deg,#4a94ff,#2f77f6);color:#fff!important;font-size:12px;font-weight:800;text-decoration:none;cursor:grab}
+.wl-help{font-size:11px;line-height:1.6;color:var(--muted);margin-bottom:8px}
+.wl-paste{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}.wl-paste[hidden]{display:none}.wl-paste textarea{text-align:left;min-height:80px;font-size:12px}
+.wl-row>td{padding:8px 6px 12px!important;background:rgba(49,130,246,.05)}
+.wl-sum{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;font-size:12px;margin-bottom:6px}.wl-sum b{color:#2f77f6}.wl-sum small{margin-left:auto;color:var(--muted);font-size:10.5px}
+.wl-list{width:100%;border-collapse:collapse;font-size:12px}.wl-list th{font-size:10.5px;color:var(--muted);font-weight:700;padding:4px;text-align:center}.wl-list td{padding:5px 4px;text-align:center;border-top:1px solid var(--border);font-weight:600}
+.wl-list tr.wl-off td{color:var(--muted);text-decoration:line-through}
+.wl-empty{font-size:12px;color:var(--muted);padding:8px 2px}
+.wl-host{border:1px solid var(--border);border-radius:12px;padding:10px;background:var(--surface)}
+/* 직원B 남은 휴가 카드(직원 계정 카드와 같은 반사 카드) — 창 폭에 맞춰 1~3칸, 내역을 펼친 카드는 한 줄 전체 */
+.ws-info .wl-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.ws-info .wl-card{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid transparent;border-radius:16px;background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box;box-shadow:var(--shadow-card)}
+[data-theme="dark"] .ws-info .wl-card{background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box}
+.ws-info .wl-card.open{grid-column:1/-1}
+.ws-info .wl-card-top{display:flex;align-items:center;gap:9px;min-width:0}
+.ws-info .wl-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px}
+.ws-info .wl-id{min-width:0;display:flex;flex-direction:column}
+.ws-info .wl-id .wi-namebtn{font-size:14.5px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.ws-info .wl-id span{font-size:11px;color:var(--muted);font-weight:600;margin-top:1px}
+.ws-info .wl-used{margin-left:auto;flex-shrink:0;font-style:normal;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(49,130,246,.12);color:#2f6fd6;white-space:nowrap}
+[data-theme="dark"] .ws-info .wl-used{background:rgba(49,130,246,.24);color:#97c3ff}
+.ws-info .wl-card-mid{display:flex;flex-direction:column;gap:6px}
+.ws-info .wl-days{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted)}
+.ws-info .wl-days input{width:72px;flex:0 0 auto}
+.ws-info .wl-days b{font-weight:700;color:var(--muted)}
+.ws-info .wl-card-foot{font-size:10.5px;color:var(--muted);text-align:right;margin-top:-4px}
+.ws-info .wl-detail{border-top:1px solid var(--border);padding-top:10px}
+/* 남은 휴가 카드: 한 장이 가로 한 줄을 꽉 채움 — 이름·부서 | 남은 휴가 | 메모(늘어남) | 사용·고친 날, 내역은 카드 아래로 펼침 */
+.ws-info .wl-cards{grid-template-columns:1fr;gap:8px}
+.ws-info .wl-card{flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 14px}
+.ws-info .wl-card-top{flex:0 0 150px}
+.ws-info .wl-card-top .wl-used{display:none}
+.ws-info .wl-card-mid{flex:1 1 260px;flex-direction:row;align-items:center;gap:10px;min-width:0}
+.ws-info .wl-card-mid .wi-memo{flex:1;min-width:0}
+.ws-info .wl-days{flex-shrink:0}
+.ws-info .wl-card-foot{flex:0 0 auto;margin:0;display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:64px}
+.ws-info .wl-detail{flex:0 0 100%}
+/* 직원 편집 창: 접어 둔 칸(계약·파견·수습·부서 이동 예약) — 제목 줄을 누르면 펼침, 오른쪽에 값 요약 */
+#staff-edit-modal details.sm-fold{margin-top:12px;border:1px solid rgba(49,130,246,.14);border-radius:14px;background:rgba(49,130,246,.03)}
+#staff-edit-modal details.sm-fold>summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 14px;cursor:pointer;user-select:none}
+#staff-edit-modal details.sm-fold>summary::-webkit-details-marker{display:none}
+#staff-edit-modal details.sm-fold>summary::after{content:'';width:8px;height:8px;margin-left:6px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px);transition:transform .18s;flex-shrink:0}
+#staff-edit-modal details.sm-fold[open]>summary::after{transform:rotate(225deg) translateY(-2px)}
+#staff-edit-modal details.sm-fold>summary .form-label{margin:0!important;flex:0 1 auto;min-width:0}
+#staff-edit-modal .sm-fold-sum{margin-left:auto;font-style:normal;font-size:12px;font-weight:700;color:#2f6fd6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+#staff-edit-modal .sm-fold-sum.empty{color:var(--muted);font-weight:500}
+#staff-edit-modal details.sm-fold>.sm-fold-body{margin:0 12px 12px}
+#staff-edit-modal details.sm-fold>.sm-s-dsched{margin:0 12px 12px!important}
+.wl-btn.wl-btn-main{background:linear-gradient(135deg,#4a94ff,#2f77f6);border-color:transparent;color:#fff}
+.wl-btn:disabled{opacity:.7;cursor:progress}
+/* 근무표 작성 앱의 참고 자료 창(desktop/main.js — 윈도 제목줄 숨김): 파란 머리를 끌면 창 이동, 닫기는 윈도 창 버튼(오른쪽 150px)이 맡음 */
+html.nd-app .ws-info.wi-win .wi-head { min-height:52px; box-sizing:border-box; padding-right:150px; -webkit-app-region:drag; }
+html.nd-app .ws-info.wi-win .wi-close { display:none; }

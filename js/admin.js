@@ -63,7 +63,10 @@ function _workStatsAuto(year) {
 function renderWorkStats() {
   _initYearSelect('stats-year', renderWorkStats);
   const year = parseInt(document.getElementById('stats-year')?.value) || new Date().getFullYear();
-  const edit = _statsEditMode;
+  document.getElementById('work-stats-area').innerHTML = _workStatsHTML(year, _statsEditMode);
+}
+// 근무 통계 표 HTML — 관리자 '근무 통계' 탭과 작성소 참고 자료 창(js/workshop.js)이 같이 씀
+function _workStatsHTML(year, edit, nameFn) {   // nameFn: 이름을 누르면 부를 함수 이름(참고 자료 창 = 'wsInfoPerson')
   const { employees, jflPool, satA, friA, jsubA, ilgeunA, jflA } = _workStatsAuto(year);
 
   const manY = data.manualStats?.[year] || {};
@@ -92,7 +95,7 @@ function renderWorkStats() {
       }).join('');
       const fl = s.employmentType==='freelancer' ? '<span style="font-size:9px;background:#f0f0f0;color:#888;border-radius:3px;padding:0 3px;margin-left:2px;">B</span>' : '';
       return `<tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:5px 8px;font-size:12px;font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;">${s.name}${fl}</td>
+        <td style="padding:5px 8px;font-size:12px;font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;">${nameFn?`<button class="wi-namebtn" onclick="${nameFn}('${s.id}')">${s.name}</button>`:s.name}${fl}</td>
         ${cells}
         <td style="text-align:center;font-size:11px;font-weight:800;padding:4px 6px;color:${total?accentColor:'#d0d5de'};background:var(--surface2);position:sticky;right:0;z-index:1;">${total||'-'}</td>
       </tr>`;
@@ -114,20 +117,16 @@ function renderWorkStats() {
     </div>`;
   }
 
-  const area = document.getElementById('work-stats-area');
   const hasData = edit
     || Object.keys(data.schedule||{}).some(ds => ds.startsWith(year+''))
     || Object.keys(manY).length > 0;
-  if (!hasData) {
-    area.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--muted);font-size:14px;">${year}년 데이터가 없습니다. '과거 데이터 직접 입력'으로 채워 넣으세요.</div>`;
-    return;
-  }
+  if (!hasData) return `<div style="text-align:center;padding:48px 20px;color:var(--muted);font-size:14px;">${year}년 데이터가 없습니다. '과거 데이터 직접 입력'으로 채워 넣으세요.</div>`;
   const t1 = buildStatTable('토요 숙직근무', 'sat', employees, satA, '#dfe4f2', '#565ba4');
   const t2 = buildStatTable('토요 조근 근무', 'jsub', employees, jsubA, '#e1f1ed', '#45847a');
   const t3 = buildStatTable('일근 근무', 'ilgeun', employees, ilgeunA, '#f6e0ea', '#a34873');
   const t4 = jflPool.length ? buildStatTable('직원B 조근근무', 'jfl', jflPool, jflA, '#fce8e8', '#c06b66') : '';
   const t5 = buildStatTable('금요일 당직', 'fri', employees, friA, '#fbe6cf', '#a9772f');
-  area.innerHTML = `<div class="stats-grid">${t1}${t5}${t2}${t3}${t4}</div>`;
+  return `<div class="stats-grid">${t1}${t5}${t2}${t3}${t4}</div>`;
 }
 
 function toggleManualStats() {
