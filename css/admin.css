@@ -265,21 +265,21 @@ tr.dragging { opacity:0.35; }
 .ws-info .wi-tabs button{flex:1;min-height:34px;border:0;border-radius:10px;background:transparent;color:var(--muted);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
 .ws-info .wi-tabs button[aria-selected="true"]{background:var(--surface);color:#2f77f6;box-shadow:0 1px 4px rgba(15,23,42,.1)}
 .ws-info .wi-body{padding:12px 14px 16px;overflow:auto;min-height:0}
-.ws-info .wi-note{font-size:11.5px;line-height:1.6;color:var(--muted);margin:0 0 10px}
+:is(.ws-info,.fl-admin) .wi-note{font-size:12.5px;line-height:1.6;color:var(--muted);margin:0 0 10px}
 .ws-info .wi-sub{font-size:12.5px;font-weight:800;margin:14px 0 6px;color:var(--text)}
-.ws-info .wi-empty{padding:28px 8px;text-align:center;color:var(--muted);font-size:13px}
-.ws-info .wi-table{width:100%;border-collapse:collapse;font-size:12px}
-.ws-info .wi-table th{position:sticky;top:-12px;background:var(--surface2);font-size:11px;font-weight:700;color:var(--muted);padding:6px 4px;text-align:center;white-space:nowrap}
-.ws-info .wi-table td{padding:6px 4px;text-align:center;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;font-weight:700;color:var(--text)}
+:is(.ws-info,.fl-admin) .wi-empty{padding:28px 8px;text-align:center;color:var(--muted);font-size:13px}
+.ws-info .wi-table{width:100%;border-collapse:collapse;font-size:14px}
+.ws-info .wi-table th{position:sticky;top:-12px;background:var(--surface2);font-size:12.5px;font-weight:800;color:var(--muted);padding:9px 6px;text-align:center;white-space:nowrap}
+.ws-info .wi-table td{padding:9px 6px;text-align:center;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;font-weight:700;color:var(--text)}
 .ws-info .wi-table td.wi-name{text-align:left;font-weight:700;white-space:nowrap}
-.ws-info .wi-name small{margin-left:4px;font-size:10px;font-weight:600;color:var(--muted)}
+.ws-info .wi-name small{margin-left:4px;font-size:11.5px;font-weight:600;color:var(--muted)}
 .ws-info .wi-dim{color:var(--muted);font-weight:500}
 .ws-info .wi-add{margin-left:3px;font-size:10px;font-weight:800;color:#2f77f6}
 .ws-info .wi-plus{color:#d65a52}.ws-info .wi-minus{color:#2f77f6}
-.ws-info .wi-in{width:100%;box-sizing:border-box;min-height:34px;padding:6px 8px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;font-size:13px;text-align:center}
-.ws-info .wi-memo{text-align:left}
-.ws-info .wi-in:focus{outline:none;border-color:#3182f6;box-shadow:0 0 0 3px rgba(49,130,246,.14)}
-.ws-info .wi-save{margin-top:12px;width:100%;min-height:42px;border:0;border-radius:14px;background:linear-gradient(135deg,#4a94ff,#2f77f6);color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+:is(.ws-info,.fl-admin) .wi-in{width:100%;box-sizing:border-box;min-height:34px;padding:6px 8px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;font-size:13px;text-align:center}
+:is(.ws-info,.fl-admin) .wi-memo{text-align:left}
+:is(.ws-info,.fl-admin) .wi-in:focus{outline:none;border-color:#3182f6;box-shadow:0 0 0 3px rgba(49,130,246,.14)}
+:is(.ws-info,.fl-admin) .wi-save{margin-top:12px;width:100%;min-height:42px;border:0;border-radius:14px;background:linear-gradient(135deg,#4a94ff,#2f77f6);color:#fff;font:inherit;font-size:14px;font-weight:800;cursor:pointer}
 #ws-info-btn.active{background:rgba(49,130,246,.12);color:#2f77f6;border-color:rgba(49,130,246,.35)}
 @media(max-width:1000px){.ws-info{left:8px;right:8px;top:auto;bottom:calc(84px + env(safe-area-inset-bottom));width:auto;max-width:none;max-height:60dvh}}
 /* 별도 창(문서 PiP·새 창) 안에서는 창을 꽉 채움 */
@@ -307,38 +307,36 @@ tr.dragging { opacity:0.35; }
 .wl-paste{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}.wl-paste[hidden]{display:none}.wl-paste textarea{text-align:left;min-height:80px;font-size:12px}
 .wl-row>td{padding:8px 6px 12px!important;background:rgba(49,130,246,.05)}
 .wl-sum{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;font-size:12px;margin-bottom:6px}.wl-sum b{color:#2f77f6}.wl-sum small{margin-left:auto;color:var(--muted);font-size:10.5px}
-.wl-list{width:100%;border-collapse:collapse;font-size:12px}.wl-list th{font-size:10.5px;color:var(--muted);font-weight:700;padding:4px;text-align:center}.wl-list td{padding:5px 4px;text-align:center;border-top:1px solid var(--border);font-weight:600}
-.wl-list tr.wl-off td{color:var(--muted);text-decoration:line-through}
 .wl-empty{font-size:12px;color:var(--muted);padding:8px 2px}
 .wl-host{border:1px solid var(--border);border-radius:12px;padding:10px;background:var(--surface)}
 /* 직원B 남은 휴가 카드(직원 계정 카드와 같은 반사 카드) — 창 폭에 맞춰 1~3칸, 내역을 펼친 카드는 한 줄 전체 */
-.ws-info .wl-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
-.ws-info .wl-card{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid transparent;border-radius:16px;background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box;box-shadow:var(--shadow-card)}
-[data-theme="dark"] .ws-info .wl-card{background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box}
-.ws-info .wl-card.open{grid-column:1/-1}
-.ws-info .wl-card-top{display:flex;align-items:center;gap:9px;min-width:0}
-.ws-info .wl-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px}
-.ws-info .wl-id{min-width:0;display:flex;flex-direction:column}
-.ws-info .wl-id .wi-namebtn{font-size:14.5px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.ws-info .wl-id span{font-size:11px;color:var(--muted);font-weight:600;margin-top:1px}
-.ws-info .wl-used{margin-left:auto;flex-shrink:0;font-style:normal;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(49,130,246,.12);color:#2f6fd6;white-space:nowrap}
-[data-theme="dark"] .ws-info .wl-used{background:rgba(49,130,246,.24);color:#97c3ff}
-.ws-info .wl-card-mid{display:flex;flex-direction:column;gap:6px}
-.ws-info .wl-days{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted)}
-.ws-info .wl-days input{width:72px;flex:0 0 auto}
-.ws-info .wl-days b{font-weight:700;color:var(--muted)}
-.ws-info .wl-card-foot{font-size:10.5px;color:var(--muted);text-align:right;margin-top:-4px}
-.ws-info .wl-detail{border-top:1px solid var(--border);padding-top:10px}
+:is(.ws-info,.fl-admin) .wl-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+:is(.ws-info,.fl-admin) .wl-card{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid transparent;border-radius:16px;background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box;box-shadow:var(--shadow-card)}
+[data-theme="dark"] :is(.ws-info,.fl-admin) .wl-card{background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box}
+:is(.ws-info,.fl-admin) .wl-card.open{grid-column:1/-1}
+:is(.ws-info,.fl-admin) .wl-card-top{display:flex;align-items:center;gap:9px;min-width:0}
+:is(.ws-info,.fl-admin) .wl-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px}
+:is(.ws-info,.fl-admin) .wl-id{min-width:0;display:flex;flex-direction:column}
+:is(.ws-info,.fl-admin) .wl-id .wi-namebtn{font-size:14.5px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+:is(.ws-info,.fl-admin) .wl-id span{font-size:11px;color:var(--muted);font-weight:600;margin-top:1px}
+:is(.ws-info,.fl-admin) .wl-used{margin-left:auto;flex-shrink:0;font-style:normal;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(49,130,246,.12);color:#2f6fd6;white-space:nowrap}
+[data-theme="dark"] :is(.ws-info,.fl-admin) .wl-used{background:rgba(49,130,246,.24);color:#97c3ff}
+:is(.ws-info,.fl-admin) .wl-card-mid{display:flex;flex-direction:column;gap:6px}
+:is(.ws-info,.fl-admin) .wl-days{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted)}
+:is(.ws-info,.fl-admin) .wl-days input{width:72px;flex:0 0 auto}
+:is(.ws-info,.fl-admin) .wl-days b{font-weight:700;color:var(--muted)}
+:is(.ws-info,.fl-admin) .wl-card-foot{font-size:10.5px;color:var(--muted);text-align:right;margin-top:-4px}
+:is(.ws-info,.fl-admin) .wl-detail{border-top:1px solid var(--border);padding-top:10px}
 /* 남은 휴가 카드: 한 장이 가로 한 줄을 꽉 채움 — 이름·부서 | 남은 휴가 | 메모(늘어남) | 사용·고친 날, 내역은 카드 아래로 펼침 */
-.ws-info .wl-cards{grid-template-columns:1fr;gap:8px}
-.ws-info .wl-card{flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 14px}
-.ws-info .wl-card-top{flex:0 0 150px}
-.ws-info .wl-card-top .wl-used{display:none}
-.ws-info .wl-card-mid{flex:1 1 260px;flex-direction:row;align-items:center;gap:10px;min-width:0}
-.ws-info .wl-card-mid .wi-memo{flex:1;min-width:0}
-.ws-info .wl-days{flex-shrink:0}
-.ws-info .wl-card-foot{flex:0 0 auto;margin:0;display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:64px}
-.ws-info .wl-detail{flex:0 0 100%}
+:is(.ws-info,.fl-admin) .wl-cards{grid-template-columns:1fr;gap:8px}
+:is(.ws-info,.fl-admin) .wl-card{flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 14px}
+:is(.ws-info,.fl-admin) .wl-card-top{flex:0 0 150px}
+:is(.ws-info,.fl-admin) .wl-card-top .wl-used{display:none}
+:is(.ws-info,.fl-admin) .wl-card-mid{flex:1 1 260px;flex-direction:row;align-items:center;gap:10px;min-width:0}
+:is(.ws-info,.fl-admin) .wl-card-mid .wi-memo{flex:1;min-width:0}
+:is(.ws-info,.fl-admin) .wl-days{flex-shrink:0}
+:is(.ws-info,.fl-admin) .wl-card-foot{flex:0 0 auto;margin:0;display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:64px}
+:is(.ws-info,.fl-admin) .wl-detail{flex:0 0 100%}
 /* 직원 편집 창: 접어 둔 칸(계약·파견·수습·부서 이동 예약) — 제목 줄을 누르면 펼침, 오른쪽에 값 요약 */
 #staff-edit-modal details.sm-fold{margin-top:12px;border:1px solid rgba(49,130,246,.14);border-radius:14px;background:rgba(49,130,246,.03)}
 #staff-edit-modal details.sm-fold>summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 14px;cursor:pointer;user-select:none}
@@ -355,3 +353,139 @@ tr.dragging { opacity:0.35; }
 /* 근무표 작성 앱의 참고 자료 창(desktop/main.js — 윈도 제목줄 숨김): 파란 머리를 끌면 창 이동, 닫기는 윈도 창 버튼(오른쪽 150px)이 맡음 */
 html.nd-app .ws-info.wi-win .wi-head { min-height:52px; box-sizing:border-box; padding-right:150px; -webkit-app-region:drag; }
 html.nd-app .ws-info.wi-win .wi-close { display:none; }
+.fl-admin .wi-save{max-width:320px}   /* 관리자 휴가 탭: 저장 버튼은 넓게 늘리지 않음 */
+/* WISE 휴가 내역 표(직원 카드·참고 자료): 큰 글자, 머리줄·줄무늬 바탕, 구분 = 색 꼬리표, 상태 = 알약 */
+.wl-list{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.wl-list th{padding:9px 8px;font-size:12px;font-weight:800;color:#2f6fd6;text-align:center;background:rgba(49,130,246,.10);border-bottom:1px solid rgba(49,130,246,.18)}
+.wl-list td{padding:9px 8px;text-align:center;font-weight:600;color:var(--text);border-top:1px solid var(--border)}
+.wl-list tbody tr:first-child td{border-top:0}
+.wl-list tbody tr:nth-child(even) td{background:rgba(15,23,42,.035)}
+.wl-list tbody tr:hover td{background:rgba(49,130,246,.07)}
+.wl-list td.wl-d{font-weight:800;font-variant-numeric:tabular-nums;line-height:1.5}   /* 여러 날은 줄바꿈 허용 */
+.wl-list td.wl-n{font-variant-numeric:tabular-nums}
+.wl-type{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}
+.wl-type.t-health{background:rgba(16,185,129,.14);color:#0f8a63}
+.wl-type.t-annual{background:rgba(49,130,246,.14);color:#2563eb}
+.wl-type.t-special{background:rgba(245,158,11,.18);color:#b45309}
+.wl-type.t-etc{background:rgba(100,116,139,.14);color:#475569}
+.wl-st{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;background:var(--surface2);color:var(--text);white-space:nowrap}
+.wl-list tr.wl-off td{color:var(--muted)}
+.wl-list tr.wl-off .wl-d{text-decoration:line-through}
+.wl-st.off{background:rgba(214,90,82,.12);color:#c2453d}
+[data-theme="dark"] .wl-list th{color:#8ab8ff;background:rgba(49,130,246,.16)}
+[data-theme="dark"] .wl-list tbody tr:nth-child(even) td{background:rgba(255,255,255,.04)}
+[data-theme="dark"] .wl-type.t-health{color:#5fe0b3}[data-theme="dark"] .wl-type.t-annual{color:#93c5fd}[data-theme="dark"] .wl-type.t-special{color:#fcd34d}[data-theme="dark"] .wl-type.t-etc{color:#cbd5e1}
+.wl-sum{font-size:13px;gap:6px 14px;margin-bottom:8px}
+/* WISE 가져오는 중 진행 카드(js/workshop.js _wlProg) — 앱 화면 위쪽 가운데 */
+#wl-prog{position:fixed;top:62px;left:50%;z-index:10002;width:min(380px,calc(100vw - 32px));padding:16px 18px 14px;box-sizing:border-box;transform:translateX(-50%);border:1px solid transparent;border-radius:18px;
+  background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box;box-shadow:0 18px 44px -18px rgba(15,23,42,.45);animation:wlpIn .26s ease both}
+[data-theme="dark"] #wl-prog{background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box}
+#wl-prog.out{animation:wlpOut .26s ease both}
+#wl-prog .wlp-title{font-size:14px;font-weight:800;margin-bottom:10px}
+#wl-prog .wlp-bar{position:relative;height:8px;border-radius:999px;background:var(--surface2);overflow:hidden}
+#wl-prog .wlp-bar i{position:absolute;left:0;top:0;bottom:0;width:3%;border-radius:999px;background:linear-gradient(90deg,#4a94ff,#2f77f6);transition:width .35s ease}
+#wl-prog.ind .wlp-bar i{width:35%!important;animation:wlpInd 1.2s ease-in-out infinite}
+#wl-prog .wlp-text{margin-top:8px;font-size:12.5px;color:var(--muted);font-weight:600}
+@keyframes wlpInd{0%{left:-35%}100%{left:100%}}
+@keyframes wlpIn{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes wlpOut{to{opacity:0;transform:translate(-50%,-8px)}}
+/* 관리자 '휴가' 탭(js/workshop.js renderFlLeaveTab): 왼쪽 직원B 목록 · 오른쪽 선택한 사람 — 토스 반사 카드 */
+.fl-split{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start;margin-top:6px}
+.fl-list{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 230px);overflow-y:auto;padding:2px 4px 6px 2px}
+.fl-item{display:flex;align-items:center;gap:11px;width:100%;padding:11px 13px;text-align:left;font:inherit;color:var(--text);cursor:pointer;border:1px solid transparent;border-radius:16px;
+  background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box;box-shadow:0 6px 16px -12px rgba(15,23,42,.35);transition:transform .12s,box-shadow .12s}
+[data-theme="dark"] .fl-item{background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box}
+.fl-item:hover{transform:translateY(-1px);box-shadow:0 10px 20px -12px rgba(15,23,42,.4)}
+/* 선택한 사람: 파란 카드 + 흰 글자 */
+.fl-item.on,[data-theme="dark"] .fl-item.on{background:linear-gradient(135deg,#4a94ff,#2f77f6);border-color:transparent;box-shadow:0 12px 24px -12px rgba(47,119,246,.65)}
+.fl-admin .fl-id{min-width:0;display:flex;flex-direction:column}
+.fl-admin .fl-id b{font-size:14.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl-admin .fl-id small{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:1px}
+.fl-meta{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.fl-left{font-size:12px;color:var(--muted);font-weight:700}.fl-left b{color:var(--text);font-size:13px}
+.fl-detail{position:sticky;top:110px;padding:18px 20px 20px;border:1px solid transparent;border-radius:20px;
+  background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box;box-shadow:0 18px 44px -24px rgba(15,23,42,.4)}
+[data-theme="dark"] .fl-detail{background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box}
+.fl-head{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.fl-head .wl-av{width:44px;height:44px;font-size:18px}
+.fl-head .fl-id b{font-size:18px}
+.fl-head .wl-used{margin-left:auto}
+.fl-edit{display:flex;align-items:center;gap:10px;margin-top:14px}
+.fl-edit .wl-days{flex-shrink:0}
+.fl-edit .wi-memo{flex:1;min-width:0}
+.fl-save{flex-shrink:0;min-height:36px;padding:0 20px;border:0;border-radius:12px;background:linear-gradient(135deg,#4a94ff,#2f77f6);color:#fff;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.fl-at{margin-top:6px;font-size:11px;color:var(--muted);text-align:right}
+.fl-sec{margin:18px 0 8px;font-size:13px;font-weight:800;color:#2f6fd6}
+[data-theme="dark"] .fl-sec{color:#8ab8ff}
+@media(max-width:1000px){.fl-split{grid-template-columns:1fr}.fl-list{max-height:none}.fl-detail{position:static}}
+.fl-item.on .fl-id b,.fl-item.on .fl-left b{color:#fff}
+.fl-item.on .fl-id small,.fl-item.on .fl-left{color:rgba(255,255,255,.85)}
+.fl-item.on .wl-used,[data-theme="dark"] .fl-item.on .wl-used{background:rgba(255,255,255,.22);color:#fff}
+.fl-item.on .wl-av{box-shadow:0 0 0 2px rgba(255,255,255,.9)}
+/* 참고 자료 창 안의 2분할(직원B 남은 휴가) — 창이 좁아 왼쪽 목록을 작게, 큰 화면 규칙(@media)보다 우선 */
+.fl-in-info .fl-split{grid-template-columns:minmax(150px,36%) minmax(0,1fr);gap:10px;margin-top:0}
+.fl-in-info .fl-list{max-height:none;padding:2px}
+.fl-in-info .fl-item{padding:9px 10px;gap:8px;border-radius:14px}
+.fl-in-info .fl-item .wl-av{width:30px;height:30px;font-size:13px}
+.fl-in-info .fl-meta .fl-left{display:none}
+.fl-in-info .fl-detail{position:static;padding:14px 14px 16px;border-radius:16px}
+.fl-in-info .fl-head .wl-av{width:38px;height:38px;font-size:16px}
+.fl-in-info .fl-head .fl-id b{font-size:16px}
+.fl-in-info .fl-head{flex-wrap:wrap}
+.fl-in-info .fl-edit{flex-wrap:wrap}
+.fl-in-info .fl-edit .wi-memo{flex:1 1 140px}
+.fl-in-info .wl-list{font-size:13px}
+.fl-in-info .wl-list :is(th,td){padding:8px 5px}
+/* 관리자 휴가 탭: 휴가 직접 넣기 줄 + 직접 넣은 줄 표시·지우기 */
+.fl-sec small{margin-left:6px;font-size:11.5px;font-weight:600;color:var(--muted)}
+.fl-add{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px;padding:12px;border-radius:14px;background:rgba(49,130,246,.06);border:1px solid rgba(49,130,246,.14)}
+.fl-admin .fl-add .wi-in{width:auto;flex:none}
+.fl-admin .fl-add input[type=date].wi-in{width:150px}
+.fl-admin .fl-add select.wi-in{min-width:120px}
+.fl-add .fl-tilde{color:var(--muted);font-weight:700}
+.fl-add .fl-add-n{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.fl-admin .fl-add .fl-add-n input.wi-in{width:70px}
+.fl-add .fl-save{margin-left:auto}
+.wl-st.manual{background:rgba(124,58,237,.12);color:#6d28d9}
+[data-theme="dark"] .wl-st.manual{background:rgba(167,139,250,.18);color:#c4b5fd}
+.wl-list td.wl-x{width:34px;padding:4px}
+.wl-list td.wl-x button{width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:var(--muted);cursor:pointer;font-size:12px}
+.wl-list td.wl-x button:hover{background:rgba(214,90,82,.12);color:#c2453d}
+/* 관리자 '휴일 사전근무' 탭(js/holiday-work.js) — 왼쪽 휴일 목록은 휴가 탭(.fl-*)과 같은 모양 */
+.hw-item .fl-id b { font-size:14px; }
+.hw-n { font-size:12.5px; font-weight:800; color:var(--text); }
+.hw-done { font-style:normal; margin-left:6px; padding:2px 8px; border-radius:999px; background:rgba(16,185,129,.14); color:#0f8a63; font-size:11.5px; font-weight:800; white-space:nowrap; }
+.fl-item.on .hw-n, .fl-item.on .hw-done { color:#fff; } .fl-item.on .hw-done { background:rgba(255,255,255,.22); }
+.hw-tbl { width:100%; border-collapse:separate; border-spacing:0; margin-top:10px; font-size:13.5px; }
+.hw-tbl th { text-align:left; font-size:12px; font-weight:700; color:var(--muted); padding:8px 10px; background:var(--surface2); }
+.hw-tbl th:first-child { border-radius:10px 0 0 10px; width:34px; } .hw-tbl th:last-child { border-radius:0 10px 10px 0; }
+.hw-tbl td { padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.hw-tbl td small { display:block; font-size:11.5px; color:var(--muted); font-weight:600; }
+.hw-tbl tr:nth-child(even) td { background:rgba(148,163,184,.06); }
+.hw-role { display:inline-block; padding:2px 9px; border-radius:999px; background:rgba(49,130,246,.12); color:#2f6fd6; font-size:12px; font-weight:800; white-space:nowrap; }
+.hw-time { font-variant-numeric:tabular-nums; font-size:12.5px; color:var(--muted); word-break:keep-all; }   /* 줄바꿈 허용 — 창이 좁으면(앱 최소 폭 근처) '(다음날 10:00까지)'가 아랫줄로, 표가 카드 밖으로 안 넘침 */
+.hw-cont { width:100%; min-width:80px; text-align:left !important; }
+.hw-note { margin:12px 0 0; font-size:12.5px; line-height:1.6; color:var(--muted); }
+.hw-status { margin:6px 0 0; min-height:18px; font-size:12.5px; font-weight:700; color:#2f6fd6; }
+.hw-foot { display:flex; gap:8px; justify-content:flex-end; margin-top:10px; }
+.hw-foot button { min-height:42px; padding:0 20px; border-radius:12px; font:inherit; font-size:14px; font-weight:800; cursor:pointer; border:1px solid var(--border); background:var(--surface2); color:var(--text); }
+.hw-foot .hw-go { border:0; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; }
+.hw-foot button:disabled { opacity:.5; cursor:not-allowed; }
+.hw-extra td { background:rgba(245,158,11,.06) !important; }
+.hw-extra-in { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin-top:12px; font-size:12.5px; font-weight:700; color:var(--muted); }
+.hw-extra-in .wi-in { flex:1 1 140px; text-align:left !important; }
+.hw-extra-in #hw-x-name { flex:0 1 120px; }
+.hw-add { flex:0 0 auto; min-height:36px; padding:0 16px; border:0; border-radius:10px; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; font:inherit; font-size:13px; font-weight:800; cursor:pointer; }
+.hw-cont-row { display:flex; align-items:center; gap:6px; }
+.hw-del { flex:0 0 30px; width:30px; height:30px; border:0; border-radius:50%; background:rgba(239,68,68,.1); color:#dc2626; font-size:18px; font-weight:800; line-height:1; cursor:pointer; }
+.hw-del:hover { background:rgba(239,68,68,.2); }
+.hw-extra-in small { flex-basis:100%; font-weight:600; }
+/* 다크: 칩·상태 글자 밝게(진한 색은 어두운 카드에서 안 읽힘). 고른 휴일 카드(파랑) 안의 '올림'은 흰 글자 그대로 */
+[data-theme="dark"] .hw-done { background:rgba(52,211,153,.16); color:#6ee7b7; }
+[data-theme="dark"] .fl-item.on .hw-done { background:rgba(255,255,255,.22); color:#fff; }
+[data-theme="dark"] .hw-role { background:rgba(106,168,255,.18); color:#97c3ff; }
+[data-theme="dark"] .hw-status { color:#97c3ff; }
+[data-theme="dark"] .hw-del { background:rgba(248,113,113,.16); color:#fca5a5; }
+[data-theme="dark"] .hw-del:hover { background:rgba(248,113,113,.28); }
+/* 근무표 PC 앱에서만 쓰는 탭(휴일 사전근무 — WISE 자동 입력)은 웹·휴대폰에선 숨김 */
+html:not(.nd-app) .admin-tab.nd-app-only { display:none; }

@@ -37,6 +37,8 @@ function publishSchedule() {
   renderDeployLog();
   renderHome();
   renderTable();
+  // 관리자 테스트(읽기 전용) 모드: 저장도 안 됐으니 전 직원 알림도 보내지 않음
+  if (isAdminTest) { toast('관리자 테스트 모드 — 배포·알림을 하지 않았어요.','error'); return; }
   toast('근무표가 배포되었습니다.','success');
   // 배포 알림: 전 직원에게 보낼지 매번 확인
   if (confirm('근무표를 배포했습니다.\n\n전 직원에게 "근무표 업데이트" 알림을 보낼까요?')) {

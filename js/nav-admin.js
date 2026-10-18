@@ -1,12 +1,6 @@
 /* [모듈] js/nav-admin.js — 탭 전환(showView)·관리자/마스터 로그인 | dashboard.html 메인 스크립트에서 분리됨. 로드 순서 = dashboard.html의 <script> 순서(바꾸지 말 것) */
 // ===== NAV =====
-let _ndAppLanded = false;
 function showView(v) {
-  if (ND_APP && isAdmin) {   // 작성 앱: 작성소·관리자 화면만(로그인 직후 관리자 화면 요청은 작성소로)
-    if (v !== 'workshop' && v !== 'admin') v = 'workshop';
-    else if (v === 'admin' && !_ndAppLanded) v = 'workshop';
-    _ndAppLanded = true;
-  }
   const _prevView = currentView;   // 슬라이드 방향 판단용
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active','nd-slide-r','nd-slide-l'));
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -44,11 +38,12 @@ function toggleAdmin() {
     document.getElementById('admin-area').style.display='none';
     _updateTestPwHint();
   } else { renderAdminPanel(); }
+  if (ND_APP) _ndTitlebarSync();
 }
 function adminLogout() {
   const standalone=!!currentUser?.adminRole;
   employeeClearAdmin();
-  isAdmin = false; isMaster = false; isAdminTest = false; _ndAppLanded = false;
+  isAdmin = false; isMaster = false; isAdminTest = false;
   try{ sessionStorage.removeItem('nd_admin'); }catch(e){}
   _setAdminNav(false);
   document.getElementById('login-area').style.display='block';
@@ -100,6 +95,8 @@ function _enterAdmin(mode) {
   renderAdminPanel();
   if (mode === 'master') showAdminTab('settings');
   _updateAdminModeUI();
+  // 근무표 앱(설치판): 관리자로 들어오면 관리자 화면 대신 작성소부터(부르는 쪽의 showView('admin') 다음에)
+  if (ND_APP) setTimeout(() => { if (isAdmin && (currentView === 'admin' || currentView === 'home')) showView('workshop'); }, 0);
 }
 function toggleMasterBox() {
   const box=document.getElementById('master-login-box'); if(!box) return;

@@ -27,7 +27,7 @@
   document.addEventListener(ev, function(e){ e.preventDefault(); }, { passive:false });
 });
 // 테마: 저장값을 즉시 적용(깜빡임 방지) — 파싱 시점에 <html>에 표시
-(function(){ try { var t=localStorage.getItem('nd_theme'); var sysDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches; var isDark=(t==='dark' || (!t && sysDark)); if (isDark) document.documentElement.setAttribute('data-theme','dark'); var mc=document.querySelector('meta[name="theme-color"]'); if(mc) mc.setAttribute('content', isDark?'#0f0f0f':'#f1f4f8'); } catch(e){} })();
+(function(){ try { var t=localStorage.getItem('nd_theme'); var sysDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches; var isApp=document.documentElement.classList.contains('nd-app'); var isDark=(t==='dark' || (!t && sysDark && !isApp));   /* 근무표 앱(설치판)은 처음엔 늘 밝게 — 바꾸면 저장값을 따름 */ if (isDark) document.documentElement.setAttribute('data-theme','dark'); var mc=document.querySelector('meta[name="theme-color"]'); if(mc) mc.setAttribute('content', isDark?'#0f0f0f':'#f1f4f8'); } catch(e){} })();
 // 앱 시작 빠르게: 근무표 데이터와 로그인 확인을 스크립트를 기다리지 않고 맨 먼저 동시에 요청 — js/sync-init.js·employee-auth.js가 이 응답을 씀
 //  (예전엔 스크립트 → 데이터 → 로그인 확인 순서로 기다려 '불러오는 중'이 길었음). 주소·키는 js/core.js의 SB_URL·SB_KEY와 같게 유지(공개 anon 키)
 (function(){ try {
@@ -40,21 +40,21 @@
 window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.href)||''; if(u.indexOf(location.origin)===0 && /\/(js|css)\/[\w.-]+\.(js|css)(\?|$)/.test(u)) (window.__ndModFail=window.__ndModFail||[]).push(u); }, true);
 </script>
 <link rel="stylesheet" href="css/base.css?v=49d694c3">
-<link rel="stylesheet" href="css/dark.css?v=1147228f">
+<link rel="stylesheet" href="css/dark.css?v=0d47e71c">
 <link rel="stylesheet" href="css/nav.css?v=bd336f40">
-<link rel="stylesheet" href="css/home.css?v=85b5ea28">
+<link rel="stylesheet" href="css/home.css?v=de558eb3">
 <link rel="stylesheet" href="css/notice-poll.css?v=5d9dbdd0">
 <link rel="stylesheet" href="css/toss-common.css?v=f6f7ca81">
 <link rel="stylesheet" href="css/calendar.css?v=fb8bf996">
 <link rel="stylesheet" href="css/table.css?v=b98a1388">
-<link rel="stylesheet" href="css/modal.css?v=cbec7bd9">
-<link rel="stylesheet" href="css/admin.css?v=b3bb664f">
-<link rel="stylesheet" href="css/gantt-etc.css?v=82a1d736">
+<link rel="stylesheet" href="css/modal.css?v=153c4f1f">
+<link rel="stylesheet" href="css/admin.css?v=6cc43d21">
+<link rel="stylesheet" href="css/gantt-etc.css?v=27b00342">
 <link rel="stylesheet" href="css/sheet-login.css?v=a15e1dc2">
 <link rel="stylesheet" href="css/nd-select.css?v=23fbc7fd">
 <link rel="stylesheet" href="css/nd-cal.css?v=cdcf9f62">
 <link rel="stylesheet" href="css/popup-wide.css?v=a03d24fe">
-<link rel="stylesheet" href="css/meal.css?v=bbd4d819">
+<link rel="stylesheet" href="css/meal.css?v=1f8d3eb0">
 <style id="floating-sidebar-only">
 /* Header material measured from https://www.apple.com/kr/iphone-duo/ localnav-wrap (2026-09-21). Keep the app sidebar alignment and full available width. */
 @media (min-width:1001px) {
@@ -191,7 +191,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
  html body #dinner-modal input[type=date]::-webkit-date-and-time-value { text-align:left; min-width:0; }
  html body #dinner-modal .dinner-body { overflow-anchor:none; }
 }
-</style><link rel="stylesheet" href="employee-auth.css?v=bed2b578"><script src="employee-auth.js?v=04f194d0"></script><style>html,body{overscroll-behavior-y:none}</style></head>
+</style><link rel="stylesheet" href="employee-auth.css?v=bed2b578"><script src="employee-auth.js?v=4eb92224"></script><style>html,body{overscroll-behavior-y:none}</style></head>
 <body>
 <div id="employee-loading" role="status"><span>불러오는 중…</span></div>
 
@@ -222,6 +222,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
     <button class="nav-btn" id="nav-admin" onclick="showView('admin')" style="display:none;">관리자</button>
   </nav>
   <div class="header-right">
+    <button type="button" class="nd-alarm-btn" id="hdr-alarm" onclick="openAlarmStation()" aria-label="알림함" style="display:none;"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="nd-alarm-n"></span></button>
     <span class="date-badge" id="header-date"></span>
     <button id="theme-toggle" onclick="toggleTheme()" role="switch" aria-label="라이트/다크 전환" title="라이트/다크 전환"><span class="tt-knob" id="tt-knob"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.5 12h2M19.5 12h2M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg></span></button>
     <button id="hdr-menu-btn" onclick="toggleHdrMenu(event)" title="메뉴" aria-label="메뉴"><span id="hdr-menu-avatar">☰</span></button>
@@ -501,7 +502,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div class="modal" id="deploy-log-card" style="max-width:460px;max-height:82vh;display:flex;flex-direction:column;"></div>
 </div>
 
-<script src="data-save.js?v=8ba7e64b"></script>
+<script src="data-save.js?v=1cf33bfb"></script>
 <!-- 로그인 모달 -->
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;overflow:hidden;">
   <div class="li-orbs"><span></span><span></span><span></span></div>
@@ -586,11 +587,10 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
       <div class="panel-body" style="padding:8px 12px;" id="home-week-summary"></div>
     </div>
   </div>
-  <!-- 오늘의 식사(js/meal.js renderMeal) — SBS 목동 조식·점심·석식. 데이터 nd_data id='meal', 가져오기는 WISE 창 즐겨찾기(meal-import.js) -->
+  <!-- 오늘의 식사(js/meal.js renderMeal) — SBS 목동 조식·점심·석식. 데이터 nd_data id='meal'. 가져오기는 근무표 PC 앱이 저절로(_mealAppAuto — WISE 세션으로 meal-import.js 실행), 웹·앱 모두 버튼 없음 -->
   <div class="panel" id="home-meal" style="margin-top:14px;">
     <div class="panel-header">
       <div class="panel-title"><span class="panel-title-dot" style="background:#fb923c"></span>오늘의 식사<span class="meal-where">SBS 목동</span></div>
-      <button type="button" class="meal-get" onclick="openMealImport()" aria-label="WISE에서 식단 가져오기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>가져오기</button>
     </div>
     <div class="panel-body" id="meal-body"></div>
   </div>
@@ -687,6 +687,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
       <div class="pj-col pj-col-r">
         <div class="pj-s-name"><label class="form-label">프로젝트명</label><input class="form-input" id="pj-name" maxlength="40" placeholder="예 : 타이틀 제작"></div>
         <div class="pj-s-color"><label class="form-label">색상</label><br><input type="color" id="pj-color" value="#f4a09a" oninput="_pjTint()"></div>
+        <div class="pj-s-home"><label class="pj-home-sw"><span>홈 화면에 표시</span><input type="checkbox" role="switch" id="pj-home-one" checked><i aria-hidden="true"></i></label></div>
         <div class="pj-s-pt"><label class="form-label">참여자</label><div id="pj-part-pick"></div></div>
       </div>
     </div>
@@ -869,6 +870,8 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
       <button class="admin-tab" onclick="showAdminTab('swap')">근무 교환</button>
       <button class="admin-tab active" onclick="showAdminTab('staff')">직원 관리</button>
       <button class="admin-tab" onclick="showAdminTab('leave')">근무 통계</button>
+      <button class="admin-tab" onclick="showAdminTab('fleave')">휴가</button>
+      <button class="admin-tab nd-app-only" onclick="showAdminTab('hwork')">휴일 사전근무</button>
       <button class="admin-tab" onclick="showAdminTab('edit')">일정 편집</button>
       <button class="admin-tab" id="tab-avoid" onclick="showAdminTab('avoid')">특수근무 제외</button>
       <button class="admin-tab" onclick="showAdminTab('guide')">근무 안내</button>
@@ -979,6 +982,17 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
         <span id="stats-edit-hint" style="display:none;font-size:11px;color:var(--muted);">표 셀에 숫자를 직접 입력 후 '입력 완료'를 누르세요. 자동 집계분은 그대로 유지됩니다.</span>
       </div>
       <div id="work-stats-area"></div>
+    </div>
+    <!-- 직원B 휴가: 참고 자료 '직원B 남은 휴가'와 같은 카드(js/workshop.js renderFlLeaveTab) -->
+    <div class="admin-panel" id="panel-fleave">
+      <h3 style="margin:0 0 12px;font-size:15px;font-weight:700;">직원B 휴가</h3>
+      <div id="fleave-area" class="fl-admin"></div>
+    </div>
+
+    <!-- 휴일 사전근무: 휴일 근무자를 WISE 휴일근무 사전신청(peda0215)에 올림(js/holiday-work.js renderHworkTab — WISE 채우기는 근무표 PC 앱만) -->
+    <div class="admin-panel" id="panel-hwork">
+      <h3 style="margin:0 0 12px;font-size:15px;font-weight:700;">휴일 사전근무 신청</h3>
+      <div id="hwork-area" class="fl-admin"></div>
     </div>
 
     <!-- SCHEDULE GEN -->
@@ -1187,7 +1201,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.15 20:32';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.18 23:57';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1444,35 +1458,38 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div id="cell-pop-opts" style="display:flex;flex-direction:column;gap:4px;"></div>
 </div>
 
-<script src="js/core.js?v=1ecdef7e"></script>
-<script src="js/project-gantt.js?v=ea7ac9ae"></script>
-<script src="js/nav-admin.js?v=1eb24849"></script>
-<script src="js/home.js?v=9ed62af1"></script>
-<script src="js/table-view.js?v=73dd2efd"></script>
-<script src="js/calendar.js?v=3ac614cc"></script>
-<script src="js/generation.js?v=7ffa8399"></script>
-<script src="js/workshop.js?v=d2719a55"></script>
+<script src="js/core.js?v=41a6f982"></script>
+<script src="js/project-gantt.js?v=64b2c52b"></script>
+<script src="js/nav-admin.js?v=a6a60f48"></script>
+<script src="js/home.js?v=b4426f4b"></script>
+<script src="js/table-view.js?v=c17c7122"></script>
+<script src="js/calendar.js?v=4e6b00eb"></script>
+<script src="js/generation.js?v=51ad9cf3"></script>
+<script src="js/workshop.js?v=3fd3cea1"></script>
 <script src="js/excel-import.js?v=9c4ecc29"></script>
-<script src="js/events.js?v=9e18c09f"></script>
-<script src="js/publish.js?v=553b9861"></script>
-<script src="js/leave-request.js?v=bc9ed88b"></script>
+<script src="js/events.js?v=291f1d5a"></script>
+<script src="js/publish.js?v=0f538f2b"></script>
+<script src="js/leave-request.js?v=4bd108a2"></script>
 <script src="js/staff.js?v=e69bc478"></script>
-<script src="js/admin.js?v=c84d830e"></script>
+<script src="js/admin.js?v=d1800f6e"></script>
 <script src="js/cell-edit.js?v=799de12b"></script>
-<script src="js/login-ui.js?v=882273b7"></script>
-<script src="js/notice.js?v=74195e16"></script>
+<script src="js/login-ui.js?v=2c8eaeea"></script>
+<script src="js/notice.js?v=5f269061"></script>
 <script src="js/poll.js?v=0cd98cbc"></script>
-<script src="js/schedule-finder.js?v=60c7f69a"></script>
-<script src="js/sync-init.js?v=349862fa"></script>
+<script src="js/schedule-finder.js?v=dc123704"></script>
+<script src="js/sync-init.js?v=df7f12a6"></script>
 <script src="js/a2hs.js?v=f3c426b9"></script>
-<script src="js/staff-modal.js?v=702c9379"></script>
+<script src="js/staff-modal.js?v=dc014935"></script>
 <script src="js/pull-refresh.js?v=8849e397"></script>
 <script src="js/nd-select.js?v=07611e9c"></script>
 <script src="js/nd-people.js?v=7bba13fe"></script>
 <script src="js/nd-cal.js?v=e3d3ed58"></script>
 <script src="js/nd-comments.js?v=736684f3"></script>
-<script src="js/meal.js?v=81b42c26"></script>
-<script src="js/app-mode.js?v=4ac09584"></script>
+<script src="js/meal.js?v=089d1004"></script>
+<script src="js/alarms.js?v=7345bb10"></script>
+<script src="js/news-cue.js?v=dd5eb823"></script>
+<script src="js/holiday-work.js?v=6d7752ba"></script>
+<script src="js/app-mode.js?v=1988e245"></script>
 <script>
 // 모듈 로드 실패 안내 — CSS가 빠졌을 수도 있으니 스타일은 전부 인라인
 (function(){

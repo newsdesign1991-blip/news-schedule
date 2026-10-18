@@ -105,8 +105,46 @@ function renderMeal(){
   _mealApplyPos();
   if(!_mealData) _mealData=_mealCacheRead();
   _mealPaint();
-  _mealLoad().then(_mealPaint);
+  _mealLoad().then(()=>{ _mealPaint(); _mealAppAuto(); });
 }
+// 근무표 앱(설치판): WISE 에 로그인된 앱이면 식단을 저절로 받아 저장(desktop/wise-fetch.js fetchMealDays — 북마클릿과 같은 meal-import.js).
+// PC 1대만(10-17): 저장본이 6시간 넘었을 때만, 서버 일 자리표(mode 'lease' key 'meal', 15분)를 잡은 앱만 WISE 를 염(못 받으면 자리표 내려놓음).
+// 시도는 PC마다 30분에 한 번(로그인 안 됨이면 2시간 쉼). 로그인 창은 띄우지 않음(WISE 로그인은 제목줄 [WISE 로그인]·휴가 가져오기 때)
+// 이 PC 고유값(자리표·담당 PC 구분 — js/news-cue.js 도 씀)
+function ndPcId(){ try{ let d=localStorage.getItem('nd_pc_id'); if(!d){ d='pc'+Math.random().toString(36).slice(2,10); localStorage.setItem('nd_pc_id',d); } return d; }catch(e){ return 'pc-temp'; } }
+async function ndLease(key, opt){
+  try{
+    const res=await fetch(NOTIFY_FN_URL,{ method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY }, body:JSON.stringify(Object.assign({ mode:'lease', key, dev:ndPcId(), name:(currentUser&&staffById(currentUser.staffId)?.name)||(currentUser&&currentUser.name)||'' },opt||{})) });
+    return res.ok?await res.json():null;
+  }catch(e){ return null; }
+}
+let _mealAppBusy=false, _mealNeedLogin=false;
+// force: 막 WISE 에 로그인한 뒤(휴가 가져오기 직후 — js/workshop.js wlAppFetch)라 오래됐는지·쉬는 시간 안 보고 바로. interactive: 로그인 창을 띄워서라도(관리자가 누름)
+async function _mealAppAuto(force, interactive){
+  if(!ND_APP||!window.ndApp?.mealFetch||_mealAppBusy||!currentUser) return;
+  const days=(_mealData&&_mealData.days)||{}, keys=Object.keys(days).sort(), last=keys[keys.length-1]||'';
+  const at=_mealData&&_mealData.fetchedAt?Date.parse(_mealData.fetchedAt):0;
+  if(!force && at && Date.now()-at<6*3600e3) return;   // 6시간 안에 누가 받았으면 끝(사흘 뒤 식단이 아직 없어도 — 주말엔 다음 주 식단이 늦게 올라옴)
+  let next=0; try{ next=+localStorage.getItem('nd_meal_auto_next')||0; }catch(e){}
+  if(!force && Date.now()<next) return;
+  _mealAppBusy=true;
+  let held=false;
+  try{
+    const ls=await ndLease('meal',{ ttl:15 });   // 다른 PC가 받는 중이면 이 PC는 쉼
+    if(!ls||!ls.lease){ try{ localStorage.setItem('nd_meal_auto_next', String(Date.now()+30*60e3)); }catch(e){} if(!ls) console.warn('meal lease 실패'); return; }
+    held=true;
+    const r=await window.ndApp.mealFetch({interactive:!!interactive});
+    try{ localStorage.setItem('nd_meal_auto_next', String(Date.now()+(r&&r.reason==='login'?2*3600e3:30*60e3))); }catch(e){}
+    _mealNeedLogin=!!(r&&r.reason==='login'); _mealPaint();
+    if(r&&typeof _ndWiseState==='function'){ if(r.ok) _ndWiseState(true); else if(r.reason==='login') _ndWiseState(false); }   // 제목줄 WISE 버튼
+    if(r&&r.ok){
+      const res=await fetch(NOTIFY_FN_URL,{ method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY }, body: JSON.stringify({ mode:'meal', from:r.from, to:r.to, days:r.days }) });
+      if(res.ok){ held=false; await _mealLoad(true); _mealPaint(); }   // 저장 = fetchedAt 이 새로 → 6시간 동안 아무도 안 받음(자리표는 15분 뒤 저절로 끝)
+    }
+  }catch(e){ console.warn('meal auto', e); }
+  finally{ _mealAppBusy=false; if(held) ndLease('meal',{ release:true }); }   // 못 받았으면 자리표를 바로 내려놓아 WISE 로그인된 다른 PC가 받게
+}
+if(typeof ND_APP!=='undefined'&&ND_APP) setInterval(()=>{ if(document.getElementById('meal-body')) _mealAppAuto(); }, 3*3600e3);
 function _mealPaint(){
   const host=document.getElementById('meal-body'); if(!host) return;
   const today=_mealToday(), ds=_mealDay||today, days=(_mealData&&_mealData.days)||{};
@@ -118,9 +156,9 @@ function _mealPaint(){
     `<div class="meal-date">${m}월 ${d}일 (${DOW_KR[date.getDay()]})${rel?` <b>${rel}</b>`:''}</div>`+
     `<button type="button" class="meal-nav" onclick="mealShift(1)" data-f="next" aria-label="다음 날"${ds>=(last>today?last:today)?' disabled':''}>${chev(1)}</button></div>`;
   if(!_mealData || !keys.length){
-    html+=`<div class="meal-empty"><div>아직 식단을 가져오지 않았어요.</div><button type="button" class="meal-empty-btn" onclick="openMealImport()">식단 가져오기</button></div>`;
+    html+=`<div class="meal-empty"><div>아직 식단이 없어요. 근무표 PC 앱이 WISE에서 저절로 가져와요.</div></div>`;   // 가져오기는 PC 앱이 저절로(_mealAppAuto) — 웹·앱 모두 버튼 없음
   } else if(!days[ds]){
-    html+=`<div class="meal-empty"><div>${ds>last?'아직 WISE에 올라오지 않은 날이에요.':'이 날은 등록된 식단이 없어요.'}</div>${ds>last?`<button type="button" class="meal-empty-btn" onclick="openMealImport()">식단 가져오기</button>`:''}</div>`;
+    html+=`<div class="meal-empty"><div>${ds>last?'아직 WISE에 올라오지 않은 날이에요.':'이 날은 등록된 식단이 없어요.'}</div></div>`;
   } else {
     const now=ds===today?_mealNowKind():'';
     const sel=_mealSel||now||'중식';   // 좁은 화면(탭)에서 보이는 식사: 고른 것 → 지금 식사 → 점심
@@ -134,7 +172,9 @@ function _mealPaint(){
   }
   const at=_mealData&&_mealData.fetchedAt?new Date(_mealData.fetchedAt):null;
   const soon=keys.length && _mealShiftDs(today,3)>last;   // 저장된 식단이 사흘 안에 끝남
-  if(keys.length) html+=`<div class="meal-foot${soon?' is-soon':''}"><span>${_mealMd(last)}까지 있음</span>${at&&!isNaN(at)?`<span>${_mealAtTxt(at)} 가져옴</span>`:''}${soon?`<button type="button" onclick="openMealImport()">새로 가져오기</button>`:''}</div>`;
+  const needLogin=ND_APP && _mealNeedLogin && (!keys.length || soon) && typeof isAdmin!=='undefined' && isAdmin;   // 앱이 WISE 로그인이 안 돼 못 받음 — 관리자에게만
+  if(keys.length) html+=`<div class="meal-foot${soon?' is-soon':''}"><span>${_mealMd(last)}까지 있음</span>${at&&!isNaN(at)?`<span>${_mealAtTxt(at)} 가져옴</span>`:''}</div>`;
+  if(needLogin) html+=`<div class="meal-login">WISE 로그인이 풀려 새 식단을 못 받았어요. 위쪽 <b>WISE 로그인</b>을 눌러 주세요.</div>`;
   if(host._mealHtml===html) return;   // 브라우저가 innerHTML을 다시 쓰면 글자가 달라져 비교가 안 맞음 → 넣은 글을 따로 기억
   const f=host.contains(document.activeElement)?document.activeElement.getAttribute('data-f'):null;   // 다시 그려도 키보드 포커스 유지
   host._mealHtml=html; host.innerHTML=html;

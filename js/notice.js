@@ -3,19 +3,21 @@
 function _todayStr() { const n=new Date(); return toDateStr(n.getFullYear(),n.getMonth()+1,n.getDate()); }
 function _genNoticeId(){ return 'n'+Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4); }
 // 공지 컨테이너 정규화: { news8Time, items:[{id,text,postedBy,postedAt,silent}] }. 구형 단일객체도 흡수(읽기 전용).
-function _getNoticeBox(ds){
-  const raw = (data.notices||{})[ds];
+// root = 읽을 문서(기본 data, 병합 저장 때는 서버본 payload)
+function _getNoticeBox(ds, root){
+  const raw = ((root||data).notices||{})[ds];
   if (!raw) return { news8Time:'', items:[] };
   if (Array.isArray(raw.items)) return raw;
   return { news8Time: raw.news8Time||'', items: raw.text ? [{ id:_genNoticeId(), text:raw.text, postedBy:raw.postedBy||'', postedAt:raw.postedAt||'', silent:false }] : [] };
 }
-// 쓰기용: 정규화한 컨테이너를 data.notices[ds]에 보장하고 반환
-function _ensureNoticeBox(ds){
-  if(!data.notices) data.notices={};
-  const cur = data.notices[ds];
+// 쓰기용: 정규화한 컨테이너를 root(기본 data).notices[ds]에 보장하고 반환
+function _ensureNoticeBox(ds, root){
+  root = root||data;
+  if(!root.notices) root.notices={};
+  const cur = root.notices[ds];
   if (cur && Array.isArray(cur.items)) return cur;
-  const box = _getNoticeBox(ds);
-  data.notices[ds] = box;
+  const box = _getNoticeBox(ds, root);
+  root.notices[ds] = box;
   return box;
 }
 // ── 게시 기간(until) 유틸 ──
@@ -29,9 +31,16 @@ function _noticeActiveItems(today){   // 오늘이 게시기간 안인 공지를
   out.sort((a,b) => b.ds.localeCompare(a.ds) || String(b.it.postedAt||'').localeCompare(String(a.it.postedAt||'')));
   return out;
 }
-function _findNoticeItem(id){   // id로 공지 항목이 들어있는 박스 찾기(과거 게시분도 수정/삭제 가능)
-  for (const ds of Object.keys(data.notices||{})) {
-    const box = _ensureNoticeBox(ds);
+// 한 달(30일)이 지난 날짜 박스는 버림 — 단 게시기간(until)이 아직 유효한 항목이 있으면 보존
+function _noticeKeepDay(d, today, root){ return d >= addDays(today, -30) || (_getNoticeBox(d, root).items||[]).some(it => _noticeEnd(d, it) >= today); }
+// 실제 정리는 공지를 저장·삭제할 때 서버본(root)에서 같이 함(_ndCommit 안). 화면을 그릴 때 문서 전체를 저장하지 않음
+function _noticePruneOld(root, today){
+  Object.keys(root.notices||{}).forEach(d => { if (!_noticeKeepDay(d, today, root)) delete root.notices[d]; });
+}
+function _findNoticeItem(id, root){   // id로 공지 항목이 들어있는 박스 찾기(과거 게시분도 수정/삭제 가능). root 기본 data
+  root = root||data;
+  for (const ds of Object.keys(root.notices||{})) {
+    const box = _ensureNoticeBox(ds, root);
     const it = (box.items||[]).find(i=>i.id===id);
     if (it) return { ds, box, it };
   }
@@ -107,18 +116,7 @@ function renderNoticeBar() {
   const wrap = document.getElementById('home-notice');
   if (!wrap) return;
   const ds = _todayStr();
-  // 한 달(30일)이 지난 공지는 자동 삭제 — 단 게시기간(until)이 아직 유효한 항목이 있는 박스는 보존
-  if (data.notices) {
-    const cutoff = addDays(ds, -30);
-    let pruned = false;
-    Object.keys(data.notices).forEach(d => {
-      if (d >= cutoff) return;
-      const bx = _getNoticeBox(d);
-      const anyActive = (bx.items||[]).some(it => _noticeEnd(d, it) >= ds);
-      if (!anyActive) { delete data.notices[d]; pruned = true; }
-    });
-    if (pruned) saveData(data);
-  }
+  // 한 달 지난 공지는 홈에 안 보임(_noticeActiveItems = 게시 중인 것만). 지우기는 공지 저장 때 서버본에서(_noticePruneOld) — 여기서 저장하지 않음
   const todayBox = _getNoticeBox(ds);
   const items = _noticeActiveItems(ds).map(a => a.it);   // 오늘 게시기간에 해당하는 공지 전부(과거 게시분 포함)
   const news8 = todayBox.news8Time || '';
@@ -212,27 +210,30 @@ function _noticeReactSet(itemId, emoji){
     if(desired===undefined) delete target.reactions[myId]; else target.reactions[myId]=desired;
   }).then(ok=>{ if(ok) _noticeReactRefresh(itemId); });
 }
-// 원격 최신본에 내 공감만 병합 + updated_at 낙관적잠금 + 재시도 (동시 공감 무손실).
+// 원격 최신본에 내 변경만 병합 + updated_at 낙관적잠금 + 재시도 (동시 저장 무손실). 공감·댓글·공지·일정·구글 일정 댓글이 같이 씀.
+// keys = mutate가 고치는 main 문서의 칸(객체) 이름들, 저장 뒤 내 data의 그 칸을 서버본으로 맞춤(기본 ['notices'])
 // mutate가 false를 돌려주면(대상 없음) 쓰지 않고 'gone'. 성공하면 true(그 뒤 ndAdoptMergedSave로 리비전 맞춤)
-async function _ndCommit(mutate){
-  if(isAdminTest) return true;
+// 관리자 테스트 모드: 서버에 쓰지 않고 내 화면(data)에만 반영(예전 saveData와 같음)
+async function _ndCommit(mutate, keys){
+  const ks=keys||['notices'];
+  if(isAdminTest){ try{ ks.forEach(k=>{ if(!data[k]) data[k]={}; }); mutate(data); }catch(e){} return true; }
   const url=`${SB_URL}/rest/v1/nd_data?id=eq.main`;
   for(let attempt=0;attempt<6;attempt++){
     let remote;
     try{ const g=await fetch(`${url}&select=payload,updated_at`,{headers:SB_HEADERS}); if(!g.ok) throw new Error('GET'); const a=await g.json(); remote=a&&a[0]; }
-    catch(e){ console.warn('공감 동기화 읽기 실패',e); return false; }
+    catch(e){ console.warn('병합 저장 읽기 실패',e); return false; }
     if(!remote||!remote.payload) return false;
-    const rp=remote.payload, base=rp._dataRevision||0; if(!rp.notices) rp.notices={};
-    let mr; try{ mr=mutate(rp); }catch(e){ console.warn('공감 mutate 실패',e); return false; }
-    if(mr===false){ ndAdoptGoneSnapshot(base, ()=>{ data.notices=rp.notices; }); return 'gone'; }   // 대상 공지가 이미 없음 → 쓰지 않음
+    const rp=remote.payload, base=rp._dataRevision||0; ks.forEach(k=>{ if(!rp[k]) rp[k]={}; });
+    let mr; try{ mr=mutate(rp); }catch(e){ console.warn('병합 저장 mutate 실패',e); return false; }
+    if(mr===false){ ndAdoptGoneSnapshot(base, ()=>{ ks.forEach(k=>{ data[k]=rp[k]; }); }); return 'gone'; }   // 대상이 이미 없음 → 쓰지 않음
     const nowIso=new Date().toISOString();
     try{
       const cond=remote.updated_at?`&updated_at=eq.${encodeURIComponent(remote.updated_at)}`:'';
       const pr=await fetch(`${url}${cond}`,{method:'PATCH',headers:Object.assign({},SB_HEADERS,{'Prefer':'return=representation'}),body:JSON.stringify({payload:rp,updated_at:nowIso})});
       if(!pr.ok) throw new Error('PATCH');
       const rows=await pr.json();
-      if(Array.isArray(rows)&&rows.length>0){ const saved=rows[0]; data.notices=(saved.payload&&saved.payload.notices)||rp.notices; ndAdoptMergedSave(base, saved); try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){} _localBackup(data); return true; }
-    }catch(e){ console.warn('공감 동기화 쓰기 실패',e); return false; }
+      if(Array.isArray(rows)&&rows.length>0){ const saved=rows[0]; ks.forEach(k=>{ data[k]=(saved.payload&&saved.payload[k])||rp[k]; }); ndAdoptMergedSave(base, saved); try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){} _localBackup(data); return true; }
+    }catch(e){ console.warn('병합 저장 쓰기 실패',e); return false; }
     await new Promise(res=>setTimeout(res, 70+attempt*110+Math.floor(Math.random()*140)));
   }
   return false;
@@ -577,6 +578,7 @@ function openNoticeModal(editId) {
 function closeNoticeModal() {
   _animModalClose(document.getElementById('notice-modal'));
 }
+let _noticeSaving = false;   // 저장 중 두 번 눌러 공지가 둘 생기지 않게
 async function saveNotice() {
   if (!currentUser || !currentUser.staffId) { toast('이름으로 로그인 후 작성할 수 있습니다.','error'); return; }
   const ds = _todayStr();
@@ -593,27 +595,41 @@ async function saveNotice() {
     if (_psel.value === 'custom') until = (_pdate && _pdate.value && _pdate.value >= ds) ? _pdate.value : ds;
     else until = addDays(ds, parseInt(_psel.value)||0);
   }
-  const box = _ensureNoticeBox(ds);
-  box.news8Time = news8;   // 8뉴스 진입시간은 날짜당 1개(공지와 분리, 당일 전용)
-  let isEdit = false;
-  if (_noticeEditId) {
-    const found = _findNoticeItem(_noticeEditId);
-    if (found) { found.it.text = text; found.it.title = title; found.it.silent = silent; if (!keepEnd) { if (until > found.ds) found.it.until = until; else delete found.it.until; } isEdit = true; }
-  }
+  const editId = (_noticeEditId && _findNoticeItem(_noticeEditId)) ? _noticeEditId : null;
+  const isEdit = !!editId;
+  let nit = null;
   if (!isEdit && text) {
-    const nit = { id:_genNoticeId(), text, title, postedBy:currentUser.name||'', postedById:(currentUser.staffId||''), postedAt:new Date().toISOString(), silent };  // 새 공지는 맨 앞(최신)
+    nit = { id:_genNoticeId(), text, title, postedBy:currentUser.name||'', postedById:(currentUser.staffId||''), postedAt:new Date().toISOString(), silent };  // 새 공지는 맨 앞(최신)
     if (until > ds) nit.until = until;
-    box.items.unshift(nit);
   }
-  saveData(data);
+  // 서버 최신본에 이 공지만 넣거나 고침(_ndCommit — 그사이 남이 저장해도 거부·덮어쓰기 없음). 저장이 끝난 뒤에만 창 닫고 알림
+  if (_noticeSaving) return;
+  _noticeSaving = true;
+  let res;
+  try {
+    res = await _ndCommit(rp => {
+      const box = _ensureNoticeBox(ds, rp);
+      box.news8Time = news8;   // 8뉴스 진입시간은 날짜당 1개(공지와 분리, 당일 전용)
+      if (isEdit) {
+        const found = _findNoticeItem(editId, rp);
+        if (!found) return false;   // 그사이 지워진 공지
+        found.it.text = text; found.it.title = title; found.it.silent = silent; if (!keepEnd) { if (until > found.ds) found.it.until = until; else delete found.it.until; }
+      } else if (nit) {
+        box.items = box.items.filter(i => i.id !== nit.id); box.items.unshift(nit);   // 다시 시도해도 한 번만
+      }
+      _noticePruneOld(rp, ds);   // 한 달 지난 공지 정리도 이때 같이
+    });
+  } finally { _noticeSaving = false; }
+  if (res === 'gone') { toast('이미 삭제된 공지예요.','error'); closeNoticeModal(); renderNoticeBar(); _noticeEditId = null; return; }
+  if (res !== true) { toast('공지를 저장하지 못했어요. 네트워크 확인 후 다시 시도하세요.','error'); return; }   // 창은 그대로(쓴 글 유지)
   closeNoticeModal();
   renderNoticeBar();
-  const doPush = !silent && !isEdit && (text || news8);   // 수정/조용한 공지는 알림 미발송
+  const doPush = !silent && !isEdit && (text || news8) && !isAdminTest;   // 수정/조용한 공지·관리자 테스트는 알림 미발송
   if (doPush) {
     toast('공지가 등록되었습니다. 전 직원에게 알림을 보냅니다.','success');
     _sendNoticePush(text || ('오늘 8뉴스 진입시간 ' + news8 + ' 입니다.'));
   } else {
-    toast(isEdit ? '공지를 수정했습니다.' : (silent ? '조용히 등록되었습니다 (알림 미발송).' : '저장되었습니다.'),'success');
+    toast(isAdminTest ? '관리자 테스트 모드 — 저장·알림을 하지 않았어요.' : isEdit ? '공지를 수정했습니다.' : (silent ? '조용히 등록되었습니다 (알림 미발송).' : '저장되었습니다.'), isAdminTest ? 'error' : 'success');
   }
   _noticeEditId = null;
 }
@@ -630,7 +646,7 @@ function _noticeHistPaint(){
   const esc = t => String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   const bellOff = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="조용히(알림 없음)"><path d="M13.7 21a2 2 0 0 1-3.4 0M18.6 13A17.9 17.9 0 0 1 18 8M6.3 6.3A5.9 5.9 0 0 0 6 8c0 7-3 9-3 9h14M18 8a6 6 0 0 0-9.3-5M3 3l18 18"/></svg>';
   const cmtIc = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M8 2.5c-3.1 0-5.7 1.9-5.7 4.2 0 1.3.8 2.5 2 3.3-.1.6-.4 1.2-.8 1.7-.2.2 0 .5.3.4.9-.1 1.8-.5 2.5-.9.5.1 1.1.2 1.7.2 3.1 0 5.7-1.9 5.7-4.2S11.1 2.5 8 2.5z"/></svg>';
-  const days = Object.keys(data.notices||{}).sort((x,y) => y.localeCompare(x));   // 최신 날짜순
+  const days = Object.keys(data.notices||{}).filter(d => _noticeKeepDay(d, today)).sort((x,y) => y.localeCompare(x));   // 최근 1개월(+아직 게시 중), 최신 날짜순
   let html = '';
   days.forEach(d => {
     const box = _ensureNoticeBox(d);   // id가 고정돼야 눌러서 열 수 있음(옛 형식도 정규화)
@@ -667,23 +683,33 @@ function closeNoticeHistory() {
   _animModalClose(document.getElementById('notice-history-modal'));
 }
 
-function deleteNotice() {
+async function deleteNotice() {
   if (!currentUser || !currentUser.staffId) return;
-  if (_noticeEditId) {
-    const found = _findNoticeItem(_noticeEditId);
-    if (found) {
-      found.box.items = (found.box.items||[]).filter(i=>i.id!==_noticeEditId);   // 게시일 박스에서 개별 공지 삭제
-      if ((!found.box.items || !found.box.items.length) && !found.box.news8Time) delete data.notices[found.ds];  // 0건+8뉴스없음이면 박스 정리
-    }
-  }
-  saveData(data);
+  const id = _noticeEditId;
+  if (!id) return;
+  if (_noticeSaving) return;
+  _noticeSaving = true;
+  let res;
+  try {
+    // 서버 최신본에서 이 공지만 뺌(_ndCommit). 'gone' = 이미 지워짐 → 지운 것과 같음
+    res = await _ndCommit(rp => {
+      const found = _findNoticeItem(id, rp);
+      if (!found) return false;
+      found.box.items = (found.box.items||[]).filter(i=>i.id!==id);   // 게시일 박스에서 개별 공지 삭제
+      if ((!found.box.items || !found.box.items.length) && !found.box.news8Time) delete rp.notices[found.ds];  // 0건+8뉴스없음이면 박스 정리
+      _noticePruneOld(rp, _todayStr());
+    });
+  } finally { _noticeSaving = false; }
+  if (res !== true && res !== 'gone') { toast('공지를 삭제하지 못했어요. 네트워크 확인 후 다시 시도하세요.','error'); return; }
   closeNoticeModal();
   renderNoticeBar();
   toast('공지를 삭제했습니다.','success');
   _noticeEditId = null;
 }
 // kind: 'notice'(공지·휴가 신청 안내) | 'poll'(투표) — 서버가 받는 사람의 개인 알림 설정(공지/투표)으로 거름
+// 관리자 테스트(읽기 전용) 모드에서는 보내지 않음
 async function _sendNoticePush(text, title, kind) {
+  if (isAdminTest) return;
   try {
     await fetch(NOTIFY_FN_URL, {
       method:'POST',

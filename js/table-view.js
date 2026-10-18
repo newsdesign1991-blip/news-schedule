@@ -158,20 +158,24 @@ async function captureSchedule() {
   }
 }
 function startEditTableTitle() {
+  if (!isAdmin) return;   // 제목 고정은 모든 사람 화면·이미지 저장에 반영되므로 관리자만
   const span = document.getElementById('table-title-text');
   if (!span) return;
   const cur = span.textContent;
+  const auto = span.dataset.auto || '';   // renderTable이 넣은 이번 기간 자동 제목
   const input = document.createElement('input');
   input.value = cur;
   input.style.cssText = 'font-size:inherit;font-weight:inherit;font-family:inherit;border:none;border-bottom:2px solid #6366f1;outline:none;background:transparent;width:220px;';
   span.replaceWith(input);
   input.focus();
   input.select();
+  let fin = false;
   const done = () => {
-    const val = input.value.trim() || cur;
+    if (fin) return; fin = true;
+    const val = input.value.trim();
     if (!data.settings) data.settings = {};
-    data.settings.scheduleTitle = val === (data.settings._autoTitle||'') ? null : val;
-    saveData(data);
+    const next = (!val || val === auto) ? null : val;   // 비우거나 자동 제목과 같으면 자동 제목(달마다 바뀜)으로
+    if ((data.settings.scheduleTitle || null) !== next) { data.settings.scheduleTitle = next; saveData(data); }   // 안 바꿨으면 저장 안 함
     renderTable();
   };
   input.addEventListener('blur', done);
@@ -221,7 +225,7 @@ function renderTable() {
   const _lastDeploy = data.deployLog?.[0]?.at || null;
   const _deploySpan = _lastDeploy ? ` <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px;">v.${_lastDeploy.split(' ').slice(0,3).join(' ')} 배포</span>` : '';
   document.getElementById('table-title').innerHTML =
-    `<span id="table-title-text" ondblclick="startEditTableTitle()" title="더블클릭하여 제목 수정" style="cursor:pointer;">${_titleMain}</span>${_deploySpan}`;
+    `<span id="table-title-text" data-auto="${_autoTitle}" ondblclick="startEditTableTitle()"${isAdmin?' title="더블클릭하여 제목 수정" style="cursor:pointer;"':''}>${_titleMain}</span>${_deploySpan}`;
 
 
   // 직원 먼저, 프리랜서 나중 (드래그 순서 내에서 stable sort)

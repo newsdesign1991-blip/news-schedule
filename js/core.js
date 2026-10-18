@@ -128,7 +128,7 @@ function saveData(d) {
     return;
   }
   data = d;
-  localStorage.setItem(STORE_KEY, JSON.stringify(d));
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch(e) {}   // 기기 저장 공간이 차도 서버 저장은 계속(예전엔 여기서 예외 → 그 뒤 편집이 서버로 안 감)
   _localBackup(d);
   return ndQueueSave(d);
 }
@@ -158,25 +158,34 @@ function exportBackup(){
     toast('백업 파일을 내려받았습니다 💾','success');
   } catch(e){ toast('내보내기 실패: '+e.message,'error'); }
 }
-function restoreLocalBackup(key){
+// 백업 문서로 서버 전체 교체: 백업 안의 저장 번호(_dataRevision)는 백업한 때 값이라 그대로 보내면 서버 검사(nd_guard_data_revision)가 늘 거부함
+// → 서버의 지금 번호를 받아 넣고 저장. 성공 안내는 서버 저장이 끝난 뒤에만(실패면 data-save.js 충돌 창). admin.js importData도 이걸 쓰면 됨
+async function _ndRestoreDoc(o, okMsg){
+  const res=await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=rev:payload->_dataRevision`, { headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY } });
+  if(!res.ok) throw new Error('서버에 연결하지 못했습니다.');
+  const rows=await res.json(); if(!rows?.[0]) throw new Error('서버 데이터를 찾지 못했습니다.');
+  o._dataRevision=Number(rows[0].rev)||0;
+  _wsHistory=[]; _updateUndoBtn();   // 복원 전 초안 사본으로 되돌리지 않게
+  const p=saveData(o); _rerenderActiveView(); renderAdminPanel(); _renderBackupList();
+  if((await p)===true) toast(okMsg,'success');
+}
+async function restoreLocalBackup(key){
   try {
     const raw=localStorage.getItem(key); if(!raw){ toast('백업을 찾을 수 없습니다.','error'); return; }
     const o=JSON.parse(raw); const days=Object.keys(o.schedule||{}).length;
     if(!confirm(`${key.replace('nd_backup_','')} 백업(근무표 ${days}일)으로 되돌립니다.\n현재 데이터를 덮어쓰고 모든 기기에 반영됩니다. 계속할까요?`)) return;
-    saveData(_migrateRemote(o)); _rerenderActiveView(); renderAdminPanel(); _renderBackupList();
-    toast('백업에서 복원했습니다.','success');
+    await _ndRestoreDoc(_migrateRemote(o), '백업에서 복원했습니다.');
   } catch(e){ toast('복원 실패: '+e.message,'error'); }
 }
 function importBackupFile(input){
   const f=input.files&&input.files[0]; if(!f) return;
   const r=new FileReader();
-  r.onload=()=>{ try {
+  r.onload=async()=>{ try {
       const o=JSON.parse(r.result);
       if(!o.staff||!o.schedule){ toast('올바른 백업 파일이 아닙니다.','error'); return; }
       const days=Object.keys(o.schedule||{}).length;
       if(!confirm(`가져온 파일(근무표 ${days}일)로 되돌립니다.\n현재 데이터를 덮어쓰고 모든 기기에 반영됩니다. 계속할까요?`)) return;
-      saveData(_migrateRemote(o)); _rerenderActiveView(); renderAdminPanel(); _renderBackupList();
-      toast('파일에서 복원했습니다.','success');
+      await _ndRestoreDoc(_migrateRemote(o), '파일에서 복원했습니다.');
     } catch(e){ toast('가져오기 실패: '+e.message,'error'); } finally { input.value=''; }
   };
   r.readAsText(f);
@@ -340,6 +349,19 @@ function undoWorkshop() {
   saveData(data);
   renderWorkshopTable();
   toast('뒤로 되돌렸습니다', 'success');
+}
+// 동기화(_reloadRemoteData)로 초안이 다른 기기 편집으로 바뀌었으면 뒤로가기 사본을 비움 — 옛 사본으로 되돌리면 그 편집이 경고 없이 지워짐.
+// 서버를 거치면 키 순서가 바뀌므로 글자 비교 대신 내용 비교(undefined 값은 없는 키로 봄)
+function _ndSameJson(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a).filter(k => a[k] !== undefined), kb = Object.keys(b).filter(k => b[k] !== undefined);
+  return ka.length === kb.length && ka.every(k => Object.prototype.hasOwnProperty.call(b, k) && _ndSameJson(a[k], b[k]));
+}
+function _wsHistoryOnRemote(prevDraft) {
+  if (!_wsHistory.length || _ndSameJson(prevDraft || {}, data.draft || {})) return;
+  _wsHistory = [];
+  _updateUndoBtn();
 }
 function resetDraftSchedule() {
   const lbl = document.getElementById('reset-range-label');

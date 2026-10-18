@@ -212,3 +212,39 @@ body[style*="overflow: hidden"] #floating-nav {
 .special-duty-grid span{display:block;padding:8px 4px;border-radius:7px;overflow-wrap:anywhere}
 .special-duty-grid button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media(hover:hover){.special-duty-grid button:hover{border-color:var(--accent);background:rgba(49,130,246,.06)}}
+/* 휴가 조정 확인 팝업(js/leave-request.js _lrConfirmPop) — 토스 모달, 주황 머리 */
+.lr-adj { position:fixed; inset:0; z-index:10060; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(15,23,42,.38); animation:ndModalFade .24s ease both; }
+.lra-card { width:min(440px,100%); border-radius:22px; overflow:hidden; background:var(--surface); box-shadow:0 24px 60px -20px rgba(15,23,42,.55); animation:ndModalPop .36s cubic-bezier(.16,1,.3,1) both; }
+.lra-head { padding:16px 20px; background:rgba(251,146,60,.16); color:#c2410c; font-size:16px; font-weight:800; }
+[data-theme="dark"] .lra-head { background:rgba(251,146,60,.2); color:#fdba74; }
+.lra-body { padding:16px 20px 6px; }
+.lra-sec { padding:12px 14px; border-radius:14px; background:rgba(251,146,60,.08); margin-bottom:10px; }
+.lra-sec.desk { background:rgba(49,130,246,.08); }
+.lra-sec b { display:block; font-size:14px; font-weight:800; color:var(--text); }
+.lra-sec p { margin:6px 0 0; font-size:13px; line-height:1.6; color:var(--muted); }
+.lra-sec em { font-style:normal; font-weight:800; color:var(--text); }
+.lra-note { margin:4px 2px 8px; font-size:12px; color:var(--muted); }
+.lra-foot { display:flex; gap:8px; padding:8px 20px 18px; }
+.lra-foot button { flex:1; min-height:46px; border-radius:14px; font:inherit; font-size:14.5px; font-weight:800; cursor:pointer; }
+.lra-cancel { border:1px solid var(--border); background:var(--surface2); color:var(--text); }
+.lra-ok { border:0; background:linear-gradient(135deg,#fb923c,#ea580c); color:#fff; }
+/* 알림함 종 버튼(js/alarms.js) — 위쪽 이름 바 오른쪽(앱은 제목줄) */
+.nd-alarm-btn { position:relative; display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border:0; border-radius:50%; background:var(--surface2); color:var(--muted); cursor:pointer; flex:none; }
+.nd-alarm-btn:hover { color:var(--text); }
+.nd-alarm-btn.has { color:#ea580c; }
+.nd-alarm-n:empty { display:none; }
+.nd-alarm-n { position:absolute; top:-3px; right:-4px; min-width:17px; height:17px; padding:0 4px; box-sizing:border-box; border-radius:999px; background:#ef4444; color:#fff; font-size:10.5px; font-weight:800; line-height:17px; text-align:center; box-shadow:0 0 0 2px var(--bg); }
+html.nd-app #nd-titlebar .nd-alarm-btn { -webkit-app-region:no-drag; width:30px; height:30px; background:transparent; }
+html.nd-app #nd-titlebar .nd-alarm-btn:hover { background:var(--surface2); }
+/* 알림함 목록 */
+.al-list { display:flex; flex-direction:column; gap:8px; }
+.al-item { position:relative; display:flex; gap:12px; align-items:flex-start; width:100%; padding:12px 14px; text-align:left; font:inherit; color:var(--text); border:1px solid var(--border); border-radius:16px; background:var(--surface); cursor:pointer; }
+.al-item.new { border-color:rgba(251,146,60,.45); background:rgba(251,146,60,.06); }
+.al-ic { width:36px; height:36px; border-radius:11px; flex:none; display:flex; align-items:center; justify-content:center; background:rgba(251,146,60,.14); color:#ea580c; }
+.al-item.k-desk .al-ic { background:rgba(49,130,246,.12); color:#2f77f6; }
+.al-tx { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.al-tx b { font-size:14px; font-weight:800; }
+.al-tx span { font-size:13px; line-height:1.55; color:var(--text); }
+.al-tx small { font-size:11.5px; color:var(--muted); }
+.al-dot { position:absolute; top:12px; right:12px; width:8px; height:8px; border-radius:50%; background:#ef4444; }
+.al-empty { padding:28px 10px; text-align:center; color:var(--muted); font-size:13.5px; line-height:1.7; }

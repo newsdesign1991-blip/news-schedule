@@ -125,33 +125,201 @@ nav { display: flex; gap: 2px; }
 }
 .nav-btn:hover { color: var(--text); background: var(--surface2); }
 .nav-btn.active { color: var(--text); background: var(--surface2); }
-/* ===== 근무표 작성 앱(html.nd-app — desktop/ Electron이 ?app=ws 로 띄움): 작성소·관리자만 남김 ===== */
-html.nd-app #floating-nav, html.nd-app header > nav, html.nd-app #side-nav .snav-sub, html.nd-app #side-nav .snav-bottom,
-html.nd-app #side-nav .snav-btn:not([data-view="workshop"]):not([data-view="admin"]) { display:none !important; }
+/* ===== 근무표 앱(설치판, html.nd-app — desktop/ Electron이 ?app=ws 로 띄움): 화면은 웹과 같고, 윈도 제목줄 대신 앱 제목줄(js/app-mode.js) ===== */
+/* 알림 설정은 숨김 — 설치판(Electron)은 웹 푸시를 못 받음(알림은 휴대폰 홈 화면 앱에서) */
+html.nd-app #side-nav .snav-bottom .snav-btn[onclick="openNotifySheet()"], html.nd-app .hmenu-item[onclick="openNotifySheet()"] { display:none !important; }
 /* 빨간 '관리자 모드' 띠는 앱에선 숨김(로그아웃은 관리자 화면 오른쪽 위). 띠 자리(30px) 대신 앱 제목줄(44px) 자리만큼 내림 */
 html.nd-app #admin-mode-bar { display:none !important; }
+html.nd-app[data-theme="dark"] { color-scheme:dark; }   /* 달력 아이콘 등 기본 부품도 어둡게 */
+/* 스크롤 막대: 앱(Electron)은 윈도 옛 모양(굵은 막대·화살표)을 그려서 — 웹 크롬(윈도11)처럼 얇은 막대로. 로그인 판은 막대 숨김(뒤 페이지와 막대가 둘 보였음) */
+html.nd-app ::-webkit-scrollbar { width:10px; height:10px; }
+html.nd-app ::-webkit-scrollbar-track, html.nd-app ::-webkit-scrollbar-corner { background:transparent; }
+html.nd-app ::-webkit-scrollbar-thumb { background-color:rgba(128,136,148,.4); background-clip:padding-box; border:3px solid transparent; border-radius:10px; }
+html.nd-app ::-webkit-scrollbar-thumb:hover { background-color:rgba(128,136,148,.65); }
+html.nd-app ::-webkit-scrollbar-button { display:none; width:0; height:0; }
+html.nd-app #login-overlay { scrollbar-width:none; }
 html.nd-app body, html.nd-app body.admin-mode-active { padding-top:44px; }
-html.nd-app header, html.nd-app body.admin-mode-active header { top:44px; }
+html.nd-app header { display:none !important; }   /* 떠 있는 머리줄(이름 인사·날짜·라이트/다크) 대신 앱 제목줄 오른쪽 끝(js/app-mode.js) */
 html.nd-app body #side-nav, html.nd-app body.admin-mode-active #side-nav { top:56px; }   /* dashboard.html head 스타일(12px·띠 42px) 대신 */
-html.nd-app #ws-sticky-toolbar, html.nd-app body.admin-mode-active #ws-sticky-toolbar { top:94px; }
+html.nd-app #ws-sticky-toolbar, html.nd-app body.admin-mode-active #ws-sticky-toolbar { top:44px; }
+html.nd-app .fl-detail { top:60px; }
 /* 앱 제목줄(js/app-mode.js #nd-titlebar) — 높이 44px = desktop/main.js TITLEBAR_H. 오른쪽 150px는 윈도 창 버튼 자리, 빈 곳을 끌면 창 이동 */
 #nd-titlebar { display:none; }
 html.nd-app #nd-titlebar { position:fixed; top:0; left:0; right:0; height:44px; z-index:10001; display:flex; align-items:center; gap:10px; padding:0 150px 0 16px; box-sizing:border-box; background:var(--bg); color:var(--text); -webkit-app-region:drag; user-select:none; }
+/* 제목줄(z 10001)보다 위에 뜨는 덮개·팝업: 창 끌기 영역은 z 순서와 상관없이 정해져서, no-drag가 없으면 위쪽 44px를 눌러도 창이 끌림(바깥 눌러 닫기·버튼이 안 됨, 더블클릭은 최대화). 닫히면 DOM에서 빠지거나 display:none이라 평소 끌기는 그대로 */
+html.nd-app :is(.wt-pop, .lr-adj, .special-duty-overlay, .meal-pos-pop, .react-picker, .nds-pop, .nd-toolbar-calendar, #react2-modal, #project-modal, #ev-discard-ov, #nd-modfail) { -webkit-app-region:no-drag; }
 html.nd-app #nd-titlebar .ndt-brand { display:flex; align-items:center; gap:8px; flex:none; margin-right:6px; font-size:13px; font-weight:800; letter-spacing:-.01em; }
 html.nd-app #nd-titlebar .ndt-brand img { width:18px; height:18px; border-radius:5px; }
-html.nd-app #nd-titlebar .ndt-nav { display:none; align-items:center; gap:2px; min-width:0; overflow-x:auto; scrollbar-width:none; }
+html.nd-app #nd-titlebar .ndt-nav { display:none; align-items:center; gap:2px; min-width:0; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; padding:6px 3px; }   /* 위아래 여백 = 켜진 탭 그림자가 안 잘리게(가로 스크롤 상자는 그림자를 자름) */
 html.nd-app body.admin-mode-active #nd-titlebar .ndt-nav { display:flex; }
+/* 탭이 넘치면(창이 좁을 때) 넘친 쪽 끝을 흐리게 — 가로 스크롤 위치를 따라감(scroll-timeline, 안 넘치면 효과 없음). 세로 휠로 넘기기는 js/app-mode.js */
+@property --ndt-fl { syntax:'<length>'; inherits:false; initial-value:0px; }
+@property --ndt-fr { syntax:'<length>'; inherits:false; initial-value:0px; }
+@keyframes ndtNavFade { 0% { --ndt-fl:0px; --ndt-fr:36px; } 6% { --ndt-fl:36px; } 94% { --ndt-fr:36px; } 100% { --ndt-fl:36px; --ndt-fr:0px; } }
+html.nd-app #nd-titlebar .ndt-nav { -webkit-mask-image:linear-gradient(to right,transparent,#000 var(--ndt-fl),#000 calc(100% - var(--ndt-fr)),transparent); mask-image:linear-gradient(to right,transparent,#000 var(--ndt-fl),#000 calc(100% - var(--ndt-fr)),transparent); animation:ndtNavFade linear both; animation-timeline:scroll(self inline); }
 html.nd-app #nd-titlebar .admin-tabs { display:flex; flex-wrap:nowrap; gap:2px; margin:0; padding:0; background:none; border-radius:0; }
 html.nd-app #nd-titlebar :is(.ndt-ws, .admin-tab) { -webkit-app-region:no-drag; flex:none; height:30px; padding:0 11px; border:0; border-radius:9px; background:transparent; box-shadow:none; color:var(--muted); font:inherit; font-size:12.5px; font-weight:600; white-space:nowrap; cursor:pointer; }
 html.nd-app #nd-titlebar :is(.ndt-ws, .admin-tab):hover { background:var(--surface2); color:var(--text); }
-html.nd-app #nd-titlebar.on-ws .ndt-ws, html.nd-app #nd-titlebar:not(.on-ws) .admin-tab.active { background:var(--surface); color:#2f77f6; font-weight:800; box-shadow:0 1px 4px rgba(15,23,42,.12); }
-[data-theme="dark"].nd-app #nd-titlebar.on-ws .ndt-ws, [data-theme="dark"].nd-app #nd-titlebar:not(.on-ws) .admin-tab.active { color:#6aa8ff; box-shadow:none; }
+html.nd-app #nd-titlebar.on-ws .ndt-ws, html.nd-app #nd-titlebar.on-admin .admin-tab.active { background:var(--surface); color:#2f77f6; font-weight:800; box-shadow:0 1px 4px rgba(15,23,42,.12); }
+[data-theme="dark"].nd-app #nd-titlebar.on-ws .ndt-ws, [data-theme="dark"].nd-app #nd-titlebar.on-admin .admin-tab.active { color:#6aa8ff; box-shadow:none; }
+/* 일반 직원(로그인, 관리자 모드 아님): [알림 설정] */
+html.nd-app #nd-titlebar .ndt-user { display:none; align-items:center; gap:2px; }
+html.nd-app body:not(.admin-mode-active) #nd-titlebar.logged .ndt-user { display:flex; }
+html.nd-app #nd-titlebar .ndt-user button { -webkit-app-region:no-drag; display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 11px; border:0; border-radius:9px; background:transparent; color:var(--muted); font:inherit; font-size:12.5px; font-weight:600; white-space:nowrap; cursor:pointer; }
+html.nd-app #nd-titlebar .ndt-user button:hover { background:var(--surface2); color:var(--text); }
+html.nd-app #nd-titlebar .ndt-right { margin-left:auto; display:flex; align-items:center; gap:12px; flex:none; }
+html.nd-app #nd-titlebar .ndt-right .date-badge { display:inline; font-size:12px; }
+html.nd-app #nd-titlebar #theme-toggle { -webkit-app-region:no-drag; flex:none; }
+/* 기본 창(1560px)에서 관리자 탭이 다 보이게 탭·오른쪽 간격을 조금 줄임, 더 좁으면(≤1440px) 관리자 모드에선 날짜를 숨김 — 그래도 넘치면 위 스크롤 */
+@media (max-width:1800px) {
+  html.nd-app #nd-titlebar :is(.ndt-ws, .admin-tab) { padding:0 7px; }
+  html.nd-app #nd-titlebar .ndt-right { gap:8px; }
+}
+@media (max-width:1440px) {
+  html.nd-app body.admin-mode-active #nd-titlebar .ndt-right .date-badge { display:none; }
+  html.nd-app #nd-titlebar :is(.ndt-ws, .admin-tab) { padding:0 6px; }
+}
+/* WISE 로그인 버튼(관리자·직원A) — 연결되면 초록 점 */
+html.nd-app #nd-titlebar .ndt-wise { display:none; -webkit-app-region:no-drag; flex:none; align-items:center; gap:7px; height:30px; padding:0 12px; border:1px solid rgba(234,88,12,.35); border-radius:999px; background:rgba(251,146,60,.10); color:#c2410c; font:inherit; font-size:12.5px; font-weight:800; cursor:pointer; }
+html.nd-app body.admin-mode-active #nd-titlebar .ndt-wise, html.nd-app #nd-titlebar.wise-ok .ndt-wise { display:inline-flex; }   /* 관리자 + 직원A */
+html.nd-app #nd-titlebar .ndt-wise .ndw-dot { width:7px; height:7px; border-radius:50%; background:#f97316; }
+html.nd-app #nd-titlebar .ndt-wise.on { border-color:rgba(16,185,129,.35); background:rgba(16,185,129,.10); color:#0f8a63; }
+html.nd-app #nd-titlebar .ndt-wise.on .ndw-dot { background:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,.18); }
+html.nd-app #nd-titlebar .ndt-wise:disabled { opacity:.7; cursor:progress; }
+[data-theme="dark"].nd-app #nd-titlebar .ndt-wise { color:#fdba74; }
+[data-theme="dark"].nd-app #nd-titlebar .ndt-wise.on { color:#6ee7b7; }
+/* 관리자 나가기(관리자일 때만) */
+html.nd-app #nd-titlebar .ndt-exit { display:none; -webkit-app-region:no-drag; flex:none; height:30px; padding:0 12px; border:1px solid var(--border); border-radius:999px; background:var(--surface); color:var(--muted); font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }
+html.nd-app body.admin-mode-active #nd-titlebar .ndt-exit { display:inline-flex; align-items:center; }
+html.nd-app #nd-titlebar .ndt-exit:hover { color:#d65a52; border-color:rgba(214,90,82,.4); background:rgba(214,90,82,.06); }
+/* 렌치(앱 정보·업데이트) — 제목줄 맨 오른쪽 */
+html.nd-app #nd-titlebar .ndt-tool { -webkit-app-region:no-drag; flex:none; display:inline-flex; align-items:center; justify-content:center; width:32px; height:30px; border:0; border-radius:9px; background:transparent; color:var(--muted); cursor:pointer; }
+html.nd-app #nd-titlebar .ndt-tool:hover { background:var(--surface2); color:var(--text); }
+#ndt-pop { position:fixed; z-index:10003; width:300px; padding:16px; box-sizing:border-box; border:1px solid transparent; border-radius:18px;
+  background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box; box-shadow:0 18px 44px -18px rgba(15,23,42,.45); animation:ndpIn .2s ease both; }
+[data-theme="dark"] #ndt-pop { background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box,linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box; }
+#ndt-pop .ndp-head { display:flex; align-items:center; gap:10px; }
+#ndt-pop .ndp-head img { width:34px; height:34px; border-radius:9px; }
+#ndt-pop .ndp-head b { display:block; font-size:14.5px; font-weight:800; }
+#ndt-pop .ndp-head small { font-size:12px; color:var(--muted); font-weight:600; }
+#ndt-pop .ndp-status { margin:12px 0; font-size:12.5px; line-height:1.6; color:var(--muted); }
+#ndt-pop .ndp-status b { color:#2f77f6; }
+#ndt-pop .ndp-status ul { margin:6px 0 0; padding-left:18px; color:var(--text); }
+#ndt-pop .ndp-btns { display:flex; gap:8px; }
+#ndt-pop .ndp-btns button { flex:1; min-height:38px; border:1px solid var(--border); border-radius:12px; background:var(--surface2); color:var(--text); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+#ndt-pop .ndp-btns .ndp-main { border:0; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; font-weight:800; }
+#ndt-pop .ndp-btns button:disabled { opacity:.65; cursor:progress; }
+@keyframes ndpIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
 html.nd-app #nd-titlebar .ndt-sep { width:1px; height:16px; margin:0 6px; flex:none; background:var(--border); }
-html.nd-app #side-nav .snav-brand { font-size:0; }
-html.nd-app #side-nav .snav-brand::after { content:'근무표 작성'; font-size:17px; }
-/* 로그인 화면: 직원 로그인 칸은 숨기고 관리자 로그인만 */
-html.nd-app #login-overlay .lg-card > :is(input, p, .btn-primary) { display:none !important; }
-html.nd-app #login-overlay .lg-card > div:nth-of-type(2) { font-size:0 !important; }
-html.nd-app #login-overlay .lg-card > div:nth-of-type(2)::after { content:'근무표 작성 · 관리자 비밀번호로 로그인하세요'; font-size:13px; }
-html.nd-app #login-overlay .employee-master-entry { display:none; }
-html.nd-app #login-overlay .employee-admin-entry { font-size:14px; font-weight:800; padding:12px 26px; border-radius:14px; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; border:0; }
+/* 알림 미리보기 버튼(근무표 앱 — js/app-mode.js ndPreviewHTML): 일반 = 파랑, 8진 = 빨강, 오뉴스 진행 = 보라 */
+.nd-prev { margin:14px 0 4px; padding:12px; border-radius:14px; background:var(--surface2); }
+.nd-prev-t { font-size:13px; font-weight:800; color:var(--text); margin-bottom:10px; }
+.nd-prev-t small { margin-left:6px; font-size:11.5px; font-weight:600; color:var(--muted); }
+.nd-prev-b { display:flex; gap:8px; flex-wrap:wrap; }
+.nd-prev-b button { flex:1 1 0; min-width:96px; min-height:40px; border:0; border-radius:12px; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; font:inherit; font-size:13px; font-weight:800; cursor:pointer; }
+.nd-prev-b button.p8 { background:linear-gradient(135deg,#ff5a5a,#e11d48); }
+.nd-prev-b button.pn { background:linear-gradient(135deg,#a855f7,#7c3aed); }
+.nd-prev-b button:active { transform:scale(.97); }
+/* WISE 근무시간 입력(근무표 앱 — js/app-mode.js ndWorkTimeOpen): 오늘 칩은 누를 수 있게, 확인 창은 토스 모달(파란 머리) */
+.mw-day.mw-wt { cursor:pointer; }
+.mw-day.mw-wt:hover { filter:brightness(1.05); }
+.wt-pop { position:fixed; inset:0; z-index:10060; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(15,23,42,.38); animation:ndModalFade .24s ease both; }
+.wt-card { width:min(540px,100%); border-radius:22px; overflow:hidden; background:var(--surface); box-shadow:0 24px 60px -20px rgba(15,23,42,.55); animation:ndModalPop .36s cubic-bezier(.16,1,.3,1) both; }
+.wt-head { padding:16px 20px; background:rgba(49,130,246,.12); color:#2f6fd6; font-size:16px; font-weight:800; }
+[data-theme="dark"] .wt-head { background:rgba(49,130,246,.2); color:#8ab8ff; }
+.wt-body { padding:14px 20px 4px; display:flex; flex-direction:column; gap:10px; }
+.wt-row { display:flex; align-items:center; gap:12px; }
+.wt-row > span { flex:0 0 64px; font-size:12.5px; font-weight:700; color:var(--muted); }
+.wt-row > b { font-size:14.5px; font-weight:800; }
+.wt-row > b small { margin-left:6px; font-size:12px; font-weight:600; color:var(--muted); }
+.wt-row .form-input { flex:1; min-width:0; }
+.wt-hol { font-style:normal; margin-left:6px; padding:2px 8px; border-radius:999px; background:rgba(239,68,68,.12); color:#dc2626; font-size:11.5px; font-weight:800; }
+.wt-dh { align-items:flex-start; }
+.wt-seg { flex:1; display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; font-size:13.5px; font-weight:700; }
+.wt-seg label { display:inline-flex; align-items:center; gap:5px; cursor:pointer; }
+.wt-seg small { font-weight:600; color:var(--muted); font-size:11.5px; }
+.wt-seg .form-input { flex:1 1 150px; }
+.wt-note { margin:2px 0 0; font-size:12px; line-height:1.6; color:var(--muted); }
+.wt-status { margin:0; min-height:18px; font-size:12.5px; font-weight:700; color:#2f6fd6; }
+.wt-foot { display:flex; gap:8px; padding:10px 20px 18px; }
+.wt-foot button { flex:1; min-height:46px; border-radius:14px; font:inherit; font-size:14px; font-weight:800; cursor:pointer; border:1px solid var(--border); background:var(--surface2); color:var(--text); }
+.wt-foot .wt-go { border:0; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; }
+.wt-foot button:disabled { opacity:.6; cursor:progress; }
+/* 근무시간 입력 확인 창 안의 WISE 휴가달력(당일대휴 '사용') */
+.wt-cal { margin:2px 0 4px; padding:10px; border-radius:16px; background:var(--surface2); }
+.wt-cal-h { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.wt-cal-h b { font-size:14px; font-weight:800; }
+.wt-cal-h small { margin-left:auto; font-size:11px; font-weight:700; color:var(--muted); }
+.wt-cal-h button { width:28px; height:28px; border:0; border-radius:50%; background:var(--surface); color:var(--text); font-size:16px; font-weight:800; cursor:pointer; }
+.wt-cal-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:3px; }
+.wt-cal-grid > b { text-align:center; font-size:11px; color:var(--muted); padding:2px 0; }
+.wt-cal-grid > b.sun { color:#dc2626; } .wt-cal-grid > b.sat { color:#2563eb; }
+.wt-day { min-height:52px; padding:4px 3px; border:1px solid transparent; border-radius:10px; background:var(--surface); color:var(--text); font:inherit; text-align:left; display:flex; flex-direction:column; gap:2px; cursor:pointer; overflow:hidden; }
+.wt-day > span { font-size:12px; font-weight:800; }
+.wt-day.sun > span { color:#dc2626; } .wt-day.sat > span { color:#2563eb; }
+.wt-day.out { opacity:.4; }
+.wt-day.today { border-color:rgba(49,130,246,.45); }
+.wt-day em { font-style:normal; font-size:10px; font-weight:800; line-height:1.25; padding:1px 4px; border-radius:6px; background:rgba(16,185,129,.14); color:#0f8a63; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wt-day:hover { border-color:rgba(49,130,246,.35); }
+.wt-day.sel { background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; border-color:transparent; }
+.wt-day.sel > span { color:#fff; } .wt-day.sel em { background:rgba(255,255,255,.25); color:#fff; }
+.wt-cal-msg { padding:18px 6px; text-align:center; font-size:12.5px; color:var(--muted); }
+.wt-cal-sel { margin-top:8px; font-size:12.5px; color:var(--muted); } .wt-cal-sel b { color:#2f6fd6; }
+.wt-card { max-height:calc(100vh - 40px); overflow-y:auto; }
+/* 근무시간 바꾸기(직접 입력) · 평일 표시 · 정근 아닌 날 안내 */
+.wt-wd { font-style:normal; margin-left:6px; padding:2px 8px; border-radius:999px; background:rgba(49,130,246,.12); color:#2f6fd6; font-size:11.5px; font-weight:800; }
+.wt-warn { margin:0; padding:8px 12px; border-radius:12px; background:rgba(245,158,11,.12); color:#b45309; font-size:12.5px; font-weight:700; }
+.wt-chg { margin-left:auto; flex:0 0 auto; padding:6px 12px; border:1px solid var(--border); border-radius:999px; background:var(--surface2); color:var(--text); font:inherit; font-size:12.5px; font-weight:800; cursor:pointer; }
+.wt-chg:hover { border-color:rgba(49,130,246,.45); color:#2f6fd6; }
+.wt-hm { flex:1; display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.wt-hm .form-input { flex:0 0 74px; width:74px; text-align:center; font-weight:800; font-variant-numeric:tabular-nums; }
+.wt-row[hidden] { display:none; }
+.wt-hm { flex-wrap:nowrap; }
+.wt-hm i { font-style:normal; color:var(--muted); font-weight:800; }
+.wt-hm small { margin-left:4px; font-size:12px; font-weight:700; color:var(--muted); }
+.wt-next { font-style:normal; padding:2px 8px; border-radius:999px; background:rgba(124,58,237,.12); color:#6d28d9; font-size:11.5px; font-weight:800; }
+.wt-hm .wt-chg { margin-left:auto; }
+/* 당직 표시 · 대휴 칸(당일/익일) 이유 */
+.wt-dj { font-style:normal; margin-left:4px; padding:2px 8px; border-radius:999px; background:rgba(124,58,237,.12); color:#6d28d9; font-size:11.5px; font-weight:800; }
+.wt-row > b > small { margin-left:6px; font-size:12px; font-weight:600; color:var(--muted); }
+.wt-dhb { display:flex; flex-direction:column; gap:8px; }
+.wt-dhb[hidden] { display:none; }
+.wt-dh-why { flex-basis:100%; color:#b45309 !important; font-weight:700 !important; }
+/* 다크: 근무시간 입력 창의 색 칩·글자(진한 색은 어두운 카드에서 안 읽힘 — .wl-st.manual 다크와 같은 톤). 고른 날(.sel)은 흰 글자 그대로 */
+[data-theme="dark"] :is(.wt-next, .wt-dj) { background:rgba(167,139,250,.18); color:#c4b5fd; }
+[data-theme="dark"] .wt-warn { background:rgba(251,191,36,.14); color:#fcd34d; }
+[data-theme="dark"] .wt-dh-why { color:#fcd34d !important; }
+[data-theme="dark"] .wt-hol { background:rgba(248,113,113,.18); color:#fca5a5; }
+[data-theme="dark"] .wt-wd { background:rgba(106,168,255,.18); color:#97c3ff; }
+[data-theme="dark"] :is(.wt-status, .wt-cal-sel b, .wt-chg:hover) { color:#97c3ff; }
+[data-theme="dark"] .wt-cal-grid > b.sun, [data-theme="dark"] .wt-day.sun:not(.sel) > span { color:#fca5a5; }
+[data-theme="dark"] .wt-cal-grid > b.sat, [data-theme="dark"] .wt-day.sat:not(.sel) > span { color:#93c5fd; }
+[data-theme="dark"] .wt-day:not(.sel) em { background:rgba(52,211,153,.16); color:#6ee7b7; }
+/* 웹(PC)에서 근무표 PC 앱 설치 안내(js/app-mode.js ndAppPromo) — 근무시간 입력 카드(.wt-*)와 같은 토스 모달 */
+.apx-card { width:min(600px,100%); }
+.apx-head { display:flex; align-items:center; gap:10px; font-size:17px; }
+.apx-head img { width:28px; height:28px; border-radius:8px; }
+.apx-lead { margin:0; font-size:14px; line-height:1.6; }
+.apx-list { margin:0; padding:12px 16px 12px 30px; border-radius:14px; background:var(--surface2); font-size:13.5px; line-height:1.8; }
+.apx-steps { display:flex; flex-direction:column; gap:10px; }
+.apx-step { display:flex; gap:10px; align-items:flex-start; font-size:13.5px; line-height:1.6; }
+.apx-step > i { flex:0 0 24px; height:24px; border-radius:50%; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; font-style:normal; font-size:12.5px; font-weight:800; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+.apx-step > div { flex:1; min-width:0; }
+.apx-step kbd { padding:1px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); font-family:inherit; font-size:12px; font-weight:700; }
+/* 근무표 앱 처음 사용법(js/app-mode.js ndAppTour) — 어둡게 + 그 버튼만 밝게(구멍 그림자) + 토스 카드 */
+.tour-ov { position:fixed; inset:0; z-index:10080; -webkit-app-region:no-drag; }
+.tour-hole { position:fixed; border-radius:14px; box-shadow:0 0 0 9999px rgba(15,23,42,.62), 0 0 0 3px rgba(74,148,255,.95), 0 0 24px 6px rgba(74,148,255,.55); transition:all .35s cubic-bezier(.16,1,.3,1); pointer-events:none; }
+.tour-card { position:fixed; width:min(380px,calc(100vw - 24px)); padding:16px 18px 14px; border-radius:20px; background:var(--surface); color:var(--text); box-shadow:0 24px 60px -16px rgba(15,23,42,.6); transition:left .35s cubic-bezier(.16,1,.3,1), top .35s cubic-bezier(.16,1,.3,1); animation:ndModalPop .36s cubic-bezier(.16,1,.3,1) both; }
+.tour-step { font-size:11.5px; font-weight:800; color:#2f6fd6; margin-bottom:4px; }
+.tour-title { display:block; font-size:16px; font-weight:800; margin-bottom:6px; }
+.tour-body { margin:0; font-size:13.5px; line-height:1.65; color:var(--text); }
+.tour-foot { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+.tour-foot button { min-height:38px; padding:0 16px; border-radius:12px; font:inherit; font-size:13.5px; font-weight:800; cursor:pointer; border:1px solid var(--border); background:var(--surface2); color:var(--text); }
+.tour-foot .tour-next { border:0; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; }
+#ndt-pop .ndp-tour { display:block; width:100%; margin-top:8px; padding:8px 0; border:0; background:none; color:#2f6fd6; font:inherit; font-size:12.5px; font-weight:800; cursor:pointer; }
+[data-theme="dark"] :is(.tour-step, #ndt-pop .ndp-tour) { color:#97c3ff; }
+.apx-dl { display:flex; align-items:center; justify-content:center; gap:8px; min-height:52px; border-radius:16px; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff !important; font-size:16px; font-weight:800; text-decoration:none; box-shadow:0 10px 24px -10px rgba(47,119,246,.7); }
+.apx-dl:hover { filter:brightness(1.06); }
+/* PC 웹 막기(html.nd-pc-blocked — js/app-mode.js): 설치 안내(#apx-pop)·모듈 실패 안내(#nd-modfail)만 남기고 나머지 화면은 숨김, 안내는 불투명 전체 화면 */
+html.nd-pc-blocked body > *:not(#apx-pop):not(#nd-modfail) { display:none !important; }
+html.nd-pc-blocked #apx-pop { background:var(--bg); }

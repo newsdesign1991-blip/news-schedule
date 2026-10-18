@@ -231,3 +231,11 @@
 #event-detail-modal .form-input { border-radius: 12px; padding: 11px 13px; font-size: 14px; }
 #event-add-modal .modal { padding: 0 !important; overflow: hidden; overflow-y: auto; border: 1px solid transparent; border-radius: 20px; background: linear-gradient(#f8fafd,#f8fafd) padding-box, linear-gradient(135deg, #ffffff, rgba(255,255,255,.5) 58%, rgba(15,23,42,.13) 100%) border-box; }
 [data-theme="dark"] #event-add-modal .modal { background: linear-gradient(#212121,#212121) padding-box, linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.05) 40%, rgba(0,0,0,.32) 100%) border-box; }
+/* 홈 '오늘의 근무' 진입시간(js/news-cue.js — NDS 큐시트 방송 시작) */
+.tw-row .cue-in { margin-left:auto; margin-right:-5px; padding:3px 9px; border-radius:999px; font-size:12px; font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.tw-row .cue-in[hidden] { display:none; }
+.tw-row .cue-in.n8 { color:#e23744; background:rgba(240,68,82,.08); }
+.tw-row .cue-in.noh { color:#5b5ef0; background:rgba(99,102,241,.08); }
+.tw-row .cue-in.none { color:var(--muted); background:transparent; font-weight:700; }
+[data-theme="dark"] .tw-row .cue-in.n8 { color:#ff8a94; background:rgba(240,68,82,.16); }
+[data-theme="dark"] .tw-row .cue-in.noh { color:#a5a8ff; background:rgba(129,140,248,.16); }

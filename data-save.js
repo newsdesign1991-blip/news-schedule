@@ -1,5 +1,7 @@
 // Serialize this device's saves; the database rejects stale revisions from every writer.
 let ndSaveQueue=[],ndSaving=false;
+// 예전 판이 쌓아 둔 nd_unsaved_<시각> 사본(읽는 곳 없음, 하나가 문서 전체) 정리 — 가장 최근 것만 nd_unsaved_last로 남김
+try{const old=Object.keys(localStorage).filter(k=>/^nd_unsaved_\d+$/.test(k)).sort();if(old.length){const last=localStorage.getItem(old.at(-1));old.forEach(k=>localStorage.removeItem(k));if(last&&localStorage.getItem('nd_unsaved_last')===null)localStorage.setItem('nd_unsaved_last',last)}}catch{}
 function ndQueueSave(snapshot){
  return new Promise(resolve=>{ndSaveQueue.push({snapshot:structuredClone(snapshot),resolve});ndDrainSaves()});
 }
@@ -13,9 +15,10 @@ async function ndDrainSaves(){
    const revision=rows[0].payload._dataRevision;
    for(const queued of ndSaveQueue)if((queued.snapshot._dataRevision||0)===base)queued.snapshot._dataRevision=revision;
    if((data._dataRevision||0)===base)data._dataRevision=revision;
-   _ndUpdatedAt=rows[0].updated_at;localStorage.setItem(STORE_KEY,JSON.stringify(data));item.resolve(true);
+   _ndUpdatedAt=rows[0].updated_at;try{localStorage.setItem(STORE_KEY,JSON.stringify(data))}catch{}item.resolve(true);   // 기기 저장 공간이 차도 서버 저장은 성공으로
   }catch(e){
-   try{localStorage.setItem('nd_unsaved_'+Date.now(),JSON.stringify(ndSaveQueue.at(-1)?.snapshot||item.snapshot))}catch{}
+   // 못 올린 변경은 키 하나에 덮어씀(예전엔 실패마다 문서 전체를 새 키로 쌓아 저장 공간이 찼음)
+   try{localStorage.setItem('nd_unsaved_last',JSON.stringify(ndSaveQueue.at(-1)?.snapshot||item.snapshot))}catch{}
    item.resolve(false);for(const queued of ndSaveQueue)queued.resolve(false);ndSaveQueue=[];
    const dialog=document.createElement('div');dialog.className='nd-modal';dialog.id='nd-save-conflict';
    dialog.innerHTML='<div class="nd-pop employee-dialog" role="alertdialog" aria-modal="true"><div class="employee-head"><h2>저장되지 않았습니다</h2></div><div class="employee-form"><p>다른 사용자가 먼저 저장했거나 연결이 끊겼습니다. 다른 사람의 변경을 덮어쓰지 않았으며, 내 변경 내용은 이 기기에 보관했습니다.</p><p>최신 내용을 불러온 뒤 변경 사항을 다시 확인해 주세요.</p><button class="btn btn-primary">최신 내용 불러오기</button></div></div>';

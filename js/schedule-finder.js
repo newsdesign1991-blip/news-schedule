@@ -325,7 +325,8 @@ function renderMySchedule() {
     else if(roles.length){ const dr=shortRoles(roles).slice(0,2); tag=dr.map((r,ci)=>_mwChip(r.label, isToday?'rgba(255,255,255,0.22)':r.bg, isToday?'#fff':r.color, ci>0)).join(''); }
     else if(_ccTxt&&!/^(-|0)$/.test(_ccTxt)) tag=_mwChip(_ccTxt, isToday?'rgba(255,255,255,0.22)':(_cc.bg||'#eef1f5'), isToday?'#fff':(_cc.color&&_cc.color!=='#000000'?_cc.color:'#4b5563'));   // 출장·교육·Jr.캠프 같은 손입력 근무도 보이게
     else tag=`<span class="mw-role mw-none">-</span>`;
-    return `<div class="mw-day ${isToday?'today':''}">
+    const _wt=typeof ND_APP!=='undefined'&&ND_APP&&window.ndApp?.wiseWorkTime&&typeof _wtAllowed==='function'&&_wtAllowed()&&(isToday||(typeof _wtTester==='function'&&_wtTester()));   // 근무표 앱: 오늘 칩 → WISE 근무시간 입력(js/app-mode.js), 최재영은 다른 날도. 직원B는 WISE 를 안 써서 칩 그대로
+    return `<div class="mw-day ${isToday?'today':''}${_wt?' mw-wt':''}"${_wt?` role="button" tabindex="0" title="WISE 근무시간 입력" onclick="ndWorkTimeOpen('${ds}')" onkeydown="if(event.key==='Enter')ndWorkTimeOpen('${ds}')"`:''}>
       <div class="mw-dow">${DOW_S[i]}</div>
       <div class="mw-num">${d.getDate()}</div>
       ${tag}

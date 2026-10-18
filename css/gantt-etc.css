@@ -14,6 +14,8 @@
 .pj-left > div { height:54px; padding:0 8px; box-sizing:border-box; display:flex; align-items:center; }
 .pj-c-name { display:block !important; width:140px; font-weight:800; font-size:13px; line-height:54px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-left:18px !important; color:#2f77f6; }
 .pj-c-work { width:150px; justify-content:center; align-content:center; flex-wrap:wrap; gap:3px; padding:6px 8px; overflow:hidden; }
+/* 참여자가 많으면 줄이 높아짐(잘리지 않게) — 같은 줄의 타임라인도 같이 늘고 막대는 가운데 */
+.pj-left > .pj-c-work { height:auto; min-height:54px; padding:8px; }
 .pj-c-pct { width:50px; justify-content:center; font-size:12px; font-weight:800; }
 .pj-c-date { width:62px; font-size:11px; color:var(--muted); justify-content:center; text-align:center; }
 .pj-c-days { width:44px; justify-content:center; font-size:13px; font-weight:700; }
@@ -149,3 +151,8 @@ body.admin-mode-active #ws-sticky-toolbar { top: 80px; }
 [data-theme="dark"] .pj-home-sw { background:#212121; border-color:rgba(255,255,255,.1); }
 [data-theme="dark"] .pj-home-sw input:checked + i { background:#4a94ff; border-color:#4a94ff; }
 @media (prefers-reduced-motion: reduce) { .pj-home-sw i, .pj-home-sw i::after { transition:none; } }
+/* 프로젝트마다 홈 표시: 간트 이름 칸 집 아이콘(파랑 = 홈에 보임, 흐림 = 빠짐), 편집 창 스위치 */
+.pj-hm { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; margin:0 5px 0 -6px; vertical-align:middle; border:0; border-radius:7px; background:rgba(49,130,246,.12); color:#2f77f6; cursor:pointer; }
+.pj-hm.off { background:transparent; color:var(--muted); opacity:.45; }
+.pj-hm:hover { opacity:1; background:rgba(49,130,246,.18); }
+.pj-s-home { margin-top:12px; }

@@ -35,7 +35,10 @@ function _updateDuty8Glow(){
   let _fu = +(localStorage.getItem('_duty8ForcePreview')||0);
   if (!_fu) { _fu = Date.now() + 3600000; try { localStorage.setItem('_duty8ForcePreview', String(_fu)); } catch(e){} }
   const _forced = Date.now() < _fu;
-  el.classList.toggle('duty8-glow', _forced || (h >= 19 && h < 21));
+  // 8뉴스 시각을 알면 진입 1시간 전부터 40분 뒤까지 — 공지에 직접 넣은 시각이 먼저, 없으면 큐시트(js/news-cue.js cueNews8, 서버 8진 알림과 같은 시각)
+  const _s8 = typeof cueNews8 === 'function' ? cueNews8(_todayStr()) : '', _m = new Date().getHours() * 60 + new Date().getMinutes();
+  const _n8 = /^\d{2}:\d{2}$/.test(_s8) ? (+_s8.slice(0, 2)) * 60 + (+_s8.slice(3)) : -1;
+  el.classList.toggle('duty8-glow', _forced || (_n8 >= 0 ? (_m >= _n8 - 60 && _m < _n8 + 40) : (h >= 19 && h < 21)));
 }
 // 오후 4시~5시반(16:00~17:30) 동안 "오늘의 뉴오" 행을 보라색으로 깜빡이며 강조
 function _updateNewsOhGlow(){
@@ -43,7 +46,10 @@ function _updateNewsOhGlow(){
   if (!els.length) return;
   const now = new Date();
   const mins = now.getHours()*60 + now.getMinutes();
-  const on = mins >= 16*60 && mins < 17*60+30;   // 16:00 ~ 17:30
+  // 큐시트 오뉴스 시각을 알면 진입 1시간 전부터 30분 뒤까지, 오늘 오뉴스가 없으면 끔(js/news-cue.js)
+  const _c = typeof cueDay === 'function' ? cueDay(_todayStr()) : null;
+  const _no = /^\d{2}:\d{2}$/.test((_c && _c.newsOh) || '') ? (+_c.newsOh.slice(0, 2)) * 60 + (+_c.newsOh.slice(3)) : -1;
+  const on = _no >= 0 ? (mins >= _no - 60 && mins < _no + 30) : (typeof cueNoNewsOh === 'function' && cueNoNewsOh(_todayStr())) ? false : (mins >= 16*60 && mins < 17*60+30);   // 기본 16:00 ~ 17:30
   els.forEach(el => el.classList.toggle('newsoh-glow', on));
 }
 function _bezierEase(x1,y1,x2,y2){
@@ -161,15 +167,16 @@ function renderHome() {
   const events = data.events || {};
   function _evCard(ds, ev) {
     const c = ev.color||'#6366f1';
+    const esc = x => String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');   // 직원이 쓴 제목·장소·시간(js/calendar.js _dayEvCard와 같게)
     const ptIds = ev.participants||[];
     const ptNames = ptIds.map(id=>(data.staff||[]).find(s=>s.id===id)?.name).filter(Boolean);
     const cmtCnt = (ev.comments||[]).length;
-    const pills = ptNames.map(n=>`<span class="wm-ev-pt" style="background:${c}22;color:${c};">${n}</span>`).join('');
+    const pills = ptNames.map(n=>`<span class="wm-ev-pt" style="background:${c}22;color:${c};">${String(n||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>`).join('');
     return `<div class="wm-ev-card" onclick="openEventDetail('${ds}','${ev.id}')" style="background:${c}15;--evc:${c};--evc2:${c}55;">
       ${cmtCnt?`<span class="wm-ev-cmt"><svg viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 2.5c-3.1 0-5.7 1.9-5.7 4.2 0 1.3.8 2.5 2 3.3-.1.6-.4 1.2-.8 1.7-.2.2 0 .5.3.4.9-.1 1.8-.5 2.5-.9.5.1 1.1.2 1.7.2 3.1 0 5.7-1.9 5.7-4.2S11.1 2.5 8 2.5z"/></svg>${cmtCnt}</span>`:''}
-      ${ev.time?`<div class="wm-ev-time" style="color:${c};">${ev.time}</div>`:''}
-      <div class="wm-ev-title">${ev.title}</div>
-      ${ev.location?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${ev.location}</div>`:''}
+      ${ev.time?`<div class="wm-ev-time" style="color:${c};">${esc(ev.time)}</div>`:''}
+      <div class="wm-ev-title">${esc(ev.title)}</div>
+      ${ev.location?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${esc(ev.location)}</div>`:''}
       ${pills?`<div class="wm-ev-pts">${pills}</div>`:''}
     </div>`;
   }
@@ -188,7 +195,7 @@ function renderHome() {
     const locEsc=(_tl.loc||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
     const meta=_gcalMeta(ev._id);
     const ptNames=(meta.participants||[]).map(id=>(data.staff||[]).find(s=>s.id===id)?.name).filter(Boolean);
-    const pills=ptNames.map(n=>`<span class="wm-ev-pt" style="background:${c}22;color:${c};">${n}</span>`).join('');
+    const pills=ptNames.map(n=>`<span class="wm-ev-pt" style="background:${c}22;color:${c};">${String(n||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>`).join('');
     const cmtCnt=(meta.comments||[]).length;
     return `<div class="wm-ev-card" onclick="showGcalDetail('${ds}','${ev._id}')" style="background:${c}15;--evc:${c};--evc2:${c}55;cursor:pointer;">
       ${cmtCnt?`<span class="wm-ev-cmt"><svg viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 2.5c-3.1 0-5.7 1.9-5.7 4.2 0 1.3.8 2.5 2 3.3-.1.6-.4 1.2-.8 1.7-.2.2 0 .5.3.4.9-.1 1.8-.5 2.5-.9.5.1 1.1.2 1.7.2 3.1 0 5.7-1.9 5.7-4.2S11.1 2.5 8 2.5z"/></svg>${cmtCnt}</span>`:''}
@@ -291,6 +298,7 @@ function renderHome() {
       <div class="tw-row noh-card">
         <div class="dept-ic newsoh">${_mic}</div>
         <div class="dept-nm"><span>${label}</span><b>${nameHtml}</b></div>
+        <span class="cue-in noh" data-cue="newsOh" hidden></span>
         <span class="dept-tag" style="color:#5b5ef0;background:rgba(99,102,241,.14);">뉴오</span>
       </div>`;
   const _nohIds = [entry?.newsOh, entry?.newsOh2].filter(Boolean);
@@ -311,11 +319,13 @@ function renderHome() {
       <div class="tw-row" id="duty8-card">
         <div class="dept-ic jin8"><svg viewBox="0 0 240 240" fill="#fff"><path d="M163.7,105.9c7.4-9.4,10.6-19.6,10.6-30.6,0-28.5-24.4-52.1-54-52.1s-53.7,22.7-53.7,52.1,3.6,22.2,10.2,31.1c-16,13.3-24.8,31.3-24.8,51,0,37.9,30.6,66.1,68.3,66.1s67.8-29.6,67.8-66-9.4-39-24.4-51.6ZM120.2,41.1c19.4,0,34.7,15.6,34.7,34.2s-3.8,16.4-8.4,21.1c-7.2-3.2-15.7-5.3-26.5-5.2v18.2c-19.4-.2-34.4-15.4-34.4-34.1s15.2-34.2,34.6-34.2ZM120.2,205.2c-27.2,0-48.8-21.4-48.8-47.7s8.9-30.2,19.2-37.9c8.6,5.6,18.7,8.5,29.8,8.5v-18.2c27.2.2,48.6,21.5,48.6,47.7s-21.6,47.7-48.8,47.7Z"/></svg></div>
         <div class="dept-nm"><span>오늘의 8진</span><b>${_duty8Name||_miss}</b></div>
+        <span class="cue-in n8" data-cue="news8" hidden></span>
         <span class="dept-tag" style="color:#e23744;background:rgba(240,68,82,.14);">8진</span>
       </div>
       ${_nohRowsHtml}
     </div>`;
   document.getElementById('home-duty-row').innerHTML = _dutyRowHtml;
+  if (typeof _cuePaint === 'function') _cuePaint();   // 8뉴스·오뉴스 진입시간(js/news-cue.js — NDS 큐시트)
   _updateDuty8Glow(); _updateNewsOhGlow();
   if (!window._duty8GlowTimer) window._duty8GlowTimer = setInterval(function(){ _updateDuty8Glow(); _updateNewsOhGlow(); }, 30000);
   (function(){
@@ -324,9 +334,9 @@ function renderHome() {
     var _pjPanel=document.getElementById('home-project-panel'), _pjOn=!(data.settings&&data.settings.pjHome===false);
     if(_pjPanel) _pjPanel.style.display=_pjOn?'':'none';
     if(!_pjOn) return;
-    var _pjs=(data.projects||[]);
+    var _pjs=(data.projects||[]).filter(function(p){ return p.home!==false; });   // 프로젝트마다 '홈 화면에 표시'(편집 창·간트 집 아이콘)
     var _pjTot=document.getElementById('pj-home-total'); if(_pjTot) _pjTot.textContent=_pjs.length+'개';
-    if(!_pjs.length){ _pjBody.innerHTML='<div style="padding:22px 0;text-align:center;color:var(--muted);font-size:13px;">등록된 프로젝트가 없습니다.</div>'; return; }
+    if(!_pjs.length){ _pjBody.innerHTML='<div style="padding:22px 0;text-align:center;color:var(--muted);font-size:13px;">'+((data.projects||[]).length?'홈에 표시할 프로젝트가 없습니다.':'등록된 프로젝트가 없습니다.')+'</div>'; return; }
     var _dn=function(ds){return Math.round(new Date(ds+'T00:00:00').getTime()/86400000);};
     var _nd=new Date(), _tN=_dn(toDateStr(_nd.getFullYear(),_nd.getMonth()+1,_nd.getDate()));
     var _esc=function(t){return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');};

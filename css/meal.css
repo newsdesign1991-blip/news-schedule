@@ -9,6 +9,8 @@
 #home-meal.meal-top { margin-top: 0 !important; margin-bottom: 14px; }
 @media (min-width: 1120px) { #home-meal.meal-top { order: 0; } }
 #view-home.hm3 > #home-meal.meal-top { order: 0; }
+/* 맨 아래로 내렸을 때(큰 화면 3분할): 홈 격자가 빈칸을 앞으로 당겨 채우는 방식(dense)이라 2칸짜리면 공지 옆 빈칸으로 끌려 올라감 → 가로 전체로 맨 아래 */
+#view-home.hm3 > #home-meal:not(.meal-top) { grid-column: 1 / -1; }
 .meal-get:active { transform: scale(.96); }
 [data-theme="dark"] .meal-get { color: #fdba74; border-color: rgba(251,146,60,.3); background: rgba(251,146,60,.12); }
 .meal-daybar { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 2px 0 12px; }
@@ -120,3 +122,7 @@
 .mpp-tx small { font-size: 11.5px; color: var(--muted); font-weight: 600; }
 @keyframes mealPopIn { from { opacity: 0; filter: blur(6px); transform: scale(.92); } to { opacity: 1; filter: none; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .meal-pos-pop { animation: none; } }
+/* 근무표 앱: WISE 로그인이 풀려 식단을 못 받았을 때(관리자에게만) */
+.meal-login { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.meal-login a { color: #ea580c; font-weight: 800; text-decoration: none; }
+.meal-login a:hover { text-decoration: underline; }

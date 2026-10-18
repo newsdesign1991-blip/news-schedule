@@ -36,8 +36,9 @@ function _rerenderActiveView() {
 }
 async function _reloadRemoteData() {
   if(ndSaving || ndSaveQueue.length || _lrHasPending())return false;
+  if (typeof _ndGenBusy!=='undefined' && _ndGenBusy) return false;   // 근무 자동 생성 중(js/generation.js)엔 data를 바꾸지 않음 — 바꾸면 남은 생성 결과가 떨어져 나간 옛 객체에 들어가 저장에서 빠짐
   try {
-    const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload`, {
+    const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload,updated_at`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
     });
     if (!res.ok) throw new Error('Refresh failed');
@@ -45,8 +46,12 @@ async function _reloadRemoteData() {
     let remote = rows?.[0]?.payload;
     if (!remote || typeof remote!=='object' || !Object.keys(remote).length) return false;
     if(ndSaving || ndSaveQueue.length || _lrHasPending())return false;
+    if (typeof _ndGenBusy!=='undefined' && _ndGenBusy) return false;
+    const _prevDraft = data.draft;
     data = _migrateRemote(remote);
-    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+    if (rows[0].updated_at) _ndUpdatedAt = rows[0].updated_at;   // 받은 판의 수정시각 — 받기에 성공했을 때만 맞춤(_checkRemoteUpdate가 미리 넣지 않음)
+    if (typeof _wsHistoryOnRemote==='function') _wsHistoryOnRemote(_prevDraft);
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}   // 기기 저장 공간이 차도 받은 데이터는 씀
     const ae = document.activeElement;
     if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return true; // 입력 중이면 화면 갱신만 보류(데이터는 갱신됨)
     _rerenderActiveView();
@@ -56,6 +61,7 @@ async function _reloadRemoteData() {
 }
 async function _checkRemoteUpdate() {
   if (document.hidden || ndSaving || ndSaveQueue.length || _lrHasPending()) return;   // 저장 중에는 로컬 편집 보존
+  if (typeof _ndGenBusy!=='undefined' && _ndGenBusy) return;   // 자동 생성 중이면 끝난 뒤 다음 확인에서
   try {
     const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=updated_at`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
@@ -64,8 +70,9 @@ async function _checkRemoteUpdate() {
     const rows = await res.json();
     const ua = rows?.[0]?.updated_at;
     if (!ua) return;
-    if (_ndUpdatedAt === null) { _ndUpdatedAt = ua; if (!_bootRemoteOk) await _reloadRemoteData(); return; }
-    if (ua !== _ndUpdatedAt) { _ndUpdatedAt = ua; await _reloadRemoteData(); }
+    // 수정시각은 전체 받기에 성공했을 때 _reloadRemoteData가 맞춤 — 먼저 넣으면 받기 실패 뒤 서버가 또 바뀔 때까지 옛 판에 머묾
+    if (_ndUpdatedAt === null) { if (_bootRemoteOk) _ndUpdatedAt = ua; else await _reloadRemoteData(); return; }
+    if (ua !== _ndUpdatedAt) await _reloadRemoteData();
   } catch(e) {}
 }
 function _startAutoSync() {
@@ -97,7 +104,7 @@ function _looksEmptyData(d){
     const remote = rows?.[0]?.payload;
     if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
       data = _migrateRemote(remote);
-      localStorage.setItem(STORE_KEY, JSON.stringify(data));
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}   // 저장 공간이 차도 로드 성공으로 봄
       _localBackup(data);   // 정상 로드 시 당일 백업 확보
     } else if (Object.keys(data).length > 0 && !_looksEmptyData(data)) {
       // Supabase가 비어있고 + 로컬에 실제 데이터가 있을 때만 올림 (빈/기본 데이터로 원격을 덮어쓰지 않음)

@@ -306,14 +306,16 @@ function exportData() {
 function importData(input) {
   const file=input.files[0]; if(!file) return;
   const reader=new FileReader();
-  reader.onload=e=>{
+  // 파일 안의 저장 번호(_dataRevision)는 옛 값이라 그대로 saveData 하면 서버가 늘 거부 → core.js _ndRestoreDoc(서버 번호로 맞춰 저장, 성공 뒤에만 안내)
+  reader.onload=async e=>{
+    let imp;
+    try { imp=JSON.parse(e.target.result); if(!imp.staff||!imp.schedule) throw new Error(); }
+    catch { toast('파일 형식 오류','error'); return; }
+    if(!confirm('기존 데이터를 교체하시겠습니까?')) return;
     try {
-      const imp=JSON.parse(e.target.result);
-      if(!imp.staff||!imp.schedule) throw new Error();
-      if(!confirm('기존 데이터를 교체하시겠습니까?')) return;
-      data=imp; if(!data.leaves) data.leaves={};
-      saveData(data); renderAdminPanel(); toast('가져오기 완료','success');
-    } catch { toast('파일 형식 오류','error'); }
+      if(!imp.leaves) imp.leaves={};
+      await _ndRestoreDoc(_migrateRemote(imp),'가져오기 완료');   // 관리 화면 다시 그리기는 _ndRestoreDoc 안에서
+    } catch(err) { toast('가져오기 실패: '+err.message,'error'); }
   };
   reader.readAsText(file); input.value='';
 }
@@ -351,6 +353,8 @@ function showAdminTab(tab) {
   if (tab==='settings') { _initGcalSettings(); _renderBackupList(); }
   if (tab==='loginlog') renderLoginLog();
   if (tab==='avoid') renderAvoidTab();
+  if (tab==='fleave') renderFlLeaveTab();
+  if (tab==='hwork') renderHworkTab();   // 휴일 사전근무(js/holiday-work.js)
 }
 // ===== 로그인 상태 (마스터 전용) =====
 // 메인 데이터(schedule)와 분리된 별도 테이블 login_log에 '기기별 로그인 상태'를 upsert.
@@ -434,6 +438,7 @@ const NOTIFY_DEFAULT_TYPES = [
   { key:'8jin',    label:'8진',             time:'08:00', enabled:true,  body:'{이름}님, 오늘은 8진 근무입니다.' },
   { key:'ilgeun',  label:'일근',            time:'09:00', enabled:true,  body:'{이름}님, 오늘은 일근입니다.' },
   { key:'newsoh',  label:'뉴.오',         time:'13:00', enabled:true,  body:'{이름}님, 오늘은 뉴.오 근무입니다.' },
+  { key:'newsohGo', label:'오뉴스 진행 (뉴.오 근무자, 따로 한 번 더)', time:'16:30', enabled:true, body:'{이름}님, 오뉴스 진행 시간입니다.' },   // 서버 notify 함수가 뉴.오 근무자에게 이 시각에 따로 보냄(PC 앱은 빨간 화면 알림)
   { key:'vw',      label:'VW 근무',         time:'09:00', enabled:true,  body:'{이름}님, 오늘은 VW 근무입니다.' },
   { key:'cg',      label:'CG 근무',         time:'09:00', enabled:true,  body:'{이름}님, 오늘은 CG 근무입니다.' },
   { key:'general', label:'기타 근무 (XR·PROJECT·SPORTS)',        time:'09:00', enabled:true,  body:'{이름}님, 오늘 근무가 있습니다.' },
@@ -489,6 +494,7 @@ function renderNotifyTab() {
         당직·조근처럼 출근 시각이 다른 근무는 아래에서 형태별로 시각을 따로 지정하세요.<br>
         <span style="color:#c79a5e;">⚠ 실제 발송은 백엔드(서버 스케줄러) 연동이 필요합니다 — 아래 설정은 발송 규칙을 정의합니다.</span>
       </p>
+      ${typeof ndPreviewHTML==='function'?ndPreviewHTML():''}
       <div style="display:flex;flex-direction:column;gap:10px;">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
           <input type="checkbox" id="nt-master" ${cfg.enabled?'checked':''} style="width:18px;height:18px;">
@@ -558,10 +564,39 @@ function _urlB64ToUint8(b64) {
   for (let i=0;i<raw.length;i++) arr[i] = raw.charCodeAt(i);
   return arr;
 }
-function _pushSupported() { return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); }
+// 근무표 앱(설치판, Electron)은 웹 푸시 대신 'PC 알림': push_subs 에 endpoint 'ndapp:<이 PC>' 로 등록 → 서버 notify 함수가 우편함(nd_data appinbox_<이 PC>)에 넣고
+// 앱(desktop/app-notify.js)이 10초마다 읽어 윈도 알림. 켜고 끄기·상태는 window.ndApp.notifyConfig/notifyStatus
+function _pushSupported() { if (ND_APP) return !!window.ndApp?.notifyConfig; return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); }
+async function _appPushStatus() { try { return await window.ndApp.notifyStatus(); } catch(e) { return null; } }
+async function _appPushEnable() {
+  try {
+    const st = await _appPushStatus(); if (!st || !/^ndapp:/.test(st.endpoint)) throw new Error('앱 상태를 읽지 못했습니다.');
+    // 서버 알림 함수가 PC 우편함을 아는 판인지 먼저(옛 판은 사람마다 구독 1개만 보내서 PC 구독이 휴대폰 알림을 막음)
+    const h = await fetch(NOTIFY_FN_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY }, body: JSON.stringify({ mode:'hello' }) }).then(r=>r.json()).catch(()=>({}));
+    if (!h || !h.appInbox) throw new Error('서버 알림 함수 업데이트(배포)가 먼저 필요합니다. 관리자에게 알려 주세요.');
+    await fetch(`${SB_URL}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(st.endpoint)}`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});   // 이 PC 의 옛 등록만(휴대폰 구독은 그대로)
+    const res = await fetch(`${SB_URL}/rest/v1/push_subs`, { method:'POST', headers:{...SB_HEADERS, 'Prefer':'return=minimal'},
+      body: JSON.stringify({ staff_id:currentUser.staffId, name:currentUser.name, endpoint:st.endpoint, sub:{ endpoint:st.endpoint, app:true, prefs:getUserNotify() } }) });
+    if (!res.ok) throw new Error(`구독 저장 실패 (HTTP ${res.status}).`);
+    await window.ndApp.notifyConfig({ enabled:true, staffId:currentUser.staffId, sbUrl:SB_URL, sbKey:SB_KEY });
+    try { localStorage.setItem('nd_prefs_synced', st.endpoint + '|' + currentUser.staffId + '|' + JSON.stringify(getUserNotify())); } catch(_){}
+    toast('이 PC에서 알림을 받습니다. 창을 닫아도 작업 표시줄 트레이에서 받아요.','success');
+  } catch(e) { console.warn('appPushEnable', e); toast('알림 설정 실패: '+e.message,'error'); }
+  renderMySchedule(); _refreshUserSettingsModal();
+}
+async function _appPushDisable() {
+  try {
+    const st = await _appPushStatus();
+    if (st && st.endpoint) await fetch(`${SB_URL}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(st.endpoint)}`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});
+    await window.ndApp.notifyConfig({ enabled:false });
+    toast('이 PC 알림을 껐습니다.','success');
+  } catch(e) { console.warn('appPushDisable', e); }
+  renderMySchedule(); _refreshUserSettingsModal();
+}
 async function isPushSubscribed() {
   try {
     if (!_pushSupported()) return false;
+    if (ND_APP) { const st = await _appPushStatus(); return !!(st && st.enabled && currentUser && st.staffId === currentUser.staffId); }
     const reg = await navigator.serviceWorker.getRegistration();
     if (!reg) return false;
     return !!(await reg.pushManager.getSubscription());
@@ -570,6 +605,7 @@ async function isPushSubscribed() {
 async function enablePush() {
   if (!currentUser || !currentUser.staffId) { toast('먼저 이름으로 로그인하세요.','error'); return; }
   if (!_pushSupported()) { toast('이 브라우저는 푸시 미지원입니다. 아이폰은 Safari에서 "홈 화면에 추가" 후 사용하세요.','error'); return; }
+  if (ND_APP) return _appPushEnable();
   try {
     const reg = await navigator.serviceWorker.register('sw.js');
     await navigator.serviceWorker.ready;
@@ -582,7 +618,7 @@ async function enablePush() {
     const sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:_urlB64ToUint8(VAPID_PUBLIC) });
     const j = sub.toJSON();
     // 같은 사람(staff_id)의 기존 구독을 전부 제거 후 새로 삽입 → 옛 endpoint 잔존으로 인한 중복 알림 방지
-    await fetch(`${SB_URL}/rest/v1/push_subs?staff_id=eq.${encodeURIComponent(currentUser.staffId)}`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});
+    await fetch(`${SB_URL}/rest/v1/push_subs?staff_id=eq.${encodeURIComponent(currentUser.staffId)}&endpoint=not.like.ndapp*`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});   // PC 앱 구독(ndapp:…)은 남김
     const res = await fetch(`${SB_URL}/rest/v1/push_subs`, {
       method:'POST',
       headers:{...SB_HEADERS, 'Prefer':'return=minimal'},
@@ -599,6 +635,7 @@ async function enablePush() {
   } catch(e) { console.warn('enablePush', e); toast('알림 설정 실패: '+e.message,'error'); }
 }
 async function disablePush() {
+  if (ND_APP) return _appPushDisable();
   try {
     const reg = await navigator.serviceWorker.getRegistration();
     const sub = reg && await reg.pushManager.getSubscription();
@@ -623,8 +660,10 @@ function _pushSavePrefs(onlyIfChanged) {
 async function _pushSavePrefsNow(onlyIfChanged) {
   try {
     if (!currentUser || !currentUser.staffId || !_pushSupported()) return 'na';
-    const reg = await navigator.serviceWorker.getRegistration();
-    const s = reg && await reg.pushManager.getSubscription(); if (!s) return 'na';   // 이 기기 알림이 꺼져 있음 → 서버에 보낼 것 없음
+    let s = null;
+    if (ND_APP) { const st = await _appPushStatus(); if (st && st.enabled) s = { endpoint: st.endpoint }; }
+    else { const reg = await navigator.serviceWorker.getRegistration(); s = reg && await reg.pushManager.getSubscription(); }
+    if (!s) return 'na';   // 이 기기 알림이 꺼져 있음 → 서버에 보낼 것 없음
     const prefs = getUserNotify(), mark = s.endpoint + '|' + currentUser.staffId + '|' + JSON.stringify(prefs);
     if (onlyIfChanged) { let last = ''; try { last = localStorage.getItem('nd_prefs_synced') || ''; } catch(_){} if (last === mark) return true; }   // 이미 서버에 같은 설정이면 건너뜀
     const r = await fetch(NOTIFY_FN_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY },
@@ -680,11 +719,11 @@ async function _refreshUserSettingsModal() {
   if (subbed) {
     btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg> 이 기기 알림 끄기'; btn.style.display='inline-flex'; btn.style.alignItems='center'; btn.style.justifyContent='center'; btn.style.gap='6px';
     btn.style.borderColor = '#f8a0a0'; btn.style.color = '#d65a52';
-    if (status) { status.textContent = '✓ 이 기기에서 알림이 켜져 있습니다.'; status.style.color = '#45847a'; }
+    if (status) { status.textContent = ND_APP ? '✓ 이 PC에서 알림이 켜져 있습니다. 창을 닫아도 작업 표시줄 트레이에서 받아요.' : '✓ 이 기기에서 알림이 켜져 있습니다.'; status.style.color = '#45847a'; }
   } else {
     btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> 이 기기 알림 켜기'; btn.style.display='inline-flex'; btn.style.alignItems='center'; btn.style.justifyContent='center'; btn.style.gap='6px';
     btn.style.borderColor = 'var(--border)'; btn.style.color = 'var(--muted)';
-    if (status) { status.textContent = '이 기기에서 알림이 꺼져 있습니다.'; status.style.color = 'var(--muted)'; }
+    if (status) { status.textContent = ND_APP ? '이 PC에서 알림이 꺼져 있습니다. 켜면 휴대폰과 같은 알림이 이 PC에도 와요.' : '이 기기에서 알림이 꺼져 있습니다.'; status.style.color = 'var(--muted)'; }
   }
 }
 function saveUserSettings() {

@@ -139,15 +139,15 @@ function renderLeaveReqView() {
       tb+=`<tr class="${isWE||isHoli?'weekend':''} ${dateStr===todayStr?'today-row':''}">`;
       tb+=`<td class="date-td">${dt.getMonth()+1}/${dt.getDate()}</td>`;
       tb+=`<td class="dow-td ${dowCls}">${DOW_KR[dow]}</td>`;
-      const dayCount=(entries[dateStr]||[]).length;
+      const dayCount=(entries[dateStr]||[]).length, flags=_lrFlags(dateStr);
       cols.forEach(s=>{
-        const hasLeave=(entries[dateStr]||[]).includes(s.id);
-        const bg=hasLeave?'#FFE0B2':'';
-        const color=hasLeave?'#c79a5e':'';
+        const hasLeave=(entries[dateStr]||[]).includes(s.id), fl=hasLeave&&flags[s.id];   // 6번째 이후·데스크 공백 = 주황
+        const bg=fl?'#FCA08A':hasLeave?'#FFE0B2':'';   // 몰린 날 신청 = 붉은 주황(10-17 '약간 더 빨갛게')
+        const color=fl?'#9f1d10':hasLeave?'#c79a5e':'';
         const fw=hasLeave?'700':'500';
         const text=hasLeave?'신휴가':'<span class="cell-off">-</span>';
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};`:'');
-        tb+=`<td data-sid="${s.id}" style="cursor:pointer;${st}">${text}</td>`;
+        tb+=`<td data-sid="${s.id}" style="cursor:pointer;${st}"${fl?` title="${fl==='desk'?'데스크가 비게 되는 신청':'6번째 이후 신청'}"`:''}>${text}</td>`;
       });
       if(dayCount>=4){
         tb+=`<td style="color:#dc2626;font-weight:800;font-size:10px;white-space:nowrap;background:#fef2f2;border:1px solid #fca5a5;text-align:center;">⚠ ${dayCount}명</td>`;
@@ -220,12 +220,12 @@ function _lrRowsHtml(staffId){
   return rows;
 }
 // 신휴가 팝업 '달력' 보기: 신청 기간 안의 날짜를 달력에서 눌러 신청/취소(목록과 같은 lrPopupCellClick 사용).
-// 금색 동그라미 = 내 신휴가, 날짜 아래 숫자 = 그날 신청 인원(4명 이상 빨강). 마지막에 고른 보기는 기억.
-let _lrView = (function(){ try{ return localStorage.getItem('nd_lr_view')==='cal'?'cal':'list'; }catch(e){ return 'list'; } })();
+// 금색 동그라미 = 내 신휴가, 날짜 아래 숫자 = 그날 신청 인원(4명 이상 빨강). 열 때마다 달력부터(10-17 사용자 요청) — 목록으로 바꾸면 그 창을 닫을 때까지 유지.
+let _lrView = 'cal';
 let _lrCalYM = null, _lrFocusDs = null;   // _lrFocusDs: 마지막으로 누른 날짜(오른쪽 목록에서 강조)
 function lrSetView(v, staffId){
   const nv = v==='cal'?'cal':'list', changed = nv!==_lrView;
-  _lrView = nv; try{ localStorage.setItem('nd_lr_view', _lrView); }catch(e){}
+  _lrView = nv;
   document.querySelectorAll('#lr-popup-overlay .lr-view-tabs button').forEach(b=>{ const on=b.dataset.v===_lrView; b.classList.toggle('on',on); b.setAttribute('aria-selected',String(on)); });
   const card=document.querySelector('#lr-popup-overlay .lr-pop');
   const apply=()=>{
@@ -296,6 +296,7 @@ function _lrCalHtml(staffId){
   </div>${side}</div>`;
 }
 function openLrPopup(staffId, noAnim) {
+  if (!noAnim) _lrView = 'cal';   // 새로 열면 달력(다시 그리기 noAnim 은 고른 보기 그대로)
   const lr = data.leaveReq || {};
   const entries = lr.entries || {};
   const rs = lr.rangeStart, re = lr.rangeEnd;
@@ -380,7 +381,80 @@ function dismissLrPopup() {
   setTimeout(closeLrPopup, 360);
 }
 
+// ── 휴가 조정 알림(10-17 요청): 특정 날에 휴가가 몰리면 부담을 주는 장치(신청을 막지는 않음) ──
+// ① 그 날 이미 5명 이상 신청 → 6번째부터는 확인 팝업 → 먼저 신청한 사람들에게 '휴가 조정 요청' 알림
+// ② 데스크 가능한 사람(같은 부서 deskPriority)이 모두 휴가가 되면 → 확인 팝업 → 그날 휴가인 다른 데스크에게 '데스크 조정 요청' 알림
+// 신청 순서 = entries[날짜] 배열 순서(뒤에 붙음). 알림은 서버 notify mode 'direct'(알림함 nd_data 'alarms' + 휴대폰·PC 알림, js/alarms.js)
+const LR_OVER = 5;
+function _lrDeskSet(dept, ds){ return data.staff.filter(s=>s.active!==false && s.employmentType!=='freelancer' && s.deskPriority && String(deptOn(s,ds)||'')===dept); }
+function _lrConflicts(staffId, ds){
+  const list=(data.leaveReq?.entries?.[ds]||[]).filter(id=>id!==staffId), out={ over:null, desk:null };
+  if(list.length>=LR_OVER) out.over=list.slice();
+  const me=staffById(staffId);
+  if(me && me.deskPriority){
+    const dept=String(deptOn(me,ds)||''), D=_lrDeskSet(dept, ds), offD=list.filter(id=>D.some(s=>s.id===id));
+    if(D.length>1 && D.length-offD.length-1<=0 && offD.length) out.desk={ dept, ids:offD };
+  }
+  return out;
+}
+// 표 주황 칸: 그 날 6번째 이후 신청자, 데스크를 비게 만든(데스크 중 마지막으로 신청한) 사람
+function _lrFlags(ds){
+  const list=data.leaveReq?.entries?.[ds]||[], f={};
+  list.forEach((id,i)=>{ if(i>=LR_OVER) f[id]='over'; });
+  const byDept={};
+  list.forEach(id=>{ const s=staffById(id); if(s&&s.deskPriority&&s.employmentType!=='freelancer'){ const d=String(deptOn(s,ds)||''); (byDept[d]=byDept[d]||[]).push(id); } });
+  Object.entries(byDept).forEach(([d,ids])=>{ const n=_lrDeskSet(d, ds).length; if(n>1) ids.forEach((id,i)=>{ if(i>=n-1 && !f[id]) f[id]='desk'; }); });
+  return f;
+}
+function _lrMdLabel(ds){ const d=new Date(ds+'T00:00:00'); return `${d.getMonth()+1}/${d.getDate()}(${'일월화수목금토'[d.getDay()]})`; }
+// 확인 팝업(토스 모달, 주황 머리) — 확인하면 onOk
+function _lrConfirmPop(c, ds, onOk){
+  document.getElementById('lr-adj')?.remove();
+  const md=_lrMdLabel(ds), parts=[];
+  // 누가 신청했는지는 보여 주지 않음(10-17 요청) — 몇 명인지·알림이 간다는 것만
+  if(c.over) parts.push(`<div class="lra-sec"><b>${md}에는 이미 ${c.over.length}명이 신휴가를 신청했어요.</b><p>신청하면 앞서 신청한 사람들에게 '휴가 조정 요청' 알림이 가요.</p></div>`);
+  if(c.desk) parts.push(`<div class="lra-sec desk"><b>이 날 ${_pEsc(c.desk.dept)} 데스크를 설 사람이 없어요.</b><p>신청하면 앞서 신청한 데스크들에게 '데스크 조정 요청' 알림이 가요.</p></div>`);
+  const el=document.createElement('div'); el.id='lr-adj'; el.className='lr-adj';
+  el.innerHTML=`<div class="lra-card" role="alertdialog" aria-modal="true" aria-labelledby="lra-t"><div class="lra-head" id="lra-t">휴가가 몰리는 날이에요</div><div class="lra-body">${parts.join('')}<p class="lra-note">휴가 신청이 막히지는 않아요. 다른 날로 바꿀 수 있으면 조정해 주세요.</p></div><div class="lra-foot"><button type="button" class="lra-cancel">취소</button><button type="button" class="lra-ok">확인하고 신청</button></div></div>`;
+  document.body.appendChild(el);
+  const close=()=>el.remove();
+  el.querySelector('.lra-cancel').onclick=close;
+  el.addEventListener('click',e=>{ if(e.target===el) close(); });
+  el.querySelector('.lra-ok').onclick=()=>{ close(); onOk(); };
+  el.querySelector('.lra-ok').focus();
+}
+// 같은 (신청자, 날짜, 종류) 알림은 이 기기에서 한 번만(취소했다가 다시 신청해도 또 안 감). localStorage nd_lr_alarm_sent, 지난 날짜는 정리
+function _lrAlarmOnce(staffId, ds, kind){
+  const K='nd_lr_alarm_sent', key=staffId+'|'+ds+'|'+kind;
+  try{
+    const m=JSON.parse(localStorage.getItem(K)||'{}'), n=new Date(), today=toDateStr(n.getFullYear(),n.getMonth()+1,n.getDate());
+    if(m[key]) return false;
+    Object.keys(m).forEach(k=>{ if((k.split('|')[1]||'')<today) delete m[k]; });
+    m[key]=1; localStorage.setItem(K, JSON.stringify(m));
+  }catch(e){}
+  return true;
+}
+// 먼저 신청한 사람들에게 알림(서버가 알림함에 쌓고 휴대폰·PC 로)
+function _lrSendAlarms(c, staffId, ds){
+  if(isAdminTest) return;
+  const md=_lrMdLabel(ds), post=o=>fetch(NOTIFY_FN_URL,{ method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY }, body:JSON.stringify({ mode:'direct', from:staffId, date:ds, ...o }) }).catch(()=>{});   // 받는 사람에게도 신청자 이름은 안 보냄
+  if(c.over && _lrAlarmOnce(staffId, ds, 'leave')) post({ kind:'leave', to:c.over, text:`${md} 신휴가 신청이 ${c.over.length+1}명이 됐어요. 가능하면 휴가 날짜 조정을 부탁드려요.` });   // 누가 신청했는지는 안 씀
+  if(c.desk && _lrAlarmOnce(staffId, ds, 'desk')) post({ kind:'desk', to:c.desk.ids, text:`${md} 신휴가 신청으로 이 날 ${c.desk.dept} 데스크를 설 사람이 없어요. 데스크끼리 조정해 주세요.` });
+}
+// 알림은 그 신청이 서버에 실제로 저장된 뒤에만 보냄(마감·기간 변경으로 저장이 거부되거나, 저장 전에 다시 눌러 취소했으면 안 보냄). 450ms 기다리지 않고 바로 저장
+async function _lrAlarmAfterSave(c, staffId, ds){
+  const ok=await _lrSyncMyColumn(_lrMyId());
+  if(ok===true && (data.leaveReq?.entries?.[ds]||[]).includes(staffId)) _lrSendAlarms(c, staffId, ds);
+}
 function lrPopupCellClick(staffId, dateStr) {
+  const adding=!(data.leaveReq?.entries?.[dateStr]||[]).includes(staffId);
+  if(adding && !isAdmin && !isAdminTest){
+    const c=_lrConflicts(staffId, dateStr);
+    if(c.over||c.desk){ _lrConfirmPop(c, dateStr, ()=>{ _lrPopupApply(staffId, dateStr); _lrAlarmAfterSave(c, staffId, dateStr); }); return; }
+  }
+  _lrPopupApply(staffId, dateStr);
+}
+function _lrPopupApply(staffId, dateStr) {
   _lrFocusDs = dateStr;
   lrCellClick(staffId, dateStr);   // 토글 + 저장 + 배경 갱신
   // 팝업을 재생성하지 않고 표(tbody)만 교체 → 번쩍임 없음, 스크롤 위치 유지
@@ -418,6 +492,7 @@ function toggleLeaveReq() {
 }
 function sendLeaveReqNotice() {
   if (!isAdmin) return;
+  if (isAdminTest) { toast('관리자 테스트 모드에서는 알림을 보내지 않아요.','error'); return; }
   const lr = data.leaveReq;
   if (!lr?.isOpen) { toast('휴가 신청이 열려 있을 때만 보낼 수 있습니다.','error'); return; }
   const dlTxt = lr.deadline ? _fmtLrDeadline(lr.deadline) : '';
@@ -428,7 +503,7 @@ function sendLeaveReqNotice() {
 }
 
 // ===== 휴가신청: 셀 단위 변경 대기열 + 조건부 저장 =====
-let _lrSyncTimer=null, _lrInFlight=null, _lrPending={}, _lrScope=null, _lrSerial=0, _lrSaveError='';
+let _lrSyncTimer=null, _lrInFlight=null, _lrPending={}, _lrScope=null, _lrSerial=0, _lrSaveError='', _lrMergeChain=null;
 function _lrPendingKey(){return STORE_KEY+':leave-pending:'+(isAdmin?'admin':(_lrMyId()||'guest'));}
 function _lrRestorePending(){
   const key=_lrPendingKey();if(_lrScope===key)return;
@@ -466,6 +541,10 @@ async function _lrSyncMyColumn(myId){
   let ok=false;
   try{ok=await _lrInFlight;return ok;}finally{
     _lrInFlight=null;
+    // 병합 저장 뒤 서버 리비전 따라가기(공지·투표와 같게) — 저장 중 표시(_lrInFlight)가 풀린 뒤라야 ndAdoptMergedSave가 '대기 중'으로 보지 않음.
+    // 이번 저장 사이에 남이 저장했으면(사슬 끊김) 내 기기는 뒤처진 것 → 리비전은 그대로 두고 전체 다시 불러오기
+    const mc=_lrMergeChain;_lrMergeChain=null;
+    if(mc){if(mc.broken)setTimeout(()=>{_reloadRemoteData();},0);else{ndAdoptMergedSave(mc.base,mc.saved);try{localStorage.setItem(STORE_KEY,JSON.stringify(data));}catch{}}}
     if(_lrScope===scope){_lrSaveError=ok?'':'unsaved';renderLeaveReqView();if(!ok)toast('휴가 변경을 저장하지 못했습니다. 연결 확인 후 다시 저장해 주세요.','error');}
   }
 }
@@ -484,7 +563,7 @@ async function _lrDrainChanges(scope,admin){
       const g=await _lrRequest(url+'&select=payload,updated_at',{headers:SB_HEADERS});
       if(!g.ok)throw Error('read');const remote=(await g.json())?.[0];
       if(!remote?.payload||!remote.updated_at)throw Error('missing version');
-      const rp=remote.payload,lr=rp.leaveReq;
+      const rp=remote.payload,lr=rp.leaveReq,base=rp._dataRevision||0;
       if(!lr || (!admin&&(!lr.isOpen||(lr.deadline&&Date.now()>=new Date(lr.deadline).getTime()))))return false;
       if(batch.some(([,op])=>op.rs!==lr.rangeStart||op.re!==lr.rangeEnd||op.ds<lr.rangeStart||op.ds>lr.rangeEnd))return false;
       if(!lr.entries)lr.entries={};
@@ -497,7 +576,8 @@ async function _lrDrainChanges(scope,admin){
           if(scope!==_lrPendingKey()||scope!==_lrScope)return false;
           for(const [key,op]of batch)if(_lrPending[key]?.version===op.version)delete _lrPending[key];
           data.leaveReq=saved.payload.leaveReq;_lrOverlayPending();_lrPersistPending();
-          // Do not advance the full-document revision: other local fields may be stale.
+          // 문서 리비전은 여기서 올리지 않고 드레인이 끝난 뒤 _lrSyncMyColumn에서 따라감(병합 전 리비전 base부터 이어진 저장인지 기록)
+          if(!_lrMergeChain)_lrMergeChain={base,saved};else{if(base!==(_lrMergeChain.saved.payload._dataRevision||0))_lrMergeChain.broken=true;_lrMergeChain.saved=saved;}
           try{localStorage.setItem(STORE_KEY,JSON.stringify(data));}catch{}
           _localBackup(data);failures=0;continue;
         }

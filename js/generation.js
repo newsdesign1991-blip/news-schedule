@@ -1281,20 +1281,26 @@ function _restoreExact(targetSchedule, dateStrs, snap){
 }
 // 누락 점수: 주 7일·일근·당직 빈칸은 데스크 빈칸보다 훨씬 무겁게(최선안 고를 때)
 function _issueScore(issues){ return issues.reduce((s,i)=>s+(/^(주7일|일근$|당직$|VW·CG 중복)/.test(i.what)?100:(i.what==='토요조근'?10:1)),0); }
+// 생성 중(여러 setTimeout에 나눠 도는 동안) 표시 — js/sync-init.js 동기화가 그동안 data를 바꾸지 않음(바꾸면 결과가 옛 객체에 들어가 저장에서 빠짐)
+let _ndGenBusy=0;
 // 백그라운드 자동 재생성: 데스크 누락 없을 때까지 반복 (최대 시도 후 최선안 채택)
 function _generateWithRetry(startVal, endVal, targetSchedule, resultElId, onDone, opts){
   opts = opts || {};
   const MAX_ATTEMPTS=50;
+  let _fin=false;
+  const _end=()=>{ if(!_fin){ _fin=true; _ndGenBusy=Math.max(0,_ndGenBusy-1); } };
+  const _done=ok=>{ _end(); if(onDone)onDone(ok); };
   let attempt=0, bestSnap=null, bestIssues=null, bestCount=Infinity, bestScore=Infinity, lastDateStrs=null, lastTotal=0;
   // 매 시도는 생성 전 상태(수동 입력·앞 단계 결과)에서 새로 굴림 — 예전엔 앞 시도 결과가 '보존'돼 재시도가 거의 같은 결과를 냈음
   const _rangeDates=[]; for(let d=startVal; d<=endVal && _rangeDates.length<400; d=addDays(d,1)) _rangeDates.push(d);
   const _base=_snapshotRange(targetSchedule,_rangeDates);
   showResult(resultElId,'⏳ 근무표 계산 중...',true);
-  function step(){
+  function step(){ try{ _step(); }catch(e){ _end(); throw e; } }   // 오류로 멈춰도 생성 중 표시는 풀기
+  function _step(){
     attempt++;
     if(attempt>1) _restoreExact(targetSchedule,_rangeDates,_base);
     const res=_generateScheduleCore(startVal,endVal,targetSchedule,resultElId,{silent:true, phase:opts.phase});
-    if(!res){ if(onDone)onDone(false); return; } // 하드 에러(직원부족 등) — 이미 메시지 표시됨
+    if(!res){ _done(false); return; } // 하드 에러(직원부족 등) — 이미 메시지 표시됨
     lastDateStrs=res.genDateStrs; lastTotal=res.totalDays;
     const issues=_validateScheduleRange(targetSchedule,res.genDateStrs, opts.phase);
     const score=_issueScore(issues);
@@ -1306,7 +1312,7 @@ function _generateWithRetry(startVal, endVal, targetSchedule, resultElId, onDone
     if(issues.length===0){
       showResult(resultElId,`✅ ${startVal} ~ ${endVal} 근무표 생성 완료 (${res.totalDays}일 · ${attempt}회 시도)`,true);
       toast('근무표 초안이 생성되었습니다.','success');
-      if(onDone)onDone(true);
+      _done(true);
       return;
     }
     if(attempt<MAX_ATTEMPTS){
@@ -1318,9 +1324,10 @@ function _generateWithRetry(startVal, endVal, targetSchedule, resultElId, onDone
       const summ=bestIssues.slice(0,8).map(i=>`${i.date.slice(5)} ${i.what}`).join(', ')+(bestIssues.length>8?' 외':'');
       showResult(resultElId,`⚠️ ${attempt}회 시도 후 완료 — 잔여 부족 ${bestCount}건: ${summ}`,false);
       toast('일부 자리를 채우지 못했습니다. 결과 메시지와 직원 설정·휴가를 확인하세요.','error');
-      if(onDone)onDone(false);
+      _done(false);
     }
   }
+  _ndGenBusy++;
   setTimeout(step,0);
 }
 function showResult(id,msg,ok) {

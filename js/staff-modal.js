@@ -197,7 +197,7 @@ document.addEventListener('click', function(e){
 let _wlModalId=null;
 function _wlStaffModalRefresh(id){
   if(id) _wlModalId=id; const box=document.getElementById('modal-wise-leave'); if(!box||!_wlModalId) return;
-  box.innerHTML=_wlBar(typeof isAdminTest!=='undefined'&&isAdminTest)+_wlListHTML(_wlModalId);
+  box.innerHTML=_wlListHTML(_wlModalId);   // 가져오기 버튼은 관리자 패널 '휴가' 탭에만
 }
 // 접어 둔 칸(계약·파견·수습·부서 이동 예약) 제목 옆 요약 — 접혀 있어도 값이 있는지 보이게
 function _smFoldSummary(){

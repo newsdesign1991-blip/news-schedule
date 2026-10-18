@@ -59,7 +59,24 @@ function _evConfirmDiscard(){
   ov.onclick=function(e){ if(e.target===ov) _closeEvDiscard(); };
   document.body.appendChild(ov);
 }
-function saveEvent() {
+// ── 저장: 일반 직원 경로라 문서 전체(saveData)가 아니라 서버 최신본에 이 변경만 병합(js/notice.js _ndCommit, 'events' 칸) ──
+// 그사이 남이 저장해도 거부·덮어쓰기 없음. 저장이 끝난 뒤에만 창을 닫음(실패하면 쓴 내용 그대로). 저장 중 두 번 누르면 무시(null)
+let _evSaving = false;
+async function _evCommit(mutate) {
+  if (_evSaving) return null;
+  _evSaving = true;
+  try { return await _ndCommit(mutate, ['events']); } finally { _evSaving = false; }
+}
+function _evFindIn(root, id) {   // 모든 날짜에서 id로 찾기(그사이 다른 기기가 날짜를 옮겼어도)
+  for (const ds of Object.keys(root.events||{})) { const list = root.events[ds]||[]; const i = list.findIndex(e => e && e.id === id); if (i >= 0) return { ds, list, i, ev: list[i] }; }
+  return null;
+}
+function _evSortTime(list) { list.sort((a,b)=>(a.time||'').localeCompare(b.time||'')); }   // 시간순 정렬
+function _evRemoveIn(root, id) { const f = _evFindIn(root, id); if (!f) return false; f.list.splice(f.i, 1); if (!f.list.length) delete root.events[f.ds]; }
+function _evNewId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+function _evRerender() { renderHome(); if (currentView === 'month') renderMonth(); }
+const EV_SAVE_FAIL = '저장하지 못했어요. 네트워크 확인 후 다시 시도하세요.';
+async function saveEvent() {
   const date  = document.getElementById('ev-date').value;
   const title = document.getElementById('ev-title').value.trim();
   if (!date)  { toast('날짜를 선택하세요','error'); return; }
@@ -68,28 +85,27 @@ function saveEvent() {
   const location = document.getElementById('ev-location').value.trim();
   const author   = document.getElementById('ev-author').value.trim();
   const color    = (document.querySelector('input[name="ev-color"]:checked')?.value) || '#6366f1';
-  const id       = Date.now().toString(36);
-  if (!data.events) data.events = {};
-  if (!data.events[date]) data.events[date] = [];
+  const id       = _evNewId();
   const participants = _getSelectedParticipants('ev-participants-wrap');
-  data.events[date].push({ id, title, time, location, color, author, participants });
-  // 시간순 정렬
-  data.events[date].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-  saveData(data);
+  const ev = { id, title, time, location, color, author, participants };
+  const res = await _evCommit(rp => {
+    const list = rp.events[date] = rp.events[date] || [];
+    if (!list.some(e => e && e.id === id)) list.push(ev);   // 다시 시도해도 한 번만
+    _evSortTime(list);
+  });
+  if (res === null) return;
+  if (res !== true) { toast(EV_SAVE_FAIL,'error'); return; }
   closeEventModal();
   toast('일정이 추가되었습니다','success');
-  renderHome();
-  if (currentView === 'month') renderMonth();
+  _evRerender();
 }
-function deleteEvent(dateStr, idx) {
+async function deleteEvent(dateStr, idx) {
+  const ev = (data.events?.[dateStr]||[])[idx]; if (!ev) return;
   if (!confirm('이 일정을 삭제하시겠습니까?')) return;
-  if (data.events?.[dateStr]) {
-    data.events[dateStr].splice(idx, 1);
-    if (!data.events[dateStr].length) delete data.events[dateStr];
-    saveData(data);
-    renderHome();
-    if (currentView === 'month') renderMonth();
-  }
+  const res = await _evCommit(rp => _evRemoveIn(rp, ev.id));
+  if (res === null) return;
+  if (res !== true && res !== 'gone') { toast(EV_SAVE_FAIL,'error'); return; }   // 'gone' = 이미 지워짐
+  _evRerender();
 }
 
 // ===== 참여자 칩 =====
@@ -186,44 +202,43 @@ function openEventEdit() {
   document.querySelector('#event-detail-modal .modal')?.classList.add('ev-editing');   // 넓은 화면: 편집하는 동안 좌우 2분할(css/popup-wide.css)
   _evAutoGrow(document.getElementById('ev-edit-title'));
 }
-function saveEventEdit() {
+async function saveEventEdit() {
   const newDate  = document.getElementById('ev-edit-date').value;
   const newTitle = document.getElementById('ev-edit-title').value.trim();
   if (!newDate||!newTitle) { toast('날짜와 내용을 입력하세요','error'); return; }
   const newTime  = document.getElementById('ev-edit-time').value||'';
   const newColor = document.querySelector('input[name="ev-edit-color"]:checked')?.value||'#6366f1';
-  const oldDate  = _evDetailDate;
-  const evList   = data.events?.[oldDate]||[];
-  const idx      = evList.findIndex(e=>e.id===_evDetailId);
-  if (idx<0) return;
-  const ev = evList[idx];
-  ev.title = newTitle; ev.time = newTime; ev.color = newColor;
-  ev.location = document.getElementById('ev-edit-location').value.trim();
-  ev.participants = _getSelectedParticipants('ev-edit-participants-wrap');
-  if (newDate !== oldDate) {
-    evList.splice(idx,1);
-    if (!evList.length) delete data.events[oldDate];
-    if (!data.events[newDate]) data.events[newDate]=[];
-    data.events[newDate].push(ev);
-    data.events[newDate].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-    _evDetailDate = newDate;
-  } else {
-    evList.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-  }
-  saveData(data);
+  const id = _evDetailId;
+  if (!_findEvent(_evDetailDate, id)) return;
+  const patch = { title:newTitle, time:newTime, color:newColor,
+    location: document.getElementById('ev-edit-location').value.trim(),
+    participants: _getSelectedParticipants('ev-edit-participants-wrap') };
+  const res = await _evCommit(rp => {
+    const f = _evFindIn(rp, id); if (!f) return false;   // 그사이 지워진 일정
+    Object.assign(f.ev, patch);
+    if (f.ds !== newDate) {
+      f.list.splice(f.i,1);
+      if (!f.list.length) delete rp.events[f.ds];
+      const nl = rp.events[newDate] = rp.events[newDate] || [];
+      nl.push(f.ev); _evSortTime(nl);
+    } else _evSortTime(f.list);
+  });
+  if (res === null) return;
+  if (res === 'gone') { toast('이미 삭제된 일정이에요.','error'); closeEventDetail(); _evRerender(); return; }
+  if (res !== true) { toast(EV_SAVE_FAIL,'error'); return; }   // 편집 칸 그대로
+  _evDetailDate = newDate; _evDetailId = id;
   document.getElementById('ev-edit-form').style.display='none';
   openEventDetail(_evDetailDate, _evDetailId);
-  renderHome();
-  if (currentView==='month') renderMonth();
+  _evRerender();
   toast('일정이 수정되었습니다','success');
 }
-function deleteEventById() {
+async function deleteEventById() {
   if (!confirm('이 일정을 삭제하시겠습니까?')) return;
-  const list = data.events?.[_evDetailDate]||[];
-  const idx = list.findIndex(e=>e.id===_evDetailId);
-  if (idx>=0) { list.splice(idx,1); if(!list.length) delete data.events[_evDetailDate]; }
-  saveData(data); closeEventDetail(); renderHome();
-  if (currentView==='month') renderMonth();
+  const id = _evDetailId; if (!id) return;
+  const res = await _evCommit(rp => _evRemoveIn(rp, id));
+  if (res === null) return;
+  if (res !== true && res !== 'gone') { toast(EV_SAVE_FAIL,'error'); return; }   // 'gone' = 이미 지워짐
+  closeEventDetail(); _evRerender();
 }
 function _renderEventComments(ev) {
   const cmts = ev.comments||[];
@@ -234,32 +249,55 @@ function _renderEventComments(ev) {
     const dtStr=`${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
     html+=`<div style="padding:8px 10px;border-radius:8px;background:var(--surface2);margin-bottom:6px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
-        <span style="font-size:12px;font-weight:700;color:var(--text);">${c.author||'익명'}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--text);">${_pEsc(c.author||'익명')}</span>
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:10px;color:var(--muted);">${dtStr}</span>
           <button onclick="deleteEventComment(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0;line-height:1;">✕</button>
         </div>
       </div>
-      <div style="font-size:13px;color:var(--text);line-height:1.5;">${c.text}</div>
-    </div>`;
+      <div style="font-size:13px;color:var(--text);line-height:1.5;word-break:break-word;">${_pEsc(c.text).replace(/\n/g,'<br>')}</div>
+    </div>`;   // 작성자·본문은 직원이 쓴 글 → 이스케이프(js/poll.js _pEsc)
   });
   document.getElementById('ev-comments-list').innerHTML = html;
 }
-function addEventComment() {
-  const text = document.getElementById('ev-cmt-text').value.trim();
-  if (!text) return;
-  const author = document.getElementById('ev-cmt-author').value.trim()||currentUser?.name||'익명';
-  const ev = _findEvent(_evDetailDate, _evDetailId); if (!ev) return;
-  if (!ev.comments) ev.comments = [];
-  ev.comments.push({ id: Date.now().toString(36), text, author, at: new Date().toISOString() });
-  saveData(data);
-  document.getElementById('ev-cmt-text').value='';
-  _renderEventComments(ev);
+// 댓글 저장 뒤: 상세 창이 아직 그 일정이면 댓글 목록 다시 그림(그사이 날짜가 옮겨졌으면 따라감)
+function _evAfterCmt(id) {
+  const f = _evFindIn(data, id);
+  if (_evDetailId === id) { if (f) { _evDetailDate = f.ds; _renderEventComments(f.ev); } else closeEventDetail(); }
   renderHome();
 }
-function deleteEventComment(idx) {
-  const ev = _findEvent(_evDetailDate, _evDetailId); if (!ev) return;
-  ev.comments.splice(idx,1);
-  saveData(data); _renderEventComments(ev); renderHome();
+async function addEventComment() {
+  const ta = document.getElementById('ev-cmt-text');
+  const text = ta.value.trim();
+  if (!text) return;
+  const author = document.getElementById('ev-cmt-author').value.trim()||currentUser?.name||'익명';
+  const id = _evDetailId;
+  if (!_findEvent(_evDetailDate, id)) return;
+  const cmt = { id: _evNewId(), text, author, at: new Date().toISOString() };
+  const res = await _evCommit(rp => {
+    const f = _evFindIn(rp, id); if (!f) return false;
+    const cs = f.ev.comments = f.ev.comments || [];
+    if (!cs.some(c => c.id === cmt.id)) cs.push(cmt);   // 다시 시도해도 한 번만
+  });
+  if (res === null) return;
+  if (res === 'gone') { toast('이미 삭제된 일정이에요.','error'); _evAfterCmt(id); return; }
+  if (res !== true) { toast('댓글을 저장하지 못했어요. 네트워크 확인 후 다시 시도하세요.','error'); return; }   // 쓴 글은 입력칸에 그대로
+  if (ta.value.trim() === text) ta.value = '';
+  _evAfterCmt(id);
+}
+async function deleteEventComment(idx) {
+  const id = _evDetailId;
+  const ev = _findEvent(_evDetailDate, id); if (!ev) return;
+  const old = (ev.comments||[])[idx]; if (!old) return;
+  const same = c => old.id ? c.id === old.id : (c.at === old.at && c.text === old.text);   // 서버본에서 id로 찾음(번호는 그사이 바뀔 수 있음)
+  const res = await _evCommit(rp => {
+    const f = _evFindIn(rp, id); if (!f) return false;
+    const cs = f.ev.comments || [], i = cs.findIndex(same);
+    if (i < 0) return false;
+    cs.splice(i, 1);
+  });
+  if (res === null) return;
+  if (res !== true && res !== 'gone') { toast('댓글을 지우지 못했어요. 다시 시도하세요.','error'); return; }   // 'gone' = 이미 지워짐
+  _evAfterCmt(id);
 }
 

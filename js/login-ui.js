@@ -63,6 +63,8 @@ function _updateUserHeader() {
   // 로그인 여부와 무관하게 항상 흰색 햄버거(☰) 버튼으로 표시
   av.textContent = '☰'; av.style.fontSize = '';
   mb.classList.remove('logged');
+  if (typeof ND_APP!=='undefined' && ND_APP && typeof _ndTitlebarSync==='function') _ndTitlebarSync();   // 근무표 앱 제목줄의 [알림 설정](로그인한 직원만)
+  if (typeof alarmLoad==='function') alarmLoad(true);   // 알림함 종(js/alarms.js) — 로그인·로그아웃 때
 }
 // ===== 상단 통합 메뉴 (컨텍스트 메뉴) =====
 function toggleHdrMenu(e){
@@ -186,7 +188,8 @@ function openNotifySheet(){
     </div>
     <div id="us-push-status" class="ns-status"></div>
     <button id="us-push-toggle-btn" onclick="togglePush()" class="ns-btn"></button>
-    <button id="us-push-test-btn" onclick="sendTestPush()" class="ns-btn ns-btn-primary">${BELL} 테스트 알림 보내기</button>`;
+    <button id="us-push-test-btn" onclick="sendTestPush()" class="ns-btn ns-btn-primary">${BELL} 테스트 알림 보내기</button>
+    ${typeof ndPreviewHTML==='function'?ndPreviewHTML():''}`;   // 근무표 앱: 알림 미리보기(시범용)
   openSheet('알림 설정', html);
   _refreshUserSettingsModal();
 }

@@ -38,7 +38,7 @@ function renderProject(){
     const more='';
     return '<div class="pj-row'+(_pjCanEdit(p)?' pj-clickable':'')+'" data-pjid="'+p.id+'">'
       +'<div class="pj-left">'
-      +'<div class="pj-c-name" title="'+_pEsc(p.name)+'">'+_pEsc(p.name)+'</div>'
+      +'<div class="pj-c-name" title="'+_pEsc(p.name)+'">'+'<button type="button" class="pj-hm'+(p.home===false?' off':'')+'" onclick="event.stopPropagation();pjToggleHome(\''+p.id+'\')" title="'+(p.home===false?'홈 화면에 안 보임 — 누르면 보이기':'홈 화면에 보임 — 누르면 빼기')+'" aria-label="홈 화면 표시" aria-pressed="'+(p.home!==false)+'"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M11.3 3.25a1 1 0 0 1 1.4 0l8.5 7.6a1 1 0 0 1-.7 1.75H20V20a1 1 0 0 1-1 1h-4.5v-5.5a2.5 2.5 0 0 0-5 0V21H5a1 1 0 0 1-1-1v-7.4h-.5a1 1 0 0 1-.67-1.75z"/></svg></button>'+_pEsc(p.name)+'</div>'
       +'<div class="pj-c-work">'+(av||'<span style="color:var(--muted);font-size:11px;">-</span>')+more+'</div>'
       +'<div class="pj-c-date">'+String(p.start).slice(5)+'</div>'
       +'<div class="pj-c-date">'+String(p.end).slice(5)+'</div>'
@@ -116,30 +116,59 @@ function openProjectModal(id){
   document.getElementById('pj-start').value=p?p.start:today;
   document.getElementById('pj-end').value=p?p.end:today;
   document.getElementById('pj-color').value=p?(p.color||'#f4a09a'):'#f4a09a';
+  document.getElementById('pj-home-one').checked=!(p&&p.home===false);   // 프로젝트마다 홈 표시(없으면 보임)
   _pjMountPicker(p?(p.participants||[]).filter(Boolean):[]);
   _pjMountCal(); _pjTint();
   document.getElementById('pj-del-btn').style.display=p?'':'none';
   m.style.display='flex';
 }
 function closeProjectModal(){ const m=document.getElementById('project-modal'); if(m) m.style.display='none'; const h=document.getElementById('pj-part-pick'); if(h&&h._ndPicker) h._ndPicker.close(); }
-function saveProject(){
+// ── 저장: 작성자(일반 직원) 경로라 문서 전체(saveData)가 아니라 서버 최신본에 이 변경만 병합(js/notice.js _ndCommit, 'projects' 칸) ──
+// 그사이 남이 저장해도 거부·덮어쓰기 없음. 저장이 끝난 뒤에만 창을 닫음(실패하면 쓴 내용 그대로). 저장 중 두 번 누르면 무시(null)
+let _pjSaving=false;
+async function _pjCommit(mutate){
+  if(_pjSaving) return null;
+  _pjSaving=true;
+  try{ return await _ndCommit(rp=>{ if(!Array.isArray(rp.projects)) rp.projects=[]; return mutate(rp); }, ['projects']); } finally { _pjSaving=false; }
+}
+const PJ_SAVE_FAIL='저장하지 못했어요. 네트워크 확인 후 다시 시도하세요.';
+async function saveProject(){
   const name=document.getElementById('pj-name').value.trim();
   const start=document.getElementById('pj-start').value, end=document.getElementById('pj-end').value;
   if(!name){ toast('프로젝트명을 입력하세요','error'); return; }
   if(!start||!end){ toast('시작일·종료일을 입력하세요','error'); return; }
   if(start>end){ toast('종료일이 시작일보다 빠릅니다','error'); return; }
-  if(!Array.isArray(data.projects)) data.projects=[];
   const id=document.getElementById('pj-id').value;
   const pk=document.getElementById('pj-part-pick')._ndPicker, old=id?(data.projects||[]).find(x=>x.id===id):null;
   const parts=pk?pk.get():((old&&old.participants)||[]).slice();   // 고르기 부품이 없으면(로드 실패) 기존 참여자 유지
-  const obj={name:name,start:start,end:end,color:document.getElementById('pj-color').value,participants:parts};
-  if(id){ const p=(data.projects||[]).find(x=>x.id===id); if(p) Object.assign(p,obj); }
-  else { obj.id='pj'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); obj.createdBy=(currentUser&&currentUser.staffId)||null; obj.createdByName=(currentUser&&currentUser.name)||''; data.projects.unshift(obj); }
-  saveData(data); closeProjectModal(); renderProject(); toast('저장됨','success');
+  const obj={name:name,start:start,end:end,color:document.getElementById('pj-color').value,participants:parts,home:document.getElementById('pj-home-one').checked};
+  let nobj=null;   // 새 프로젝트: id는 mutate 밖에서 한 번만 만듦(다시 시도해도 하나만)
+  if(!id){ nobj=Object.assign({id:'pj'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), createdBy:(currentUser&&currentUser.staffId)||null, createdByName:(currentUser&&currentUser.name)||''}, obj); }
+  const res=await _pjCommit(rp=>{
+    if(id){ const p=rp.projects.find(x=>x&&x.id===id); if(!p) return false; Object.assign(p,obj); }   // 그사이 지워졌으면 'gone'
+    else if(!rp.projects.some(x=>x&&x.id===nobj.id)) rp.projects.unshift(Object.assign({},nobj,{participants:nobj.participants.slice()}));
+  });
+  if(res===null) return;
+  if(res==='gone'){ closeProjectModal(); renderProject(); toast('이미 삭제된 프로젝트예요','error'); return; }
+  if(res!==true){ toast(PJ_SAVE_FAIL,'error'); return; }
+  closeProjectModal(); renderProject(); toast('저장됨','success');
 }
-function deleteProject(){
+// 프로젝트 한 개의 홈 표시 켜고 끄기(간트 이름 칸의 집 아이콘)
+async function pjToggleHome(id){
+  const p=(data.projects||[]).find(x=>x.id===id); if(!p) return;
+  if(!_pjCanEdit(p)){ toast('작성자 또는 관리자만 바꿀 수 있어요.','error'); return; }
+  const on=p.home===false;   // 없거나 true → false(빼기), false → true
+  const res=await _pjCommit(rp=>{ const q=rp.projects.find(x=>x&&x.id===id); if(!q) return false; q.home=on; });
+  if(res===null) return;
+  if(res==='gone'){ renderProject(); toast('이미 삭제된 프로젝트예요','error'); return; }
+  if(res!==true){ toast(PJ_SAVE_FAIL,'error'); return; }
+  renderProject(); toast(on?'홈 화면에 보여요.':'홈 화면에서 뺐어요.','success');
+}
+async function deleteProject(){
   const id=document.getElementById('pj-id').value; if(!id) return;
   if(!confirm('이 프로젝트를 삭제할까요? 되돌릴 수 없습니다.')) return;
-  data.projects=(data.projects||[]).filter(x=>x.id!==id);
-  saveData(data); closeProjectModal(); renderProject(); toast('삭제됨','success');
+  const res=await _pjCommit(rp=>{ const n=rp.projects.length; rp.projects=rp.projects.filter(x=>!(x&&x.id===id)); if(rp.projects.length===n) return false; });
+  if(res===null) return;
+  if(res!==true && res!=='gone'){ toast(PJ_SAVE_FAIL,'error'); return; }   // 'gone' = 이미 지워짐
+  closeProjectModal(); renderProject(); toast('삭제됨','success');
 }

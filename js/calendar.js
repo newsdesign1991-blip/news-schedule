@@ -115,7 +115,7 @@ function toggleGcalPopover(e){
   var btn=document.getElementById('cal-gcal-toggle'); if(!btn) return;
   var rect=btn.getBoundingClientRect();
   var pop=document.createElement('div'); pop.id='gcal-popover'; pop.className='gcal-pop';
-  var rows = cals.length ? cals.map(function(c){ var on=c.on!==false; return '<div class="gcal-pop-row" onclick="_toggleGcalCal(\''+c.id+'\', this)"><span class="gcal-pop-dot" style="background:'+(c.color||'#4285f4')+'"></span><span class="gcal-pop-name">'+_gcalEsc(c.name||c.url)+'</span><span class="gcal-pop-sw'+(on?' on':'')+'"></span></div>'; }).join('') : '<div style="padding:14px 8px;text-align:center;color:var(--muted);font-size:13px;">연동된 구글 캘린더가 없습니다</div>';
+  var rows = cals.length ? cals.map(function(c){ var on=_gcalCalOn(c.id); return '<div class="gcal-pop-row" onclick="_toggleGcalCal(\''+c.id+'\', this)"><span class="gcal-pop-dot" style="background:'+(c.color||'#4285f4')+'"></span><span class="gcal-pop-name">'+_gcalEsc(c.name||c.url)+'</span><span class="gcal-pop-sw'+(on?' on':'')+'"></span></div>'; }).join('') : '<div style="padding:14px 8px;text-align:center;color:var(--muted);font-size:13px;">연동된 구글 캘린더가 없습니다</div>';
   pop.innerHTML='<div class="gcal-pop-title">구글 캘린더</div>'+rows;
   document.body.appendChild(pop);
   var pw=pop.offsetWidth, ph=pop.offsetHeight;
@@ -127,18 +127,27 @@ function toggleGcalPopover(e){
   pop.style.setProperty('--tail-x', tailX+'px');
   setTimeout(function(){ document.addEventListener('click', _gcalPopOutside, true); }, 0);
 }
+// 캘린더별 보이기/숨기기 = 보는 사람마다 다른 설정 → 이 기기에만 기억(localStorage nd_gcal_off = 숨긴 캘린더 id 목록).
+// 공용 문서(data.settings.gcals)에는 쓰지 않음(예전엔 한 사람이 끄면 전 직원 화면에서 꺼졌음). 예전에 공용에 남은 on:false는 보지 않음(관리자 저장 saveGcals도 on을 버림)
+const GCAL_OFF_KEY='nd_gcal_off';
+let _gcalOff=null;   // Set(숨긴 캘린더 id) — 처음 쓸 때 읽음
+function _gcalOffSet(){
+  if(!_gcalOff){ let a=[]; try{ a=JSON.parse(localStorage.getItem(GCAL_OFF_KEY)||'[]'); }catch(e){} _gcalOff=new Set(Array.isArray(a)?a:[]); }
+  return _gcalOff;
+}
 function _toggleGcalCal(id, rowEl){
   var cal=_gcalList().find(function(c){return c.id===id;}); if(!cal) return;
-  cal.on = (cal.on===false);
-  saveData(data);
-  if(rowEl){ var sw=rowEl.querySelector('.gcal-pop-sw'); if(sw) sw.classList.toggle('on', cal.on!==false); }
-  var gt=document.getElementById('cal-gcal-toggle'); if(gt){ var anyOn=_gcalList().some(function(c){return c.url&&c.url.trim()&&c.on!==false;}); gt.className='btn btn-sm'+(anyOn?'':' btn-outline'); }
+  var off=_gcalOffSet(); if(off.has(id)) off.delete(id); else off.add(id);
+  var known=_gcalList().map(function(c){return c.id;});   // 지워진 캘린더 id는 정리
+  try{ localStorage.setItem(GCAL_OFF_KEY, JSON.stringify([...off].filter(function(x){return known.includes(x);}))); }catch(e){}
+  if(rowEl){ var sw=rowEl.querySelector('.gcal-pop-sw'); if(sw) sw.classList.toggle('on', _gcalCalOn(id)); }
+  var gt=document.getElementById('cal-gcal-toggle'); if(gt){ var anyOn=_gcalList().some(function(c){return c.url&&c.url.trim()&&_gcalCalOn(c.id);}); gt.className='btn btn-sm'+(anyOn?'':' btn-outline'); }
   _gcalRefreshViews();
 }
 let _gcalDetailId=null, _gcalDetailDate=null;
 function _gcalHashId(e){ var k=(e.title||'')+'|'+((e.start&&e.start.date)||'')+'|'+((e.start&&e.start.time)||'')+'|'+(e.location||'')+'|'+(e.rrule||''); var h=0; for(var i=0;i<k.length;i++){ h=((h<<5)-h+k.charCodeAt(i))|0; } return 'g'+(h>>>0).toString(36); }
 function _gcalRefreshViews(){ try{ if(typeof renderMonth==='function' && currentView==='month') renderMonth(); if(typeof renderHome==='function') renderHome(); }catch(e){} }
-function _gcalCalOn(calId){ var cal=(_gcalList()||[]).find(function(c){return c.id===calId;}); return cal ? (cal.on!==false) : true; }
+function _gcalCalOn(calId){ return !_gcalOffSet().has(calId); }   // 이 기기 설정(위 nd_gcal_off), 기본은 켜짐
 function _gcalMeta(id){ if(!data.gcalMeta) data.gcalMeta={}; if(!data.gcalMeta[id]) data.gcalMeta[id]={participants:[],comments:[]}; return data.gcalMeta[id]; }
 function _gcalTitleLoc(ev){ let title=(ev.title||''), loc=(ev.location||''); const m=title.match(/^\s*\[([^\]]+)\]\s*/); if(m){ if(!loc) loc=m[1]; title=title.slice(m[0].length); } return {title:title, loc:loc}; }
 function _gcalEsc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -192,10 +201,46 @@ function showGcalDetail(dateStr, id){
 }
 function _renderGcalParticipants(id,color){ const wrap=document.getElementById('gcal-detail-participants'); if(!wrap) return; const ids=_gcalMeta(id).participants||[]; color=color||'#4285f4'; wrap.innerHTML = ids.map(pid=>{ const st=(data.staff||[]).find(x=>x.id===pid); return st?`<span style="display:inline-block;padding:4px 12px;border-radius:999px;font-size:11.5px;font-weight:700;background:${color}1f;color:${color};">${st.name}</span>`:''; }).join(''); }
 function toggleGcalEdit(){ const fm=document.getElementById('gcal-edit-form'); if(fm) fm.style.display = (fm.style.display==='none'||!fm.style.display)?'block':'none'; }
-function saveGcalParticipants(){ const meta=_gcalMeta(_gcalDetailId); meta.participants=_getSelectedParticipants('gcal-participants-wrap'); saveData(data); const ev=(_gcalEvents||[]).find(e=>e._id===_gcalDetailId); _renderGcalParticipants(_gcalDetailId, ev?ev._color:'#4285f4'); const fm=document.getElementById('gcal-edit-form'); if(fm) fm.style.display='none'; _gcalRefreshViews(); }
+// 구글 일정 참여자·댓글 저장 = 서버 최신본의 그 일정 칸(gcalMeta[id])에만 병합(js/notice.js _ndCommit) — 일반 직원 경로라 문서 전체(saveData) 저장 안 함.
+// 결과 true=저장, 'gone'=fn이 false(지울 댓글이 이미 없음), false=실패, null=저장 중이라 무시
+let _gcalSaving=false;
+async function _gcalCommit(id, fn){
+  if(_gcalSaving) return null; _gcalSaving=true;
+  try{ return await _ndCommit(rp=>{ const m=rp.gcalMeta[id]=rp.gcalMeta[id]||{participants:[],comments:[]}; if(!m.participants) m.participants=[]; if(!m.comments) m.comments=[]; return fn(m); }, ['gcalMeta']); }
+  finally{ _gcalSaving=false; }
+}
+async function saveGcalParticipants(){
+  const id=_gcalDetailId; if(!id) return;
+  const list=_getSelectedParticipants('gcal-participants-wrap');
+  const res=await _gcalCommit(id, m=>{ m.participants=list; });
+  if(res===null) return;
+  if(res!==true){ toast('저장하지 못했어요. 네트워크 확인 후 다시 시도하세요.','error'); return; }
+  if(_gcalDetailId===id){ const ev=(_gcalEvents||[]).find(e=>e._id===id); _renderGcalParticipants(id, ev?ev._color:'#4285f4'); const fm=document.getElementById('gcal-edit-form'); if(fm) fm.style.display='none'; }
+  _gcalRefreshViews();
+}
 function _renderGcalComments(id){ const cmts=_gcalMeta(id).comments||[]; let html=''; if(!cmts.length) html='<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px 0;">첫 댓글을 남겨보세요</div>'; else cmts.forEach((cc,i)=>{ const dt=new Date(cc.at||0); const dtStr=`${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`; html+=`<div style="padding:8px 10px;border-radius:8px;background:var(--surface2);margin-bottom:6px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;font-weight:700;color:var(--text);">${_gcalEsc(cc.author)||'익명'}</span><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:10px;color:var(--muted);">${dtStr}</span><button onclick="deleteGcalComment(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0;line-height:1;">&#10005;</button></div></div><div style="font-size:13px;color:var(--text);line-height:1.5;">${_gcalEsc(cc.text)}</div></div>`; }); document.getElementById('gcal-comments-list').innerHTML=html; }
-function addGcalComment(){ const t=document.getElementById('gcal-cmt-text'); const text=t.value.trim(); if(!text) return; const author=(document.getElementById('gcal-cmt-author').value.trim())||(currentUser&&currentUser.name)||'익명'; const meta=_gcalMeta(_gcalDetailId); meta.comments.push({id:Date.now().toString(36),text,author,at:new Date().toISOString()}); saveData(data); t.value=''; _renderGcalComments(_gcalDetailId); _gcalRefreshViews(); }
-function deleteGcalComment(idx){ const meta=_gcalMeta(_gcalDetailId); meta.comments.splice(idx,1); saveData(data); _renderGcalComments(_gcalDetailId); _gcalRefreshViews(); }
+async function addGcalComment(){
+  const t=document.getElementById('gcal-cmt-text'); const text=t.value.trim(); if(!text) return;
+  const id=_gcalDetailId; if(!id) return;
+  const author=(document.getElementById('gcal-cmt-author').value.trim())||(currentUser&&currentUser.name)||'익명';
+  const cmt={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),text,author,at:new Date().toISOString()};
+  const res=await _gcalCommit(id, m=>{ if(!m.comments.some(c=>c.id===cmt.id)) m.comments.push(cmt); });   // 다시 시도해도 한 번만
+  if(res===null) return;
+  if(res!==true){ toast('댓글을 저장하지 못했어요. 네트워크 확인 후 다시 시도하세요.','error'); return; }   // 쓴 글은 입력칸에 그대로
+  if(t.value.trim()===text) t.value='';
+  if(_gcalDetailId===id) _renderGcalComments(id);
+  _gcalRefreshViews();
+}
+async function deleteGcalComment(idx){
+  const id=_gcalDetailId; if(!id) return;
+  const old=(_gcalMeta(id).comments||[])[idx]; if(!old) return;
+  const same=c=>old.id?c.id===old.id:(c.at===old.at&&c.text===old.text);   // 서버본에서 id로 찾음(번호는 그사이 바뀔 수 있음)
+  const res=await _gcalCommit(id, m=>{ const i=m.comments.findIndex(same); if(i<0) return false; m.comments.splice(i,1); });
+  if(res===null) return;
+  if(res!==true&&res!=='gone'){ toast('댓글을 지우지 못했어요. 다시 시도하세요.','error'); return; }   // 'gone' = 이미 지워짐
+  if(_gcalDetailId===id) _renderGcalComments(id);
+  _gcalRefreshViews();
+}
 // 모달을 닫을 때 닫힘 애니메이션 재생 후 실제로 숨김 (열림과 동일한 느낌으로 사라짐)
 function _animModalClose(el){
   if(!el) return;
@@ -281,7 +326,7 @@ function setCalMode(m){
     team.className = 'btn btn-sm' + (m==='team'?'':' btn-outline');
   }
   const gt=document.getElementById('cal-gcal-toggle');
-  if(gt){ const has=_gcalList().some(c=>c.url&&c.url.trim()); const anyOn=_gcalList().some(c=>c.url&&c.url.trim()&&c.on!==false); gt.className='btn btn-sm'+((has&&anyOn)?'':' btn-outline'); gt.style.opacity=has?'1':'0.55'; }
+  if(gt){ const has=_gcalList().some(c=>c.url&&c.url.trim()); const anyOn=_gcalList().some(c=>c.url&&c.url.trim()&&_gcalCalOn(c.id)); gt.className='btn btn-sm'+((has&&anyOn)?'':' btn-outline'); gt.style.opacity=has?'1':'0.55'; }
   renderMonth();
 }
 // 달력 셀(좁음)용 컴팩트 역할 칩 — 한 사람 하루 근무를 짧은 라벨로. (홈 카드 getRoles와 별도: 라벨 길이 다름)
@@ -408,7 +453,7 @@ function _dayEvCard(ds, ev){
   const pills=ptNames.map(n=>`<span class="wm-ev-pt" style="background:${c}22;color:${c};">${esc(n)}</span>`).join('');
   const cmt=(ev.comments||[]).length;
   return `<div class="wm-ev-card" onclick="closeModal();openEventDetail('${ds}','${ev.id}')" style="background:${c}15;--evc:${c};--evc2:${c}55;">
-    ${ev.time?`<div class="wm-ev-time" style="color:${c};">${ev.time}</div>`:''}
+    ${ev.time?`<div class="wm-ev-time" style="color:${c};">${esc(ev.time)}</div>`:''}
     <div class="wm-ev-title">${esc(ev.title)}${cmt?` <span style="display:inline-flex;align-items:center;gap:2px;background:${c}22;color:${c};font-size:12px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:4px;border:1px solid ${c}44;"><svg viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="flex:none;vertical-align:-1px;"><path d="M8 2.5c-3.1 0-5.7 1.9-5.7 4.2 0 1.3.8 2.5 2 3.3-.1.6-.4 1.2-.8 1.7-.2.2 0 .5.3.4.9-.1 1.8-.5 2.5-.9.5.1 1.1.2 1.7.2 3.1 0 5.7-1.9 5.7-4.2S11.1 2.5 8 2.5z"/></svg>${cmt}</span>`:''}</div>
     ${ev.location?`<div style="font-size:11px;color:var(--muted);margin-top:3px;">${esc(ev.location)}</div>`:''}
     ${pills?`<div class="wm-ev-pts">${pills}</div>`:''}

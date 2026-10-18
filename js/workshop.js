@@ -919,6 +919,15 @@ document.addEventListener('keydown',event=>{
     if(key==='v'){event.preventDefault();_wsPasteSelection();}
   }else if(event.key==='Escape'){_wsSelection=null;_wsPaintSelection();}
 });
+// 작성소 Ctrl+Z = [뒤로가기](undoWorkshop) — 글자 칸·팝업 안에서는 그 칸의 되돌리기 그대로
+document.addEventListener('keydown',event=>{
+  if(!isAdmin||currentView!=='workshop'||event.defaultPrevented||event.altKey||event.shiftKey)return;
+  if(!(event.ctrlKey||event.metaKey)||event.key.toLowerCase()!=='z')return;
+  if(event.target?.closest?.('input,textarea,select,[contenteditable="true"],[role="dialog"],.modal-overlay'))return;
+  if(document.getElementById('wt-pop')||[...document.querySelectorAll('.modal-overlay')].some(m=>getComputedStyle(m).display!=='none'))return;   // 팝업이 떠 있으면 아래 표는 안 건드림
+  event.preventDefault();
+  if(_wsHistory.length) undoWorkshop(); else toast('더 되돌릴 게 없어요','');
+});
 
 // ===== 작성소 참고 자료 창(떠 있는 창): 근무 통계 · 직원B 근무일(평일 수 대비 지난 기간 초과분) · 직원B 남은 휴가(직접 입력) =====
 // 근무표를 고치는 동안 열어 둠(모달 아님, 머리를 끌어 옮김). 표가 다시 그려질 때마다 wsInfoRefresh로 새로 셈
@@ -948,8 +957,8 @@ async function _wiOpen(){
   if(window.innerWidth>1000){
     let w=null;
     try{
-      if(window.documentPictureInPicture&&!window.ndApp) w=await documentPictureInPicture.requestWindow({width:480,height:640});   // 작성 앱(Electron)은 새 창(window.open)이 진짜 창으로 뜸
-      else w=window.open('','nd_ws_info','popup,width=480,height=640');
+      if(window.documentPictureInPicture&&!window.ndApp) w=await documentPictureInPicture.requestWindow({width:640,height:760});   // 작성 앱(Electron)은 새 창(window.open)이 진짜 창으로 뜸
+      else w=window.open('','nd_ws_info','popup,width=680,height=820');
     }catch(e){ w=null; }
     if(w){
       const d=w.document; d.title='참고 자료';
@@ -959,7 +968,7 @@ async function _wiOpen(){
       if(window.ndApp) d.documentElement.classList.add('nd-app');   // 작성 앱: 윈도 제목줄 없는 창 — 파란 머리로 끌기(css/admin.css)
       d.body.style.cssText='margin:0;padding:0;background:var(--bg);';
       // 창 안의 onclick이 이 앱 함수를 부르게
-      w.wsInfoToggle=wsInfoToggle; w.wsInfoTab=wsInfoTab; w.wsInfoSaveLeave=wsInfoSaveLeave; w.wsInfoYear=wsInfoYear; w.wsInfoPerson=wsInfoPerson; w.wlOpenWise=wlOpenWise; w.wlAppFetch=wlAppFetch; w.wlPasteToggle=wlPasteToggle; w.wlPasteImport=wlPasteImport; w.toast=toast;
+      w.wsInfoToggle=wsInfoToggle; w.wsInfoTab=wsInfoTab; w.flSelect=flSelect; w.flSaveOne=flSaveOne; w.wsInfoYear=wsInfoYear; w.wsInfoPerson=wsInfoPerson; w.wlOpenWise=wlOpenWise; w.wlAppFetch=wlAppFetch; w.wlPasteToggle=wlPasteToggle; w.wlPasteImport=wlPasteImport; w.toast=toast;
       w.addEventListener('message',e=>{ if(e.origin==='https://wise.sbs.co.kr'&&e.data&&e.data.type==='nd-wise-leave') _wlImport(String(e.data.text||'')); });
       const el=_wiBuild(d); el.classList.add('wi-win'); d.body.appendChild(el);
       _wiEl=el; _wiWin=w;
@@ -988,7 +997,7 @@ function wsInfoRefresh(){
   _wiEl.querySelectorAll('.wi-tabs button').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.wi===_wiTab)));
   const rs=wsRangeStart, re=wsRangeEnd;
   if(!rs||!re){ body.innerHTML='<div class="wi-empty">작성소 기간을 먼저 정하세요.</div>'; return; }
-  try{ body.innerHTML=_wiTab==='flwork'?_wiFlWork(rs,re):_wiTab==='flleave'?_wiFlLeave(rs):_wiStats(rs); }
+  try{ body.innerHTML=_wiTab==='flwork'?_wiFlWork(rs,re):_wiTab==='flleave'?'<div class="fl-admin fl-in-info">'+_flSplitHTML(rs,false)+'</div>':_wiStats(rs); }
   catch(e){ body.innerHTML='<div class="wi-empty">계산하지 못했습니다: '+_wiEsc(e.message)+'</div>'; }
 }
 // ① 근무 통계: 관리자 '근무 통계' 탭과 같은 표(_workStatsHTML, js/admin.js) — 연도는 창 안에서 고름(기본 = 작성소 기간의 해)
@@ -1021,26 +1030,7 @@ function _wiFlWork(rs,re){
     기준: 근무일 + 평일 휴가 = 평일 수(계약 기간 안). <b>지난 초과</b>만큼 이번 목표에서 뺌 → 이번 목표 = 평일 수 − 평일 휴가 − 지난 초과. 근무일엔 당직 다음날 퇴근 포함</p>
     <table class="wi-table wi-fl"><thead><tr><th>이름</th><th class="c-prev">지난 근무</th><th class="c-prev">지난 초과</th><th class="c-cur">이번 목표</th><th class="c-cur">이번 초안</th><th class="c-gap">목표 대비</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
-// ③ 직원B 남은 휴가(직접 입력, data.freelancerLeave[id]={days,memo,at, wise:[WISE 휴가 내역], wiseAt}) — 이름을 누르면 WISE 휴가 내역
-function _wiFlLeave(rs){
-  const list=_wiFreelancers(rs); const fl=data.freelancerLeave||{};
-  if(!list.length) return '<div class="wi-empty">직원B가 없습니다.</div>';
-  const ro=typeof isAdminTest!=='undefined'&&isAdminTest, yr=rs.slice(0,4);
-  const cards=list.map(s=>{ const v=fl[s.id]||{}; const used=_wlUsed(s.id,yr), dept=String(deptOn(s,rs)||'');
-    const color=typeof _deptColor==='function'?_deptColor(dept):'#94a3b8';
-    return `<div class="wl-card" data-sid="${s.id}">
-      <div class="wl-card-top"><span class="wl-av" style="background:${_wiEsc(color)}">${_wiEsc(String(s.name||'?').trim().charAt(0))}</span>
-        <div class="wl-id"><button class="wi-namebtn" onclick="wsInfoPerson('${s.id}')">${_wiEsc(s.name)}</button><span>${_wiEsc(dept)}</span></div>
-        ${used!=null?`<em class="wl-used">사용 ${used}일</em>`:''}</div>
-      <div class="wl-card-mid"><label class="wl-days">남은 휴가<input type="number" class="wi-in" min="0" max="99" step="0.5" value="${v.days??''}" placeholder="-" aria-label="${_wiEsc(s.name)} 남은 휴가 일수" ${ro?'disabled':''}><b>일</b></label>
-        <input type="text" class="wi-in wi-memo" value="${_wiEsc(v.memo||'')}" placeholder="메모" aria-label="${_wiEsc(s.name)} 메모" ${ro?'disabled':''}></div>
-      <div class="wl-card-foot">${used!=null?`<em class="wl-used">사용 ${used}일</em>`:''}<span>${v.at?'고친 날 '+_wiEsc(v.at.slice(5,10).replace('-','/')):''}</span></div>
-    </div>`; }).join('');
-  return `${_wlBar(ro)}
-    <p class="wi-note">이름을 누르면 직원 카드(WISE 휴가 내역 포함)가 열립니다. 남은 일수는 직접 적어 두세요.</p>
-    <div class="wl-cards">${cards}</div>
-    ${ro?'<p class="wi-note">관리자 테스트 모드에서는 저장되지 않습니다.</p>':'<button class="wi-save" onclick="wsInfoSaveLeave()">저장</button>'}`;
-}
+// ③ 직원B 남은 휴가 — 관리자 '휴가' 탭과 같은 2분할(_flSplitHTML, 아래)
 // ===== WISE 휴가 내역(파견사원 휴가신청/승인 PEDA2020) — WISE는 사내망·로그인이라 앱이 직접 못 읽음:
 //  'WISE 열기'로 연 창에서 로그인·조회 → 즐겨찾기 버튼(leave-import.js)이 목록을 이 창으로 보냄(postMessage), 또는 복사해 붙여넣기 =====
 const WISE_LEAVE_URL='https://wise.sbs.co.kr/wise/websquare/websquare.html?w2xPath=/wise/xml/per/d/peda2020.xml&__menuId=peda2020';
@@ -1061,14 +1051,25 @@ let _wlAppBusy=false;
 async function wlAppFetch(btn){
   if(_wlAppBusy||!window.ndApp?.wiseFetch) return;
   if(typeof isAdminTest!=='undefined'&&isAdminTest){ toast('관리자 테스트 모드에서는 저장되지 않습니다.','error'); return; }
-  _wlAppBusy=true; const label=btn.textContent; btn.disabled=true;
-  const off=window.ndApp.onWiseStatus?.(t=>{ btn.textContent=t; });
+  _wlAppBusy=true; btn.disabled=true;
+  _wlProg({t:'WISE 여는 중…',p:3});
+  const off=window.ndApp.onWiseStatus?.(o=>_wlProg(o));
   try{
     const r=await window.ndApp.wiseFetch({year:new Date().getFullYear()});
-    if(r&&r.ok){ if(r.lines.length) _wlImport(r.lines.join('\n')); else toast('WISE 목록이 비어 있습니다.',''); }
+    if(r&&r.ok){ _wlProg({t:'저장하는 중…',p:100}); if(r.lines.length) _wlImport(r.lines.join('\n')); else toast('WISE 목록이 비어 있습니다.',''); if(typeof _ndWiseState==='function') _ndWiseState(true); if(typeof _mealAppAuto==='function') setTimeout(()=>_mealAppAuto(true),500); }   // 로그인된 김에 오늘의 식사도
     else toast('WISE에서 가져오지 못했습니다: '+((r&&r.error)||'알 수 없는 오류'),'error');
   }catch(e){ toast('WISE에서 가져오지 못했습니다: '+e.message,'error'); }
-  finally{ try{off&&off();}catch(e){} _wlAppBusy=false; if(btn.isConnected){ btn.disabled=false; btn.textContent=label; } }
+  finally{ try{off&&off();}catch(e){} _wlProg(null); _wlAppBusy=false; if(btn.isConnected) btn.disabled=false; }
+}
+// 가져오는 동안 앱 화면 위쪽 가운데 진행 카드. o={t:글, p:0~100 | null(로그인 기다림 — 움직이는 막대)}, null이면 닫음
+function _wlProg(o){
+  let el=document.getElementById('wl-prog');
+  if(!o){ if(el){ el.classList.add('out'); setTimeout(()=>el.remove(),260); } return; }
+  if(!el){ el=document.createElement('div'); el.id='wl-prog'; el.setAttribute('role','status');
+    el.innerHTML='<div class="wlp-title">WISE 휴가 가져오는 중</div><div class="wlp-bar"><i></i></div><div class="wlp-text"></div>'; document.body.appendChild(el); }
+  el.querySelector('.wlp-text').textContent=o.t||'';
+  const ind=typeof o.p!=='number'; el.classList.toggle('ind',ind);
+  if(!ind) el.querySelector('.wlp-bar i').style.width=Math.max(3,Math.min(100,o.p))+'%';
 }
 function wlOpenWise(){ const w=window.open(WISE_LEAVE_URL,'nd_wise_leave','width=1200,height=800'); if(!w) toast('팝업이 막혔습니다. 주소창 오른쪽에서 팝업을 허용해 주세요.','error'); }
 function wlPasteToggle(btn){ const box=btn.closest('.ws-info,.wl-host')?.querySelector('.wl-paste'); if(box){ box.hidden=!box.hidden; if(!box.hidden) box.querySelector('textarea').focus(); } }
@@ -1085,25 +1086,43 @@ function _wlParse(text){
 function _wlImport(text){
   if(typeof isAdminTest!=='undefined'&&isAdminTest){ toast('관리자 테스트 모드에서는 저장되지 않습니다.','error'); return -1; }
   const items=_wlParse(text); if(!items.length){ toast('휴가 줄을 찾지 못했습니다.','error'); return -1; }
-  data.freelancerLeave=data.freelancerLeave||{}; const now=new Date().toISOString(), miss=new Set(); let n=0;
-  items.forEach(it=>{ const ss=data.staff.filter(s=>s.name===it.name&&s.active!==false); if(ss.length!==1){ miss.add(it.name); return; }
-    const rec=data.freelancerLeave[ss[0].id]=data.freelancerLeave[ss[0].id]||{}; const L=rec.wise=rec.wise||[];
-    const k=x=>x.s+'|'+x.e+'|'+x.type; const i=L.findIndex(x=>k(x)===k(it)); const v={s:it.s,e:it.e,days:it.days,type:it.type,status:it.status,gubun:it.gubun,req:it.req};
-    if(i>=0) L[i]=v; else L.push(v); L.sort((a,b)=>a.s<b.s?-1:1); rec.wiseAt=now; n++; });
-  if(n){ saveData(data); toast(`WISE 휴가 ${n}건을 가져왔습니다.`+(miss.size?` (못 찾은 이름: ${[...miss].join(', ')})`:''),'success'); }
-  else toast('앱 직원 명단에서 이름을 찾지 못했습니다: '+[...miss].join(', '),'error');
-  wsInfoRefresh(); if(typeof _wlStaffModalRefresh==='function') _wlStaffModalRefresh();
+  data.freelancerLeave=data.freelancerLeave||{}; const now=new Date().toISOString(), people=new Set(); let n=0;
+  items.forEach(it=>{ const ss=data.staff.filter(s=>s.name===it.name&&s.active!==false&&s.employmentType==='freelancer'); if(ss.length!==1) return;   // 직원B만
+    const rec=data.freelancerLeave[ss[0].id]=data.freelancerLeave[ss[0].id]||{};
+    rec.wise=_wlDedup([...(rec.wise||[]),{s:it.s,e:it.e,days:it.days,type:it.type,status:it.status,gubun:it.gubun,req:it.req}]); rec.wiseAt=now; people.add(ss[0].id); n++; });
+  if(n){ saveData(data); toast(`직원B ${people.size}명의 WISE 휴가 ${n}건을 가져왔습니다.`,'success'); }
+  else toast('WISE 목록에 직원B 이름이 없습니다.','error');
+  wsInfoRefresh(); _flLeaveTabRefresh(); if(typeof _wlStaffModalRefresh==='function') _wlStaffModalRefresh();
   return n;
 }
 window.addEventListener('message',e=>{ if(e.origin!=='https://wise.sbs.co.kr'||!e.data||e.data.type!=='nd-wise-leave') return; _wlImport(String(e.data.text||'')); });
 // 그해 사용(결재완료·승인, 취소·반려 제외) 일수 — 내역이 없으면 null
 function _wlUsed(id,yr){ const L=data.freelancerLeave?.[id]?.wise; if(!L||!L.length) return null; return L.filter(x=>x.s.startsWith(yr)&&!/취소|반려/.test(x.status+x.gubun)).reduce((a,x)=>a+(+x.days||0),0); }
-function _wlListHTML(id){
-  const rec=data.freelancerLeave?.[id]||{}, L=rec.wise||[];
-  if(!L.length) return '<div class="wl-empty">가져온 WISE 휴가 내역이 없습니다.</div>';
+// 칸 구분 없이 붙어 들어온 줄(예: 구분 빈칸·상태 '보건휴가영상디자인팀…결재완료승인') 바로잡기
+function _wlNorm(x){
+  if(x.type) return x;
+  const src=String(x.status||'')+String(x.gubun||''), t=src.match(/([가-힣]{0,4}휴가)/);
+  return {...x, type:t?t[1]:'', status:(src.match(/(결재완료|결재중|결재대기|반려|진행중|취소|대기|상신)/)||[])[1]||x.status, gubun:(src.match(/(승인|반려|취소)$/)||[])[1]||x.gubun};
+}
+// 같은 휴가(시작·끝·구분)는 하나로(나중 것), 날짜순
+function _wlDedup(L){ const m=new Map(); L.map(_wlNorm).forEach(x=>m.set(x.s+'|'+x.e+'|'+x.type,x)); return [...m.values()].sort((a,b)=>a.s<b.s?-1:a.s>b.s?1:0); }
+// 휴가 한 건(시작~끝, n일)의 날짜들 — 표에 '03/21, 03/22, 03/23'처럼 풀어 씀. 기간이 일수보다 길면(주말·공휴일 낀 휴가) 평일만
+function _wlDates(x){
+  const all=[]; const d=new Date(x.s+'T00:00:00'), e=new Date((x.e||x.s)+'T00:00:00');
+  for(let i=0;i<62&&d<=e;i++){ all.push(toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate())); d.setDate(d.getDate()+1); }
+  if(!all.length) return [{ds:x.s,n:+x.days||1}];
+  if(all.length===1) return [{ds:all[0],n:+x.days||1}];
+  const n=+x.days||all.length, wd=all.length>n?all.filter(ds=>isWeekdayForm(ds)):all, use=wd.length?wd:all;
+  return use.map(ds=>({ds,n:1}));
+}
+function _wlListHTML(id,editable){   // editable: 직접 넣은 줄 지우기(관리자 휴가 탭)
+  const rec=data.freelancerLeave?.[id]||{}, L=_wlDedup(rec.wise||[]);
+  if(!L.length) return '<div class="wl-empty">휴가 내역이 없습니다.'+(editable?' 위에서 직접 넣을 수 있어요.':'')+'</div>';
   const byType={}; L.filter(x=>!/취소|반려/.test(x.status+x.gubun)).forEach(x=>{ byType[x.type||'휴가']=(byType[x.type||'휴가']||0)+(+x.days||0); });
   return `<div class="wl-sum">${Object.entries(byType).map(([t,d])=>`<span>${_wiEsc(t)} <b>${d}일</b></span>`).join('')}<small>가져온 날 ${_wiEsc((rec.wiseAt||'').slice(0,10))}</small></div>
-    <table class="wl-list"><thead><tr><th>휴가 날짜</th><th>일수</th><th>구분</th><th>상태</th></tr></thead><tbody>${[...L].reverse().map(x=>`<tr class="${/취소|반려/.test(x.status+x.gubun)?'wl-off':''}"><td>${_wiEsc(x.s.slice(5).replace('-','/'))}${x.e!==x.s?' ~ '+_wiEsc(x.e.slice(5).replace('-','/')):''}</td><td>${x.days}</td><td>${_wiEsc(x.type)}</td><td>${_wiEsc(x.status||x.gubun)}</td></tr>`).join('')}</tbody></table>`;
+    <table class="wl-list"><thead><tr><th>휴가 날짜</th><th>일수</th><th>구분</th><th>상태</th>${editable?'<th></th>':''}</tr></thead><tbody>${[...L].reverse().map(x=>{ const off=/취소|반려/.test(x.status+x.gubun), ty=x.type||'휴가';
+      const tc=/보건/.test(ty)?'t-health':/연차/.test(ty)?'t-annual':/특별/.test(ty)?'t-special':'t-etc';
+      return `<tr class="${off?'wl-off':''}"><td class="wl-d">${_wlDates(x).map(d=>_wiEsc(d.ds.slice(5).replace('-','/'))).join(', ')}</td><td class="wl-n">${x.days}일</td><td><span class="wl-type ${tc}">${_wiEsc(ty)}</span></td><td><span class="wl-st${off?' off':''}${x.manual?' manual':''}">${_wiEsc(x.status||x.gubun||'-')}</span></td>${editable?`<td class="wl-x">${x.manual?`<button type="button" title="지우기" aria-label="지우기" onclick="flDelLeave('${id}','${_wiEsc(x.s+'|'+x.e+'|'+x.type)}')">✕</button>`:''}</td>`:''}</tr>`; }).join('')}</tbody></table>`;
 }
 // 참고 자료 창에서 이름 → 직원 카드(직원 편집 창, 오른쪽에 WISE 휴가 내역)를 앱 화면에 띄움(별도 창이면 앱 창을 앞으로)
 function wsInfoPerson(id){
@@ -1111,12 +1130,82 @@ function wsInfoPerson(id){
   openStaffModal(id);
   try{ window.focus(); }catch(e){}
 }
-function wsInfoSaveLeave(){
-  if(typeof isAdminTest!=='undefined'&&isAdminTest){ toast('관리자 테스트 모드에서는 저장되지 않습니다.','error'); return; }
-  data.freelancerLeave=data.freelancerLeave||{}; const now=new Date().toISOString(); let n=0;
-  _wiEl?.querySelectorAll('.wl-card').forEach(tr=>{ const id=tr.dataset.sid, d=tr.querySelector('.wl-days input'), m=tr.querySelector('.wi-memo'); const days=d.value===''?null:Math.max(0,+d.value), memo=m.value.trim();
-    const old=data.freelancerLeave[id]||{}; if((old.days??null)===days&&(old.memo||'')===memo) return;
-    if(days===null&&!memo&&!(old.wise&&old.wise.length)) delete data.freelancerLeave[id]; else data.freelancerLeave[id]={...old,days,memo,at:now}; n++; });
-  if(!n){ toast('바뀐 내용이 없습니다.',''); return; }
-  saveData(data); toast('직원B 남은 휴가를 저장했습니다.','success'); wsInfoRefresh();
+// 관리자 패널 '휴가' 탭 — 2분할: 왼쪽 직원B 목록(카드 아무 데나 누르면 선택), 오른쪽 그 사람의 남은 휴가·메모(저장)와 WISE 휴가 내역. 팝업 없음. 기준 날짜 = 오늘
+let _flSel=null;
+function renderFlLeaveTab(){
+  const host=document.getElementById('fleave-area'); if(!host) return;
+  const n=new Date(); host.innerHTML=_flSplitHTML(toDateStr(n.getFullYear(),n.getMonth()+1,n.getDate()),true);
 }
+// 2분할 HTML(관리자 '휴가' 탭 = 오늘 기준·WISE 가져오기 버튼, 참고 자료 '직원B 남은 휴가' = 작성소 기간 기준·버튼 없음). 고른 사람(_flSel)은 둘이 같이 씀
+function _flSplitHTML(ds,withBar){
+  const yr=ds.slice(0,4), ro=typeof isAdminTest!=='undefined'&&isAdminTest, list=_wiFreelancers(ds), fl=data.freelancerLeave||{};
+  const top=withBar?_wlBar(ro):'<p class="wi-note">카드를 누르면 오른쪽에 그 사람 휴가가 나옵니다. WISE 휴가는 관리자 패널 \'휴가\' 탭에서 가져옵니다.</p>';
+  if(!list.length) return top+'<div class="wi-empty">직원B가 없습니다.</div>';
+  if(!list.some(s=>s.id===_flSel)) _flSel=list[0].id;
+  const av=(s,dept)=>`<span class="wl-av" style="background:${_wiEsc(typeof _deptColor==='function'?_deptColor(dept):'#94a3b8')}">${_wiEsc(String(s.name||'?').trim().charAt(0))}</span>`;
+  const items=list.map(s=>{ const dept=String(deptOn(s,ds)||''), v=fl[s.id]||{}, used=_wlUsed(s.id,yr);
+    return `<button type="button" class="fl-item${s.id===_flSel?' on':''}" aria-pressed="${s.id===_flSel}" onclick="flSelect('${s.id}')">${av(s,dept)}
+      <span class="fl-id"><b>${_wiEsc(s.name)}</b><small>${_wiEsc(dept)}</small></span>
+      <span class="fl-meta">${v.days!=null?`<span class="fl-left">남은 <b>${v.days}</b>일</span>`:''}${used!=null?`<em class="wl-used">사용 ${used}일</em>`:''}</span></button>`; }).join('');
+  const s=list.find(x=>x.id===_flSel), dept=String(deptOn(s,ds)||''), v=fl[s.id]||{}, used=_wlUsed(s.id,yr);
+  const term=s.contractStart||s.contractEnd?`계약 ${_wiEsc((s.contractStart||'').replace(/-/g,'.'))} ~ ${_wiEsc((s.contractEnd||'').replace(/-/g,'.'))}`:'';
+  return `${top}<div class="fl-split">
+    <div class="fl-list" role="list" aria-label="직원B">${items}</div>
+    <div class="fl-detail" data-sid="${s.id}">
+      <div class="fl-head">${av(s,dept)}<div class="fl-id"><b>${_wiEsc(s.name)}</b><small>${_wiEsc([dept,term].filter(Boolean).join(' · '))}</small></div>${used!=null?`<em class="wl-used">${yr}년 사용 ${used}일</em>`:''}</div>
+      <div class="fl-edit">
+        <label class="wl-days">남은 휴가<input type="number" class="wi-in" min="0" max="99" step="0.5" value="${v.days??''}" placeholder="-" aria-label="남은 휴가 일수" ${ro?'disabled':''}><b>일</b></label>
+        <input type="text" class="wi-in wi-memo" value="${_wiEsc(v.memo||'')}" placeholder="메모" aria-label="메모" ${ro?'disabled':''}>
+        ${ro?'':`<button type="button" class="fl-save" onclick="flSaveOne(this)">저장</button>`}
+      </div>
+      ${v.at?`<div class="fl-at">고친 날 ${_wiEsc(v.at.slice(0,10).replace(/-/g,'.'))}</div>`:''}
+      <div class="fl-sec">휴가 내역 <small>WISE에서 가져온 것 + 직접 넣은 것</small></div>
+      ${withBar&&!ro?`<div class="fl-add">
+        <input type="date" class="wi-in" id="fl-add-start" aria-label="휴가 시작" onchange="_flAddDays()">
+        <span class="fl-tilde">~</span>
+        <input type="date" class="wi-in" id="fl-add-end" aria-label="휴가 끝(하루면 비움)" onchange="_flAddDays()">
+        <select class="wi-in" id="fl-add-type" aria-label="휴가 구분" onchange="_flAddDays()">${['연차휴가','반차','보건휴가','특별휴가','경조휴가','기타휴가'].map(t=>`<option>${t}</option>`).join('')}</select>
+        <label class="fl-add-n"><input type="number" class="wi-in" id="fl-add-days" min="0.5" max="60" step="0.5" placeholder="-" aria-label="일수">일</label>
+        <button type="button" class="fl-save" onclick="flAddLeave('${s.id}')">추가</button>
+      </div>`:''}
+      ${_wlListHTML(s.id, withBar&&!ro)}
+    </div></div>`;
+}
+function flSelect(id){ _flSel=id; _flLeaveTabRefresh(); wsInfoRefresh(); }
+// 직접 넣기: 날짜를 고르면 일수를 저절로(평일 수 — 공휴일은 뺌(ndIsOffDay, js/holiday-work.js), 반차 = 0.5). isWeekdayForm 은 편성 틀이라 성탄절 등 평일 틀 공휴일도 셈
+function _flAddDays(){
+  const a=document.getElementById('fl-add-start')?.value, b=document.getElementById('fl-add-end')?.value||a, ty=document.getElementById('fl-add-type')?.value, n=document.getElementById('fl-add-days');
+  if(!a||!n) return;
+  if(ty==='반차'){ n.value=0.5; return; }
+  if(b<a){ n.value=''; return; }
+  n.value=_wlDates({s:a,e:b,days:0}).filter(d=>typeof ndIsOffDay==='function'?!ndIsOffDay(d.ds):isWeekdayForm(d.ds)).length||1;
+}
+function flAddLeave(id){
+  if(typeof isAdminTest!=='undefined'&&isAdminTest){ toast('관리자 테스트 모드에서는 저장되지 않습니다.','error'); return; }
+  const a=document.getElementById('fl-add-start').value, b=document.getElementById('fl-add-end').value||a, ty=document.getElementById('fl-add-type').value;
+  const days=+document.getElementById('fl-add-days').value;
+  if(!a){ toast('휴가 날짜를 고르세요.','error'); return; }
+  if(b<a){ toast('끝 날짜가 시작보다 앞입니다.','error'); return; }
+  if(!(days>0)){ toast('일수를 적으세요.','error'); return; }
+  data.freelancerLeave=data.freelancerLeave||{}; const rec=data.freelancerLeave[id]=data.freelancerLeave[id]||{};
+  const type=ty==='반차'?'연차휴가':ty;   // 반차 = 연차 0.5일
+  rec.wise=_wlDedup([...(rec.wise||[]),{s:a,e:b,days:ty==='반차'?0.5:days,type,status:'직접 입력',gubun:'',req:'',manual:true}]);
+  saveData(data); toast('휴가를 넣었습니다.','success'); _flLeaveTabRefresh(); wsInfoRefresh(); if(typeof _wlStaffModalRefresh==='function') _wlStaffModalRefresh();
+}
+// 직접 넣은 휴가만 지움(WISE 에서 온 줄은 다시 가져오면 되돌아오므로 지우지 않음)
+function flDelLeave(id,key){
+  if(typeof isAdminTest!=='undefined'&&isAdminTest){ toast('관리자 테스트 모드에서는 저장되지 않습니다.','error'); return; }
+  const rec=data.freelancerLeave?.[id]; if(!rec?.wise) return;
+  const L=rec.wise.filter(x=>!(x.manual&&(x.s+'|'+x.e+'|'+x.type)===key)); if(L.length===rec.wise.length) return;
+  rec.wise=L; saveData(data); toast('지웠습니다.','success'); _flLeaveTabRefresh(); wsInfoRefresh(); if(typeof _wlStaffModalRefresh==='function') _wlStaffModalRefresh();
+}
+function flSaveOne(btn){
+  if(typeof isAdminTest!=='undefined'&&isAdminTest){ toast('관리자 테스트 모드에서는 저장되지 않습니다.','error'); return; }
+  const box=btn.closest('.fl-detail'), id=box?.dataset.sid; if(!id) return;
+  const d=box.querySelector('.wl-days input'), m=box.querySelector('.wi-memo'), days=d.value===''?null:Math.max(0,+d.value), memo=m.value.trim();
+  data.freelancerLeave=data.freelancerLeave||{}; const old=data.freelancerLeave[id]||{};
+  if((old.days??null)===days&&(old.memo||'')===memo){ toast('바뀐 내용이 없습니다.',''); return; }
+  if(days===null&&!memo&&!(old.wise&&old.wise.length)) delete data.freelancerLeave[id]; else data.freelancerLeave[id]={...old,days,memo,at:new Date().toISOString()};
+  saveData(data); toast('저장했습니다.','success'); _flLeaveTabRefresh(); wsInfoRefresh();
+}
+function _flLeaveTabRefresh(){ if(document.getElementById('panel-fleave')?.classList.contains('active')) renderFlLeaveTab(); }

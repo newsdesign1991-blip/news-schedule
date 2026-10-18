@@ -14,7 +14,6 @@ function employeeLoginScreen(message=''){
  document.getElementById('employee-change')?.remove();
  const ov=document.getElementById('login-overlay');ov.classList.remove('leaving','bg-leaving');ov.style.display='flex';
  document.getElementById('login-pin-input').value='';document.getElementById('login-name-error').textContent=message;_updateUserHeader();
- if(document.documentElement?.classList?.contains('nd-app'))employeeAdminDialog('admin');   // 근무표 작성 앱: 관리자 로그인만
 }
 function employeeLegacyNotice(saved){
  const key='nd_login_upgrade_seen_'+(saved.staffId||saved.name||'legacy');
