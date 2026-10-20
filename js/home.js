@@ -319,7 +319,7 @@ function renderHome() {
       <div class="tw-row" id="duty8-card">
         <div class="dept-ic jin8"><svg viewBox="0 0 240 240" fill="#fff"><path d="M163.7,105.9c7.4-9.4,10.6-19.6,10.6-30.6,0-28.5-24.4-52.1-54-52.1s-53.7,22.7-53.7,52.1,3.6,22.2,10.2,31.1c-16,13.3-24.8,31.3-24.8,51,0,37.9,30.6,66.1,68.3,66.1s67.8-29.6,67.8-66-9.4-39-24.4-51.6ZM120.2,41.1c19.4,0,34.7,15.6,34.7,34.2s-3.8,16.4-8.4,21.1c-7.2-3.2-15.7-5.3-26.5-5.2v18.2c-19.4-.2-34.4-15.4-34.4-34.1s15.2-34.2,34.6-34.2ZM120.2,205.2c-27.2,0-48.8-21.4-48.8-47.7s8.9-30.2,19.2-37.9c8.6,5.6,18.7,8.5,29.8,8.5v-18.2c27.2.2,48.6,21.5,48.6,47.7s-21.6,47.7-48.8,47.7Z"/></svg></div>
         <div class="dept-nm"><span>오늘의 8진</span><b>${_duty8Name||_miss}</b></div>
-        <span class="cue-in n8" data-cue="news8" hidden></span>
+        <span class="cue-in n15" data-cue="news15" hidden></span><span class="cue-in n8" data-cue="news8" hidden></span>
         <span class="dept-tag" style="color:#e23744;background:rgba(240,68,82,.14);">8진</span>
       </div>
       ${_nohRowsHtml}

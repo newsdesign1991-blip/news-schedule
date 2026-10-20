@@ -17,6 +17,13 @@ function cueNews8(ds){
   if(man) return man;
   const c=cueDay(ds); return c&&/^\d{2}:\d{2}$/.test(c.news8||'')?c.news8:'';
 }
+// 주말·공휴일 오후 짧은 뉴스 'SBS뉴스(15시)' 진입(10-20) — 그날 8진이 진행. 서버 notify n15(15시 뉴스 진행 알림, 20분 전)와 같은 규칙: 재방 (R) 빼고 첫 시작
+function cueNews15(ds){
+  const dow=new Date(ds+'T00:00:00').getDay();
+  if(!(dow===0||dow===6||(data.holidays&&data.holidays[ds]))) return '';
+  const c=cueDay(ds); if(!c||!Array.isArray(c.progs)) return '';
+  return c.progs.filter(g=>/SBS\s*뉴스\s*\(\s*15\s*시\s*\)|^15시\s*뉴스/.test(String(g&&g.n||''))&&!/\(R\)|재방/.test(String(g&&g.n||''))).map(g=>String(g.s||'')).filter(v=>/^\d{2}:\d{2}$/.test(v)).sort()[0]||'';
+}
 // 오늘 오뉴스가 '없음'으로 확정됐나 — 오후 1시 넘어 가져왔는데도 큐시트에 없을 때만(그 전엔 아직 안 만들었을 수 있음)
 function cueNoNewsOh(ds){ const c=cueDay(ds); if(!c||c.newsOh||!c.at) return false; const t=new Date(c.at), d=toDateStr(t.getFullYear(),t.getMonth()+1,t.getDate()); return d>ds||(d===ds&&t.getHours()>=13); }   // 전날 받아 둔 '내일' 기록은 확정 아님
 function cueLoad(){
@@ -33,10 +40,12 @@ function cueLoad(){
   })();
   return _cueLoading;
 }
-// 홈 '오늘의 근무': 8진 줄 = 8뉴스 진입, 뉴오 줄 = 오뉴스 진입 / 없음
+// 홈 '오늘의 근무': 8진 줄 = (주말·공휴일이면 오후뉴스 진입 +) 8뉴스 진입, 뉴오 줄 = 오뉴스 진입 / 없음
 function _cuePaint(){
   const ds=_todayStr(), c=cueDay(ds), n8=cueNews8(ds);
   document.querySelectorAll('[data-cue="news8"]').forEach(el=>{ el.textContent=n8?`${n8} 진입`:''; el.hidden=!n8; });
+  const n15=cueNews15(ds);   // 주말·공휴일 오후 뉴스(8진 진행)
+  document.querySelectorAll('[data-cue="news15"]').forEach(el=>{ el.textContent=n15?`오후뉴스 ${n15} 진입`:''; el.hidden=!n15; });
   document.querySelectorAll('[data-cue="newsOh"]').forEach(el=>{ const no=cueNoNewsOh(ds); el.textContent=c&&c.newsOh?`${c.newsOh} 진입`:no?'오늘 오뉴스 없음':''; el.hidden=!(c&&c.newsOh)&&!no; el.classList.toggle('none',!(c&&c.newsOh)&&no); });
   try{ _updateDuty8Glow(); _updateNewsOhGlow(); }catch(e){}
 }

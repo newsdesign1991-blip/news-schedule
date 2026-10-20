@@ -586,6 +586,12 @@ Deno.serve(async (req) => {
   const _hn = nd?.holidays?.[todayStr]
   const _news = nd?.settings?.specialDays?.[todayStr]?.news
   const _wdForm = _dowT !== 0 && _dowT !== 6 && (!_hn || _news === 'weekday' || (_news !== 'weekend' && !/설|추석/.test(String(_hn))))
+  // 주말·공휴일 오후 짧은 뉴스 'SBS뉴스(15시)'(10-20 요청 — 그날 8진이 진행): 큐시트 progs 에서 첫 시작(재방 (R) 빼고) → 20분 전 '15시 뉴스 진행' 알림.
+  // 시각은 날마다 다름(14:38·14:55·15:16 …). 보낸 시각은 cue days[오늘].sent.news15
+  const _offDayT = _dowT === 0 || _dowT === 6 || !!_hn
+  const n15 = _offDayT ? ((Array.isArray(cueT?.progs) ? cueT.progs : []).filter((g: any) => /SBS\s*뉴스\s*\(\s*15\s*시\s*\)|^15시\s*뉴스/.test(String(g?.n || '')) && !/\(R\)|재방/.test(String(g?.n || ''))).map((g: any) => String(g?.s || '')).filter((v: string) => /^\d{2}:\d{2}$/.test(v)).sort()[0] || '') : ''
+  const n15Min = _hmMin(n15)
+  const due15 = n15Min >= 0 && curMin >= n15Min - 20 && curMin < n15Min && _sentMk.news15 !== n15
   // 그날 부서(부서 이동 deptSchedule 반영 — js/core.js deptOn 과 같은 규칙: start<=오늘 중 가장 늦은 것, 없으면 기준부서 s.dept)
   const _deptOn = (s: any) => { let best: any = null; for (const h of (Array.isArray(s?.deptSchedule) ? s.deptSchedule : [])) if (h && h.start && h.dept && h.start <= todayStr && (!best || h.start > best.start)) best = h; return best ? best.dept : s?.dept }
   // 표에서 빈칸(회색)인 날 — js/core.js isDispatched(직원 파견 기간)·isContractActive(프리랜서 계약 기간 밖)와 같은 규칙
@@ -648,6 +654,17 @@ Deno.serve(async (req) => {
         }
       }
     }
+    // 주말·공휴일 15시 뉴스 진행(그날 8진). 제목에 '근무 알림 — 8진'을 넣어 지금 깔린 PC 앱(1.2.4)도 빨간 강조 알림으로 띄움(desktop/alert.js alertKind)
+    if (wt === '8jin' && due15 && pref(sub, 'news')) {
+      const name = staff?.name || sub.name || ''
+      try {
+        await deliver(sub, JSON.stringify({ title: '📅 근무 알림 — 8진 · 15시 뉴스 진행', body: `${name}님, 15시 뉴스 진행 시간입니다. (${n15} 진입)`, icon: 'icon-192.png', badge: 'icon-192.png', tag: `news15-${todayStr}-${sub.staff_id}`, data: { url: './' } }))
+        sent++
+      } catch (e: any) {
+        errors++
+        if (e.statusCode === 410 || e.statusCode === 404) await sb.from('push_subs').delete().eq('endpoint', sub.endpoint)
+      }
+    }
     if (!pref(sub, (wt === '8jin' || wt === 'newsoh') ? 'news' : 'work')) continue   // 8진·뉴오는 '8진·뉴오 진행 알림', 나머지는 '근무 알림'
 
     const typeCfg = (cfg.types || []).find((t: any) => t.key === wt)
@@ -684,7 +701,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (due8 || dueOh) {   // 이 진입시각으로는 보냈음(같은 시각으로 다시 안 보냄, 시각이 바뀌면 새로)
+  if (due8 || dueOh || due15) {   // 이 진입시각으로는 보냈음(같은 시각으로 다시 안 보냄, 시각이 바뀌면 새로)
     // 오늘 큐시트 칸이 없어도(NDS 를 못 읽은 날 공지에 넣은 8뉴스 시각만 있을 때) sent 틀만 만들어 남김 — 안 남기면 20분 동안 크론마다 다시 감.
     // 나중에 큐시트를 받으면 cueStore 가 old.sent 를 그대로 가져감. cue 행이 아예 없으면 새로 만듦
     for (let attempt = 0; attempt < 6; attempt++) {
@@ -695,6 +712,7 @@ Deno.serve(async (req) => {
       const sm = { ...(p.days[todayStr]?.sent || {}) }
       if (due8) sm.news8 = n8Use
       if (dueOh) sm.newsOh = String(cueT.newsOh)
+      if (due15) sm.news15 = n15
       p.days[todayStr] = { ...(p.days[todayStr] || {}), sent: sm }
       const nowIso = new Date().toISOString()
       if (!row) { const { error: ie } = await sb.from('nd_data').insert({ id: 'cue', payload: p, updated_at: nowIso }); if (!ie) break }

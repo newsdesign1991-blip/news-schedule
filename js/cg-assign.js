@@ -225,7 +225,7 @@ function _cgaPaint() {
     .filter(p => !(p.id && (_cgaLocal('nd_cga_adj').del || []).includes(p.id)));
   const busy = n => active(n).length > 0 || _cgmActive(n).length > 0;   // NDS 배정 또는 직접 배정(앵커·PT)
   const work = [...people.filter(p => busy(p.name)), ...extra], idle = people.filter(p => !busy(p.name));
-  const sub = `${d.getMonth() + 1}월 ${d.getDate()}일 ${'일월화수목금토'[d.getDay()]}요일 · 8데스·5데스 빼고 오늘 CG 근무자` + (loaded ? ` · ${new Date(_cgaData.at).toTimeString().slice(0, 5)} 기준` : '');
+  const sub = `CG제작 가능 인원 ${work.length + idle.length}명`;   // 10-20 사용자: 날짜·기준 시각 등은 빼고 이것만
   const subEl = document.getElementById('cga-sub'); if (subEl.textContent !== sub) subEl.textContent = sub;
   const stat = loaded ? `<span class="cga-pill on"><i></i>작업 중 ${work.length}</span><span class="cga-pill">대기 ${idle.length}</span>` : '';
   const statEl = document.getElementById('cga-stat'); if (statEl._h !== stat) { statEl.innerHTML = stat; statEl._h = stat; }

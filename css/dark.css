@@ -547,12 +547,13 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cga-none { margin:4px 0 12px; font-size:13px; color:var(--muted); }
 /* CG배정 현황 10-20 추가: 사람 추가·빼기(×)·의뢰 숨기기·보완요청 회색·새 의뢰 반짝 */
 .cga-addp { display:inline-flex; align-items:center; gap:5px; height:36px; padding:0 14px; border-radius:999px; border:0; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; font:inherit; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 6px 14px -8px rgba(47,119,246,.9); }
-.cga-x { position:absolute; width:24px; height:24px; border-radius:50%; border:0; background:var(--surface2); color:var(--muted); font-size:16px; line-height:1; cursor:pointer; opacity:0; transition:opacity .15s; display:flex; align-items:center; justify-content:center; }
-.cga-card .cga-x { position:absolute !important; top:10px; right:30px; }
+.cga-x { position:absolute; z-index:3; width:30px; height:30px; border-radius:50%; border:0; background:var(--surface2); color:var(--muted); font-size:18px; line-height:1; cursor:pointer; opacity:0; transition:opacity .15s, background-color .15s, color .15s; display:flex; align-items:center; justify-content:center; }
+.cga-x::after { content:''; position:absolute; inset:-7px; border-radius:50%; }   /* 10-20: 누르는 자리를 둘레 7px 더 넓게(이름 줄에 가려 끝만 눌리던 것도 z-index 로 고침) */
+.cga-card .cga-x { position:absolute !important; top:9px; right:32px; }
 .cga-card:hover .cga-x, .cga-req:hover .cga-x, .cga-x:focus-visible { opacity:1; }
 .cga-x:hover { background:rgba(214,90,82,.14); color:#d65a52; }
-.cga-req { position:relative; padding-right:26px; }
-.cga-req .cga-x { top:8px; right:2px; }
+.cga-req { position:relative; padding-right:34px; }
+.cga-req .cga-x { top:6px; right:0; }
 .cga-req.fix { opacity:.55; filter:grayscale(1); }
 .cga-req.fix:hover { opacity:.85; }
 .cga-unhide { display:block; width:100%; margin:4px 0 12px; padding:8px 0; border:0; border-top:1px dashed var(--border); background:none; color:var(--muted); font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }

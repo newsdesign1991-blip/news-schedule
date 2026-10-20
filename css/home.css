@@ -235,6 +235,8 @@
 .tw-row .cue-in { margin-left:auto; margin-right:-5px; padding:3px 9px; border-radius:999px; font-size:12px; font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .tw-row .cue-in[hidden] { display:none; }
 .tw-row .cue-in.n8 { color:#e23744; background:rgba(240,68,82,.08); }
+.tw-row .cue-in.n15 { color:#d9480f; background:rgba(253,126,20,.1); margin-right:0; }   /* 주말·공휴일 오후뉴스(8진 진행) */
+.tw-row .cue-in.n15:not([hidden]) + .cue-in { margin-left:-6px; }   /* 줄 간격(gap)을 줄여 두 칩을 붙여 보이게 */
 .tw-row .cue-in.noh { color:#5b5ef0; background:rgba(99,102,241,.08); }
 .tw-row .cue-in.none { color:var(--muted); background:transparent; font-weight:700; }
 [data-theme="dark"] .tw-row .cue-in.n8 { color:#ff8a94; background:rgba(240,68,82,.16); }
