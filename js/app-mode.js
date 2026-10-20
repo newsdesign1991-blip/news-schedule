@@ -92,6 +92,7 @@ function _ndWiseAllowed(){
 function _ndWiseCheckOnce(){
   if(_ndWiseChecked||!_ndWiseAllowed()) return;
   // 앱 1.2.2~: 저장된 로그인(쿠키)으로 바로 표시 — 숨은 WISE 화면을 열지 않음. 서버가 끊었으면 30초 뒤 이어 주기(wiseKeepAlive)가 '로그인'으로 바꿈(10-20)
+  if(window.ndApp?.wisePing){ _ndWiseChecked=true; window.ndApp.wisePing().then(r=>{ if(r&&r.loggedIn!==null&&r.loggedIn!==undefined) _ndWiseState(!!r.loggedIn); }).catch(()=>{}); return; }   // 앱 1.2.3~: 서버에 물어봄(창 없음)
   if(window.ndApp?.wiseInfo){ _ndWiseChecked=true; window.ndApp.wiseInfo().then(i=>{ if(i) _ndWiseState(i.connected===false?false:!!i.loggedIn); }).catch(()=>{}); return; }
   if(!window.ndApp?.wiseCheck) return;
   _ndWiseChecked=true;
