@@ -99,10 +99,23 @@ function renderCgAssign() {
     g.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('cga-card')) { e.preventDefault(); open(e); } });
   }
   _cgaPaint();
+  requestAnimationFrame(_cgaFit);
   _cgaFetch(false);
   clearInterval(_cgaTimer); _cgaTimer = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTimer); _cgaTimer = null; return; } if (document.visibilityState === 'visible') _cgaFetch(false); }, CGA_POLL);
   clearInterval(_cgaTick); _cgaTick = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTick); _cgaTick = null; return; } _cgaAgoFill(); }, 30000);   // '몇 분째'만 갱신
 }
+// 왼쪽 의뢰 창 아래 끝 = 사이드바 아래 끝에서 (사이드바 위 끝 ~ 'CG배정 현황' 글자) 만큼 위(10-20 사용자: 위아래 여백 같게). 좁아서 한 줄로 쌓이면 원래대로
+function _cgaFit() {
+  const side = document.getElementById('cga-side'), nav = document.getElementById('side-nav'), t = document.querySelector('#cga-root .cga-title'), body = document.querySelector('#cga-root .cga-body');
+  if (!side || !body) return;
+  if (!nav || !t || !nav.offsetWidth || getComputedStyle(side).position !== 'sticky') { side.style.height = ''; return; }
+  const n = nav.getBoundingClientRect(), sy = window.scrollY || 0;
+  const gap = Math.max(0, (t.getBoundingClientRect().top + sy) - n.top);
+  if (sy > 4) return;   // 내려 둔 상태(창이 위에 붙음)에선 재지 않음 — 맨 위일 때 잰 값 유지
+  const h = Math.round((n.bottom - gap) - side.getBoundingClientRect().top);
+  side.style.height = h > 240 ? h + 'px' : '';
+}
+addEventListener('resize', () => { if (typeof currentView !== 'undefined' && currentView === 'cgassign') _cgaFit(); });
 async function _cgaFetch(manual) {
   if (_cgaBusy) return;
   if (!(typeof ND_APP !== 'undefined' && ND_APP && window.ndApp && window.ndApp.ndsCg)) {
