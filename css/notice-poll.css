@@ -208,11 +208,12 @@
 #login-intro .li-text { position:relative; z-index:2; font-size:20px; font-weight:700; letter-spacing:-.02em; color:var(--text); text-align:center; padding:0 28px; }
 #login-intro .li-text span { display:inline-block; opacity:0; filter:blur(11px); animation: liChar .6s cubic-bezier(.2,.8,.3,1) forwards; }
 @keyframes liChar { to { opacity:1; filter:blur(0); } }
-header.hdr-enter #hdr-user, header.hdr-enter #theme-toggle, header.hdr-enter #hdr-menu-btn { animation: hdrPop .6s cubic-bezier(.2,.8,.3,1) both; }
+/* 10-20: blur(filter) 애니는 아이폰 사파리에서 끝난 뒤에도 이름 글자가 흐리게 남아서 뺌(홈 카드처럼 투명도·위치·크기만). 끝나면 아무 효과도 안 남게 backwards */
+header.hdr-enter #hdr-user, header.hdr-enter #theme-toggle, header.hdr-enter #hdr-menu-btn { animation: hdrPop .6s cubic-bezier(.2,.8,.3,1) backwards; }
 header.hdr-enter #hdr-user { animation-delay:.08s; }
 header.hdr-enter #theme-toggle { animation-delay:.26s; }
 header.hdr-enter #hdr-menu-btn { animation-delay:.42s; }
-@keyframes hdrPop { from{opacity:0; filter:blur(7px); transform:translateY(3px) scale(.88)} to{opacity:1; filter:blur(0); transform:none} }
+@keyframes hdrPop { from{opacity:0; transform:translateY(3px) scale(.88)} to{opacity:1; transform:none} }
 #event-add-modal .form-input { min-height: 48px !important; padding: 13px 16px; box-sizing: border-box; }
 #event-add-modal .ev-actions .btn { border-radius: 20px; padding: 15px; font-size: 15px; font-weight: 800; }
 #event-add-modal .ev-actions .btn-primary { background: linear-gradient(135deg,#4a94ff,#2f77f6); color: #fff; }
