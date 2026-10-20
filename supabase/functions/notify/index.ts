@@ -351,10 +351,11 @@ Deno.serve(async (req) => {
   // 같은 사람 행이 여러 개면 가장 최근 행(개인 알림 설정이 최신)을 남김
   const _t = (s: any) => s.created_at ? Date.parse(s.created_at) : (Number(s.id) || 0)
   rawSubs.sort((a: any, b: any) => _t(b) - _t(a))
-  // PC 앱(근무표 앱 설치판 — Electron은 웹 푸시를 못 받음) 구독은 endpoint 'ndapp:<PC 고유값>' — 휴대폰 구독과 따로 1건씩
+  // PC 앱(근무표 앱 설치판 — Electron은 웹 푸시를 못 받음) 구독은 endpoint 'ndapp:<PC 고유값>' — PC마다 따로(10-20: 예전엔 사람당 PC 1대만 받아서,
+  // 알림을 끈 PC 행이 남아 있으면 그 PC 우편함으로만 가고 켜 둔 PC엔 안 뜸 — 8진 알림 놓침). 같은 PC는 endpoint 가 같아 한 번만. 휴대폰(웹 푸시)은 사람당 1건 그대로
   const isApp = (s: any) => String(s?.endpoint || '').startsWith('ndapp:')
   const _seenKey = new Set<string>()
-  const subs = (rawSubs || []).filter((s: any) => { const k = (s.staff_id || s.endpoint) + (isApp(s) ? '|app' : ''); if (_seenKey.has(k)) return false; _seenKey.add(k); return true; })
+  const subs = (rawSubs || []).filter((s: any) => { const k = isApp(s) ? String(s.endpoint) : (s.staff_id || s.endpoint); if (_seenKey.has(k)) return false; _seenKey.add(k); return true; })
 
   // PC 앱 우편함: nd_data id='appinbox_<PC 고유값>' payload.items 에 쌓아 두면 앱(desktop/app-notify.js)이 30초마다 읽어 윈도 알림으로 띄움.
   // 최근 30건·3일만 보관. 저장 번호 검사 트리거는 main 에만 걸려 있음. updated_at 낙관적 잠금 + 재시도.
