@@ -188,6 +188,21 @@ html.nd-app #nd-titlebar .ndt-wise.on .ndw-dot { background:#10b981; box-shadow:
 html.nd-app #nd-titlebar .ndt-wise:disabled { opacity:.7; cursor:progress; }
 [data-theme="dark"].nd-app #nd-titlebar .ndt-wise { color:#fdba74; }
 [data-theme="dark"].nd-app #nd-titlebar .ndt-wise.on { color:#6ee7b7; }
+/* 10-21 'WISE × N' — N = 뉴스 플레이어 검수 화면의 NDS 로고(흰 N + 파란 칸, 라이트 #2563EB / 다크 #3B82F6). NDS 개인 로그인 안 됐으면 회색 */
+html.nd-app #nd-titlebar .ndt-wise { gap:5px; }
+html.nd-app #nd-titlebar .ndt-wise .ndw-dot { margin-right:2px; }
+html.nd-app #nd-titlebar .ndt-wise .ndw-x { opacity:.55; font-weight:700; font-size:11px; margin:0 -1px; }
+.ndw-n { width:15px; height:15px; flex:none; color:#94a3b8; border-radius:3px; transition:color .3s; }
+html.nd-app #nd-titlebar .ndt-wise .ndw-n { margin-right:3px; }
+html.nd-app #nd-titlebar .ndt-wise.n-on .ndw-n, .wiq-nds.on .ndw-n { color:#2563EB; }
+[data-theme="dark"] .wiq-nds.on .ndw-n, [data-theme="dark"].nd-app #nd-titlebar .ndt-wise.n-on .ndw-n { color:#3B82F6; }
+.wiq-nds { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; background:var(--surface2); border:1px solid var(--border); }
+.wiq-nds.on { background:rgba(37,99,235,.07); border-color:rgba(37,99,235,.25); }
+.wiq-nds .wiq-nlogo .ndw-n { width:30px; height:30px; border-radius:8px; }
+.wiq-nds b { display:block; font-size:13.5px; font-weight:800; }
+.wiq-nds small { font-size:12px; color:var(--muted); font-weight:600; }
+.wiq-nlogin { margin-left:auto; flex:none; height:32px; padding:0 12px; border-radius:10px; border:0; background:linear-gradient(135deg,#4a94ff,#2563EB); color:#fff; font:inherit; font-size:12.5px; font-weight:800; cursor:pointer; }
+.wiq-nlogin:disabled { opacity:.6; cursor:progress; }
 /* 관리자 나가기(관리자일 때만) */
 html.nd-app #nd-titlebar .ndt-exit { display:none; -webkit-app-region:no-drag; flex:none; height:30px; padding:0 12px; border:1px solid var(--border); border-radius:999px; background:var(--surface); color:var(--muted); font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }
 html.nd-app body.admin-mode-active #nd-titlebar .ndt-exit { display:inline-flex; align-items:center; }

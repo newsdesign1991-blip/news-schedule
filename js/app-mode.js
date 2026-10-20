@@ -81,13 +81,20 @@ function ndAdminExit(){
   _ndTitlebarSync();
 }
 // WISE 로그인 버튼 표시: true = 연결됨(초록 점), false = 로그인 필요, null = 모름(처음)
-let _ndWiseOn=null, _ndWiseChecked=false;
+// 10-21: 'WISE × N' — WISE 와 NDS 가 같은 통합 계정이라 WISE 로그인 한 번으로 NDS 개인 로그인도(desktop/nds-user.js). N 칸은 NDS 로그인됐을 때만 파랑
+const ND_N_LOGO='<svg class="ndw-n" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="18.75" fill="currentColor"/><path fill="#fff" d="M12.9,22.7 L48.8,22.7 L66.5,52.2 L66.5,22.7 L79.9,22.7 L79.9,77.3 L66.5,77.3 L39.8,33.4 L23.5,33.4 Z M23.9,42.7 L37.3,42.7 L37.3,77.3 L23.9,77.3 Z"/></svg>';   // 뉴스 플레이어 검수 화면 NDS 로고
+let _ndWiseOn=null, _ndWiseChecked=false, _ndNdsOn=null;
+function _ndWiseLabel(t){ return `<span class="ndw-dot" aria-hidden="true"></span><span>WISE</span><span class="ndw-x" aria-hidden="true">×</span>${ND_N_LOGO}<span>${t}</span>`; }
 function _ndWiseState(on){
   _ndWiseOn=on; const b=document.getElementById('ndt-wise'); if(!b) return;
-  b.classList.toggle('on', on===true);
-  b.innerHTML='<span class="ndw-dot" aria-hidden="true"></span>'+(on===true?'WISE 연결됨':'WISE 로그인');
-  b.title=on===true?'WISE에 로그인돼 있어요 — 누르면 오늘의 식사를 새로 받아요':'WISE에 로그인하면 휴가·오늘의 식사를 저절로 받아요';
+  b.classList.toggle('on', on===true); b.classList.toggle('n-on', _ndNdsOn===true);
+  b.innerHTML=_ndWiseLabel(on===true?'연결됨':'로그인');
+  b.setAttribute('aria-label', on===true?(_ndNdsOn===true?'WISE·NDS 연결됨':'WISE 연결됨, NDS 연결 안 됨'):'WISE·NDS 로그인');
+  b.title=on===true?(_ndNdsOn===true?'WISE·NDS에 로그인돼 있어요 — 누르면 정보·로그아웃':'WISE는 연결됨, NDS는 아직 — 누르면 NDS 연결'):'WISE 아이디로 로그인하면 NDS도 같이 로그인돼요';
 }
+function _ndNdsState(on){ _ndNdsOn=on; _ndWiseState(_ndWiseOn); }
+// NDS 개인 로그인 상태 한 번(앱 1.2.5~). 토큰이 끝나 가면 앱이 숨은 창으로 NDS 를 열어 갱신
+function _ndNdsCheck(){ if(window.ndApp?.ndsUserInfo) window.ndApp.ndsUserInfo(false).then(i=>_ndNdsState(!!(i&&i.loggedIn))).catch(()=>{}); }
 // WISE 로그인 버튼을 보일 사람: 관리자 모드 또는 직원A(직원B는 WISE 를 안 씀)
 function _ndWiseAllowed(){
   if(typeof isAdmin!=='undefined'&&isAdmin) return true;
@@ -97,7 +104,7 @@ function _ndWiseAllowed(){
 function _ndWiseCheckOnce(){
   if(_ndWiseChecked||!_ndWiseAllowed()) return;
   // 앱 1.2.2~: 저장된 로그인(쿠키)으로 바로 표시 — 숨은 WISE 화면을 열지 않음. 서버가 끊었으면 30초 뒤 이어 주기(wiseKeepAlive)가 '로그인'으로 바꿈(10-20)
-  if(window.ndApp?.wisePing){ _ndWiseChecked=true; window.ndApp.wisePing().then(r=>{ if(r&&r.loggedIn!==null&&r.loggedIn!==undefined) _ndWiseState(!!r.loggedIn); }).catch(()=>{}); return; }   // 앱 1.2.3~: 서버에 물어봄(창 없음)
+  if(window.ndApp?.wisePing){ _ndWiseChecked=true; window.ndApp.wisePing().then(r=>{ if(r&&r.loggedIn!==null&&r.loggedIn!==undefined) _ndWiseState(!!r.loggedIn); if(r&&r.loggedIn) _ndNdsCheck(); }).catch(()=>{}); return; }   // 앱 1.2.3~: 서버에 물어봄(창 없음)
   if(window.ndApp?.wiseInfo){ _ndWiseChecked=true; window.ndApp.wiseInfo().then(i=>{ if(i) _ndWiseState(i.connected===false?false:!!i.loggedIn); }).catch(()=>{}); return; }
   if(!window.ndApp?.wiseCheck) return;
   _ndWiseChecked=true;
@@ -106,11 +113,20 @@ function _ndWiseCheckOnce(){
 async function ndWiseLogin(){
   const b=document.getElementById('ndt-wise'); if(!b||b.disabled) return;
   if(_ndWiseOn&&window.ndApp?.wiseInfo){ _ndWisePop(b); return; }   // 연결됨 → 누구로·언제 로그인했는지 + 로그아웃(10-20)
-  b.disabled=true; b.innerHTML='<span class="ndw-dot" aria-hidden="true"></span>'+(_ndWiseOn?'식단 받는 중…':'WISE 창에서 로그인…');
+  b.disabled=true; b.innerHTML=_ndWiseLabel(_ndWiseOn?'식단 받는 중…':'WISE 창에서 로그인…');
   try{
     const r=await window.ndApp.wiseLogin();
-    if(r&&r.ok){ _ndWiseState(true); if(!r.already) toast('WISE에 로그인했어요. 오늘의 식사를 받아요.','success');
-      if(typeof _mealAppAuto==='function'){ b.innerHTML='<span class="ndw-dot" aria-hidden="true"></span>식단 받는 중…'; await _mealAppAuto(true); } }
+    if(r&&r.ok){ _ndWiseState(true);
+      // 같은 아이디·비밀번호로 NDS 도(앱 1.2.5~) — WISE 창에서 방금 친 값이 없으면(이미 로그인돼 있었음) NDS 상태만 확인
+      if(window.ndApp?.ndsUserAuto){
+        b.innerHTML=_ndWiseLabel('NDS 연결 중…');
+        const n=await window.ndApp.ndsUserAuto().catch(()=>null);
+        if(n&&n.ok) _ndNdsOn=true;
+        else if(n&&n.reason!=='nocred'){ _ndNdsOn=false; toast('NDS 로그인은 안 됐어요'+(n.error?': '+n.error:'')+' — WISE 버튼을 눌러 [NDS 연결]을 해 주세요.',''); }
+        else { const i=await window.ndApp.ndsUserInfo(false).catch(()=>null); _ndNdsOn=!!(i&&i.loggedIn); }
+      }
+      if(!r.already) toast(_ndNdsOn?'WISE·NDS에 로그인했어요. 오늘의 식사를 받아요.':'WISE에 로그인했어요. 오늘의 식사를 받아요.','success');
+      if(typeof _mealAppAuto==='function'){ b.innerHTML=_ndWiseLabel('식단 받는 중…'); await _mealAppAuto(true); } }
     else { _ndWiseState(false); if(r&&r.reason==='busy') toast('WISE에서 다른 일을 하는 중이에요. 잠시 뒤 다시 눌러 주세요.',''); }
   }catch(e){ _ndWiseState(false); }
   finally{ b.disabled=false; _ndWiseState(_ndWiseOn); }
@@ -118,13 +134,26 @@ async function ndWiseLogin(){
 // ── WISE 로그인 정보·로그아웃(10-20 요청) — 제목줄 'WISE 연결됨' 창과 계정 정보 오른쪽에 같은 내용 ──
 function _wiAgo(iso){ const t=Date.parse(iso||''); if(!t) return ''; const m=Math.round((Date.now()-t)/60000); return m<1?'방금':m<60?`${m}분 전`:m<1440?`${Math.floor(m/60)}시간 전`:`${Math.floor(m/1440)}일 전`; }
 function _wiWhen(iso){ const t=Date.parse(iso||''); if(!t) return '기록 없음'; const d=new Date(t); return `${d.getMonth()+1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} · ${_wiAgo(iso)}`; }
-function ndWiseInfoHTML(i, inPop){
+function ndWiseInfoHTML(i, inPop, n){
   const row=(k,v)=>`<div class="wiq-row"><span>${k}</span><b>${_wiEsc(v||'-')}</b></div>`;
+  const nds=!window.ndApp?.ndsUserInfo?'':(n&&n.loggedIn
+    ?`<div class="wiq-nds on"><span class="wiq-nlogo">${ND_N_LOGO}</span><div><b>NDS 연결됨</b><small>${_wiEsc([n.name,n.dept].filter(Boolean).join(' · ')||n.id||'')}</small></div></div>`
+    :`<div class="wiq-nds"><span class="wiq-nlogo">${ND_N_LOGO}</span><div><b>NDS 연결 안 됨</b><small>WISE와 같은 아이디로 로그인해요</small></div><button type="button" class="wiq-nlogin" onclick="ndNdsConnect(this)">NDS 연결</button></div>`);
   return `<div class="wiq">
     <div class="wiq-head"><span class="wiq-badge" aria-hidden="true">W</span><div><b>WISE 연결됨</b><small>앱을 껐다 켜도 로그인이 이어져요</small></div></div>
     <div class="wiq-rows">${row('이름',i.name)}${row('부서',[i.dept,i.company].filter(Boolean).join(' · '))}${row('아이디',i.id)}${row('로그인',_wiWhen(i.at))}</div>
-    <div class="wiq-btns">${inPop?'<button type="button" class="wiq-meal" onclick="_ndWiseMeal(this)">오늘의 식사 새로 받기</button>':''}<button type="button" class="wiq-out" onclick="ndWiseLogout(this)">WISE 로그아웃</button></div>
+    ${nds}
+    <div class="wiq-btns">${inPop?'<button type="button" class="wiq-meal" onclick="_ndWiseMeal(this)">오늘의 식사 새로 받기</button>':''}<button type="button" class="wiq-out" onclick="ndWiseLogout(this)">${window.ndApp?.ndsUserInfo?'WISE × NDS 로그아웃':'WISE 로그아웃'}</button></div>
   </div>`;
+}
+// NDS 만 다시 연결(토큰·통합 로그인이 끝났을 때) — 통합 로그인이 살아 있으면 창 없이, 아니면 NDS 로그인 창(WISE 아이디·비밀번호)
+async function ndNdsConnect(b){
+  if(!window.ndApp?.ndsUserLogin) return;
+  b.disabled=true; b.textContent='NDS 로그인 창에서…';
+  const r=await window.ndApp.ndsUserLogin().catch(()=>null);
+  _ndNdsState(!!(r&&r.ok));
+  if(r&&r.ok){ toast('NDS에 로그인했어요.','success'); const pop=document.getElementById('ndt-pop'); if(pop){ pop.remove(); _ndWisePop(document.getElementById('ndt-wise')); } }
+  else { b.disabled=false; b.textContent='NDS 연결'; if(r&&r.reason!=='closed') toast('NDS 로그인이 안 됐어요'+(r&&r.error?': '+r.error:'')+'.',''); }
 }
 async function _ndWisePop(btn){
   let pop=document.getElementById('ndt-pop');
@@ -134,10 +163,11 @@ async function _ndWisePop(btn){
   document.body.appendChild(pop);
   const r=btn.getBoundingClientRect(); pop.style.top=(r.bottom+6)+'px'; pop.style.right=Math.max(8,innerWidth-r.right-60)+'px';
   setTimeout(()=>document.addEventListener('mousedown',function off(e){ if(!pop.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',off); } }),0);
-  const i=await window.ndApp.wiseInfo().catch(()=>null);
+  const [i,n]=await Promise.all([window.ndApp.wiseInfo().catch(()=>null), window.ndApp.ndsUserInfo?window.ndApp.ndsUserInfo(false).catch(()=>null):Promise.resolve(null)]);
   if(!pop.isConnected) return;
-  if(!i||!i.loggedIn){ pop.remove(); _ndWiseState(false); toast('WISE 로그인이 끊겼어요. [WISE 로그인]을 눌러 다시 로그인해 주세요.',''); return; }
-  pop.innerHTML=ndWiseInfoHTML(i,true);
+  if(!i||!i.loggedIn){ pop.remove(); _ndWiseState(false); toast('WISE 로그인이 끊겼어요. [WISE × N 로그인]을 눌러 다시 로그인해 주세요.',''); return; }
+  if(n) _ndNdsState(!!n.loggedIn);
+  pop.innerHTML=ndWiseInfoHTML(i,true,n);
 }
 async function _ndWiseMeal(b){
   b.disabled=true; b.textContent='식단 받는 중…';
@@ -146,11 +176,12 @@ async function _ndWiseMeal(b){
 }
 // 한 번 더 눌러야 로그아웃(잘못 눌러 끊기지 않게)
 async function ndWiseLogout(b){
-  if(!b.dataset.sure){ b.dataset.sure='1'; b.textContent='한 번 더 누르면 로그아웃'; b.classList.add('sure'); setTimeout(()=>{ if(b.isConnected){ delete b.dataset.sure; b.textContent='WISE 로그아웃'; b.classList.remove('sure'); } },4000); return; }
+  const lbl=window.ndApp?.ndsUserInfo?'WISE × NDS 로그아웃':'WISE 로그아웃';
+  if(!b.dataset.sure){ b.dataset.sure='1'; b.textContent='한 번 더 누르면 로그아웃'; b.classList.add('sure'); setTimeout(()=>{ if(b.isConnected){ delete b.dataset.sure; b.textContent=lbl; b.classList.remove('sure'); } },4000); return; }
   b.disabled=true; b.textContent='로그아웃하는 중…';
   const r=await window.ndApp.wiseLogout().catch(e=>({ ok:false, error:e.message }));
-  if(r&&r.ok){ _ndWiseState(false); document.getElementById('ndt-pop')?.remove(); document.getElementById('acc-wise')?.remove(); document.getElementById('sheet-panel')?.classList.remove('acc-split'); toast('WISE에서 로그아웃했어요.','success'); }
-  else { b.disabled=false; b.textContent='WISE 로그아웃'; delete b.dataset.sure; toast((r&&r.error)||'로그아웃하지 못했어요.','error'); }
+  if(r&&r.ok){ _ndNdsOn=false; _ndWiseState(false); document.getElementById('ndt-pop')?.remove(); document.getElementById('acc-wise')?.remove(); document.getElementById('sheet-panel')?.classList.remove('acc-split'); toast(window.ndApp?.ndsUserInfo?'WISE·NDS에서 로그아웃했어요.':'WISE에서 로그아웃했어요.','success'); }
+  else { b.disabled=false; b.textContent=lbl; delete b.dataset.sure; toast((r&&r.error)||'로그아웃하지 못했어요.','error'); }
 }
 // 계정 정보 시트 오른쪽(앱에서 WISE 로그인돼 있을 때만 — js/login-ui.js openAccountSheet 가 부름)
 async function ndAccountWise(){
@@ -159,7 +190,9 @@ async function ndAccountWise(){
   const body=document.getElementById('sheet-body'), panel=document.getElementById('sheet-panel');
   if(!i||!i.loggedIn||!body||!panel||document.getElementById('sheet-title')?.textContent!=='계정 정보'||document.getElementById('acc-wise')) return;
   const left=document.createElement('div'); left.className='acc-main'; while(body.firstChild) left.appendChild(body.firstChild);
-  const right=document.createElement('div'); right.id='acc-wise'; right.className='acc-wise'; right.innerHTML=ndWiseInfoHTML(i,false);
+  const n=window.ndApp.ndsUserInfo?await window.ndApp.ndsUserInfo(false).catch(()=>null):null;
+  if(document.getElementById('acc-wise')) return;
+  const right=document.createElement('div'); right.id='acc-wise'; right.className='acc-wise'; right.innerHTML=ndWiseInfoHTML(i,false,n);
   body.appendChild(left); body.appendChild(right); panel.classList.add('acc-split');
 }
 // ── WISE 근무시간 입력(이번 주 내 근무 칩) — 정근 12:00–21:00 · 당직 21:00–익일 10:00(N). 당직은 당직 날·다음날 어느 칩이든 당직 시작일이 근무일자(10-17 요청) ──
@@ -286,7 +319,7 @@ async function _wtCalLoad(k,month){
     c.innerHTML=_wtCalHead(k,month)+'<div class="wt-cal-msg">WISE 휴가달력 불러오는 중…</div>';
     const r=await _wtCalGet(month);
     if(!document.getElementById('wt-cal-'+k)||S.month!==month) return;
-    if(!r||!r.ok){ c.innerHTML=_wtCalHead(k,month)+`<div class="wt-cal-msg">${r&&r.reason==='login'?'WISE에 로그인돼 있지 않아요. 위쪽 [WISE 로그인] 후 다시 열어 주세요.':_wiEsc((r&&r.error)||'휴가달력을 불러오지 못했어요.')}</div>`; return; }
+    if(!r||!r.ok){ c.innerHTML=_wtCalHead(k,month)+`<div class="wt-cal-msg">${r&&r.reason==='login'?'WISE에 로그인돼 있지 않아요. 위쪽 [WISE × N 로그인] 후 다시 열어 주세요.':_wiEsc((r&&r.error)||'휴가달력을 불러오지 못했어요.')}</div>`; return; }
   }
   const items=_wtSt.cache[month], tdy=typeof _mealToday==='function'?_mealToday():'';
   const [yy,mm]=month.split('-').map(Number), first=new Date(yy,mm-1,1), days=[];
@@ -472,7 +505,7 @@ if(!ND_APP&&!_ndPcBlocked&&!_ndPcBypass){ let _apxN=0; const _apxT=setInterval((
 function _tourSteps(){
   const st=[];
   const wiseOk=typeof _ndWiseAllowed==='function'&&_ndWiseAllowed();
-  if(wiseOk) st.push({ sel:'#ndt-wise', title:'먼저 WISE에 연결해요', body:'위쪽 <b>[WISE 로그인]</b>을 누르면 WISE 로그인 창만 떠요. 평소처럼 로그인하면 끝 — 버튼이 초록 <b>WISE 연결됨</b>으로 바뀌고, 앱을 껐다 켜도 연결이 유지돼요.' });
+  if(wiseOk) st.push({ sel:'#ndt-wise', title:'먼저 WISE·NDS에 연결해요', body:'위쪽 <b>[WISE × N 로그인]</b>을 누르면 WISE 로그인 창만 떠요. 평소처럼 로그인하면 같은 아이디로 <b>NDS도 같이</b> 로그인돼요 — 버튼이 초록 <b>연결됨</b>, N이 파랗게 바뀌고, 앱을 껐다 켜도 연결이 유지돼요.' });
   if(wiseOk&&_wtAllowed()) st.push({ sel:['#my-schedule-card .mw-day.today','#my-schedule-card .mw-day'], home:true, title:'근무 칩을 누르면 WISE 근무시간이 자동으로', body:'홈 <b>이번 주 내 근무</b>에서 오늘 칩을 누르면 근무시간 입력 창이 떠요. 정근은 <b>12:00–21:00</b>, 당직은 <b>21:00–10:00(N)</b>이 저절로 들어가고, 휴일이면 대휴도 고를 수 있어요. <b>[채우고 결재]</b>를 누르면 WISE 창 없이 결재 확인까지 한 번에 끝나요.' });
   st.push({ sel:'#nd-titlebar .ndt-phone', title:'휴대폰에도 깔아 두세요', body:'위쪽 <b>휴대폰</b> 버튼을 누르면 QR 코드와 휴대폰별 설치 순서가 나와요. 카메라로 찍어 앱으로 설치하면 밖에서도 근무표를 보고, 근무·진행 알림을 휴대폰으로 받아요.' });
   st.push({ sel:'#nd-titlebar .ndt-user button', title:'PC 알림도 켜 두세요', body:'<b>알림 설정</b>에서 PC 알림을 켜면 8진·오뉴스 진행이 화면 테두리 알림으로 와요. 앱은 창을 닫아도 오른쪽 아래 트레이에서 계속 알림을 받아요.' });
