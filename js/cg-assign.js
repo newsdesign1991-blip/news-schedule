@@ -5,7 +5,7 @@
    - 상태 0002 배정 = 작업 중(파란 빛·깜빡이는 점·'작업 중…'·기자·의뢰/배정 시각), 그 밖 = 대기(회색). 이름은 NDS 디자이너 이름과 근무표 이름이 같아야 맞음
    - 10-20 추가: 프로젝트 인원은 늘 포함, [사람 추가]·카드 ×로 그날만 넣고 빼기(이 PC localStorage nd_cga_adj), 왼쪽 의뢰 ×로 이 앱에서만 숨기기(nd_cga_hide, NDS엔 그대로),
      보완요청은 회색, 새 의뢰(0001)가 생기면 오른쪽 위 알림 카드(ndApp.toast — 1.2.4+, 옛 앱은 화면 아래 토스트)
-   - 직접 배정(앵커·PT — NDS에 안 올라옴): 카드 오른쪽 클릭 → 배정/완료, 공용 nd_data 'cgman'(아래 _cgm*) */
+   - 직접 배정(CG·앵커터치·PT — NDS에 안 올라옴): 카드 오른쪽 클릭 → 배정/완료, 공용 nd_data 'cgman'(아래 _cgm*) */
 const CGA_POLL = 20000;
 const CGA_PERSON_POP = false;   // 10-20 사용자: 카드 누르면 뜨는 사람 팝업(_cgaPersonPop)은 일단 숨김 — 코드는 남겨 둠, true 면 다시 켜짐
 let _cgaData = null, _cgaErr = '', _cgaBusy = false, _cgaTimer = null, _cgaTick = null, _cgaSeen = null;
@@ -94,7 +94,7 @@ function renderCgAssign() {
       <div class="cga-body"><aside class="cga-side" id="cga-side"><section class="cga-box"><h3>배정 기다리는 의뢰 <span id="cga-reqn">…</span></h3><div class="cga-reqs" id="cga-reqs"></div><p class="cga-none" id="cga-none" hidden>지금 기다리는 의뢰가 없어요.</p><button type="button" class="cga-unhide" id="cga-unhide" onclick="_cgaUnhide()" hidden></button></section></aside><div class="cga-grid" id="cga-grid"></div></div>`;
   }
   const g = document.getElementById('cga-grid');
-  if (!g._ctx) { g._ctx = true; g.addEventListener('contextmenu', _cgaCtx); }   // 카드 오른쪽 클릭 → 앵커·PT 직접 배정/완료
+  if (!g._ctx) { g._ctx = true; g.addEventListener('contextmenu', _cgaCtx); }   // 카드 오른쪽 클릭 → CG·앵커터치·PT 직접 배정/완료
   if (CGA_PERSON_POP && !g._wired) {   // 카드 누르면 그 사람 오늘 CG(× 는 빼기)
     g._wired = true;
     const open = e => { if (e.target.closest('.cga-x, .cga-done')) return; const c = e.target.closest('.cga-card[data-name]'); if (c && !c.classList.contains('cga-leaving')) _cgaPersonPop(c.dataset.name); };
@@ -223,7 +223,7 @@ function _cgaPaint() {
   const extra = [...new Set(rows.filter(r => r.status === '0002' && r.designer && !names.has(r.designer)).map(r => r.designer))]
     .map(n => { const st = (data.staff || []).find(x => x.name === n); return { id: st ? st.id : '', name: n, tag: _cgaRoleTag(n, ds), extra: true }; })
     .filter(p => !(p.id && (_cgaLocal('nd_cga_adj').del || []).includes(p.id)));
-  const busy = n => active(n).length > 0 || _cgmActive(n).length > 0;   // NDS 배정 또는 직접 배정(앵커·PT)
+  const busy = n => active(n).length > 0 || _cgmActive(n).length > 0;   // NDS 배정 또는 직접 배정(CG·앵커터치·PT)
   const work = [...people.filter(p => busy(p.name)), ...extra], idle = people.filter(p => !busy(p.name));
   const sub = `CG제작 가능 인원 ${work.length + idle.length}명`;   // 10-20 사용자: 날짜·기준 시각 등은 빼고 이것만
   const subEl = document.getElementById('cga-sub'); if (subEl.textContent !== sub) subEl.textContent = sub;
@@ -233,7 +233,7 @@ function _cgaPaint() {
   // 오른쪽: 사람 카드(작업 중 먼저). 성씨 동그라미는 뺌(10-20)
   const card = p => {
     const a = active(p.name), mj = _cgmActive(p.name), on = a.length > 0 || mj.length > 0;
-    const manHtml = mj.map(j => `<div class="cga-job man"><div class="cga-who"><b>${_cgaEsc(j.kind)}</b><small>직접 배정${j.by ? ' · ' + _cgaEsc(j.by) : ''}</small><button type="button" class="cga-done" onclick="_cgmDone('${_cgaEsc(j.id)}')">완료</button></div>
+    const manHtml = mj.map(j => `<div class="cga-job man k-${_cgmKey(j.kind)}"><div class="cga-who"><b>${_cgaEsc(j.kind)}</b><small>직접 배정${j.by ? ' · ' + _cgaEsc(j.by) : ''}</small><button type="button" class="cga-done" onclick="_cgmDone('${_cgaEsc(j.id)}')">완료</button></div>
         <div class="cga-time"><span>배정 <b>${_cgaHM(j.at)}</b></span><span class="cga-ago" data-at="${_cgaEsc(j.at)}"></span></div></div>`).join('');
     let body;
     if (!loaded) body = `<div class="cga-wait">${_cgaErr ? '' : '불러오는 중…'}</div>`;
@@ -243,7 +243,9 @@ function _cgaPaint() {
         <div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span><span class="cga-ago" data-at="${_cgaEsc(r.assignAt)}"></span></div>
       </div>`).join('') + (a.length > 2 ? `<div class="cga-more">+${a.length - 2}건 더</div>` : '');
     else body = '<div class="cga-idle">대기 중</div>';   // 끝난 CG는 안 보여 줌(10-20)
-    return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + (CGA_PERSON_POP ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, CGA_PERSON_POP ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: 앵커·PT 배정)` }),
+    const last = [...a.map(r => ({ at: String(r.assignAt || ''), k: 'cg' })), ...mj.map(j => ({ at: String(j.at || ''), k: _cgmKey(j.kind) }))].sort((x, y) => y.at.localeCompare(x.at))[0];
+    const tone = on && last && last.k !== 'cg' ? ' k-' + last.k : '';   // 앵커터치 빨강 · PT 주황 · 그 밖 파랑
+    return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + tone + (CGA_PERSON_POP ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, CGA_PERSON_POP ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: CG·앵커터치·PT 배정)` }),
       html: `<span class="cga-dot" aria-hidden="true"></span>${p.id ? `<button type="button" class="cga-x" onclick="_cgaDel('${_cgaEsc(p.id)}')" title="오늘 이 화면에서 빼기" aria-label="${_cgaEsc(p.name)} 빼기">×</button>` : ''}
       <div class="cga-top"><div class="cga-nm"><b>${_cgaEsc(p.name)}</b><span class="cga-tag${p.extra ? ' x' : ''}">${_cgaEsc(p.tag || 'CG')}</span></div></div>
       <div class="cga-cbody">${body}</div>` };
@@ -327,10 +329,18 @@ function _cgpPaint() {
   _cgaAgoFill(el);
 }
 
-// ── 직접 배정(10-20): 앵커·PT 처럼 NDS에 안 올라오는 일 — 카드 오른쪽 클릭 → [앵커 배정]/[PT 배정]/[완료]
+// ── 직접 배정(10-20): CG(손으로)·앵커터치·PT 처럼 NDS에 안 올라오는 일 — 카드 오른쪽 클릭 → [CG 배정]/[앵커터치 배정]/[PT 배정]/[완료]
 // 저장 = nd_data id='cgman'(main 밖 — 자주 바뀌어서), payload.days[날짜] = [{ id, sid, name, kind, at:'YYYY-MM-DD HH:MM:SS'(한국 시각), by, done }]
 // 여러 PC가 같이 봄(20초마다 읽음). 쓸 때는 updated_at 낙관적 잠금 + 재시도. 7일 지난 날짜는 지움. 관리자 테스트 모드는 저장 안 함(화면에만)
-const CGM_KINDS = ['앵커', 'PT'];
+const CGM_KINDS = ['CG', '앵커터치', 'PT'];   // 앵커터치 = 흔히 '앵터'
+// 종류별 색(카드 빛·깜빡이는 점·'작업 중' 글자·칸 색이 이 색 — css --g: CG 파랑·앵커터치 빨강·PT 주황)과 메뉴 아이콘. NDS CG 배정도 'cg'(파랑)
+const CGM_KIND = {
+  'CG': { key: 'cg', ic: '<path d="M12 3 3 7.5l9 4.5 9-4.5L12 3z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>' },
+  '앵커터치': { key: 'anchor', ic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21M8.5 21h7"/>' },
+  'PT': { key: 'pt', ic: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/><path d="m8 12 3-3 2 2 3-3"/>' }
+};
+const _cgmKey = k => (CGM_KIND[k] && CGM_KIND[k].key) || 'cg';
+const _cgmIc = k => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${(CGM_KIND[k] || CGM_KIND.CG).ic}</svg>`;
 let _cgmData = null;
 const _cgmNow = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 19).replace('T', ' ');
 function _cgmToday() { return ((_cgmData && _cgmData.days && _cgmData.days[_cgaToday()]) || []); }
@@ -398,7 +408,7 @@ function _cgaCtx(e) {
   const name = c.dataset.name, sid = c.dataset.sid || '', act = _cgmActive(name);
   const el = document.createElement('div'); el.id = 'cga-ctx'; el.className = 'cga-ctx'; el.setAttribute('role', 'menu'); el.setAttribute('aria-label', name + ' 직접 배정');
   el.innerHTML = `<div class="cga-ctx-h">${_cgaEsc(name)}</div>`
-    + CGM_KINDS.map(k => `<button type="button" role="menuitem" data-act="as" data-kind="${_cgaEsc(k)}"><i class="cga-ctx-ic">${_cgaEsc(k[0])}</i>${_cgaEsc(k)} 배정</button>`).join('')
+    + CGM_KINDS.map(k => `<button type="button" role="menuitem" data-act="as" data-kind="${_cgaEsc(k)}"><i class="cga-ctx-ic k-${_cgmKey(k)}">${_cgmIc(k)}</i>${_cgaEsc(k)} 배정</button>`).join('')
     + (act.length ? '<div class="cga-ctx-div"></div>' + act.map(j => `<button type="button" role="menuitem" data-act="done" data-id="${_cgaEsc(j.id)}"><i class="cga-ctx-ic ok">✓</i>${_cgaEsc(j.kind)} 완료 <small>${_cgaHM(j.at)}~</small></button>`).join('') : '')
     + (sid ? `<div class="cga-ctx-div"></div><button type="button" role="menuitem" data-act="del" class="dim">오늘 이 화면에서 빼기</button>` : '');
   el.addEventListener('click', ev => {

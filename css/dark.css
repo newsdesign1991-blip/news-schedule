@@ -499,22 +499,25 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 @media (max-width:1100px) { .cga-body { grid-template-columns:1fr; } .cga-side { position:static; height:auto; min-height:0; } .cga-reqs { overflow:visible; } }
 .cga-grid { position:relative; display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:14px; align-items:start; }   /* 일이 2건인 카드 때문에 옆 카드가 늘어나지 않게 */
 .cga-card { position:relative; padding:16px 16px 14px; border-radius:20px; background:var(--surface); border:1.5px solid var(--border); box-shadow:0 4px 18px -12px rgba(15,23,42,.3); transition:filter .7s ease, opacity .7s ease, border-color .7s ease, background-color .7s ease, box-shadow .7s ease; }
-.cga-card::before { content:''; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(180deg, rgba(49,130,246,.09), rgba(49,130,246,.02) 60%); opacity:0; transition:opacity .7s ease; pointer-events:none; }
+.cga-card { --g:49,130,246; }
+.cga-card.k-anchor { --g:226,55,68; }   /* 앵커터치 = 빨강 */
+.cga-card.k-pt { --g:247,103,7; }   /* PT = 주황 */
+.cga-card::before { content:''; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(180deg, rgba(var(--g),.09), rgba(var(--g),.02) 60%); opacity:0; transition:opacity .7s ease; pointer-events:none; }
 .cga-card.on::before { opacity:1; }
 .cga-card > * { position:relative; }
-.cga-card.on { border-color:rgba(49,130,246,.55); animation:cgaGlow 2.6s ease-in-out .7s infinite; box-shadow:0 0 0 3px rgba(49,130,246,.08), 0 10px 26px -14px rgba(49,130,246,.6); }
-@keyframes cgaGlow { 0%,100% { box-shadow:0 0 0 3px rgba(49,130,246,.08), 0 10px 26px -14px rgba(49,130,246,.6); } 50% { box-shadow:0 0 0 6px rgba(49,130,246,.16), 0 12px 34px -10px rgba(49,130,246,.8); } }
+.cga-card.on { border-color:rgba(var(--g),.55); animation:cgaGlow 2.6s ease-in-out .7s infinite; box-shadow:0 0 0 3px rgba(var(--g),.08), 0 10px 26px -14px rgba(var(--g),.6); }
+@keyframes cgaGlow { 0%,100% { box-shadow:0 0 0 3px rgba(var(--g, 49,130,246),.08), 0 10px 26px -14px rgba(var(--g, 49,130,246),.6); } 50% { box-shadow:0 0 0 6px rgba(var(--g, 49,130,246),.16), 0 12px 34px -10px rgba(var(--g, 49,130,246),.8); } }
 .cga-card.off { filter:grayscale(1); opacity:.6; }
 .cga-card.off:hover { opacity:.85; }
 .cga-dot { position:absolute !important; top:15px; right:15px; width:10px; height:10px; border-radius:50%; background:#cbd5e1; transition:background-color .7s ease; }
-.cga-card.on .cga-dot { background:#3182f6; animation:cgaPing 1.4s ease-out infinite, cgaBlink 1.4s ease-in-out infinite; }
-@keyframes cgaPing { 0% { box-shadow:0 0 0 0 rgba(49,130,246,.6); } 75%,100% { box-shadow:0 0 0 10px rgba(49,130,246,0); } }
+.cga-card.on .cga-dot { background:rgb(var(--g)); animation:cgaPing 1.4s ease-out infinite, cgaBlink 1.4s ease-in-out infinite; }
+@keyframes cgaPing { 0% { box-shadow:0 0 0 0 rgba(var(--g, 49,130,246),.6); } 75%,100% { box-shadow:0 0 0 10px rgba(var(--g, 49,130,246),0); } }
 @keyframes cgaBlink { 0%,100% { opacity:1; } 50% { opacity:.45; } }
 .cga-top { display:flex; align-items:center; gap:12px; padding-right:44px; min-height:28px; }
 .cga-nm { display:flex; align-items:center; gap:7px; min-width:0; }
 .cga-nm b { font-size:17px; font-weight:800; color:var(--text); }
 .cga-tag { padding:2px 8px; border-radius:7px; background:var(--cg-chip-bg, rgba(99,102,241,.12)); color:var(--cg-chip-text, #4f46e5); font-size:11.5px; font-weight:800; }
-.cga-now { margin-top:12px; font-size:13.5px; font-weight:800; color:#2f77f6; }
+.cga-now { margin-top:12px; font-size:13.5px; font-weight:800; color:rgb(var(--g, 47,119,246)); transition:color .7s; }
 .cga-dots i { font-style:normal; animation:cgaDot 1.2s infinite; }
 .cga-dots i:nth-child(2) { animation-delay:.2s; } .cga-dots i:nth-child(3) { animation-delay:.4s; }
 @keyframes cgaDot { 0%,60%,100% { opacity:.2; } 30% { opacity:1; } }
@@ -603,9 +606,12 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cgp-ttl { margin-top:3px; font-size:13px; color:var(--text); opacity:.75; }
 .cgp-row:not(.on) .cga-ago { color:var(--muted); }
 .cgp-none { margin:6px 0; color:var(--muted); font-size:13.5px; }
-/* CG배정 현황 직접 배정(앵커·PT — 카드 오른쪽 클릭, js/cg-assign.js _cgaCtx) */
-.cga-job.man { background:rgba(124,58,237,.08); }
-.cga-job.man .cga-who b { color:#7c3aed; }
+/* CG배정 현황 직접 배정(CG·앵커터치·PT — 카드 오른쪽 클릭, js/cg-assign.js _cgaCtx) */
+.cga-job.man { --j:49,130,246; background:rgba(var(--j),.08); }
+.cga-job.man.k-anchor { --j:226,55,68; }
+.cga-job.man.k-pt { --j:247,103,7; }
+.cga-job.man .cga-who b { color:rgb(var(--j)); }
+.cga-job.man .cga-ago { color:rgb(var(--j)); }
 .cga-done { margin-left:auto; height:26px; padding:0 11px; border-radius:999px; border:0; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff; font:inherit; font-size:12px; font-weight:800; cursor:pointer; box-shadow:0 4px 10px -6px rgba(47,119,246,.9); }
 .cga-done:hover { filter:brightness(1.06); }
 .cga-ctx { position:fixed; z-index:9100; min-width:200px; padding:6px; border-radius:16px; background:var(--surface); border:1px solid var(--border); box-shadow:0 18px 44px -12px rgba(15,23,42,.42); animation:ndModalPop .2s cubic-bezier(.16,1,.3,1) both; }
@@ -614,6 +620,9 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cga-ctx button:hover, .cga-ctx button:focus-visible { background:var(--surface2); outline:none; }
 .cga-ctx button small { margin-left:auto; color:var(--muted); font-size:11.5px; }
 .cga-ctx button.dim { color:var(--muted); font-size:13px; }
-.cga-ctx-ic { flex:none; width:24px; height:24px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-style:normal; font-size:12px; font-weight:800; background:rgba(124,58,237,.12); color:#7c3aed; }
+.cga-ctx-ic { flex:none; width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-style:normal; font-size:12px; font-weight:800; background:rgba(49,130,246,.12); color:#2f77f6; }
+.cga-ctx-ic.k-cg { background:rgba(49,130,246,.13); color:#2f77f6; }
+.cga-ctx-ic.k-anchor { background:rgba(226,55,68,.13); color:#e23744; }
+.cga-ctx-ic.k-pt { background:rgba(247,103,7,.14); color:#e8590c; }
 .cga-ctx-ic.ok { background:rgba(49,130,246,.12); color:#2f77f6; }
 .cga-ctx-div { height:1px; margin:4px 6px; background:var(--border); }
