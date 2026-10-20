@@ -40,7 +40,7 @@
 window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.href)||''; if(u.indexOf(location.origin)===0 && /\/(js|css)\/[\w.-]+\.(js|css)(\?|$)/.test(u)) (window.__ndModFail=window.__ndModFail||[]).push(u); }, true);
 </script>
 <link rel="stylesheet" href="css/base.css?v=49d694c3">
-<link rel="stylesheet" href="css/dark.css?v=fecb398f">
+<link rel="stylesheet" href="css/dark.css?v=d677befc">
 <link rel="stylesheet" href="css/nav.css?v=bd336f40">
 <link rel="stylesheet" href="css/home.css?v=de558eb3">
 <link rel="stylesheet" href="css/notice-poll.css?v=5d9dbdd0">
@@ -203,7 +203,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div id="a2hs-banner" class="nd-modal" style="display:none;position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
   <div style="background:var(--surface);width:370px;max-width:92vw;padding:26px 22px 18px;">
     <div style="text-align:center;font-size:44px;line-height:1;margin-bottom:8px;">📲</div>
-    <div style="font-size:18px;font-weight:800;color:var(--text);text-align:center;line-height:1.4;">홈 화면에 추가하고<br>근무 알림 받기</div>
+    <div id="a2hs-title" style="font-size:18px;font-weight:800;color:var(--text);text-align:center;line-height:1.4;">홈 화면에 추가하고<br>근무 알림 받기</div>
     <div id="a2hs-guide" style="font-size:13.5px;color:var(--text);line-height:1.8;margin-top:16px;"></div>
     <div id="a2hs-actions" style="display:flex;flex-direction:column;gap:8px;margin-top:20px;"></div>
     <button onclick="dismissA2HS(false)" style="width:100%;background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;padding:8px;">나중에 하기</button>
@@ -1206,7 +1206,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.20 16:49';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.20 17:16';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1476,14 +1476,14 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/publish.js?v=0f538f2b"></script>
 <script src="js/leave-request.js?v=4bd108a2"></script>
 <script src="js/staff.js?v=e69bc478"></script>
-<script src="js/admin.js?v=d1800f6e"></script>
+<script src="js/admin.js?v=acbad601"></script>
 <script src="js/cell-edit.js?v=799de12b"></script>
-<script src="js/login-ui.js?v=abbbf885"></script>
+<script src="js/login-ui.js?v=cb0a6b15"></script>
 <script src="js/notice.js?v=5f269061"></script>
 <script src="js/poll.js?v=0cd98cbc"></script>
 <script src="js/schedule-finder.js?v=dc123704"></script>
 <script src="js/sync-init.js?v=df7f12a6"></script>
-<script src="js/a2hs.js?v=f3c426b9"></script>
+<script src="js/a2hs.js?v=a3d059a3"></script>
 <script src="js/staff-modal.js?v=dc014935"></script>
 <script src="js/pull-refresh.js?v=8849e397"></script>
 <script src="js/nd-select.js?v=07611e9c"></script>
@@ -1494,8 +1494,8 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/alarms.js?v=7345bb10"></script>
 <script src="js/news-cue.js?v=dd5eb823"></script>
 <script src="js/holiday-work.js?v=332135fe"></script>
-<script src="js/onboard.js?v=6544ca8e"></script>
-<script src="js/app-mode.js?v=55a38919"></script>
+<script src="js/onboard.js?v=c3a1feff"></script>
+<script src="js/app-mode.js?v=9078df55"></script>
 <script>
 // 모듈 로드 실패 안내 — CSS가 빠졌을 수도 있으니 스타일은 전부 인라인
 (function(){

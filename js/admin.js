@@ -568,16 +568,27 @@ function _urlB64ToUint8(b64) {
 // 앱(desktop/app-notify.js)이 10초마다 읽어 윈도 알림. 켜고 끄기·상태는 window.ndApp.notifyConfig/notifyStatus
 function _pushSupported() { if (ND_APP) return !!window.ndApp?.notifyConfig; return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); }
 async function _appPushStatus() { try { return await window.ndApp.notifyStatus(); } catch(e) { return null; } }
+function _notifyCall(body) { return fetch(NOTIFY_FN_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY }, body: JSON.stringify(body) }).then(r=>r.json()).catch(()=>null); }
 async function _appPushEnable() {
   try {
     const st = await _appPushStatus(); if (!st || !/^ndapp:/.test(st.endpoint)) throw new Error('앱 상태를 읽지 못했습니다.');
     // 서버 알림 함수가 PC 우편함을 아는 판인지 먼저(옛 판은 사람마다 구독 1개만 보내서 PC 구독이 휴대폰 알림을 막음)
     const h = await fetch(NOTIFY_FN_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY }, body: JSON.stringify({ mode:'hello' }) }).then(r=>r.json()).catch(()=>({}));
     if (!h || !h.appInbox) throw new Error('서버 알림 함수 업데이트(배포)가 먼저 필요합니다. 관리자에게 알려 주세요.');
-    await fetch(`${SB_URL}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(st.endpoint)}`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});   // 이 PC 의 옛 등록만(휴대폰 구독은 그대로)
-    const res = await fetch(`${SB_URL}/rest/v1/push_subs`, { method:'POST', headers:{...SB_HEADERS, 'Prefer':'return=minimal'},
-      body: JSON.stringify({ staff_id:currentUser.staffId, name:currentUser.name, endpoint:st.endpoint, sub:{ endpoint:st.endpoint, app:true, prefs:getUserNotify() } }) });
-    if (!res.ok) throw new Error(`구독 저장 실패 (HTTP ${res.status}).`);
+    // 이 PC 행(ndapp:…)은 PC마다 늘 같아서 다시 켜면 옛 행과 겹침(409) — 웹(anon)은 그 행을 못 지움(읽기 권한 없음 → DELETE 가 0줄).
+    // 서버 함수가 아는 판(hello.appSub)이면 서버가 지우고 새로 넣음(mode 'appsub'), 옛 판이면 예전대로 넣고 409 면 같은 사람 행인지 확인(prefs 모드)
+    if (h.appSub) {
+      const r = await _notifyCall({ mode:'appsub', on:true, endpoint:st.endpoint, staff_id:currentUser.staffId, name:currentUser.name, prefs:getUserNotify() });
+      if (!r || !r.ok) throw new Error('구독 저장 실패' + (r && r.error ? ' ('+r.error+')' : '') + '.');
+    } else {
+      await fetch(`${SB_URL}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(st.endpoint)}`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});
+      const res = await fetch(`${SB_URL}/rest/v1/push_subs`, { method:'POST', headers:{...SB_HEADERS, 'Prefer':'return=minimal'},
+        body: JSON.stringify({ staff_id:currentUser.staffId, name:currentUser.name, endpoint:st.endpoint, sub:{ endpoint:st.endpoint, app:true, prefs:getUserNotify() } }) });
+      if (res.status === 409) {
+        const r = await _notifyCall({ mode:'prefs', endpoint:st.endpoint, staff_id:currentUser.staffId, prefs:getUserNotify() });
+        if (!r || !r.found) throw new Error('이 PC가 다른 이름으로 알림 등록돼 있어요. 서버 알림 함수 업데이트(배포)가 필요합니다.');
+      } else if (!res.ok) throw new Error(`구독 저장 실패 (HTTP ${res.status}).`);
+    }
     await window.ndApp.notifyConfig({ enabled:true, staffId:currentUser.staffId, sbUrl:SB_URL, sbKey:SB_KEY });
     try { localStorage.setItem('nd_prefs_synced', st.endpoint + '|' + currentUser.staffId + '|' + JSON.stringify(getUserNotify())); } catch(_){}
     toast('이 PC에서 알림을 받습니다. 창을 닫아도 작업 표시줄 트레이에서 받아요.','success');
@@ -587,7 +598,10 @@ async function _appPushEnable() {
 async function _appPushDisable() {
   try {
     const st = await _appPushStatus();
-    if (st && st.endpoint) await fetch(`${SB_URL}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(st.endpoint)}`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});
+    if (st && st.endpoint) {
+      const r = await _notifyCall({ mode:'appsub', on:false, endpoint:st.endpoint });   // 서버가 이 PC 행을 지움(옛 판이면 400 → 예전 DELETE, 실제론 못 지울 수 있음)
+      if (!r || !r.ok) await fetch(`${SB_URL}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(st.endpoint)}`, { method:'DELETE', headers:SB_HEADERS }).catch(()=>{});
+    }
     await window.ndApp.notifyConfig({ enabled:false });
     toast('이 PC 알림을 껐습니다.','success');
   } catch(e) { console.warn('appPushDisable', e); }

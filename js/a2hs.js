@@ -5,41 +5,43 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(()=>{}); });
 }
 let _deferredInstall=null;
-window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); _deferredInstall=e; });
+// 늦게 와도(삼성 인터넷은 몇 초 뒤) 떠 있는 안내에 [앱으로 설치] 버튼을 붙임 — js/onboard.js _gdQuick 도 같이
+window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); _deferredInstall=e; const b=document.getElementById('a2hs-banner'); if(b&&b.style.display==='flex') _a2hsFill(); if(typeof _gdQuick==='function') _gdQuick(); });
 window.addEventListener('appinstalled', ()=>{ const b=document.getElementById('a2hs-banner'); if(b) b.style.display='none'; });
 function _isStandalone(){ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true; }
+function _a2hsKind(){
+  const ua=navigator.userAgent;
+  if(/iPad|iPhone|iPod/.test(ua) || (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)) return 'ios';   // iPadOS13+ 포함
+  if(/Android/.test(ua)) return /SamsungBrowser/.test(ua)?'samsung':'android';   // 삼성 인터넷도 앱 설치·푸시 됨(주소창 설치 아이콘). 메뉴 '현재 페이지 추가 → 홈 화면'은 바로가기라 안내에서 빼라고 함
+  return '';
+}
 function _initA2HS(){
   const banner=document.getElementById('a2hs-banner'); if(!banner) return;
   if(_isStandalone()) return;                            // 이미 홈화면 앱으로 실행 중
   if(localStorage.getItem('nd_a2hs_off')==='1') return;  // '다시 안 보기'
-  const ua=navigator.userAgent;
-  const isIOS=/iPad|iPhone|iPod/.test(ua) || (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);  // iPadOS13+ 포함
-  const isAndroid=/Android/.test(ua);
-  if(!isIOS && !isAndroid) return;                       // 모바일 브라우저에서만 노출
-  const isSamsung=/SamsungBrowser/.test(ua);             // 삼성 인터넷 (PWA/푸시 지원 끊김)
-  const guide=document.getElementById('a2hs-guide');
-  const actions=document.getElementById('a2hs-actions');
-  if(isIOS){
-    guide.innerHTML='아이폰·아이패드는 <b style="color:#d65a52;">홈 화면에 추가해야 알림</b>을 받을 수 있어요.<br><br>① <b>Safari(사파리)</b>에서 열기<br>② 하단 <b>공유</b> 버튼 <span style="display:inline-block;border:1px solid var(--border);border-radius:4px;padding:0 4px;font-size:11px;">⬆</span> 누르기<br>③ <b>"홈 화면에 추가"</b> 선택';
-    actions.innerHTML='<button class="btn btn-sm btn-outline" style="width:100%;" onclick="dismissA2HS(true)">다시 안 보기</button>';
-  } else if(isSamsung){
-    guide.innerHTML='안드로이드는 <b style="color:#d65a52;">반드시 크롬(Chrome)으로 열어야</b> 알림을 받을 수 있어요.<br><span style="color:#d65a52;">삼성 인터넷은 홈 화면 추가·푸시 알림이 지원되지 않습니다.</span><br><br>① 이 주소를 복사해 <b>크롬(Chrome)</b>으로 다시 열기<br>② 크롬 메뉴 <b>⋮</b> → <b>"앱 설치"</b>(또는 "홈 화면에 추가")';
-    actions.innerHTML='<button class="btn btn-primary btn-sm" style="width:100%;" onclick="_copyAppUrl()">🔗 주소 복사하기</button><button class="btn btn-sm btn-outline" style="width:100%;" onclick="dismissA2HS(true)">다시 안 보기</button>';
-  } else if(_deferredInstall){
-    guide.innerHTML='안드로이드는 <b style="color:#d65a52;">크롬(Chrome)에서 홈 화면 추가 → 설치</b>해야 알림을 받을 수 있어요.<br><br>① <b>크롬(Chrome)</b>으로 실행<br>② <b>홈 화면에 추가</b> (아래 버튼)<br>③ <b>설치</b><br><span style="color:var(--muted);font-size:12px;">※ 삼성 인터넷 등은 알림 미지원</span>';
-    actions.innerHTML='<button class="btn btn-primary btn-sm" style="width:100%;" onclick="installA2HS()">📲 홈 화면에 추가</button><button class="btn btn-sm btn-outline" style="width:100%;" onclick="dismissA2HS(true)">다시 안 보기</button>';
-  } else {
-    guide.innerHTML='안드로이드는 <b style="color:#d65a52;">크롬(Chrome)에서 홈 화면 추가 → 설치</b>해야 알림을 받을 수 있어요.<br><br>① <b>크롬(Chrome)</b>으로 실행<br>② 크롬 메뉴 <b>⋮</b> → <b>"홈 화면에 추가"</b><br>③ <b>설치</b> 선택<br><span style="color:var(--muted);font-size:12px;">※ 삼성 인터넷 등 다른 브라우저는 알림 미지원</span>';
-    actions.innerHTML='<button class="btn btn-sm btn-outline" style="width:100%;" onclick="dismissA2HS(true)">다시 안 보기</button>';
-  }
+  if(!_a2hsKind()) return;                               // 모바일 브라우저에서만 노출
+  _a2hsFill();
   banner.style.display='flex';
 }
-function _copyAppUrl(){
-  const url=location.href;
-  const done=()=>toast('주소를 복사했어요. 크롬(Chrome)에 붙여넣어 여세요.','success');
-  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(done).catch(()=>done()); }
-  else { const t=document.createElement('textarea'); t.value=url; document.body.appendChild(t); t.select(); try{document.execCommand('copy');}catch(e){} t.remove(); done(); }
+// 짧은 안내 + [설치 방법 자세히 보기] → js/onboard.js ndAppGuide(버튼 모양 그림까지)
+function _a2hsFill(){
+  const k=_a2hsKind(), guide=document.getElementById('a2hs-guide'), actions=document.getElementById('a2hs-actions'), title=document.getElementById('a2hs-title');
+  if(!guide||!actions) return;
+  const key=t=>'<span style="display:inline-block;border:1px solid var(--border);border-radius:6px;padding:0 6px;font-size:12px;font-weight:800;line-height:1.6;">'+t+'</span>';
+  const note=t=>'<br><span style="color:var(--muted);font-size:12px;">'+t+'</span>';
+  if(title) title.innerHTML=k==='ios'?'홈 화면에 추가하고<br>근무 알림 받기':'앱으로 설치하고<br>근무 알림 받기';
+  if(k==='ios'){
+    guide.innerHTML='아이폰·아이패드는 <b style="color:#d65a52;">홈 화면에 추가해야 알림</b>을 받을 수 있어요.<br><br>① <b>사파리</b> 아래 주소창 안 왼쪽 '+key('≡')+' 누르기<br>② '+key('공유')+' → 뜬 창을 위로 쓸어올려 '+key('홈 화면에 추가')+'<br>③ <b>웹 앱으로 열기</b> 켜고 오른쪽 위 <b>추가</b>'+note('※ 맨 아래에 버튼 줄이 있는 아이폰은 가운데 공유 버튼부터');
+  } else if(k==='samsung'){
+    guide.innerHTML='갤럭시는 <b>삼성 인터넷</b>에서 바로 <b style="color:#d65a52;">앱으로 설치</b>할 수 있어요.<br><br>① 주소창 오른쪽, 새로고침 옆 '+key('설치')+' 아이콘<br>② 뜨는 창에서 <b>설치</b><br>③ 새로 생긴 <b>근무표</b>로 열고 알림 켜기'+note('※ ≡ 메뉴 → 현재 페이지 추가 → 홈 화면은 바로가기라 안 돼요');
+  } else {
+    guide.innerHTML='안드로이드는 <b style="color:#d65a52;">앱으로 설치</b>하면 알림을 받기 편해요.<br><br>① <b>크롬</b> 주소창 오른쪽 '+key('⋮')+' 메뉴<br>② '+key('앱 설치')+' 또는 <b>홈 화면에 추가</b><br>③ <b>설치</b> (바로가기 만들기 말고)'+note('※ 갤럭시는 삼성 인터넷으로 열어도 돼요');
+  }
+  actions.innerHTML=(_deferredInstall&&k!=='ios'?'<button class="btn btn-primary btn-sm" style="width:100%;" onclick="installA2HS()">이 폰에 앱으로 설치</button>':'')
+    +'<button class="btn btn-sm '+(_deferredInstall&&k!=='ios'?'btn-outline':'btn-primary')+'" style="width:100%;" onclick="_a2hsMore()">설치 방법 자세히 보기</button>'
+    +'<button class="btn btn-sm btn-outline" style="width:100%;" onclick="dismissA2HS(true)">다시 안 보기</button>';
 }
+function _a2hsMore(){ dismissA2HS(false); if(typeof ndAppGuide==='function') ndAppGuide(); }
 async function installA2HS(){
   if(!_deferredInstall){ dismissA2HS(false); return; }
   _deferredInstall.prompt();

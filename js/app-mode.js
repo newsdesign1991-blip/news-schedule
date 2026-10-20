@@ -40,6 +40,11 @@ function _ndTitlebarInit(){
   }
   // 알림함 종(js/alarms.js, 원래 이름 바에 있음)은 렌치 바로 왼쪽
   const al=document.getElementById('hdr-alarm'); if(al) right.insertBefore(al, right.querySelector('.ndt-tool'));
+  // 휴대폰 버튼(종 바로 왼쪽) → js/onboard.js ndPhonePop(QR + 기기별 설치 순서)
+  const ph=document.createElement('button'); ph.type='button'; ph.className='ndt-phone'; ph.title='휴대폰에서 근무표 쓰기'; ph.setAttribute('aria-label','휴대폰에서 근무표 쓰기');
+  ph.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>';
+  ph.onclick=()=>{ if(typeof ndPhonePop==='function') ndPhonePop(); };
+  right.insertBefore(ph, al||right.querySelector('.ndt-tool')||ex.nextSibling);
   bar.appendChild(right);
   document.body.prepend(bar);
   _ndWiseState(null);   // 문서에 붙인 뒤에(getElementById)
@@ -468,14 +473,24 @@ function _tourSteps(){
   const st=[];
   const wiseOk=typeof _ndWiseAllowed==='function'&&_ndWiseAllowed();
   if(wiseOk) st.push({ sel:'#ndt-wise', title:'먼저 WISE에 연결해요', body:'위쪽 <b>[WISE 로그인]</b>을 누르면 WISE 로그인 창만 떠요. 평소처럼 로그인하면 끝 — 버튼이 초록 <b>WISE 연결됨</b>으로 바뀌고, 앱을 껐다 켜도 연결이 유지돼요.' });
-  if(wiseOk&&_wtAllowed()) st.push({ sel:['#my-schedule-card .mw-day.today','#my-schedule-card .mw-day'], home:true, title:'근무 칩을 누르면 WISE 근무시간이 자동으로', body:'홈 <b>이번 주 내 근무</b>에서 오늘 칩을 누르면 근무시간 입력 창이 떠요. 정근은 <b>12:00–21:00</b>, 당직은 <b>21:00–10:00(N)</b>이 저절로 들어가고, 휴일이면 대휴도 고를 수 있어요. <b>[채우고 결재]</b>를 누르면 결재까지 — WISE 마지막 확인만 직접 눌러 주세요.' });
+  if(wiseOk&&_wtAllowed()) st.push({ sel:['#my-schedule-card .mw-day.today','#my-schedule-card .mw-day'], home:true, title:'근무 칩을 누르면 WISE 근무시간이 자동으로', body:'홈 <b>이번 주 내 근무</b>에서 오늘 칩을 누르면 근무시간 입력 창이 떠요. 정근은 <b>12:00–21:00</b>, 당직은 <b>21:00–10:00(N)</b>이 저절로 들어가고, 휴일이면 대휴도 고를 수 있어요. <b>[채우고 결재]</b>를 누르면 WISE 창 없이 결재 확인까지 한 번에 끝나요.' });
+  st.push({ sel:'#nd-titlebar .ndt-phone', title:'휴대폰에도 깔아 두세요', body:'위쪽 <b>휴대폰</b> 버튼을 누르면 QR 코드와 휴대폰별 설치 순서가 나와요. 카메라로 찍어 앱으로 설치하면 밖에서도 근무표를 보고, 근무·진행 알림을 휴대폰으로 받아요.' });
   st.push({ sel:'#nd-titlebar .ndt-user button', title:'PC 알림도 켜 두세요', body:'<b>알림 설정</b>에서 PC 알림을 켜면 8진·오뉴스 진행이 화면 테두리 알림으로 와요. 앱은 창을 닫아도 오른쪽 아래 트레이에서 계속 알림을 받아요.' });
   return st;
+}
+// 휴대폰 설치 안내 팝업을 이 PC에서 한 번만(사용법 끝 또는 사용법을 예전에 본 사람은 로그인 뒤). 다른 안내(알림 켜기·사용법)가 떠 있으면 닫힐 때까지 기다림
+function _ndPhoneOnce(next){
+  let seen=false; try{ seen=!!localStorage.getItem('nd_phone_pop_v1'); }catch(e){}
+  if(seen||typeof ndPhonePop!=='function'){ if(next) next(); return; }
+  let n=0; const t=setInterval(()=>{
+    if(document.getElementById('nb-pop')||document.getElementById('tour-ov')||document.getElementById('apx-pop')){ if(++n>80) clearInterval(t); return; }
+    clearInterval(t); try{ localStorage.setItem('nd_phone_pop_v1','1'); }catch(e){} ndPhonePop(next);
+  },1500);
 }
 function _ndTourFromMenu(){ document.getElementById('ndt-pop')?.remove(); ndAppTour(true); }   // 렌치 메뉴 [사용법 다시 보기]
 function ndAppTour(force){
   if(!ND_APP||document.getElementById('tour-ov')) return;
-  if(!force){ try{ if(localStorage.getItem('nd_app_tour_v1')) return; }catch(e){} }
+  if(!force){ try{ if(localStorage.getItem('nd_app_tour_v1')){ _ndPhoneOnce(()=>{ if(typeof ndNotifyPrompt==='function') setTimeout(()=>ndNotifyPrompt(false),500); }); return; } }catch(e){} }   // 사용법을 예전에 본 사람도 휴대폰 안내는 한 번
   const steps=_tourSteps(); if(!steps.length) return;
   try{ localStorage.setItem('nd_app_tour_v1','1'); }catch(e){}
   const ov=document.createElement('div'); ov.id='tour-ov'; ov.className='tour-ov';
@@ -498,7 +513,8 @@ function ndAppTour(force){
     card.style.left=Math.min(innerWidth-cw-12,Math.max(12,r.left+r.width/2-cw/2))+'px'; card.style.top=top+'px';
   };
   const go=()=>{ const s=steps[i]; if(s.home&&typeof showView==='function'&&currentView!=='home'){ showView('home'); setTimeout(place,450); } else place(); };
-  const end=()=>{ ov.remove(); removeEventListener('resize',place); if(typeof ndNotifyPrompt==='function') setTimeout(()=>ndNotifyPrompt(false),700); };   // 사용법 다음 = 알림 켜기 안내(js/onboard.js)
+  // 사용법 다음 = 휴대폰 설치 안내(처음 한 번, js/onboard.js ndPhonePop) → 닫으면 알림 켜기 안내(ndNotifyPrompt)
+  const end=()=>{ ov.remove(); removeEventListener('resize',place); setTimeout(()=>_ndPhoneOnce(()=>{ if(typeof ndNotifyPrompt==='function') setTimeout(()=>ndNotifyPrompt(false),500); }),500); };
   ov.querySelector('.tour-skip').onclick=end;
   ov.querySelector('.tour-next').onclick=()=>{ if(++i>=steps.length) end(); else go(); };
   addEventListener('resize',place);

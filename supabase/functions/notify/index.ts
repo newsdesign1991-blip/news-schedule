@@ -35,9 +35,28 @@ Deno.serve(async (req) => {
   const mode = (body?.mode === 'schedule' ? 'cron' : body?.mode) || 'cron'
   const json = (o: any, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
   // 모르는 mode는 아무것도 하지 않음(예전엔 cron으로 처리돼, 정각에 다른 호출이 오면 근무 알림이 한 번 더 갈 수 있었음)
-  if (!['cron', 'test', 'notice', 'publish', 'prefs', 'seen', 'meal', 'hello', 'direct', 'cue', 'lease', 'cuepull'].includes(mode)) return json({ error: 'unknown mode', mode }, 400)
+  if (!['cron', 'test', 'notice', 'publish', 'prefs', 'seen', 'meal', 'hello', 'direct', 'cue', 'lease', 'cuepull', 'appsub'].includes(mode)) return json({ error: 'unknown mode', mode }, 400)
   // 앱이 'PC 알림'을 켜기 전에 이 함수가 PC 우편함을 아는 판인지 확인(옛 판이면 PC 구독이 휴대폰 알림을 막을 수 있어 앱이 켜지 않음)
-  if (mode === 'hello') return json({ ok: true, appInbox: true, direct: true })
+  if (mode === 'hello') return json({ ok: true, appInbox: true, direct: true, appSub: true })
+
+  // ── PC 앱 알림 등록(10-20) ── 근무표 앱 endpoint 'ndapp:<PC 고유값>' 은 PC마다 늘 같아서, 껐다 켜거나 이름을 바꿔 다시 켜면 옛 행과 겹쳐 HTTP 409.
+  // 웹(anon)은 push_subs 를 읽을 권한이 없어 DELETE ...?endpoint=eq. 가 아무것도 못 지움(RLS: WHERE 가 있는 DELETE 는 SELECT 정책도 필요) → 서버가 대신 바꿈.
+  // on=true: 그 PC 행을 지우고 지금 사람으로 새로 넣음 / on=false: 그 PC 행만 지움. ndapp: 행만 다루고 휴대폰 구독은 건드리지 않음. 받는 사람 = 직원 명단에 있는 사람.
+  if (mode === 'appsub') {
+    const ep = String(body?.endpoint || ''), on = body?.on !== false
+    if (!/^ndapp:[A-Za-z0-9-]{8,64}$/.test(ep)) return json({ error: 'bad endpoint' }, 400)
+    const { error: de } = await sb.from('push_subs').delete().eq('endpoint', ep)
+    if (de) return json({ error: de.message }, 500)
+    if (!on) return json({ ok: true, mode: 'appsub', on: false })
+    const sid = String(body?.staff_id || '').slice(0, 40), name = String(body?.name || '').slice(0, 20), pr = body?.prefs
+    const { data: mr, error: me } = await sb.from('nd_data').select('payload').eq('id', 'main').single()
+    if (me) return json({ error: me.message }, 500)
+    if (!sid || !((mr?.payload?.staff || []) as any[]).some((s: any) => String(s?.id || '') === sid)) return json({ error: 'unknown staff' }, 400)
+    const prefs = pr && typeof pr === 'object' ? { work: pr.work !== false, news: pr.news !== false, notice: pr.notice !== false, poll: pr.poll !== false } : undefined
+    const { error: ie } = await sb.from('push_subs').insert({ staff_id: sid, name, endpoint: ep, sub: { endpoint: ep, app: true, ...(prefs ? { prefs } : {}) } })
+    if (ie) return json({ error: ie.message }, 500)
+    return json({ ok: true, mode: 'appsub', on: true })
+  }
 
   // 호출 확인(10-17): 사이트·PC 앱은 공개 anon 키로 부르고 verify_jwt 도 꺼져 있어(옛 pg_cron 도 anon 키로 'schedule') 누가 불렀는지 모름.
   // 그래서 모드마다 입력을 좁히고 빈도를 막는 정도로 지킴 — cuepull = 믿을 수 있는 호출만(service role 키 또는 x-cue-key = 비밀값 CUE_PULL_KEY), NDS 로그인 2분에 1번,

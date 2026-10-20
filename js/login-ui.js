@@ -94,6 +94,7 @@ function openSheet(title, html){
   document.getElementById('sheet-title').textContent = title;
   document.getElementById('sheet-body').innerHTML = html;
   const ov = document.getElementById('sheet-overlay');
+  ov.classList.remove('sheet-top');   // 로그인 화면 위로 올리는 건 js/onboard.js ndAppGuide 그때만
   ov.style.display='flex';
   requestAnimationFrame(()=>requestAnimationFrame(()=>ov.classList.add('open')));
 }
