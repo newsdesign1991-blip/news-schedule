@@ -312,7 +312,7 @@ function _ndToolToggle(btn){
   pop.innerHTML='<div class="ndp-head"><img src="icon-192.png" alt=""><div><b>근무표 앱</b><small id="ndp-ver">버전 확인 중…</small></div></div>'
     +'<div class="ndp-status" id="ndp-status">화면·기능은 근무표가 바뀌면 저절로 최신이 됩니다. 앱 자체 업데이트는 아래에서 확인하세요.</div>'
     +'<div class="ndp-btns"><button type="button" class="ndp-main" id="ndp-check">업데이트 확인</button><button type="button" id="ndp-reload">화면 새로고침</button></div>'
-    +'<button type="button" class="ndp-tour" onclick="_ndTourFromMenu()">사용법 다시 보기</button>';
+    +'<div class="ndp-links"><button type="button" class="ndp-tour" onclick="_ndTourFromMenu()">사용법 다시 보기</button><button type="button" class="ndp-tour" onclick="ndAppGuide()">휴대폰에서 쓰기</button></div>';
   document.body.appendChild(pop);
   const r=btn.getBoundingClientRect(); pop.style.top=(r.bottom+6)+'px'; pop.style.right=Math.max(8,innerWidth-r.right)+'px';
   window.ndApp.version?.().then(v=>{ const el=document.getElementById('ndp-ver'); if(el) el.textContent='버전 '+v; });
@@ -498,7 +498,7 @@ function ndAppTour(force){
     card.style.left=Math.min(innerWidth-cw-12,Math.max(12,r.left+r.width/2-cw/2))+'px'; card.style.top=top+'px';
   };
   const go=()=>{ const s=steps[i]; if(s.home&&typeof showView==='function'&&currentView!=='home'){ showView('home'); setTimeout(place,450); } else place(); };
-  const end=()=>{ ov.remove(); removeEventListener('resize',place); };
+  const end=()=>{ ov.remove(); removeEventListener('resize',place); if(typeof ndNotifyPrompt==='function') setTimeout(()=>ndNotifyPrompt(false),700); };   // 사용법 다음 = 알림 켜기 안내(js/onboard.js)
   ov.querySelector('.tour-skip').onclick=end;
   ov.querySelector('.tour-next').onclick=()=>{ if(++i>=steps.length) end(); else go(); };
   addEventListener('resize',place);

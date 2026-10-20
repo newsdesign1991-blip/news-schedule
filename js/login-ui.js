@@ -53,6 +53,7 @@ function logoutUser() {
 }
 function _givenName(n){ n=(n||'').trim(); var T=['제갈','남궁','황보','선우','사공','서문','독고','동방']; for(var i=0;i<T.length;i++){ if(n.length>=3 && n.indexOf(T[i])===0) return n.slice(2); } return n.length>1?n.slice(1):n; }
 function _updateUserHeader() {
+  if (typeof ndNotifyPromptSoon === 'function' && currentUser && currentUser.staffId) ndNotifyPromptSoon();   // 처음 로그인하면 알림 켜기 안내(js/onboard.js)
   const _hu = document.getElementById('hdr-user');
   if (_hu) _hu.innerHTML = (currentUser && currentUser.name)
     ? `<b>${currentUser.adminRole?currentUser.name:_givenName(currentUser.name)}</b><span class="hdr-nim">${currentUser.adminRole?"":"님"}</span>`

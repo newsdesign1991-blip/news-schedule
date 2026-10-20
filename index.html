@@ -40,7 +40,7 @@
 window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.href)||''; if(u.indexOf(location.origin)===0 && /\/(js|css)\/[\w.-]+\.(js|css)(\?|$)/.test(u)) (window.__ndModFail=window.__ndModFail||[]).push(u); }, true);
 </script>
 <link rel="stylesheet" href="css/base.css?v=49d694c3">
-<link rel="stylesheet" href="css/dark.css?v=5a859cd3">
+<link rel="stylesheet" href="css/dark.css?v=fecb398f">
 <link rel="stylesheet" href="css/nav.css?v=bd336f40">
 <link rel="stylesheet" href="css/home.css?v=de558eb3">
 <link rel="stylesheet" href="css/notice-poll.css?v=5d9dbdd0">
@@ -260,6 +260,11 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <button class="hmenu-item" onclick="openNotifySheet()">
     <svg viewBox="0 0 24 24" fill="url(#hmGrad)"><path d="M12 2a6 6 0 0 0-6 6c0 4.5-1.5 6-2.4 6.8A1 1 0 0 0 4.3 17h15.4a1 1 0 0 0 .7-1.7C19.5 14.4 18 12.5 18 8a6 6 0 0 0-6-6z"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0z"/></svg>
     <span>알림 설정</span>
+  </button>
+  <div class="hmenu-div"></div>
+  <button class="hmenu-item" onclick="ndAppGuide()">
+    <svg viewBox="0 0 24 24" fill="url(#hmGrad)"><path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm4 16.2a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z"/></svg>
+    <span>휴대폰·앱으로 쓰기</span>
   </button>
   <div class="hmenu-div"></div>
   <button class="hmenu-item" onclick="closeHdrMenu();toggleAdmin();">
@@ -1201,7 +1206,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.20 15:46';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.20 16:49';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1473,7 +1478,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/staff.js?v=e69bc478"></script>
 <script src="js/admin.js?v=d1800f6e"></script>
 <script src="js/cell-edit.js?v=799de12b"></script>
-<script src="js/login-ui.js?v=88ad0e8d"></script>
+<script src="js/login-ui.js?v=abbbf885"></script>
 <script src="js/notice.js?v=5f269061"></script>
 <script src="js/poll.js?v=0cd98cbc"></script>
 <script src="js/schedule-finder.js?v=dc123704"></script>
@@ -1489,7 +1494,8 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/alarms.js?v=7345bb10"></script>
 <script src="js/news-cue.js?v=dd5eb823"></script>
 <script src="js/holiday-work.js?v=332135fe"></script>
-<script src="js/app-mode.js?v=dab3a83a"></script>
+<script src="js/onboard.js?v=6544ca8e"></script>
+<script src="js/app-mode.js?v=55a38919"></script>
 <script>
 // 모듈 로드 실패 안내 — CSS가 빠졌을 수도 있으니 스타일은 전부 인라인
 (function(){
