@@ -90,7 +90,10 @@ function _ndWiseAllowed(){
 }
 // 버튼이 보이는 사람이면 한 번 숨은 창으로 확인(로그인 창은 안 띄움)
 function _ndWiseCheckOnce(){
-  if(_ndWiseChecked||!window.ndApp?.wiseCheck||!_ndWiseAllowed()) return;
+  if(_ndWiseChecked||!_ndWiseAllowed()) return;
+  // 앱 1.2.2~: 저장된 로그인(쿠키)으로 바로 표시 — 숨은 WISE 화면을 열지 않음. 서버가 끊었으면 30초 뒤 이어 주기(wiseKeepAlive)가 '로그인'으로 바꿈(10-20)
+  if(window.ndApp?.wiseInfo){ _ndWiseChecked=true; window.ndApp.wiseInfo().then(i=>{ if(i) _ndWiseState(i.connected===false?false:!!i.loggedIn); }).catch(()=>{}); return; }
+  if(!window.ndApp?.wiseCheck) return;
   _ndWiseChecked=true;
   window.ndApp.wiseCheck().then(r=>{ if(r&&r.loggedIn!==null&&r.loggedIn!==undefined) _ndWiseState(!!r.loggedIn); }).catch(()=>{});
 }
@@ -318,8 +321,13 @@ function _ndToolToggle(btn){
     main.disabled=true; main.textContent='확인 중…';
     const u=await window.ndApp.updateCheck().catch(e=>({error:e.message}));
     main.disabled=false;
+    _ndUpdMark(u);
     if(!u||u.error){ st.textContent=(u&&u.error)||'확인하지 못했습니다.'; main.textContent='다시 확인'; return; }
     if(!u.available){ st.textContent=`최신 버전입니다 (${u.current}).`; main.textContent='다시 확인'; return; }
+    showAvail(u);
+  };
+  // 새 버전이 있다는 걸 이미 알면(저절로 확인 — _ndUpdWatch) 열자마자 [지금 업데이트]
+  const showAvail=(u)=>{
     st.innerHTML=`새 버전 <b>${_wiEsc(u.latest)}</b>이 있어요 (지금 ${_wiEsc(u.current)}).`+(u.notes&&u.notes.length?'<ul>'+u.notes.map(n=>'<li>'+_wiEsc(n)+'</li>').join('')+'</ul>':'');
     main.textContent='지금 업데이트';
     main.onclick=async()=>{
@@ -336,8 +344,24 @@ function _ndToolToggle(btn){
       else { st.textContent=(r2&&r2.error)||'업데이트하지 못했습니다.'; main.disabled=false; main.textContent='다시 시도'; }
     };
   };
+  if(_ndUpd&&_ndUpd.available) showAvail(_ndUpd);
   setTimeout(()=>document.addEventListener('mousedown',function off(e){ if(!pop.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',off); } }),0);
 }
+// 앱 업데이트 저절로 확인(10-20 요청): 켜고 20초 뒤, 그 뒤 30분마다 공유 폴더 latest.json — 새 버전이면 렌치가 빨갛게 깜빡임(누르면 바로 [지금 업데이트])
+let _ndUpd=null;
+function _ndUpdMark(u){
+  if(u&&!u.error) _ndUpd=u;
+  const t=document.querySelector('#nd-titlebar .ndt-tool'); if(!t) return;
+  const on=!!(_ndUpd&&_ndUpd.available);
+  t.classList.toggle('upd',on);
+  t.title=on?`새 버전 ${_ndUpd.latest}이 있어요 — 눌러서 업데이트`:'앱 정보·업데이트';
+  t.setAttribute('aria-label',t.title);
+}
+async function _ndUpdWatch(){
+  if(!ND_APP||!window.ndApp?.updateCheck) return;
+  try{ _ndUpdMark(await window.ndApp.updateCheck()); }catch(e){ /* 사내망 밖 등 — 다음에 */ }
+}
+if(ND_APP){ setTimeout(_ndUpdWatch,20000); setInterval(_ndUpdWatch,30*60e3); }
 // 창 버튼(최소화·최대화·닫기) 바탕·글자색을 제목줄과 같게
 function _ndTitlebarColors(){
   const bar=document.getElementById('nd-titlebar'); if(!bar||!window.ndApp?.setTitleBar) return;

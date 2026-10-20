@@ -348,3 +348,7 @@ html.nd-pc-blocked #apx-pop { background:var(--bg); }
 .wt-prog { height:8px; border-radius:999px; background:var(--surface2); overflow:hidden; }
 .wt-prog[hidden] { display:none; }
 .wt-prog > i { display:block; height:100%; width:4%; border-radius:999px; background:linear-gradient(90deg,#4a94ff,#2f77f6); transition:width .4s ease; }
+/* 새 앱 버전이 있으면 렌치가 빨갛게 깜빡임(js/app-mode.js _ndUpdWatch) */
+html.nd-app #nd-titlebar .ndt-tool.upd { position:relative; color:#ef4444; background:rgba(239,68,68,.12); animation:ndUpdBlink 1.1s ease-in-out infinite; }
+html.nd-app #nd-titlebar .ndt-tool.upd::after { content:''; position:absolute; top:4px; right:5px; width:7px; height:7px; border-radius:50%; background:#ef4444; box-shadow:0 0 0 2px var(--bg,#fff); }
+@keyframes ndUpdBlink { 0%,100% { background:rgba(239,68,68,.10); box-shadow:0 0 0 0 rgba(239,68,68,0); } 50% { background:rgba(239,68,68,.26); box-shadow:0 0 0 4px rgba(239,68,68,.18); } }
