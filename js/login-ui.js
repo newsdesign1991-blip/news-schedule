@@ -89,6 +89,7 @@ function closeHdrMenu(){ const m=document.getElementById('hdr-menu'); if(m) m.st
 // ===== 바텀 시트(드로어) =====
 function openSheet(title, html){
   closeHdrMenu();
+  document.getElementById('sheet-panel')?.classList.remove('acc-split');   // 계정 정보 2분할(WISE)은 그 시트에서만
   document.getElementById('sheet-title').textContent = title;
   document.getElementById('sheet-body').innerHTML = html;
   const ov = document.getElementById('sheet-overlay');
@@ -135,6 +136,7 @@ function openAccountSheet(){
     </div>
     <button onclick="logoutUser();closeSheet();" style="width:100%;margin-top:22px;background:none;border:1px solid #f8a0a0;color:#d65a52;padding:12px;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;">로그아웃</button>`;
   openSheet('계정 정보', html);
+  if(typeof ndAccountWise==='function') ndAccountWise();   // 근무표 앱 + WISE 로그인돼 있으면 오른쪽에 WISE 정보(js/app-mode.js)
 }
 // 알림 설정 시트 — 성격별 묶음: [근무] 근무 알림 · 8진/뉴오 진행 알림  [팀 소식] 공지 · 투표. 공지·투표는 기본 켜짐, 끄면 확인.
 // news(8진·뉴오 진행)는 근무 알림에서 따로 뺀 항목 — 처음엔 근무 알림과 같은 상태로 시작(근무 알림 켜 둔 사람은 그대로 다 켜짐).

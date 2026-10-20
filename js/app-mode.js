@@ -96,6 +96,7 @@ function _ndWiseCheckOnce(){
 }
 async function ndWiseLogin(){
   const b=document.getElementById('ndt-wise'); if(!b||b.disabled) return;
+  if(_ndWiseOn&&window.ndApp?.wiseInfo){ _ndWisePop(b); return; }   // 연결됨 → 누구로·언제 로그인했는지 + 로그아웃(10-20)
   b.disabled=true; b.innerHTML='<span class="ndw-dot" aria-hidden="true"></span>'+(_ndWiseOn?'식단 받는 중…':'WISE 창에서 로그인…');
   try{
     const r=await window.ndApp.wiseLogin();
@@ -104,6 +105,53 @@ async function ndWiseLogin(){
     else { _ndWiseState(false); if(r&&r.reason==='busy') toast('WISE에서 다른 일을 하는 중이에요. 잠시 뒤 다시 눌러 주세요.',''); }
   }catch(e){ _ndWiseState(false); }
   finally{ b.disabled=false; _ndWiseState(_ndWiseOn); }
+}
+// ── WISE 로그인 정보·로그아웃(10-20 요청) — 제목줄 'WISE 연결됨' 창과 계정 정보 오른쪽에 같은 내용 ──
+function _wiAgo(iso){ const t=Date.parse(iso||''); if(!t) return ''; const m=Math.round((Date.now()-t)/60000); return m<1?'방금':m<60?`${m}분 전`:m<1440?`${Math.floor(m/60)}시간 전`:`${Math.floor(m/1440)}일 전`; }
+function _wiWhen(iso){ const t=Date.parse(iso||''); if(!t) return '기록 없음'; const d=new Date(t); return `${d.getMonth()+1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} · ${_wiAgo(iso)}`; }
+function ndWiseInfoHTML(i, inPop){
+  const row=(k,v)=>`<div class="wiq-row"><span>${k}</span><b>${_wiEsc(v||'-')}</b></div>`;
+  return `<div class="wiq">
+    <div class="wiq-head"><span class="wiq-badge" aria-hidden="true">W</span><div><b>WISE 연결됨</b><small>앱을 껐다 켜도 로그인이 이어져요</small></div></div>
+    <div class="wiq-rows">${row('이름',i.name)}${row('부서',[i.dept,i.company].filter(Boolean).join(' · '))}${row('아이디',i.id)}${row('로그인',_wiWhen(i.at))}</div>
+    <div class="wiq-btns">${inPop?'<button type="button" class="wiq-meal" onclick="_ndWiseMeal(this)">오늘의 식사 새로 받기</button>':''}<button type="button" class="wiq-out" onclick="ndWiseLogout(this)">WISE 로그아웃</button></div>
+  </div>`;
+}
+async function _ndWisePop(btn){
+  let pop=document.getElementById('ndt-pop');
+  if(pop){ const same=pop.dataset.kind==='wise'; pop.remove(); if(same) return; }
+  pop=document.createElement('div'); pop.id='ndt-pop'; pop.dataset.kind='wise'; pop.setAttribute('role','dialog'); pop.setAttribute('aria-label','WISE 로그인 정보');
+  pop.innerHTML='<div class="ndp-status">WISE 정보 읽는 중…</div>';
+  document.body.appendChild(pop);
+  const r=btn.getBoundingClientRect(); pop.style.top=(r.bottom+6)+'px'; pop.style.right=Math.max(8,innerWidth-r.right-60)+'px';
+  setTimeout(()=>document.addEventListener('mousedown',function off(e){ if(!pop.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',off); } }),0);
+  const i=await window.ndApp.wiseInfo().catch(()=>null);
+  if(!pop.isConnected) return;
+  if(!i||!i.loggedIn){ pop.remove(); _ndWiseState(false); toast('WISE 로그인이 끊겼어요. [WISE 로그인]을 눌러 다시 로그인해 주세요.',''); return; }
+  pop.innerHTML=ndWiseInfoHTML(i,true);
+}
+async function _ndWiseMeal(b){
+  b.disabled=true; b.textContent='식단 받는 중…';
+  try{ if(typeof _mealAppAuto==='function') await _mealAppAuto(true); toast('오늘의 식사를 새로 받았어요.','success'); }catch(e){}
+  document.getElementById('ndt-pop')?.remove();
+}
+// 한 번 더 눌러야 로그아웃(잘못 눌러 끊기지 않게)
+async function ndWiseLogout(b){
+  if(!b.dataset.sure){ b.dataset.sure='1'; b.textContent='한 번 더 누르면 로그아웃'; b.classList.add('sure'); setTimeout(()=>{ if(b.isConnected){ delete b.dataset.sure; b.textContent='WISE 로그아웃'; b.classList.remove('sure'); } },4000); return; }
+  b.disabled=true; b.textContent='로그아웃하는 중…';
+  const r=await window.ndApp.wiseLogout().catch(e=>({ ok:false, error:e.message }));
+  if(r&&r.ok){ _ndWiseState(false); document.getElementById('ndt-pop')?.remove(); document.getElementById('acc-wise')?.remove(); document.getElementById('sheet-panel')?.classList.remove('acc-split'); toast('WISE에서 로그아웃했어요.','success'); }
+  else { b.disabled=false; b.textContent='WISE 로그아웃'; delete b.dataset.sure; toast((r&&r.error)||'로그아웃하지 못했어요.','error'); }
+}
+// 계정 정보 시트 오른쪽(앱에서 WISE 로그인돼 있을 때만 — js/login-ui.js openAccountSheet 가 부름)
+async function ndAccountWise(){
+  if(!ND_APP||!window.ndApp?.wiseInfo) return;
+  const i=await window.ndApp.wiseInfo().catch(()=>null);
+  const body=document.getElementById('sheet-body'), panel=document.getElementById('sheet-panel');
+  if(!i||!i.loggedIn||!body||!panel||document.getElementById('sheet-title')?.textContent!=='계정 정보'||document.getElementById('acc-wise')) return;
+  const left=document.createElement('div'); left.className='acc-main'; while(body.firstChild) left.appendChild(body.firstChild);
+  const right=document.createElement('div'); right.id='acc-wise'; right.className='acc-wise'; right.innerHTML=ndWiseInfoHTML(i,false);
+  body.appendChild(left); body.appendChild(right); panel.classList.add('acc-split');
 }
 // ── WISE 근무시간 입력(이번 주 내 근무 칩) — 정근 12:00–21:00 · 당직 21:00–익일 10:00(N). 당직은 당직 날·다음날 어느 칩이든 당직 시작일이 근무일자(10-17 요청) ──
 // 대휴: 휴일에 4시간 이상 일한 몫만 고르게 — 근무일자 몫 = 당일대휴, 자정 넘은 다음날 몫 = 익일대휴
@@ -178,7 +226,8 @@ function ndWorkTimeOpen(ds){
       <label class="wt-row"><span>근무장소</span><input class="form-input" id="wt-place" maxlength="40" value="${_wiEsc(get('nd_wt_place','목동 5층'))}"></label>
       <label class="wt-row"><span>근무내용</span><input class="form-input" id="wt-content" maxlength="40" value="${_wiEsc(get(sh.key,sh.content))}"></label>
       ${dhb('same','당일대휴')}${dhb('next','익일대휴')}
-      <p class="wt-note">WISE 근무시간 입력 창이 열리고 위 내용이 채워져요. <b>채우고 결재</b>는 [결재]까지 누르고, WISE가 띄우는 마지막 확인은 직접 눌러 주세요.</p>
+      <p class="wt-note"><b>채우고 결재</b>는 WISE 창 없이 결재 확인까지 끝내요. <b>채우기만</b>은 WISE 창에 채워 두고, 확인한 뒤 직접 결재해요.</p>
+      <div class="wt-prog" id="wt-prog" hidden><i></i></div>
       <p class="wt-status" id="wt-status" role="status"></p>
     </div>
     <div class="wt-foot"><button type="button" class="wt-cancel">취소</button><button type="button" class="wt-fill">채우기만</button><button type="button" class="wt-go">채우고 결재</button></div>
@@ -201,11 +250,12 @@ function ndWorkTimeOpen(ds){
       dh[k]=use?{ use:true, date:_wtSt.dh[k].sel }:{ use:false }; }
     try{ localStorage.setItem('nd_wt_place',place); localStorage.setItem(sh.key,content); }catch(e){}
     el.querySelectorAll('.wt-foot button').forEach(b=>b.disabled=true);
-    const off=window.ndApp.onWiseStatus?.(o=>{ st.textContent=o.t||''; });
+    const pg=el.querySelector('#wt-prog'); pg.hidden=false; pg.querySelector('i').style.width='4%';
+    const off=window.ndApp.onWiseStatus?.(o=>{ st.textContent=o.t||''; if(typeof o.p==='number') pg.querySelector('i').style.width=Math.max(4,Math.min(100,o.p))+'%'; });
     try{
       const r=await window.ndApp.wiseWorkTime({ date:base, start, end, next:end<start, rest, place, content, daehyu:dh.same, daehyuNext:dh.next, submit });
-      if(r&&r.ok){ close(); toast(r.submitted?'WISE 근무시간을 채우고 [결재]를 눌렀어요. WISE 창에서 마지막 확인을 해 주세요.':'WISE 근무시간을 채웠어요. WISE 창에서 확인해 주세요.','success'); }
-      else { st.textContent=(r&&r.error)||'WISE 근무시간을 넣지 못했어요.'; el.querySelectorAll('.wt-foot button').forEach(b=>b.disabled=false); if(r&&r.reason==='login') _ndWiseState(false); }
+      if(r&&r.ok){ close(); toast(r.submitted?'WISE 근무시간 입력을 결재까지 마쳤어요.':'WISE 근무시간을 채웠어요. WISE 창에서 확인하고 결재해 주세요.','success'); }
+      else { pg.hidden=true; st.textContent=(r&&r.error)||'WISE 근무시간을 넣지 못했어요.'; el.querySelectorAll('.wt-foot button').forEach(b=>b.disabled=false); if(r&&r.reason==='login') _ndWiseState(false); }
     }catch(e){ st.textContent='WISE 근무시간을 넣지 못했어요: '+e.message; el.querySelectorAll('.wt-foot button').forEach(b=>b.disabled=false); }
     finally{ try{ off&&off(); }catch(e){} }
   };
@@ -253,7 +303,7 @@ function ndPreviewAlert(kind){
 // 렌치 카드: 앱 버전 · [업데이트 확인] → 새 판이면 [지금 업데이트](설치 뒤 앱이 다시 켜짐) · [화면 새로고침](사이트 최신)
 function _ndToolToggle(btn){
   let pop=document.getElementById('ndt-pop');
-  if(pop){ pop.remove(); return; }
+  if(pop){ const other=pop.dataset.kind==='wise'; pop.remove(); if(!other) return; }   // WISE 정보 창이 떠 있었으면 닫고 렌치 창을 엶
   pop=document.createElement('div'); pop.id='ndt-pop'; pop.setAttribute('role','dialog'); pop.setAttribute('aria-label','앱 정보');
   pop.innerHTML='<div class="ndp-head"><img src="icon-192.png" alt=""><div><b>근무표 앱</b><small id="ndp-ver">버전 확인 중…</small></div></div>'
     +'<div class="ndp-status" id="ndp-status">화면·기능은 근무표가 바뀌면 저절로 최신이 됩니다. 앱 자체 업데이트는 아래에서 확인하세요.</div>'

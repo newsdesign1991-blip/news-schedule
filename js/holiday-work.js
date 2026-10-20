@@ -57,7 +57,7 @@ function renderHworkTab(){
       <div class="fl-head"><div class="fl-id"><b>${_hwMD(ds)} 휴일 근무 ${ppl.length}명</b><small>근무표 기준 직원A — 그날 몇 시라도 일하는 사람(전날 당직 포함)</small></div>${dn?`<em class="hw-done">${_wiEsc((dn.at||'').slice(5,10).replace('-','/'))} ${_wiEsc(dn.by||'')} 올림</em>`:''}</div>
       ${ppl.length||_hwExtra().length?`<table class="hw-tbl"><thead><tr><th><input type="checkbox" checked aria-label="모두" onchange="document.querySelectorAll('#hwork-area .hw-on').forEach(c=>c.checked=this.checked)"></th><th>이름</th><th>근무</th><th>시간</th><th>근무내용</th></tr></thead><tbody>${rows}${_hwExtra().map(x=>`<tr data-sid="" data-name="${_wiEsc(x.name)}" class="hw-extra"><td><input type="checkbox" class="hw-on" aria-label="${_wiEsc(x.name)} 올리기"></td><td><b>${_wiEsc(x.name)}</b><small>근무표 밖</small></td><td><span class="hw-role">추가</span></td><td class="hw-time">-</td><td><div class="hw-cont-row"><input type="text" class="wi-in hw-cont" maxlength="30" value="${_wiEsc(x.cont)}" aria-label="${_wiEsc(x.name)} 근무내용" onchange="_hwExtraCont('${_wiEsc(x.name)}',this.value)"><button type="button" class="hw-del" onclick="_hwExtraDel('${_wiEsc(x.name)}')" aria-label="${_wiEsc(x.name)} 지우기" title="추가 인원에서 지우기">×</button></div></td></tr>`).join('')}</tbody></table>`:'<div class="wi-empty">이날 근무자가 없어요.</div>'}
       <div class="hw-extra-in"><span>근무표 밖 추가 인원</span><input type="text" class="wi-in" id="hw-x-name" maxlength="20" placeholder="이름" aria-label="추가할 이름" onkeydown="if(event.key==='Enter')_hwExtraAdd()"><input type="text" class="wi-in" id="hw-x-cont" maxlength="30" placeholder="근무내용(예: CG총괄)" aria-label="추가할 사람 근무내용" onkeydown="if(event.key==='Enter')_hwExtraAdd()"><button type="button" class="hw-add" onclick="_hwExtraAdd()">추가</button><small>표 아래에 체크칸으로 붙어요(기본 꺼짐), 줄 오른쪽 ×로 지워요 — 이 PC가 기억</small></div>
-      <p class="hw-note">WISE 휴일근무 사전신청 창이 열리고, 체크한 사람을 근무여부 Y·근무내용으로 채워요. <b>채우고 결재</b>는 [결재]까지 누르고, WISE가 띄우는 마지막 확인은 직접 눌러 주세요. WISE 팀원 목록에 없는 이름은 빠지고 알려 드려요.</p>
+      <p class="hw-note">WISE 휴일근무 사전신청 창이 열리고, 체크한 사람을 근무여부 Y·근무내용으로 채워요. <b>채우고 결재</b>는 WISE 창 없이 결재 확인까지 끝내요. <b>채우기만</b>은 WISE 창에 채워 두고 직접 결재해요. WISE 팀원 목록에 없는 이름은 빠지고 알려 드려요.</p>
       <p class="hw-status" id="hw-status" role="status"></p>
       <div class="hw-foot"><button type="button" class="hw-fill" onclick="_hwRun(false)" ${!app||ro||!ppl.length?'disabled':''}>채우기만</button><button type="button" class="hw-go" onclick="_hwRun(true)" ${!app||ro||!ppl.length?'disabled':''}>채우고 결재</button></div>
     </div></div>`;
@@ -93,7 +93,7 @@ async function _hwRun(submit){
         data.hwApply[ds]={ at:new Date().toISOString(), by:(staffById(currentUser?.staffId)?.name)||currentUser?.name||'', n:(r.matched||[]).length };
         saveData(data);
       }
-      toast((r.submitted?`${_hwMD(ds)} ${r.matched.length}명을 채우고 [결재]를 눌렀어요. WISE 창에서 마지막 확인을 해 주세요.`:`${_hwMD(ds)} ${r.matched.length}명을 채웠어요. WISE 창에서 확인해 주세요.`)+miss,'success');
+      toast((r.submitted?`${_hwMD(ds)} ${r.matched.length}명을 결재까지 마쳤어요.`:`${_hwMD(ds)} ${r.matched.length}명을 채웠어요. WISE 창에서 확인해 주세요.`)+miss,'success');
       renderHworkTab();
     } else { st.textContent=((r&&r.error)||'WISE에 올리지 못했어요.')+miss; if(r&&r.reason==='login'&&typeof _ndWiseState==='function') _ndWiseState(false); }
   }catch(e){ st.textContent='WISE에 올리지 못했어요: '+e.message; }
