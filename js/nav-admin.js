@@ -7,7 +7,7 @@ function showView(v) {
   const _tv = document.getElementById('view-'+v);
   _tv.classList.add('active');
   // 탭 순서: 홈(1) 근무표(2) 달력(3) 휴가(4) 작성소(5) — 오른쪽 탭이면 오른쪽에서, 왼쪽 탭이면 왼쪽에서 슬라이드
-  const _ord = {home:1,table:2,month:3,project:4,leavereq:5,workshop:6,admin:7};
+  const _ord = {home:1,table:2,cgassign:2.5,month:3,project:4,leavereq:5,workshop:6,admin:7};
   if (_ord[v] && _ord[_prevView] && v!==_prevView) {
     _tv.classList.add(_ord[v] > _ord[_prevView] ? 'nd-slide-r' : 'nd-slide-l');
   }
@@ -23,6 +23,7 @@ function showView(v) {
   else if (v==='table') renderTable();
   else if (v==='month') setCalMode('mine');
   else if (v==='project') renderProject();
+  else if (v==='cgassign') renderCgAssign();   // CG배정 현황(js/cg-assign.js) — 보는 동안만 NDS 20초마다
   else if (v==='leavereq') renderLeaveReqView();
   else if (v==='workshop') { if(!isAdmin){showView('home');return;} renderWorkshop(); }
   else if (v==='admin') { if(!isAdmin){ showView('home'); return; } document.getElementById('login-area').style.display='none'; document.getElementById('admin-area').style.display='block'; renderAdminPanel(); }

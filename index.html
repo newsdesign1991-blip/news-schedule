@@ -40,7 +40,7 @@
 window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.href)||''; if(u.indexOf(location.origin)===0 && /\/(js|css)\/[\w.-]+\.(js|css)(\?|$)/.test(u)) (window.__ndModFail=window.__ndModFail||[]).push(u); }, true);
 </script>
 <link rel="stylesheet" href="css/base.css?v=49d694c3">
-<link rel="stylesheet" href="css/dark.css?v=d677befc">
+<link rel="stylesheet" href="css/dark.css?v=cae0897b">
 <link rel="stylesheet" href="css/nav.css?v=bd336f40">
 <link rel="stylesheet" href="css/home.css?v=de558eb3">
 <link rel="stylesheet" href="css/notice-poll.css?v=01718f6c">
@@ -237,6 +237,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div class="snav-sub"><button class="snav-btn snav-sub-btn" onclick="openPollCreate()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="10" width="4.2" height="10" rx="1.2"/><rect x="9.9" y="5" width="4.2" height="15" rx="1.2"/><rect x="16.8" y="13" width="4.2" height="7" rx="1.2"/></svg><span>투표 만들기</span></button><button class="snav-btn snav-sub-btn" onclick="openPollPast()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4a1 1 0 1 0-2 0v5a1 1 0 0 0 .45.83l3 2a1 1 0 1 0 1.1-1.66L13 11.46V7z"/></svg><span>과거 투표 보기</span></button><button class="snav-btn snav-sub-btn" onclick="openNoticeModal()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6a1 1 0 0 0 1 1h1v3a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-3l7 4V4L9 8H5a1 1 0 0 0-1 1z"/></svg><span>공지 작성</span></button><button class="snav-btn snav-sub-btn" onclick="openNoticeHistory()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4a1 1 0 1 0-2 0v5a1 1 0 0 0 .45.83l3 2a1 1 0 1 0 1.1-1.66L13 11.46V7z"/></svg><span>지난 공지</span></button></div>
   <button class="snav-btn" data-view="table" onclick="showView('table')"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H6zm3 5.5a1 1 0 0 0 0 2h6a1 1 0 1 0 0-2H9zm0 4a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H9zm0 4a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2H9z"/></svg><span>근무표</span></button>
   <div class="snav-sub"><button id="dinner-trigger" class="snav-btn snav-sub-btn" onclick="openDinnerFinder()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3V3a1 1 0 0 1 1-1zm9.7 9.3a1 1 0 0 0-1.4 0L11 15.6l-2.3-2.3a1 1 0 0 0-1.4 1.4l3 3a1 1 0 0 0 1.4 0l5-5a1 1 0 0 0 0-1.4z"/></svg><span>공통 근무일 조회</span></button><button class="snav-btn snav-sub-btn" onclick="openWorkSwap()"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.3 2.3a1 1 0 0 1 1.4 0l4 4a1 1 0 0 1 0 1.4l-4 4a1 1 0 0 1-1.4-1.4L18.6 8H4a1 1 0 1 1 0-2h14.6l-2.3-2.3a1 1 0 0 1 0-1.4ZM7.7 12.3a1 1 0 0 1 0 1.4L5.4 16H20a1 1 0 1 1 0 2H5.4l2.3 2.3a1 1 0 0 1-1.4 1.4l-4-4a1 1 0 0 1 0-1.4l4-4a1 1 0 0 1 1.4 0Z"/></svg><span>근무 교환<span class="swap-count"></span></span></button></div>
+  <button class="snav-btn" data-view="cgassign" onclick="showView('cgassign')"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2h11A2.5 2.5 0 0 1 20 4.5v15a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 19.5v-15zM8 7a1 1 0 0 0 0 2h8a1 1 0 1 0 0-2H8zm0 4a1 1 0 1 0 0 2h5a1 1 0 1 0 0-2H8zm8.5 3.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg><span>CG배정 현황</span></button>
   <button class="snav-btn" data-view="month" onclick="showView('month')"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd"><path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3V3a1 1 0 0 1 1-1zM8 12a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm4 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm4 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zM8 16a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm4 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg><span>달력</span></button>
   <button class="snav-btn" data-view="project" onclick="showView('project')"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 5.5a1 1 0 0 1 1-1h8a1 1 0 1 1 0 2h-8a1 1 0 0 1-1-1zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2h-12a1 1 0 0 1-1-1zm0 5a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2h-6a1 1 0 0 1-1-1z"/></svg><span>프로젝트</span></button>
   <button class="snav-btn" data-view="leavereq" onclick="showView('leavereq')"><svg class="snav-ic" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4.5"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></g></svg><span>휴가신청</span></button>
@@ -661,6 +662,9 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   </div>
   <div class="mc-grid" id="month-calendar"></div>
 </div>
+
+<!-- CG배정 현황(PC 사이드바 전용, js/cg-assign.js) -->
+<div class="view" id="view-cgassign"><div id="cga-root"></div></div>
 
 <!-- PROJECT (간트) -->
 <div class="view" id="view-project">
@@ -1206,7 +1210,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.20 17:31';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.20 19:02';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1465,7 +1469,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 
 <script src="js/core.js?v=41a6f982"></script>
 <script src="js/project-gantt.js?v=64b2c52b"></script>
-<script src="js/nav-admin.js?v=a6a60f48"></script>
+<script src="js/nav-admin.js?v=d3fe8bd0"></script>
 <script src="js/home.js?v=b4426f4b"></script>
 <script src="js/table-view.js?v=c17c7122"></script>
 <script src="js/calendar.js?v=4e6b00eb"></script>
@@ -1495,6 +1499,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/news-cue.js?v=dd5eb823"></script>
 <script src="js/holiday-work.js?v=332135fe"></script>
 <script src="js/onboard.js?v=c3a1feff"></script>
+<script src="js/cg-assign.js?v=9196490c"></script>
 <script src="js/app-mode.js?v=9078df55"></script>
 <script>
 // 모듈 로드 실패 안내 — CSS가 빠졌을 수도 있으니 스타일은 전부 인라인
