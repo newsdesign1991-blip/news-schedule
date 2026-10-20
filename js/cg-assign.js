@@ -5,7 +5,8 @@
    - 상태 0002 배정 = 작업 중(파란 빛·깜빡이는 점·'작업 중…'·기자·의뢰/배정 시각), 그 밖 = 대기(회색). 이름은 NDS 디자이너 이름과 근무표 이름이 같아야 맞음
    - 10-20 추가: 프로젝트 인원은 늘 포함, [사람 추가]·카드 ×로 그날만 넣고 빼기(이 PC localStorage nd_cga_adj), 왼쪽 의뢰 ×로 이 앱에서만 숨기기(nd_cga_hide, NDS엔 그대로),
      보완요청은 회색, 새 의뢰(0001)가 생기면 오른쪽 위 알림 카드(ndApp.toast — 1.2.4+, 옛 앱은 화면 아래 토스트)
-   - 직접 배정(CG·앵커터치·PT — NDS에 안 올라옴): 카드 오른쪽 클릭 → 배정/완료, 공용 nd_data 'cgman'(아래 _cgm*) */
+   - 직접 배정(CG·앵커터치·PT — NDS에 안 올라옴): 카드 오른쪽 클릭 → 배정/완료, 공용 nd_data 'cgman'(아래 _cgm*)
+   - 끌어다 놓아 NDS 배정(10-21): 왼쪽 '의뢰'를 사람 카드에 → 확인 창 → 내 NDS 로그인(WISE × N)으로 NDS 에 배정(ndApp.ndsAssign, 앱 1.2.6~) */
 const CGA_POLL = 20000;
 const CGA_PERSON_POP = false;   // 10-20 사용자: 카드 누르면 뜨는 사람 팝업(_cgaPersonPop)은 일단 숨김 — 코드는 남겨 둠, true 면 다시 켜짐
 let _cgaData = null, _cgaErr = '', _cgaBusy = false, _cgaTimer = null, _cgaTick = null, _cgaSeen = null;
@@ -94,7 +95,8 @@ function renderCgAssign() {
       <div class="cga-body"><aside class="cga-side" id="cga-side"><section class="cga-box"><h3>배정 기다리는 의뢰 <span id="cga-reqn">…</span></h3><div class="cga-reqs" id="cga-reqs"></div><p class="cga-none" id="cga-none" hidden>지금 기다리는 의뢰가 없어요.</p><button type="button" class="cga-unhide" id="cga-unhide" onclick="_cgaUnhide()" hidden></button></section></aside><div class="cga-grid" id="cga-grid"></div></div>`;
   }
   const g = document.getElementById('cga-grid');
-  if (!g._ctx) { g._ctx = true; g.addEventListener('contextmenu', _cgaCtx); }   // 카드 오른쪽 클릭 → CG·앵커터치·PT 직접 배정/완료
+  if (!g._ctx) { g._ctx = true; g.addEventListener('contextmenu', _cgaCtx); }
+  _cgaWireDnd();   // 의뢰 → 사람 카드 끌어다 놓기 배정(10-21)   // 카드 오른쪽 클릭 → CG·앵커터치·PT 직접 배정/완료
   if (CGA_PERSON_POP && !g._wired) {   // 카드 누르면 그 사람 오늘 CG(× 는 빼기)
     g._wired = true;
     const open = e => { if (e.target.closest('.cga-x, .cga-done')) return; const c = e.target.closest('.cga-card[data-name]'); if (c && !c.classList.contains('cga-leaving')) _cgaPersonPop(c.dataset.name); };
@@ -266,7 +268,7 @@ function _cgaPaint() {
   const nHid = all.length - wait.length, nReq = wait.filter(r => r.status === '0001').length;
   const item = r => {
     const fix = r.status === '0003';
-    return { key: 'r:' + r.id, cls: 'cga-req' + (fix ? ' fix' : ''),
+    return { key: 'r:' + r.id, cls: 'cga-req' + (fix ? ' fix' : ' drag'), attrs: fix ? { draggable: 'false' } : { draggable: 'true', 'data-rid': String(r.id), title: '사람 카드에 끌어다 놓으면 배정해요' },
       html: `<button type="button" class="cga-x" onclick="_cgaHide(${Number(r.id) || 0})" title="이 앱에서만 숨기기(NDS엔 그대로)" aria-label="의뢰 숨기기">×</button>`
         + `<div class="cga-who"><b>${_cgaEsc(r.requester)}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}${fix ? '<em class="cga-fix">보완요청</em>' : ''}</div>`
         + (r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : '')
@@ -431,4 +433,86 @@ function _cgaCtx(e) {
   const cleanup = () => { document.removeEventListener('mousedown', off, true); document.removeEventListener('keydown', onKey, true); removeEventListener('scroll', onScroll, true); };
   const onScroll = () => { el.remove(); cleanup(); };
   setTimeout(() => { document.addEventListener('mousedown', off, true); document.addEventListener('keydown', onKey, true); addEventListener('scroll', onScroll, true); }, 0);
+}
+
+// ── 끌어다 놓아 배정(10-21): 왼쪽 '의뢰'(0001)를 사람 카드에 놓으면 확인 창 → 내 NDS 로그인(WISE × N)으로 NDS 에 실제 배정(window.ndApp.ndsAssign, 앱 1.2.6~)
+// 보완요청(0003)은 NDS 도 배정이 안 돼서 못 끎. 놓은 뒤 화면은 바로 '작업 중'으로 바꾸고(낙관적) NDS 를 다시 읽어 맞춤
+let _cgaDragId = 0;
+function _cgaWireDnd() {
+  const list = document.getElementById('cga-reqs'), grid = document.getElementById('cga-grid');
+  if (!list || list._dnd) return; list._dnd = true;
+  list.addEventListener('dragstart', e => {
+    const it = e.target.closest && e.target.closest('.cga-req[data-rid]'); if (!it) return;
+    _cgaDragId = Number(it.dataset.rid) || 0;
+    try { e.dataTransfer.setData('text/plain', String(_cgaDragId)); e.dataTransfer.effectAllowed = 'move'; } catch (x) { /* 그래도 _cgaDragId 로 */ }
+    it.classList.add('dragging'); document.body.classList.add('cga-dragging');
+  });
+  list.addEventListener('dragend', e => {
+    const it = e.target.closest && e.target.closest('.cga-req'); if (it) it.classList.remove('dragging');
+    document.body.classList.remove('cga-dragging'); grid.querySelectorAll('.drop-hot').forEach(c => c.classList.remove('drop-hot'));
+    setTimeout(() => { _cgaDragId = 0; }, 0);
+  });
+  grid.addEventListener('dragover', e => {
+    if (!_cgaDragId) return;
+    const c = e.target.closest && e.target.closest('.cga-card[data-name]'); if (!c || c.classList.contains('cga-leaving')) return;
+    e.preventDefault(); try { e.dataTransfer.dropEffect = 'move'; } catch (x) {}
+    if (!c.classList.contains('drop-hot')) { grid.querySelectorAll('.drop-hot').forEach(x => x.classList.remove('drop-hot')); c.classList.add('drop-hot'); }
+  });
+  grid.addEventListener('dragleave', e => { const c = e.target.closest && e.target.closest('.cga-card'); if (c && !c.contains(e.relatedTarget)) c.classList.remove('drop-hot'); });
+  grid.addEventListener('drop', e => {
+    const c = e.target.closest && e.target.closest('.cga-card[data-name]'); if (!c || !_cgaDragId) return;
+    e.preventDefault(); c.classList.remove('drop-hot'); document.body.classList.remove('cga-dragging');
+    const id = _cgaDragId; _cgaDragId = 0;
+    _cgaAssignAsk(id, c.dataset.name);
+  });
+}
+async function _cgaAssignAsk(id, name) {
+  const ds = _cgaToday(), rows = (_cgaData && _cgaData.day === ds && _cgaData.rows) || [];
+  const r = rows.find(x => x.id === id); if (!r) { toast('그 의뢰를 찾지 못했어요. 새로고침 뒤 다시 해 주세요.', 'error'); return; }
+  document.getElementById('cga-ask')?.remove();
+  const can = !!(window.ndApp && window.ndApp.ndsAssign);
+  // NDS 가 배정 때 묻는 '알림(메시지)을 전송하시겠습니까?'를 여기 토글로 — 지난번 고른 대로 기억(이 PC, 처음엔 켜짐)
+  let pushOn = true; try { const v = localStorage.getItem('nd_cga_push'); if (v !== null) pushOn = v === '1'; } catch (e) { /* 기본 켜짐 */ }
+  const el = document.createElement('div'); el.id = 'cga-ask'; el.className = 'wt-pop';
+  el.innerHTML = `<div class="wt-card cga-ask-card" role="dialog" aria-modal="true" aria-labelledby="cga-ask-t">
+    <div class="wt-head cga-ask-head" id="cga-ask-t">CG 배정</div>
+    <div class="wt-body">
+      <p class="cga-ask-q"><b>${_cgaEsc(name)}</b>님에게 배정할까요?</p>
+      <div class="cga-ask-req"><div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>${r.title ? `<div class="cga-ttl">${_cgaEsc(r.title)}</div>` : ''}<div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span></div></div>
+      <label class="cga-ask-push"><span><b>메시지 보내기</b><small>NDS 알림으로 ${_cgaEsc(name)}님에게 배정됐다고 알려요</small></span><input type="checkbox" role="switch" id="cga-ask-push" ${pushOn ? 'checked' : ''}><i class="cga-sw" aria-hidden="true"></i></label>
+      <p class="cga-ask-who" id="cga-ask-who">${can ? '내 NDS 로그인 확인 중…' : '근무표 앱을 업데이트(1.2.6)하면 여기서 바로 배정할 수 있어요.'}</p>
+      <p class="wt-status" id="cga-ask-st" role="status"></p>
+    </div>
+    <div class="wt-foot"><button type="button" class="wt-cancel">취소</button><button type="button" class="wt-go" ${can ? '' : 'disabled'}>배정</button></div>
+  </div>`;
+  document.body.appendChild(el);
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); };
+  const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  document.addEventListener('keydown', onKey, true);
+  el.querySelector('.wt-cancel').onclick = close;
+  el.addEventListener('click', e => { if (e.target === el) close(); });
+  const go = el.querySelector('.wt-go'), st = el.querySelector('#cga-ask-st'), who = el.querySelector('#cga-ask-who');
+  el.querySelector('#cga-ask-push').addEventListener('change', e => { try { localStorage.setItem('nd_cga_push', e.target.checked ? '1' : '0'); } catch (x) {} });
+  go.focus();
+  if (can && window.ndApp.ndsUserInfo) window.ndApp.ndsUserInfo(false).then(n => {
+    if (!who.isConnected) return;
+    if (n && n.loggedIn) who.textContent = `내 NDS 로그인(${n.name || n.id})으로 배정돼요.`;
+    else { who.textContent = 'NDS에 로그인돼 있지 않아요. 위쪽 [WISE × N]에서 NDS를 연결해 주세요.'; who.classList.add('warn'); }
+  }).catch(() => {});
+  go.onclick = async () => {
+    go.disabled = true; go.textContent = '배정하는 중…'; st.textContent = '';
+    const hint = (rows.find(x => x.designer === name && Number(x.designerId) > 0) || {}).designerId || 0;
+    const res = await window.ndApp.ndsAssign({ id, name, hintId: hint, push: el.querySelector('#cga-ask-push').checked }).catch(e => ({ ok: false, error: e.message }));
+    if (res && res.ok) {
+      close();
+      // 화면 먼저(낙관적) → NDS 다시 읽어 맞춤
+      if (_cgaData && _cgaData.rows) { const x = _cgaData.rows.find(y => y.id === id); if (x) Object.assign(x, { status: '0002', designer: name, designerId: res.designerId || hint, assignAt: _cgmNow() }); }
+      _cgaPaint(); toast(`${name}님에게 배정했어요.`, 'success');
+      setTimeout(() => _cgaFetch(false), 1200);
+    } else {
+      go.disabled = false; go.textContent = '다시 배정';
+      st.textContent = (res && res.error) || '배정하지 못했어요.';
+      if (res && res.reason === 'state') setTimeout(() => _cgaFetch(false), 300);
+    }
+  };
 }
