@@ -191,7 +191,7 @@ function openNotifySheet(){
       </div>
     </div>
     <div id="us-push-status" class="ns-status"></div>
-    <button id="us-push-toggle-btn" onclick="togglePush()" class="ns-btn"></button>
+    <button id="us-push-toggle-btn" onclick="togglePush(this.dataset.want)" class="ns-btn"></button>
     <button id="us-push-test-btn" onclick="sendTestPush()" class="ns-btn ns-btn-primary">${BELL} 테스트 알림 보내기</button>
     ${typeof ndPreviewHTML==='function'?ndPreviewHTML():''}`;   // 근무표 앱: 알림 미리보기(시범용)
   openSheet('알림 설정', html);

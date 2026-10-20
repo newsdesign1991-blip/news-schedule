@@ -1,6 +1,6 @@
 /* [모듈] js/cg-assign.js — CG배정 현황(10-20, PC 사이드바 '근무표' 아래) | 로드 순서 = dashboard.html의 <script> 순서(바꾸지 말 것)
    오늘 출근한 CG 근무자(8데스·5데스 빼고) 카드 + NDS CG의뢰(nds.sbs.co.kr/request-cg)에서 누가 지금 작업 중인지.
-   - 근무자 = 홈 'CG 근무자'와 같은 기준(js/home.js): CG 근무 + CG 부서 8진·뉴오·일근, 휴가·수습·당직/퇴근·조근·오전데 빼고, XR 부서 빼고, 8데스·5데스 빼고
+   - 근무자 = 홈 'CG 근무자'와 같은 기준(js/home.js): CG 근무 + XR 근무(10-20: XR도 CG 제작을 늘 해서 포함) + CG·XR 부서 8진·뉴오·일근, 휴가·수습·당직/퇴근·조근·오전데 빼고, 8데스·5데스 빼고
    - NDS = 근무표 PC 앱 window.ndApp.ndsCg(오늘) (desktop/nds-cue.js, 공용 계정) — 이 화면을 열어 둔 PC만 20초마다(창이 보일 때만). 웹·옛 앱은 안내만
    - 상태 0002 배정 = 작업 중(파란 빛·깜빡이는 점·'작업 중…'·기자·의뢰/배정 시각), 그 밖 = 대기(회색). 이름은 NDS 디자이너 이름과 근무표 이름이 같아야 맞음
    - 10-20 추가: 프로젝트 인원은 늘 포함, [사람 추가]·카드 ×로 그날만 넣고 빼기(이 PC localStorage nd_cga_adj), 왼쪽 의뢰 ×로 이 앱에서만 숨기기(nd_cga_hide, NDS엔 그대로),
@@ -32,11 +32,12 @@ function _cgaPeople(ds) {
     if (!id || seen.has(id)) return;
     const s = staffById(id); if (!s) return;
     const d = dept(id);
-    if (d === 'xr' || (needCgDept ? d !== 'cg' : (d === 'vw' && vwW.has(id)))) return;
+    if (needCgDept ? (d !== 'cg' && d !== 'xr') : (d === 'vw' && vwW.has(id))) return;
     if (desk.has(id) || ex.has(id) || lv.has(id) || jo.has(id) || (typeof isProbation === 'function' && isProbation(s, ds))) return;
     seen.add(id); out.push({ id, name: s.name, tag });
   };
-  ((entry.cg && entry.cg.workers) || []).forEach(id => add(id, '', false));
+  ((entry.cg && entry.cg.workers) || []).forEach(id => add(id, dept(id) === 'xr' ? 'XR' : '', false));
+  (entry.xr || []).forEach(id => add(id, 'XR', false));   // XR 근무(10-20)
   // 프로젝트 인원은 부서와 상관없이 늘 넣음(10-20) — 휴가·수습만 뺌
   (entry.project || []).forEach(id => { const s = staffById(id); if (!s || seen.has(id) || lv.has(id) || (typeof isProbation === 'function' && isProbation(s, ds))) return; seen.add(id); out.push({ id, name: s.name, tag: 'PROJECT' }); });
   [['8진', entry.weekend8jin], ['8진', entry.weekday8jin], ['8진', entry.weekend8jin2], ['8진', entry.weekday8jin2], ['뉴.오', entry.newsOh], ['뉴.오', entry.newsOh2], ['일근', entry.ilgeun]]

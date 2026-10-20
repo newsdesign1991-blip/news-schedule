@@ -688,8 +688,16 @@ async function _pushSavePrefsNow(onlyIfChanged) {
     return false;
   } catch(e) { console.warn('push prefs sync', e); return false; }
 }
-async function togglePush() {
-  if (await isPushSubscribed()) disablePush(); else enablePush();
+// want = 버튼에 쓰여 있던 것('on'·'off') — 그대로만 함(10-20: 라벨이 늦게 바뀐 '켜기'를 눌렀는데 실제론 켜져 있어 꺼져 버리던 일 막음). 끌 때는 한 번 묻기
+async function togglePush(want) {
+  const on = await isPushSubscribed();
+  if (want === 'on') { if (!on) return enablePush(); toast('이미 알림이 켜져 있어요.','success'); renderMySchedule(); return _refreshUserSettingsModal(); }
+  if (want === 'off') {
+    if (!on) return _refreshUserSettingsModal();
+    if (!confirm(ND_APP ? '이 PC 알림을 끌까요? 8진·오뉴스 진행 알림도 이 PC에 안 와요.' : '이 기기 알림을 끌까요?')) return;
+    return disablePush();
+  }
+  if (on) disablePush(); else enablePush();
 }
 async function sendTestPush() {
   const btn = document.getElementById('us-push-test-btn');
@@ -730,6 +738,7 @@ async function _refreshUserSettingsModal() {
   }
   btn.style.display = '';
   if (testBtn) testBtn.style.display = subbed ? '' : 'none';   // 구독된 기기에서만 테스트 버튼 노출
+  btn.dataset.want = subbed ? 'off' : 'on';   // 누르면 이 글자대로만(togglePush)
   if (subbed) {
     btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg> 이 기기 알림 끄기'; btn.style.display='inline-flex'; btn.style.alignItems='center'; btn.style.justifyContent='center'; btn.style.gap='6px';
     btn.style.borderColor = '#f8a0a0'; btn.style.color = '#d65a52';

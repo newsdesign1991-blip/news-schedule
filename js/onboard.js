@@ -58,7 +58,7 @@ async function ndNotifyPrompt(force){
   go.onclick=async()=>{
     if(needGuide){ close(); ndAppGuide(); return; }
     go.disabled=true; go.textContent='켜는 중…';
-    try{ if(typeof togglePush==='function') await togglePush(); }catch(e){}
+    try{ if(typeof togglePush==='function') await togglePush('on'); }catch(e){}   // 켜기만(끄는 일 없음)
     let ok=false; try{ ok=await isPushSubscribed(); }catch(e){}
     if(ok){ close(); toast('알림을 켰어요. 알림 종류는 [알림 설정]에서 고를 수 있어요.','success'); }
     else { go.disabled=false; go.textContent='다시 켜기'; st.textContent='알림을 켜지 못했어요. 브라우저가 묻는 창에서 [허용]을 눌러 주세요.'; }
