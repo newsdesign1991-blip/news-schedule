@@ -224,7 +224,12 @@ function _cgaPaint() {
     .map(n => { const st = (data.staff || []).find(x => x.name === n); return { id: st ? st.id : '', name: n, tag: _cgaRoleTag(n, ds), extra: true }; })
     .filter(p => !(p.id && (_cgaLocal('nd_cga_adj').del || []).includes(p.id)));
   const busy = n => active(n).length > 0 || _cgmActive(n).length > 0;   // NDS 배정 또는 직접 배정(CG·앵커터치·PT)
-  const work = [...people.filter(p => busy(p.name)), ...extra], idle = people.filter(p => !busy(p.name));
+  // 배정이 오래된 사람부터(10-20): 작업 중 = 지금 하는 일 중 가장 최근 배정 시각이 이른 순, 대기 = 오늘 마지막 배정 시각이 이른 순(오늘 한 번도 없으면 맨 앞).
+  // 시각은 NDS 배정(assignAt)과 직접 배정(at) 둘 다 'YYYY-MM-DD HH:MM:SS'(한국 시각)라 글자 비교. 같으면 근무표 순서 그대로(정렬이 안정적)
+  const lastAt = (n, onlyActive) => [...(byName[n] || []).filter(r => (onlyActive ? r.status === '0002' : (r.status === '0002' || r.status === '0004'))).map(r => String(r.assignAt || '')),
+    ..._cgmToday().filter(j => j.name === n && (!onlyActive || !j.done)).map(j => String(j.at || ''))].filter(Boolean).sort().pop() || '';
+  const byOld = onlyActive => (x, y) => lastAt(x.name, onlyActive).localeCompare(lastAt(y.name, onlyActive));
+  const work = [...people.filter(p => busy(p.name)), ...extra].sort(byOld(true)), idle = people.filter(p => !busy(p.name)).sort(byOld(false));
   const sub = `CG제작 가능 인원 ${work.length + idle.length}명`;   // 10-20 사용자: 날짜·기준 시각 등은 빼고 이것만
   const subEl = document.getElementById('cga-sub'); if (subEl.textContent !== sub) subEl.textContent = sub;
   const stat = loaded ? `<span class="cga-pill on"><i></i>작업 중 ${work.length}</span><span class="cga-pill">대기 ${idle.length}</span>` : '';
