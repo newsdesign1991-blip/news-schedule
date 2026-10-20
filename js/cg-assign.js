@@ -4,7 +4,8 @@
    - NDS = 근무표 PC 앱 window.ndApp.ndsCg(오늘) (desktop/nds-cue.js, 공용 계정) — 이 화면을 열어 둔 PC만 20초마다(창이 보일 때만). 웹·옛 앱은 안내만
    - 상태 0002 배정 = 작업 중(파란 빛·깜빡이는 점·'작업 중…'·기자·의뢰/배정 시각), 그 밖 = 대기(회색). 이름은 NDS 디자이너 이름과 근무표 이름이 같아야 맞음
    - 10-20 추가: 프로젝트 인원은 늘 포함, [사람 추가]·카드 ×로 그날만 넣고 빼기(이 PC localStorage nd_cga_adj), 왼쪽 의뢰 ×로 이 앱에서만 숨기기(nd_cga_hide, NDS엔 그대로),
-     보완요청은 회색, 새 의뢰(0001)가 생기면 오른쪽 위 알림 카드(ndApp.toast — 1.2.4+, 옛 앱은 화면 아래 토스트) */
+     보완요청은 회색, 새 의뢰(0001)가 생기면 오른쪽 위 알림 카드(ndApp.toast — 1.2.4+, 옛 앱은 화면 아래 토스트)
+   - 직접 배정(앵커·PT — NDS에 안 올라옴): 카드 오른쪽 클릭 → 배정/완료, 공용 nd_data 'cgman'(아래 _cgm*) */
 const CGA_POLL = 20000;
 const CGA_PERSON_POP = false;   // 10-20 사용자: 카드 누르면 뜨는 사람 팝업(_cgaPersonPop)은 일단 숨김 — 코드는 남겨 둠, true 면 다시 켜짐
 let _cgaData = null, _cgaErr = '', _cgaBusy = false, _cgaTimer = null, _cgaTick = null, _cgaSeen = null;
@@ -92,9 +93,10 @@ function renderCgAssign() {
       <div class="cga-body"><aside class="cga-side" id="cga-side"><section class="cga-box"><h3>배정 기다리는 의뢰 <span id="cga-reqn">…</span></h3><div class="cga-reqs" id="cga-reqs"></div><p class="cga-none" id="cga-none" hidden>지금 기다리는 의뢰가 없어요.</p><button type="button" class="cga-unhide" id="cga-unhide" onclick="_cgaUnhide()" hidden></button></section></aside><div class="cga-grid" id="cga-grid"></div></div>`;
   }
   const g = document.getElementById('cga-grid');
+  if (!g._ctx) { g._ctx = true; g.addEventListener('contextmenu', _cgaCtx); }   // 카드 오른쪽 클릭 → 앵커·PT 직접 배정/완료
   if (CGA_PERSON_POP && !g._wired) {   // 카드 누르면 그 사람 오늘 CG(× 는 빼기)
     g._wired = true;
-    const open = e => { if (e.target.closest('.cga-x')) return; const c = e.target.closest('.cga-card[data-name]'); if (c && !c.classList.contains('cga-leaving')) _cgaPersonPop(c.dataset.name); };
+    const open = e => { if (e.target.closest('.cga-x, .cga-done')) return; const c = e.target.closest('.cga-card[data-name]'); if (c && !c.classList.contains('cga-leaving')) _cgaPersonPop(c.dataset.name); };
     g.addEventListener('click', open);
     g.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('cga-card')) { e.preventDefault(); open(e); } });
   }
@@ -118,6 +120,7 @@ function _cgaFit() {
 addEventListener('resize', () => { if (typeof currentView !== 'undefined' && currentView === 'cgassign') _cgaFit(); });
 async function _cgaFetch(manual) {
   if (_cgaBusy) return;
+  await _cgmLoad();   // 직접 배정(앵커·PT) — 여러 PC 공용
   if (!(typeof ND_APP !== 'undefined' && ND_APP && window.ndApp && window.ndApp.ndsCg)) {
     _cgaErr = (typeof ND_APP !== 'undefined' && ND_APP) ? '근무표 앱을 업데이트하면 볼 수 있어요. 오른쪽 위 렌치에서 업데이트해 주세요.' : 'CG배정 현황은 근무표 PC 앱에서 볼 수 있어요.';
     _cgaPaint(); return;
@@ -219,7 +222,8 @@ function _cgaPaint() {
   const extra = [...new Set(rows.filter(r => r.status === '0002' && r.designer && !names.has(r.designer)).map(r => r.designer))]
     .map(n => { const st = (data.staff || []).find(x => x.name === n); return { id: st ? st.id : '', name: n, tag: _cgaRoleTag(n, ds), extra: true }; })
     .filter(p => !(p.id && (_cgaLocal('nd_cga_adj').del || []).includes(p.id)));
-  const work = [...people.filter(p => active(p.name).length), ...extra], idle = people.filter(p => !active(p.name).length);
+  const busy = n => active(n).length > 0 || _cgmActive(n).length > 0;   // NDS 배정 또는 직접 배정(앵커·PT)
+  const work = [...people.filter(p => busy(p.name)), ...extra], idle = people.filter(p => !busy(p.name));
   const sub = `${d.getMonth() + 1}월 ${d.getDate()}일 ${'일월화수목금토'[d.getDay()]}요일 · 8데스·5데스 빼고 오늘 CG 근무자` + (loaded ? ` · ${new Date(_cgaData.at).toTimeString().slice(0, 5)} 기준` : '');
   const subEl = document.getElementById('cga-sub'); if (subEl.textContent !== sub) subEl.textContent = sub;
   const stat = loaded ? `<span class="cga-pill on"><i></i>작업 중 ${work.length}</span><span class="cga-pill">대기 ${idle.length}</span>` : '';
@@ -227,16 +231,18 @@ function _cgaPaint() {
   const msg = document.getElementById('cga-msg'); if (msg.textContent !== _cgaErr) msg.textContent = _cgaErr; msg.hidden = !_cgaErr;
   // 오른쪽: 사람 카드(작업 중 먼저). 성씨 동그라미는 뺌(10-20)
   const card = p => {
-    const a = active(p.name), on = a.length > 0;
+    const a = active(p.name), mj = _cgmActive(p.name), on = a.length > 0 || mj.length > 0;
+    const manHtml = mj.map(j => `<div class="cga-job man"><div class="cga-who"><b>${_cgaEsc(j.kind)}</b><small>직접 배정${j.by ? ' · ' + _cgaEsc(j.by) : ''}</small><button type="button" class="cga-done" onclick="_cgmDone('${_cgaEsc(j.id)}')">완료</button></div>
+        <div class="cga-time"><span>배정 <b>${_cgaHM(j.at)}</b></span><span class="cga-ago" data-at="${_cgaEsc(j.at)}"></span></div></div>`).join('');
     let body;
     if (!loaded) body = `<div class="cga-wait">${_cgaErr ? '' : '불러오는 중…'}</div>`;
-    else if (on) body = `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>` + a.slice(0, 2).map(r => `<div class="cga-job">
+    else if (on) body = `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>` + manHtml + a.slice(0, 2).map(r => `<div class="cga-job">
         <div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>
         ${r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : ''}
         <div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span><span class="cga-ago" data-at="${_cgaEsc(r.assignAt)}"></span></div>
       </div>`).join('') + (a.length > 2 ? `<div class="cga-more">+${a.length - 2}건 더</div>` : '');
     else body = '<div class="cga-idle">대기 중</div>';   // 끝난 CG는 안 보여 줌(10-20)
-    return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + (CGA_PERSON_POP ? ' pop' : ''), attrs: CGA_PERSON_POP ? { role: 'button', tabindex: '0', 'data-name': p.name, 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'data-name': p.name, 'aria-label': `${p.name} ${on ? '작업 중' : '대기'}` },
+    return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + (CGA_PERSON_POP ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, CGA_PERSON_POP ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: 앵커·PT 배정)` }),
       html: `<span class="cga-dot" aria-hidden="true"></span>${p.id ? `<button type="button" class="cga-x" onclick="_cgaDel('${_cgaEsc(p.id)}')" title="오늘 이 화면에서 빼기" aria-label="${_cgaEsc(p.name)} 빼기">×</button>` : ''}
       <div class="cga-top"><div class="cga-nm"><b>${_cgaEsc(p.name)}</b><span class="cga-tag${p.extra ? ' x' : ''}">${_cgaEsc(p.tag || 'CG')}</span></div></div>
       <div class="cga-cbody">${body}</div>` };
@@ -318,4 +324,95 @@ function _cgpPaint() {
     </div>`;
   }).join('') : `<p class="cgp-none">${_cgaData ? '오늘 처리한 CG가 아직 없어요.' : '불러오는 중…'}</p>`;
   _cgaAgoFill(el);
+}
+
+// ── 직접 배정(10-20): 앵커·PT 처럼 NDS에 안 올라오는 일 — 카드 오른쪽 클릭 → [앵커 배정]/[PT 배정]/[완료]
+// 저장 = nd_data id='cgman'(main 밖 — 자주 바뀌어서), payload.days[날짜] = [{ id, sid, name, kind, at:'YYYY-MM-DD HH:MM:SS'(한국 시각), by, done }]
+// 여러 PC가 같이 봄(20초마다 읽음). 쓸 때는 updated_at 낙관적 잠금 + 재시도. 7일 지난 날짜는 지움. 관리자 테스트 모드는 저장 안 함(화면에만)
+const CGM_KINDS = ['앵커', 'PT'];
+let _cgmData = null;
+const _cgmNow = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 19).replace('T', ' ');
+function _cgmToday() { return ((_cgmData && _cgmData.days && _cgmData.days[_cgaToday()]) || []); }
+function _cgmActive(name) { return _cgmToday().filter(j => j.name === name && !j.done).sort((a, b) => String(b.at).localeCompare(String(a.at))); }
+async function _cgmLoad() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.cgman&select=payload`, { headers: SB_HEADERS, cache: 'no-store' });
+    if (!r.ok) return;
+    const a = await r.json();
+    _cgmData = (a && a[0] && a[0].payload) || { days: {} };
+  } catch (e) { /* 다음에 */ }
+}
+async function _cgmCommit(mutate) {
+  if (typeof isAdminTest !== 'undefined' && isAdminTest) { _cgmData = _cgmData || { days: {} }; mutate(_cgmData); toast('관리자 테스트 모드라 저장되지 않아요(화면에만).', 'error'); return true; }
+  const url = `${SB_URL}/rest/v1/nd_data?id=eq.cgman`;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    let remote = null;
+    try { const g = await fetch(`${url}&select=payload,updated_at`, { headers: SB_HEADERS, cache: 'no-store' }); if (!g.ok) return false; const a = await g.json(); remote = (a && a[0]) || null; }
+    catch (e) { return false; }
+    const pay = (remote && remote.payload && typeof remote.payload === 'object') ? remote.payload : {};
+    if (!pay.days || typeof pay.days !== 'object') pay.days = {};
+    mutate(pay);
+    const keep = new Date(Date.now() + 9 * 3600e3 - 7 * 864e5).toISOString().slice(0, 10);
+    Object.keys(pay.days).forEach(k => { if (k < keep) delete pay.days[k]; });
+    const nowIso = new Date().toISOString(), H = Object.assign({}, SB_HEADERS, { 'Prefer': 'return=representation' });
+    try {
+      if (!remote) {
+        const pr = await fetch(`${SB_URL}/rest/v1/nd_data`, { method: 'POST', headers: H, body: JSON.stringify({ id: 'cgman', payload: pay, updated_at: nowIso }) });
+        if (pr.ok) { _cgmData = pay; return true; }
+        if (pr.status !== 409) return false;   // 그사이 누가 만들었으면 다시 읽고 고침
+      } else {
+        const pr = await fetch(`${url}&updated_at=eq.${encodeURIComponent(remote.updated_at)}`, { method: 'PATCH', headers: H, body: JSON.stringify({ payload: pay, updated_at: nowIso }) });
+        if (!pr.ok) return false;
+        const rows = await pr.json();
+        if (Array.isArray(rows) && rows.length) { _cgmData = pay; return true; }
+      }
+    } catch (e) { return false; }
+    await new Promise(res => setTimeout(res, 70 + attempt * 110 + Math.floor(Math.random() * 140)));
+  }
+  return false;
+}
+async function _cgmAssign(sid, name, kind) {
+  document.getElementById('cga-ctx')?.remove();
+  const day = _cgaToday(), by = (typeof currentUser !== 'undefined' && currentUser && currentUser.name) || '';
+  const job = { id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), sid: sid || '', name, kind, at: _cgmNow(), by, done: null };
+  const ok = await _cgmCommit(p => { (p.days[day] = p.days[day] || []).push(job); });
+  if (!ok) { toast('저장하지 못했어요. 잠시 뒤 다시 해 주세요.', 'error'); return; }
+  toast(`${name} — ${kind} 배정`, 'success');
+  _cgaPaint();
+}
+async function _cgmDone(id) {
+  document.getElementById('cga-ctx')?.remove();
+  const day = _cgaToday(), at = _cgmNow();
+  let hit = null;
+  const ok = await _cgmCommit(p => { const j = (p.days[day] || []).find(x => x.id === id); if (j && !j.done) { j.done = at; hit = j; } });
+  if (!ok) { toast('저장하지 못했어요. 잠시 뒤 다시 해 주세요.', 'error'); return; }
+  if (hit) toast(`${hit.name} — ${hit.kind} 완료`, 'success');
+  _cgaPaint();
+}
+// 카드 오른쪽 클릭 메뉴
+function _cgaCtx(e) {
+  const c = e.target.closest('.cga-card[data-name]'); if (!c || c.classList.contains('cga-leaving')) return;
+  e.preventDefault();
+  document.getElementById('cga-ctx')?.remove();
+  const name = c.dataset.name, sid = c.dataset.sid || '', act = _cgmActive(name);
+  const el = document.createElement('div'); el.id = 'cga-ctx'; el.className = 'cga-ctx'; el.setAttribute('role', 'menu'); el.setAttribute('aria-label', name + ' 직접 배정');
+  el.innerHTML = `<div class="cga-ctx-h">${_cgaEsc(name)}</div>`
+    + CGM_KINDS.map(k => `<button type="button" role="menuitem" data-act="as" data-kind="${_cgaEsc(k)}"><i class="cga-ctx-ic">${_cgaEsc(k[0])}</i>${_cgaEsc(k)} 배정</button>`).join('')
+    + (act.length ? '<div class="cga-ctx-div"></div>' + act.map(j => `<button type="button" role="menuitem" data-act="done" data-id="${_cgaEsc(j.id)}"><i class="cga-ctx-ic ok">✓</i>${_cgaEsc(j.kind)} 완료 <small>${_cgaHM(j.at)}~</small></button>`).join('') : '')
+    + (sid ? `<div class="cga-ctx-div"></div><button type="button" role="menuitem" data-act="del" class="dim">오늘 이 화면에서 빼기</button>` : '');
+  el.addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-act]'); if (!b) return;
+    if (b.dataset.act === 'as') _cgmAssign(sid, name, b.dataset.kind);
+    else if (b.dataset.act === 'done') _cgmDone(b.dataset.id);
+    else if (b.dataset.act === 'del') { el.remove(); _cgaDel(sid); }
+  });
+  document.body.appendChild(el);
+  const x = Math.min(e.clientX, innerWidth - el.offsetWidth - 8), y = Math.min(e.clientY, innerHeight - el.offsetHeight - 8);
+  el.style.left = Math.max(8, x) + 'px'; el.style.top = Math.max(8, y) + 'px';
+  el.querySelector('button')?.focus();
+  const off = ev => { if (!el.isConnected) { cleanup(); return; } if (!el.contains(ev.target)) { el.remove(); cleanup(); } };
+  const onKey = ev => { if (ev.key === 'Escape') { el.remove(); cleanup(); } };
+  const cleanup = () => { document.removeEventListener('mousedown', off, true); document.removeEventListener('keydown', onKey, true); removeEventListener('scroll', onScroll, true); };
+  const onScroll = () => { el.remove(); cleanup(); };
+  setTimeout(() => { document.addEventListener('mousedown', off, true); document.addEventListener('keydown', onKey, true); addEventListener('scroll', onScroll, true); }, 0);
 }
