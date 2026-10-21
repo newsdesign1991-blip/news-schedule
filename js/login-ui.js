@@ -113,7 +113,6 @@ function openAccountSheet(){
   const s = staffById(currentUser.staffId) || {};
   const DEPT_COLOR = {VW:'#5a7ec6',CG:'#4a9fbd',PROJECT:'#686dc8',SPORTS:'#8a6ecf',XR:'#4faa9c','조근':'#5a7ec6'};
   const col = DEPT_COLOR[s.dept] || '#6366f1';
-  const initials = (currentUser.name||'').trim().slice(-2);
   // 내가 할 수 있는 임무 태그
   const tags = [];
   if(s.dept) tags.push({t:s.dept, c:col});
@@ -128,8 +127,7 @@ function openAccountSheet(){
   const tagHtml = tags.length ? tags.map(x=>`<span style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:14px;background:${x.c}18;color:${x.c};">${x.t}</span>`).join('') : '<span style="color:var(--muted);font-size:13px;">지정된 임무 없음</span>';
   const html = `
     <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0 18px;">
-      <div style="width:78px;height:78px;border-radius:50%;background:linear-gradient(135deg,${col},${col}bb);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;box-shadow:0 6px 18px ${col}55;">${initials}</div>
-      <div style="font-size:21px;font-weight:800;color:var(--text);margin-top:8px;">${currentUser.name}</div>
+      <div style="font-size:24px;font-weight:800;color:var(--text);margin-top:6px;">${currentUser.name}</div>
       <div style="font-size:14px;font-weight:600;color:${col};">${s.dept||''}${s.employmentType==='freelancer'?' · 프리랜서':''}</div>
     </div>
     <div style="border-top:1px solid var(--border);padding-top:16px;">

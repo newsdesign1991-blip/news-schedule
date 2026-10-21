@@ -164,12 +164,9 @@ function renderStaffTable() {
     ].filter(Boolean).join('');
     const sub=[s.employmentType==='freelancer'?'직원B':'직원A'];
     if((s.dept==='VW'||s.dept==='CG')&&s.deskPriority) sub.push('데스크 '+s.deskPriority+'번');
-    const av=((s.name||'?').trim().charAt(0))||'?';
-    const color=DEPT_COLORS[s.dept]||'#94a3b8';
     return `<div class="staff-card${s.active===false?' inactive':''}" draggable="true" data-staff-id="${s.id}"
       ondragstart="staffDragStart(event,'${s.id}')" ondragover="staffDragOver(event)" ondragleave="staffDragLeave(event)" ondrop="staffDrop(event,'${s.id}')" ondragend="staffDragEnd(event)"
       onclick="openStaffModal('${s.id}')">
-      <div class="sc-avatar" style="background:${color};">${_pEsc(av)}</div>
       <div class="sc-body">
         <div class="sc-name-row"><span class="sc-name">${_pEsc(s.name)}</span><span class="dept-badge ${s.dept}" style="font-size:9.5px;">${_pEsc(s.dept)}</span></div>
         <div class="sc-sub">${sub.join(' · ')}</div>

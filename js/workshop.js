@@ -1146,7 +1146,7 @@ function _flSplitHTML(ds,withBar){
   const top=withBar?_wlBar(ro):'<p class="wi-note">카드를 누르면 오른쪽에 그 사람 휴가가 나옵니다. WISE 휴가는 관리자 패널 \'휴가\' 탭에서 가져옵니다.</p>';
   if(!list.length) return top+'<div class="wi-empty">직원B가 없습니다.</div>';
   if(!list.some(s=>s.id===_flSel)) _flSel=list[0].id;
-  const av=(s,dept)=>`<span class="wl-av" style="background:${_wiEsc(typeof _deptColor==='function'?_deptColor(dept):'#94a3b8')}">${_wiEsc(String(s.name||'?').trim().charAt(0))}</span>`;
+  const av=()=>'';   // 성씨 동그라미는 뺌(10-21 사용자)
   const items=list.map(s=>{ const dept=String(deptOn(s,ds)||''), v=fl[s.id]||{}, used=_wlUsed(s.id,yr);
     return `<button type="button" class="fl-item${s.id===_flSel?' on':''}" aria-pressed="${s.id===_flSel}" onclick="flSelect('${s.id}')">${av(s,dept)}
       <span class="fl-id"><b>${_wiEsc(s.name)}</b><small>${_wiEsc(dept)}</small></span>

@@ -7,7 +7,6 @@
 (function(){
   var HANDLERS = { poll: ['_pollCmtAdd', '_pollCmtDel'], notice: ['_noticeCmtAdd', '_noticeCmtDel'] };
   var MAX = 500;
-  var AV = ['#3182f6', '#e0483c', '#16a34a', '#e6a817', '#8b5cf6', '#0891b2', '#ec4899', '#64748b'];
   var SEND = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
   var X = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
@@ -21,7 +20,6 @@
     if (d.toDateString() === n.toDateString()) return hm;
     return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hm;
   }
-  function color(name){ var h = 0; String(name || '').split('').forEach(function(c){ h = (h * 31 + c.charCodeAt(0)) | 0; }); return AV[Math.abs(h) % AV.length]; }
   // 지울 수 있는 사람: 쓴 사람(직원 id) 또는 관리자·마스터
   window.ndCmtCanDelete = function(c){
     var u = me();
@@ -34,7 +32,6 @@
     return list.map(function(c){
       var mine = u && c.byId === u.staffId, name = c.by || '익명';
       return '<div class="ndcm-item' + (mine ? ' mine' : '') + '" data-cid="' + esc(c.id) + '">' +
-        '<span class="ndcm-av" style="background:' + color(name) + '" aria-hidden="true">' + esc(name.charAt(0)) + '</span>' +
         '<div class="ndcm-bub"><div class="ndcm-meta"><b>' + esc(name) + '</b><time datetime="' + esc(c.at || '') + '">' + when(c.at) + '</time>' +
         (ndCmtCanDelete(c) ? '<button type="button" class="ndcm-del" aria-label="댓글 지우기" title="지우기" onclick="ndCmtDelete(this)">' + X + '</button>' : '') +
         '</div><div class="ndcm-text">' + esc(c.text) + '</div></div></div>';
