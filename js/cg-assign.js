@@ -153,11 +153,12 @@ function renderCgAssign() {
         <button type="button" class="cga-refresh" onclick="_cgaFetch(true)" title="지금 새로고침" aria-label="지금 새로고침"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
       </div>
       <div class="cga-msg" id="cga-msg" role="status"></div>
-      <div class="cga-body"><aside class="cga-side" id="cga-side"><section class="cga-box"><h3>배정 기다리는 의뢰 <span id="cga-reqn">…</span></h3><div class="cga-reqs" id="cga-reqs"></div><p class="cga-none" id="cga-none" hidden>지금 기다리는 의뢰가 없어요.</p><button type="button" class="cga-unhide" id="cga-unhide" onclick="_cgaUnhide()" hidden></button></section></aside><div class="cga-grid" id="cga-grid"></div></div>`;
+      <div class="cga-body"><aside class="cga-side" id="cga-side"><section class="cga-box"><h3>배정 기다리는 의뢰 <span id="cga-reqn">…</span></h3><div class="cga-reqs" id="cga-reqs"></div><p class="cga-none" id="cga-none" hidden>지금 기다리는 의뢰가 없어요.</p><button type="button" class="cga-unhide" id="cga-unhide" onclick="_cgaUnhide()" hidden></button></section></aside><div class="cga-grid" id="cga-grid"></div></div>
+      <button type="button" class="cga-demo" onclick="_cgaDemo()" title="가짜 의뢰가 들어오는 모습을 이 화면에서만 보여 줘요(NDS엔 아무것도 안 가요)">시험 의뢰</button>`;   // 자주 안 써서 화면 오른쪽 아래 구석(10-21 사용자)
   }
   const g = document.getElementById('cga-grid');
   if (!g._ctx) { g._ctx = true; g.addEventListener('contextmenu', _cgaCtx);
-    g.addEventListener('click', e => { if (e.target.closest('.cga-x, .cga-done')) return; const j = e.target.closest('.cga-job[data-rid]'); if (!j) return; const id = Number(j.dataset.rid) || 0; if (id > 0) _cgaReqOpen(id); });   // 배정된 의뢰 칸 → 크게 보기(10-21)
+    g.addEventListener('click', e => { if (e.target.closest('.cga-x, .cga-done')) return; const j = e.target.closest('.cga-job[data-rid]'); if (!j) return; const id = Number(j.dataset.rid) || 0; if (id) _cgaReqOpen(id); });   // 배정된 의뢰 칸 → 크게 보기(10-21, 시험 의뢰도)
   }
   _cgaWireDnd();   // 의뢰 → 사람 카드 끌어다 놓기 배정(10-21)   // 카드 오른쪽 클릭 → CG·앵커터치·PT 직접 배정/완료
   if (CGA_PERSON_POP && !g._wired) {   // 카드 누르면 그 사람 오늘 CG(× 는 빼기)
@@ -205,6 +206,7 @@ async function _cgaFetch(manual) {
     const r = await window.ndApp.ndsCg(_cgaToday());
     // 시험용 가짜 의뢰(개발판에서 애니메이션 볼 때만 — window._cgaFakeRows, id 는 음수. NDS 로 안 감)
     if (r && r.ok && Array.isArray(window._cgaFakeRows)) r.rows = r.rows.concat(window._cgaFakeRows.filter(x => !r.rows.some(y => y.id === x.id)));
+    if (r && r.ok && window._cgaFakeCue8 && (!r.cue8 || window._cgaFakeCue8.force)) r.cue8 = window._cgaFakeCue8;   // 시험용 8뉴스 큐시트(큐시트가 안 오거나 시험에 쓸 이름이 모자랄 때)
     if (r && r.ok) { _cgaNotifyNew(r); _cgaData = r; _cgaErr = ''; }
     else _cgaErr = !r ? 'NDS에서 읽지 못했어요.' : r.reason === 'noaccount' ? 'NDS 공용 계정이 이 PC에 없어요.' : r.reason === 'login' ? 'NDS 로그인 실패: ' + (r.error || '') : (r.error || 'NDS에서 읽지 못했어요.');
   } catch (e) { _cgaErr = 'NDS에서 읽지 못했어요.'; }
@@ -224,13 +226,74 @@ function _cgaRoleTag(name, ds) {
   return String(deptOn(s, ds) || '근무').toUpperCase();
 }
 // 새 의뢰(0001)가 생기면 한 번 알림 — 처음 읽을 때는 기억만
+// 8뉴스 의뢰 큐시트 순서(10-21 사용자): 8시뉴스 의뢰를 그날 8뉴스 큐시트(빈 줄 뺀 순서)에서 찾아 번호 — 1~10번째는 가장 먼저 방송되니 목록 맨 위에 급한 순서대로·빨강주황 바탕·오른쪽 위 번호.
+// 찾는 순서: 제목 맨 앞 이름(보통 '전병남 8리 CG 4컷'처럼 리포트 기자 이름) → 제목 속 아무 큐시트 기자 이름(맨 앞에 가까운 것) → 요청자 이름. 같은 기자가 여러 줄이면 앞 줄.
+// 큐시트 줄은 앱이 의뢰 목록과 같이 줌(desktop/nds-cue.js cue8 — 앱 1.2.8~, 없으면 번호 없이 예전 그대로)
+const CGA_URGENT = 10, CGA_NOT_NAME = new Set(['정치', '사회', '경제', '국제', '문화', '스포츠', '캐스터', '기상', '단신', '날씨']);
+function _cga8Rank(r, cue) {
+  const c = cue || (_cgaData && _cgaData.cue8); if (!c || !Array.isArray(c.items) || !r || (c.pgmId && r.pgm !== c.pgmId)) return 0;
+  const by = new Map(); c.items.forEach(it => { const n = String(it.rptr || '').trim(); if (/^[가-힣]{2,5}$/.test(n) && !CGA_NOT_NAME.has(n) && !by.has(n)) by.set(n, it.no); });
+  const t = String(r.title || '').replace(/^\s*(\[[^\]]*\]|\([^)]*\)|<[^>]*>)\s*/, ''), lead = (t.match(/^\s*([가-힣]{2,5})/) || [])[1];
+  if (lead && by.has(lead)) return by.get(lead);
+  let best = 0, at = Infinity; by.forEach((no, n) => { const i = t.indexOf(n); if (i >= 0 && i < at) { at = i; best = no; } });
+  return best || by.get(String(r.requester || '').trim()) || 0;
+}
+// 시험 의뢰(10-21 사용자 '실제 의뢰가 오기 전에 어떻게 들어오는지 보여 줄 수 있게'): [시험 의뢰]를 누르면 가짜 의뢰가 몇 초 간격으로 하나씩 들어옴 —
+// 들어오는 모양·알림 카드·8뉴스 1~10번째(맨 위·빨강주황·빨간 번호)·끌어다 배정(가짜는 화면에서만 배정됨)까지 실제처럼. NDS 에는 아무것도 안 가고 이 PC 화면에서만(window._cgaFakeRows).
+// 8뉴스는 오늘 큐시트 기자 이름을 빌려 진짜 번호가 붙게(큐시트가 없거나 이름이 모자라면 가짜 큐시트). 다시 누르거나 10분 지나면 끝
+let _cgaDemoT = [];
+function _cgaDemoOn() { return Array.isArray(window._cgaFakeRows) && window._cgaFakeRows.some(x => x.demo); }
+function _cgaDemoBtn() { const b = document.querySelector('#cga-root .cga-demo'); if (!b) return; const on = _cgaDemoOn(); b.classList.toggle('on', on); b.textContent = on ? '시험 끝내기' : '시험 의뢰'; }
+function _cgaDemoApply() {   // NDS 를 다시 읽지 않고 바로 화면에(새 의뢰 알림 카드도)
+  if (!_cgaData || _cgaData.day !== _cgaToday()) return;
+  _cgaData.rows = (_cgaData.rows || []).filter(x => x.id > 0).concat(window._cgaFakeRows || []);
+  if (window._cgaFakeCue8 && (!_cgaData.cue8 || window._cgaFakeCue8.force)) _cgaData.cue8 = window._cgaFakeCue8;
+  _cgaNotifyNew(_cgaData); _cgaPaint(); _cgaDemoBtn();
+}
+function _cgaDemo() {
+  if (_cgaDemoOn()) return _cgaDemoEnd();
+  if (!_cgaData || _cgaData.day !== _cgaToday()) { toast('NDS 의뢰를 먼저 불러온 뒤에 해 주세요.', 'error'); return; }
+  const ok = it => /^[가-힣]{2,5}$/.test(String(it.rptr || '')) && !CGA_NOT_NAME.has(it.rptr);
+  let cue = _cgaData.cue8, names = cue && Array.isArray(cue.items) ? cue.items.filter(ok) : [];
+  if (names.filter(i => i.no <= 10).length < 2 || !names.some(i => i.no > 10)) {
+    cue = window._cgaFakeCue8 = { pgmId: (cue && cue.pgmId) || 39, fake: true, force: !!cue, items: ['김시험', '박예시', '이보기', '최연습', '정샘플', '한데모', '오시험', '윤예제', '장연습', '임보기', '강샘플', '조예시'].map((r, i) => ({ no: i + 1, rptr: r, title: '[시험] 리포트 ' + (i + 1) })) };
+    names = cue.items;
+  }
+  const A = names.find(i => i.no >= 5 && i.no <= 10) || names.filter(i => i.no <= 10).pop();
+  const B = names.find(i => i.no <= 4 && i !== A) || names.find(i => i.no <= 10 && i !== A), C = names.find(i => i.no > 10);
+  const base = -(Date.now() % 1e6) * 10, pg = cue.pgmId || 39;
+  const rows = [
+    { requester: '편집제작부', requesterDept: '뉴스브리핑', title: '[시험] 뉴브A 무빙CG 2', reqCnt: 2, pgm: 53 },
+    { requester: A.rptr, requesterDept: '사회부', title: `${A.rptr} 8리 CG 3컷 [시험]`, reqCnt: 3, pgm: pg },
+    { requester: '시험요청', requesterDept: '정치부', title: `${B.rptr} 8리 CG [시험] — 요청자와 리포트 기자가 달라도 제목 앞 이름으로 찾아요`, reqCnt: 1, pgm: pg },
+    { requester: C.rptr, requesterDept: '경제부', title: `${C.rptr} 8리 그래픽 [시험]`, reqCnt: 1, pgm: pg },
+  ];
+  window._cgaFakeRows = [];
+  _cgaDemoT.forEach(clearTimeout);
+  _cgaDemoT = rows.map((r, i) => setTimeout(() => {
+    if (!Array.isArray(window._cgaFakeRows)) return;
+    window._cgaFakeRows.push(Object.assign({ id: base - i - 1, status: '0001', inputAt: _cgmNow(), designer: '', demo: true, content: `<p><b>(시험 의뢰)</b> 이 화면에서만 보이는 가짜 의뢰예요. NDS 에는 없어요.</p><p>${_cgaEsc(r.title)}</p>` }, r));
+    _cgaDemoApply();
+  }, 400 + i * 2600));
+  _cgaDemoT.push(setTimeout(_cgaDemoEnd, 10 * 60e3));
+  window._cgaFakeRows.push({ id: base, status: '0004', demo: true, title: '', designer: '' });   // 시험 중 표시용(목록·카드엔 안 나옴: 완료·디자이너 없음)
+  _cgaDemoBtn(); _cgaPaint();
+  toast('시험 의뢰가 몇 초 간격으로 들어와요. NDS엔 아무것도 안 가요.', 'success');
+}
+function _cgaDemoEnd() {
+  _cgaDemoT.forEach(clearTimeout); _cgaDemoT = [];
+  window._cgaFakeRows = null; window._cgaFakeCue8 = null;
+  if (_cgaData) { _cgaData.rows = (_cgaData.rows || []).filter(x => x.id > 0); if (_cgaData.cue8 && _cgaData.cue8.fake) _cgaData.cue8 = null; }
+  _cgaPaint(); _cgaDemoBtn();
+  setTimeout(() => _cgaFetch(false), 300);   // 진짜 큐시트로 돌려놓기
+}
 function _cgaNotifyNew(r) {
   const req = (r.rows || []).filter(x => x.status === '0001');
   if (!_cgaSeen || _cgaSeen.day !== r.day) { _cgaSeen = { day: r.day, ids: new Set(req.map(x => x.id)) }; return; }
   const fresh = req.filter(x => !_cgaSeen.ids.has(x.id));
   fresh.forEach(x => _cgaSeen.ids.add(x.id));
   if (!fresh.length) return;
-  const f = fresh[0], title = fresh.length > 1 ? `새 CG 의뢰 ${fresh.length}건` : '새 CG 의뢰가 들어왔어요';
+  const f = fresh[0], n8 = _cga8Rank(f, r.cue8), title = fresh.length > 1 ? `새 CG 의뢰 ${fresh.length}건` : n8 && n8 <= CGA_URGENT ? `급함 — 8뉴스 ${n8}번째 CG 의뢰가 들어왔어요` : '새 CG 의뢰가 들어왔어요';
   const body = fresh.length > 1 ? fresh.map(x => x.requester).filter(Boolean).join(', ') : `${f.requester}${f.requesterDept ? ' (' + f.requesterDept + ')' : ''}${f.title ? ' — ' + f.title : ''}`;
   if (window.ndApp && window.ndApp.toast) window.ndApp.toast({ title, body }); else toast(title + ' · ' + body, 'success');
 }
@@ -306,7 +369,7 @@ function _cgaPaint() {
   const byOld = onlyActive => (x, y) => lastAt(x.name, onlyActive).localeCompare(lastAt(y.name, onlyActive));
   const work = [...people.filter(p => busy(p.name)), ...extra].sort(byOld(true)), idle = people.filter(p => !busy(p.name)).sort(byOld(false));
   const can = _cgaCanEdit();
-  const sub = `CG제작 가능 인원 ${work.length + idle.length}명` + (can ? '' : ' · 배정·사람 넣고 빼기는 오늘 데스크만');   // 10-20 사용자: 날짜·기준 시각 등은 빼고 이것만
+  const sub = `CG제작 가능 인원 ${work.length + idle.length}명` + (can ? '' : ' · 배정·사람 넣고 빼기는 오늘 데스크만') + (_cgaDemoOn() ? ' · 시험 중(가짜 의뢰 — NDS엔 안 가요)' : '');   // 10-20 사용자: 날짜·기준 시각 등은 빼고 이것만
   const addBtn = document.querySelector('#cga-root .cga-addp'); if (addBtn) addBtn.style.display = can ? '' : 'none';
   const subEl = document.getElementById('cga-sub'); if (subEl.textContent !== sub) subEl.textContent = sub;
   const stat = loaded ? `<span class="cga-pill on"><i></i>작업 중 ${work.length}</span><span class="cga-pill">대기 ${idle.length}</span>` : '';
@@ -339,12 +402,14 @@ function _cgaPaint() {
   // 왼쪽: 배정 기다리는 의뢰(의뢰·보완요청), 오래된 것부터 위로 쌓임. 새 의뢰는 아래에서 스르륵 올라옴. 15분 넘으면 빨강, 보완요청은 회색(맨 아래), ×로 이 앱에서만 숨김
   const hid = new Set(_cgaLocal('nd_cga_hide').ids || []);
   const all = rows.filter(r => r.status === '0001' || r.status === '0003');
-  const wait = all.filter(r => !hid.has(r.id)).sort((a, b) => ((a.status === '0003') - (b.status === '0003')) || String(a.inputAt).localeCompare(String(b.inputAt)));
+  const rk = new Map(all.map(r => { const n = r.status === '0001' ? _cga8Rank(r) : 0; return [r.id, n && n <= CGA_URGENT ? n : 0]; })), urg = r => rk.get(r.id) || 0;   // 8뉴스 1~10번째(10-21)
+  const wait = all.filter(r => !hid.has(r.id)).sort((a, b) => ((a.status === '0003') - (b.status === '0003')) || ((urg(b) > 0) - (urg(a) > 0)) || (urg(a) - urg(b)) || String(a.inputAt).localeCompare(String(b.inputAt)));
   const nHid = all.length - wait.length, nReq = wait.filter(r => r.status === '0001').length;
   const item = r => {
-    const fix = r.status === '0003';
-    return { key: 'r:' + r.id, cls: 'cga-req' + (fix ? ' fix' : can ? ' drag' : ''), attrs: fix ? { draggable: 'false' } : { draggable: 'false', 'data-rid': String(r.id), title: can ? '누르면 크게 보기 · 끌어서 사람 카드에 놓으면 배정' : '누르면 크게 보기' },
+    const fix = r.status === '0003', n8 = urg(r);
+    return { key: 'r:' + r.id, cls: 'cga-req' + (fix ? ' fix' : can ? ' drag' : '') + (n8 ? ' urgent' : ''), attrs: fix ? { draggable: 'false' } : { draggable: 'false', 'data-rid': String(r.id), title: can ? '누르면 크게 보기 · 끌어서 사람 카드에 놓으면 배정' : '누르면 크게 보기' },
       html: `<button type="button" class="cga-x" onclick="_cgaHide(${Number(r.id) || 0})" title="이 앱에서만 숨기기(NDS엔 그대로)" aria-label="의뢰 숨기기">×</button>`
+        + (n8 ? `<span class="cga-no" title="8뉴스 큐시트 ${n8}번째 아이템 — 먼저 방송돼요">${n8}</span>` : '')
         + `<div class="cga-who"><b>${_cgaEsc(r.requester)}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}${fix ? '<em class="cga-fix">보완요청</em>' : ''}</div>`
         + (r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : '')
         + `<div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span>${fix ? '<span class="cga-ago">보완 기다림</span>' : `<span class="cga-ago" data-kind="wait" data-at="${_cgaEsc(r.inputAt)}"></span>`}</div>` };
@@ -554,7 +619,7 @@ function _cgaPullMove(e) {
     // 목록 상자(스크롤 영역)에 잘리지 않게: 같은 칸을 화면 위(body)에 같은 자리로 띄워 그걸 움직임(위치는 transform 하나로)
     const r = p.it.getBoundingClientRect(), cs = getComputedStyle(p.it), g = document.createElement('div');
     const padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0;
-    g.className = 'cga-pullghost' + (p.it.classList.contains('late') ? ' late' : ''); g.setAttribute('aria-hidden', 'true');
+    g.className = 'cga-pullghost' + (p.it.classList.contains('late') ? ' late' : '') + (p.it.classList.contains('urgent') ? ' urgent' : ''); g.setAttribute('aria-hidden', 'true');
     g.innerHTML = [...p.it.children].filter(c => !c.classList.contains('cga-x')).map(c => c.outerHTML).join('');
     Object.assign(g.style, { width: (r.width + 20) + 'px', minHeight: r.height + 'px', paddingLeft: (padL + 10) + 'px', paddingRight: (padR + 10) + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom });
     p.bx = r.left - 10; p.by = r.top; p.gw = r.width + 20;
@@ -681,7 +746,7 @@ async function _cgaAssignAsk(id, name, slot) {
   if (can && window.ndApp.ndsUserInfo) window.ndApp.ndsUserInfo(false).then(n => {
     if (!who.isConnected) return;
     if (n && n.loggedIn) who.textContent = `내 NDS 로그인(${n.name || n.id})으로 배정돼요.`;
-    else { who.textContent = 'NDS에 로그인돼 있지 않아요. 위쪽 [WISE × N]에서 NDS를 연결해 주세요.'; who.classList.add('warn'); }
+    else { who.textContent = 'NDS에 로그인돼 있지 않아요. 위쪽 [WISE × NDS]에서 NDS를 연결해 주세요.'; who.classList.add('warn'); }
   }).catch(() => {});
   go.onclick = async () => {
     go.disabled = true; go.textContent = '배정하는 중…'; st.textContent = '';

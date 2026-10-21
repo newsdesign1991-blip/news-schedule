@@ -84,7 +84,7 @@ function ndAdminExit(){
 // 10-21: 'WISE × N' — WISE 와 NDS 가 같은 통합 계정이라 WISE 로그인 한 번으로 NDS 개인 로그인도(desktop/nds-user.js). N 칸은 NDS 로그인됐을 때만 파랑
 const ND_N_LOGO='<svg class="ndw-n" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="18.75" fill="currentColor"/><path fill="#fff" d="M12.9,22.7 L48.8,22.7 L66.5,52.2 L66.5,22.7 L79.9,22.7 L79.9,77.3 L66.5,77.3 L39.8,33.4 L23.5,33.4 Z M23.9,42.7 L37.3,42.7 L37.3,77.3 L23.9,77.3 Z"/></svg>';   // 뉴스 플레이어 검수 화면 NDS 로고
 let _ndWiseOn=null, _ndWiseChecked=false, _ndNdsOn=null;
-function _ndWiseLabel(t){ return `<span class="ndw-dot" aria-hidden="true"></span><span>WISE</span><span class="ndw-x" aria-hidden="true">×</span>${ND_N_LOGO}<span>${t}</span>`; }
+function _ndWiseLabel(t){ return `<span class="ndw-dot" aria-hidden="true"></span><span>WISE</span><span class="ndw-x" aria-hidden="true">×</span><span class="ndw-nt">NDS</span><span>${t}</span>`; }   // 10-21 사용자: N 로고 말고 글자 'NDS'(NDS 로그인되면 파랑)
 function _ndWiseState(on){
   _ndWiseOn=on; const b=document.getElementById('ndt-wise'); if(!b) return;
   b.classList.toggle('on', on===true); b.classList.toggle('n-on', _ndNdsOn===true);
@@ -165,7 +165,7 @@ async function _ndWisePop(btn){
   setTimeout(()=>document.addEventListener('mousedown',function off(e){ if(!pop.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',off); } }),0);
   const [i,n]=await Promise.all([window.ndApp.wiseInfo().catch(()=>null), window.ndApp.ndsUserInfo?window.ndApp.ndsUserInfo(false).catch(()=>null):Promise.resolve(null)]);
   if(!pop.isConnected) return;
-  if(!i||!i.loggedIn){ pop.remove(); _ndWiseState(false); toast('WISE 로그인이 끊겼어요. [WISE × N 로그인]을 눌러 다시 로그인해 주세요.',''); return; }
+  if(!i||!i.loggedIn){ pop.remove(); _ndWiseState(false); toast('WISE 로그인이 끊겼어요. [WISE × NDS 로그인]을 눌러 다시 로그인해 주세요.',''); return; }
   if(n) _ndNdsState(!!n.loggedIn);
   pop.innerHTML=ndWiseInfoHTML(i,true,n);
 }
@@ -319,7 +319,7 @@ async function _wtCalLoad(k,month){
     c.innerHTML=_wtCalHead(k,month)+'<div class="wt-cal-msg">WISE 휴가달력 불러오는 중…</div>';
     const r=await _wtCalGet(month);
     if(!document.getElementById('wt-cal-'+k)||S.month!==month) return;
-    if(!r||!r.ok){ c.innerHTML=_wtCalHead(k,month)+`<div class="wt-cal-msg">${r&&r.reason==='login'?'WISE에 로그인돼 있지 않아요. 위쪽 [WISE × N 로그인] 후 다시 열어 주세요.':_wiEsc((r&&r.error)||'휴가달력을 불러오지 못했어요.')}</div>`; return; }
+    if(!r||!r.ok){ c.innerHTML=_wtCalHead(k,month)+`<div class="wt-cal-msg">${r&&r.reason==='login'?'WISE에 로그인돼 있지 않아요. 위쪽 [WISE × NDS 로그인] 후 다시 열어 주세요.':_wiEsc((r&&r.error)||'휴가달력을 불러오지 못했어요.')}</div>`; return; }
   }
   const items=_wtSt.cache[month], tdy=typeof _mealToday==='function'?_mealToday():'';
   const [yy,mm]=month.split('-').map(Number), first=new Date(yy,mm-1,1), days=[];
@@ -515,7 +515,7 @@ if(!ND_APP&&!_ndPcBlocked&&!_ndPcBypass){ let _apxN=0; const _apxT=setInterval((
 function _tourSteps(){
   const st=[];
   const wiseOk=typeof _ndWiseAllowed==='function'&&_ndWiseAllowed();
-  if(wiseOk) st.push({ sel:'#ndt-wise', title:'먼저 WISE·NDS에 연결해요', body:'위쪽 <b>[WISE × N 로그인]</b>을 누르면 WISE 로그인 창만 떠요. 평소처럼 로그인하면 같은 아이디로 <b>NDS도 같이</b> 로그인돼요 — 버튼이 초록 <b>연결됨</b>, N이 파랗게 바뀌고, 앱을 껐다 켜도 연결이 유지돼요.' });
+  if(wiseOk) st.push({ sel:'#ndt-wise', title:'먼저 WISE·NDS에 연결해요', body:'위쪽 <b>[WISE × NDS 로그인]</b>을 누르면 WISE 로그인 창만 떠요. 평소처럼 로그인하면 같은 아이디로 <b>NDS도 같이</b> 로그인돼요 — 버튼이 초록 <b>연결됨</b>, NDS 글자가 파랗게 바뀌고, 앱을 껐다 켜도 연결이 유지돼요.' });
   if(wiseOk&&_wtAllowed()) st.push({ sel:['#my-schedule-card .mw-day.today','#my-schedule-card .mw-day'], home:true, title:'근무 칩을 누르면 WISE 근무시간이 자동으로', body:'홈 <b>이번 주 내 근무</b>에서 오늘 칩을 누르면 근무시간 입력 창이 떠요. 정근은 <b>12:00–21:00</b>, 당직은 <b>21:00–10:00(N)</b>이 저절로 들어가고, 휴일이면 대휴도 고를 수 있어요. <b>[채우고 결재]</b>를 누르면 WISE 창 없이 결재 확인까지 한 번에 끝나요.' });
   st.push({ sel:'#nd-titlebar .ndt-phone', title:'휴대폰에도 깔아 두세요', body:'위쪽 <b>휴대폰</b> 버튼을 누르면 QR 코드와 휴대폰별 설치 순서가 나와요. 카메라로 찍어 앱으로 설치하면 밖에서도 근무표를 보고, 근무·진행 알림을 휴대폰으로 받아요.' });
   st.push({ sel:'#nd-titlebar .ndt-user button', title:'PC 알림도 켜 두세요', body:'<b>알림 설정</b>에서 PC 알림을 켜면 8진·오뉴스 진행이 화면 테두리 알림으로 와요. 앱은 창을 닫아도 오른쪽 아래 트레이에서 계속 알림을 받아요.' });
