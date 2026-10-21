@@ -226,6 +226,13 @@ function _cgaRoleTag(name, ds) {
   return String(deptOn(s, ds) || '근무').toUpperCase();
 }
 // 새 의뢰(0001)가 생기면 한 번 알림 — 처음 읽을 때는 기억만
+// 의뢰 제목으로 일 종류 짐작(10-21 사용자): '앵커터치'·'앵터' → 앵커터치(빨강), 'PT'·'터치'(터치 = PT) → PT(주황), 아니면 ''(CG 파랑)
+function _cgaKw(title) {
+  const t = String(title || '');
+  if (/앵커\s*터치|앵터/.test(t)) return 'anchor';
+  if (/터치/.test(t) || /(^|[^A-Za-z])PT([^A-Za-z]|$)/i.test(t)) return 'pt';
+  return '';
+}
 // 8뉴스 의뢰 큐시트 순서(10-21 사용자): 8시뉴스 의뢰를 그날 8뉴스 큐시트(빈 줄 뺀 순서)에서 찾아 번호 — 1~10번째는 가장 먼저 방송되니 목록 맨 위에 급한 순서대로·빨강주황 바탕·오른쪽 위 번호.
 // 찾는 순서: 제목 맨 앞 이름(보통 '전병남 8리 CG 4컷'처럼 리포트 기자 이름) → 제목 속 아무 큐시트 기자 이름(맨 앞에 가까운 것) → 요청자 이름. 같은 기자가 여러 줄이면 앞 줄.
 // 큐시트 줄은 앱이 의뢰 목록과 같이 줌(desktop/nds-cue.js cue8 — 앱 1.2.8~, 없으면 번호 없이 예전 그대로)
@@ -382,14 +389,17 @@ function _cgaPaint() {
         <div class="cga-time"><span>배정 <b>${_cgaHM(j.at)}</b></span><span class="cga-ago" data-at="${_cgaEsc(j.at)}"></span></div></div>`).join('');
     let body;
     if (!loaded) body = `<div class="cga-wait">${_cgaErr ? '' : '불러오는 중…'}</div>`;
-    else if (on) body = `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>` + manHtml + a.slice(0, 2).map(r => `<div class="cga-job" data-rid="${Number(r.id) || 0}" title="눌러서 의뢰 크게 보기">
+    else if (on) body = `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>` + manHtml + a.slice(0, 2).map(r => `<div class="cga-job${_cgaKw(r.title) ? ' kw k-' + _cgaKw(r.title) : ''}" data-rid="${Number(r.id) || 0}" title="눌러서 의뢰 크게 보기">
         <div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>
         ${r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : ''}
         <div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span><span class="cga-ago" data-at="${_cgaEsc(r.assignAt)}"></span></div>
       </div>`).join('') + (a.length > 2 ? `<div class="cga-more">+${a.length - 2}건 더</div>` : '');
     else body = '<div class="cga-idle">대기 중</div>';   // 끝난 CG는 안 보여 줌(10-20)
-    const last = [...a.map(r => ({ at: String(r.assignAt || ''), k: 'cg' })), ...mj.map(j => ({ at: String(j.at || ''), k: _cgmKey(j.kind) }))].sort((x, y) => y.at.localeCompare(x.at))[0];
-    const tone = on && last && last.k !== 'cg' ? ' k-' + last.k : '';   // 앵커터치 빨강 · PT 주황 · 그 밖 파랑
+    // 카드 빛 색(10-21 사용자): 손으로 넣은 앵커터치·PT·3D·XR 이나 제목에 PT·터치·앵터가 든 의뢰가 있으면 그 색(그중 최근 것) — 나중에 CG 의뢰가 붙어도
+    // 그건 그 PT 내용이라 PT 색 그대로. 그런 게 없으면 CG 파랑
+    const special = [...a.map(r => ({ at: String(r.assignAt || ''), k: _cgaKw(r.title) })), ...mj.map(j => ({ at: String(j.at || ''), k: _cgmKey(j.kind) }))]
+      .filter(x => x.k && x.k !== 'cg').sort((x, y) => y.at.localeCompare(x.at))[0];
+    const tone = on && special ? ' k-' + special.k : '';   // 앵커터치 빨강 · PT 주황 · 3D 보라 · XR 초록 · 그 밖 파랑
     return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + tone + (CGA_PERSON_POP ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, CGA_PERSON_POP ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: CG·앵커터치·PT 배정)` }),
       html: `<span class="cga-dot" aria-hidden="true"></span>${p.id && can ? `<button type="button" class="cga-x" onclick="_cgaDel('${_cgaEsc(p.id)}')" title="오늘 이 화면에서 빼기" aria-label="${_cgaEsc(p.name)} 빼기">×</button>` : ''}
       <div class="cga-top"><div class="cga-nm"><b>${_cgaEsc(p.name)}</b><span class="cga-tag${p.extra ? ' x' : ''}">${_cgaEsc(p.tag || 'CG')}</span></div></div>
@@ -857,7 +867,7 @@ async function _cgaPrintPreview(d) {
   let pref = {}; try { pref = JSON.parse(localStorage.getItem('nd_cga_print') || '{}') || {}; } catch (e) { pref = {}; }
   const el = document.createElement('div'); el.id = 'cga-pv'; el.className = 'cpv-pop';
   el.innerHTML = `<div class="cpv-card" role="dialog" aria-modal="true" aria-label="인쇄">
-    <div class="cpv-sheetwrap" id="cpv-wrap"><div class="cpv-sheet" id="cpv-sheet"><iframe id="cpv-frame" title="인쇄 미리보기" sandbox="allow-same-origin"></iframe></div></div>
+    <div class="cpv-sheetwrap" id="cpv-wrap"><div class="cpv-pagelist" id="cpv-sheets"></div><iframe id="cpv-frame" class="cpv-hidden" title="인쇄용" sandbox="allow-same-origin" aria-hidden="true" tabindex="-1"></iframe></div>
     <aside class="cpv-side">
       <div class="cpv-h"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg><b>인쇄</b><span id="cpv-pages">용지 …장</span></div>
       <div class="cpv-fields">
@@ -873,31 +883,54 @@ async function _cgaPrintPreview(d) {
   document.body.appendChild(el);
   const $ = (s) => el.querySelector(s), frame = $('#cpv-frame');
   $('#cpv-orient').value = pref.landscape ? 'l' : 'p'; $('#cpv-color').value = pref.color === false ? 'm' : 'c';
-  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); };
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
   const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
   $('.cpv-cancel').onclick = close; el.addEventListener('click', (e) => { if (e.target === el) close(); });
-  // A4(210×297mm, 여백 10·15mm) 크기로 그려 창에 맞춰 줄임 — 몇 장인지도 대충 셈
-  const fit = () => {
-    const land = $('#cpv-orient').value === 'l', wMM = land ? 297 : 210, hMM = land ? 210 : 297, mm = 96 / 25.4;
-    const sheet = $('#cpv-sheet'), wrap = $('#cpv-wrap'), W = wMM * mm, H = hMM * mm;
-    const k = Math.min(1, (wrap.clientWidth - 48) / W);
-    sheet.style.width = W + 'px'; sheet.style.transform = `scale(${k})`; sheet.style.marginBottom = (-(1 - k) * sheet.offsetHeight) + 'px';
-    frame.style.width = (W - 30 * mm) + 'px'; frame.style.margin = `${10 * mm}px ${15 * mm}px`;
-    try {
-      const doc = frame.contentDocument, ch = doc ? doc.documentElement.scrollHeight : 0, pageH = (hMM - 20) * mm;
-      frame.style.height = Math.max(ch, pageH) + 'px';
-      const n = Math.max(1, Math.ceil(ch / pageH)); $('#cpv-pages').textContent = `용지 ${n}장`;
-      sheet.style.minHeight = H + 'px';
-    } catch (e) { /* 계산 못 함 */ }
-    $('#cpv-color').value === 'm' ? frame.classList.add('mono') : frame.classList.remove('mono');
+  // A4 장마다 끊어서 보여 줌(10-21 사용자): 인쇄 영역(A4 − 여백 위아래 10mm·양옆 15mm) 크기의 칸에 같은 내용을 '세로로 장 높이만큼씩 다단'으로 흘려서
+  // (브라우저가 인쇄할 때 장을 나누는 것과 같은 방식 — 글 줄은 안 잘리고 다음 장으로) k번째 단을 k번째 종이에 보여 줌. 몇 장인지 = 단 개수. 창 폭에 맞춰 통째로 줄임
+  let gen = 0, sheets = [];
+  const dims = () => { const land = $('#cpv-orient').value === 'l', mm = 96 / 25.4, W = (land ? 297 : 210) * mm, H = (land ? 210 : 297) * mm; return { mm, W, H, cw: W - 30 * mm, chH: H - 20 * mm, G: 48 }; };
+  const scale = () => {
+    const host = $('#cpv-sheets'), wrap = $('#cpv-wrap'), { W } = dims(), k = Math.min(1, (wrap.clientWidth - 48) / W);
+    host.style.transform = `scale(${k})`; host.style.marginBottom = (-(1 - k) * host.offsetHeight) + 'px';
   };
-  frame.addEventListener('load', () => { setTimeout(fit, 50); try { [...frame.contentDocument.images].forEach((i) => { if (!i.complete) i.addEventListener('load', fit); }); } catch (e) {} });
-  frame.srcdoc = html;
-  $('#cpv-orient').onchange = fit; $('#cpv-color').onchange = fit; addEventListener('resize', fit, { once: true });
+  const mono = () => sheets.forEach((x) => x.f.classList.toggle('mono', $('#cpv-color').value === 'm'));
+  const fit = () => {
+    const my = ++gen, { mm, W, H, cw, chH, G } = dims(), host = $('#cpv-sheets');
+    const multi = html.replace('</head>', `<style>html{overflow:hidden;height:${chH}px}body{height:${chH}px;column-width:${cw}px;column-gap:${G}px;column-fill:auto}</style></head>`);
+    host.innerHTML = ''; sheets = [];
+    const count = () => {
+      if (my !== gen || !sheets[0]) return;
+      let n = 1; try { const se = sheets[0].f.contentDocument.scrollingElement; n = Math.max(1, Math.round((se.scrollWidth + G) / (cw + G))); } catch (e) { /* 못 셈 */ }
+      while (sheets.length < n) add(sheets.length);
+      while (sheets.length > n) { const x = sheets.pop(); x.s.remove(); x.lab.remove(); }
+      sheets.forEach((x, i) => { x.lab.textContent = `${i + 1} / ${n}`; });
+      $('#cpv-pages').textContent = `용지 ${n}장`; scale();
+    };
+    const add = (k) => {
+      const sh = document.createElement('div'); sh.className = 'cpv-sheet'; sh.style.width = W + 'px'; sh.style.height = H + 'px';
+      const f = document.createElement('iframe'); f.setAttribute('sandbox', 'allow-same-origin'); f.title = `인쇄 미리보기 ${k + 1}장`;
+      Object.assign(f.style, { width: cw + 'px', height: chH + 'px', margin: `${10 * mm}px ${15 * mm}px` });
+      const lab = document.createElement('div'); lab.className = 'cpv-pno';
+      sh.appendChild(f); host.appendChild(sh); host.appendChild(lab);
+      const x = { s: sh, f, lab }; sheets.push(x);
+      f.addEventListener('load', () => {
+        const go = () => { try { f.contentDocument.scrollingElement.scrollLeft = k * (cw + G); } catch (e) {} };
+        go(); if (k === 0) count();
+        try { [...f.contentDocument.images].forEach((i) => { if (!i.complete) i.addEventListener('load', () => { go(); if (k === 0) count(); }); }); } catch (e) {}
+      });
+      f.srcdoc = multi; mono();
+      return x;
+    };
+    add(0); scale();
+  };
+  frame.srcdoc = html;   // 앱이 아닐 때 [인쇄] = 이 숨은 칸의 인쇄
+  fit();
+  $('#cpv-orient').onchange = fit; $('#cpv-color').onchange = mono; addEventListener('resize', scale);
   [['#cpv-orient-seg', '#cpv-orient'], ['#cpv-color-seg', '#cpv-color']].forEach(([sg, se]) => {
     const seg = $(sg), selEl = $(se), paint = () => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === selEl.value)));
-    seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; selEl.value = b.dataset.v; paint(); fit(); });
+    seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; selEl.value = b.dataset.v; paint(); if (se === '#cpv-orient') fit(); else mono(); });
     paint();
   });
   // 프린터 목록(앱 1.2.7~). 없으면 [인쇄] = 이 창의 인쇄(운영체제 창)
