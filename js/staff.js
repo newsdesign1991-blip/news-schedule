@@ -99,6 +99,7 @@ function saveStaff() {
     data.staff.push({id:Date.now().toString(36)+Math.random().toString(36).substr(2,4),name,dept,deskPriority,morningDeskPriority,canDanjik,canSatMorning,canIlgeun,canVW,canCG,can3D,canNewsOh,canWeekend8jin,canWeekday8jin,canJogeunSub,active:true,availableDays,employmentType,probationStart,probationEnd});
     toast(`${name} 추가됨`,'success');
   }
+  if (dept === '팀장' && typeof _ndLeadClear === 'function') { const t = editId ? data.staff.find(x=>x.id===editId) : data.staff[data.staff.length-1]; if (t) _ndLeadClear(t); }   // 팀장 = 근무표 밖(로그인만)
   saveData(data); clearStaffForm(); renderStaffTable();
 }
 

@@ -516,7 +516,7 @@ let wsBrushType = null;
 const WS_BRUSH_LABELS = {
   'select':'마우스 선택','special:excluded-work':'정근 · 집계 제외','special:n':'N','special:vw2':'VW2',
   'work':'정근','vw-desk':'VW데스크','desk8':'8데스크','desk5':'5데스크',
-  'danjik':'당직','jogeun':'조근','ojende':'오전데','8jin':'8진',
+  'danjik':'당직','jogeun':'조근','ojende':'오전데','8jin':'8진','8jin2':'8진2',
   'ilgeun':'일근','newsoh':'뉴.오','newsoh2':'뉴.오2','leave':'신휴가','off':'지우기'
 };
 function setWsBrush(type) {
@@ -596,6 +596,7 @@ function _hasBrush(entry, staffId, bt, ds) {
     case 'jogeun':  return isWE ? entry?.satMorning === staffId : (entry?.jogeunExtra||[]).includes(staffId);
     case 'ojende':  return entry?.morningDesk === staffId;
     case '8jin':    return !isWeekdayForm(ds) ? entry?.weekend8jin === staffId : entry?.weekday8jin === staffId;   // 평일 편성 공휴일은 평일 8진
+    case '8jin2':   return !isWeekdayForm(ds) ? entry?.weekend8jin2 === staffId : entry?.weekday8jin2 === staffId;
     case 'ilgeun':  return entry?.ilgeun === staffId;
     case 'newsoh':  return entry?.newsOh === staffId;
     case 'newsoh2': return entry?.newsOh2 === staffId;
@@ -686,6 +687,8 @@ function _applyBrush(staffId, ds, skipRender) {
     _brushAddWorker(entry, staffId, dept);
   } else if (bt === '8jin') {
     if (!isWeekdayForm(ds)) { entry.weekend8jin = staffId; } else { entry.weekday8jin = staffId; }   // 생성·점검과 같은 기준
+  } else if (bt === '8jin2') {   // 교육용 두 번째 8진(10-21) — 그날 원래 8진은 그대로, 엑셀 '8진2'와 같은 자리(weekday8jin2·weekend8jin2)
+    if (!isWeekdayForm(ds)) { entry.weekend8jin2 = staffId; } else { entry.weekday8jin2 = staffId; }
   } else if (bt === 'ilgeun') {
     entry.ilgeun = staffId;
   } else if (bt === 'newsoh') {
@@ -706,7 +709,7 @@ function _applyBrush(staffId, ds, skipRender) {
   }
 
   // 공존 역할 복원: 뉴.오·8진·일근 ↔ VW/CG대체 서로 지우지 않음
-  if (bt==='newsoh' || bt==='newsoh2' || bt==='8jin' || bt==='ilgeun') {
+  if (bt==='newsoh' || bt==='newsoh2' || bt==='8jin' || bt==='8jin2' || bt==='ilgeun') {
     if (_coVwW && !(entry.vw?.workers||[]).includes(staffId)) { if(!entry.vw) entry.vw={workers:[],desk:null}; entry.vw.workers.push(staffId); }
     if (_coCgW && !(entry.cg?.workers||[]).includes(staffId)) { if(!entry.cg) entry.cg={workers:[],desk8:null,desk5:null}; entry.cg.workers.push(staffId); }
   }
@@ -738,6 +741,7 @@ const WS_TYPE_MAP = {
   '조근':'jogeun','조근추가':'jogeun','토요조근':'jogeun','토조근':'jogeun',
   '오전데':'ojende','오전데스크':'ojende',
   '8진':'8jin','팔진':'8jin',
+  '8진2':'8jin2','8진②':'8jin2','팔진2':'8jin2',
   '일근':'ilgeun',
   '뉴오':'newsoh','뉴.오':'newsoh','뉴스오픈':'newsoh',
   '뉴오2':'newsoh2','뉴.오2':'newsoh2',

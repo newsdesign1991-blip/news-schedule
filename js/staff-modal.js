@@ -119,11 +119,17 @@ function saveStaffModal() {
   p.probationStart = ov.querySelector('#modal-probation-start').value||null;
   p.probationEnd   = ov.querySelector('#modal-probation-end').value||null;
   Object.assign(p, tags);
+  if (p.dept === '팀장') _ndLeadClear(p);   // 팀장 = 근무표 밖(로그인만) — 근무 생성에 안 들어가게
   const _ds=_modalDeptSched.filter(h=>h.start&&h.dept).sort((a,b)=>a.start<b.start?-1:1);
   if(_ds.length) p.deptSchedule=_ds; else delete p.deptSchedule;
   const _moved = _deptMoveLists(p, _old), _to = String(deptOn(p, _todayStr())||'').toUpperCase();
   saveData(data); renderStaffTable(); closeStaffModal(); toast(_moved ? `저장됨 · 오늘부터 근무 ${_moved}일을 ${_to} 근무로 옮겼어요` : '저장됨','success');
   if(typeof wsInfoRefresh==='function') wsInfoRefresh();   // 참고 자료 창이 열려 있으면 바뀐 계약·부서 반영
+}
+// 팀장(10-21): 근무표에 안 나오고 로그인·계정만 있는 사람 — 표는 부서별로 그려서 저절로 빠지고, 근무 생성에 안 들어가게 할 수 있는 근무 태그·데스크 우선순위를 비움
+function _ndLeadClear(p) {
+  ['canDanjik', 'canSatMorning', 'canIlgeun', 'canVW', 'canCG', 'can3D', 'canNewsOh', 'canWeekend8jin', 'canWeekday8jin', 'canJogeunSub'].forEach((k) => { p[k] = false; });
+  p.availableDays = []; p.deskPriority = null; p.morningDeskPriority = null;
 }
 // 부서를 옮기면 오늘부터 그날 근무 목록(VW·CG·XR)도 새 부서로(10-21) — 표는 부서 줄을 따르는데 홈 '오늘 근무'·CG배정·인원 셈은 이 목록을 따라서 어긋났음.
 // 옮기는 칸: 오늘 이후(배포·작성소 둘 다) 중 ① 이번 저장으로 그날 부서가 바뀐 날 ② 이미 부서를 옮겼는데 엑셀 칸이 그냥 '정근'인 채 예전 부서 목록에 남은 날

@@ -75,6 +75,7 @@ document.body.insertAdjacentHTML('beforeend', `
           <option value="XR">XR</option>
           <option value="PROJECT">PROJECT</option>
           <option value="SPORTS">SPORTS</option>
+          <option value="팀장">팀장 (근무표에 안 나옴 · 로그인만)</option>
         </select>
       </div>
       <div class="form-group">

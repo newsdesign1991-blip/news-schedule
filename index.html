@@ -795,6 +795,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
     <button class="ws-brush-btn" data-brush="jogeun"   onclick="setWsBrush('jogeun')"   style="border-color:#8893dc;background:#eef0f9;color:#5d6fb0;">조근</button>
     <button class="ws-brush-btn" data-brush="ojende"   onclick="setWsBrush('ojende')"   style="border-color:#436bb5;background:#dfe9f8;color:#436bb5;">오전데</button>
     <button class="ws-brush-btn" data-brush="8jin"     onclick="setWsBrush('8jin')"     style="border-color:#f4bab6;background:#fff5f0;color:#d65a52;">8진</button>
+    <button class="ws-brush-btn" data-brush="8jin2"    onclick="setWsBrush('8jin2')"    style="border-color:#f4bab6;background:#fff5f0;color:#d65a52;" title="교육용 두 번째 8진 — 그날 원래 8진은 그대로 둬요">8진2</button>
     <button class="ws-brush-btn" data-brush="ilgeun"   onclick="setWsBrush('ilgeun')"   style="border-color:#e3bdd0;background:#fbeef4;color:#a34873;">일근</button>
     <button class="ws-brush-btn" data-brush="newsoh"   onclick="setWsBrush('newsoh')"   style="border-color:#e2c9a8;background:#fdf0e3;color:#9c6b4a;">뉴.오</button>
     <button class="ws-brush-btn" data-brush="newsoh2"  onclick="setWsBrush('newsoh2')"  style="border-color:#d9b483;background:#f7e6cf;color:#b07d4a;">뉴.오2</button>
@@ -911,6 +912,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
               <option value="XR">XR</option>
               <option value="PROJECT">PROJECT</option>
               <option value="SPORTS">SPORTS</option>
+              <option value="팀장">팀장 (근무표에 안 나옴 · 로그인만)</option>
             </select>
           </div>
           <div class="form-group">
@@ -1211,7 +1213,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.21 19:36';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.21 19:54';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1475,21 +1477,21 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/table-view.js?v=c17c7122"></script>
 <script src="js/calendar.js?v=4e6b00eb"></script>
 <script src="js/generation.js?v=51ad9cf3"></script>
-<script src="js/workshop.js?v=3fd3cea1"></script>
+<script src="js/workshop.js?v=c627ecc5"></script>
 <script src="js/excel-import.js?v=9c4ecc29"></script>
 <script src="js/events.js?v=291f1d5a"></script>
 <script src="js/publish.js?v=0f538f2b"></script>
 <script src="js/leave-request.js?v=4bd108a2"></script>
-<script src="js/staff.js?v=e69bc478"></script>
-<script src="js/admin.js?v=41724455"></script>
+<script src="js/staff.js?v=cd055ca4"></script>
+<script src="js/admin.js?v=ae01f43a"></script>
 <script src="js/cell-edit.js?v=799de12b"></script>
 <script src="js/login-ui.js?v=9f5bc8ba"></script>
 <script src="js/notice.js?v=5f269061"></script>
 <script src="js/poll.js?v=0cd98cbc"></script>
 <script src="js/schedule-finder.js?v=dc123704"></script>
 <script src="js/sync-init.js?v=38c612ff"></script>
-<script src="js/a2hs.js?v=a3d059a3"></script>
-<script src="js/staff-modal.js?v=acb89390"></script>
+<script src="js/a2hs.js?v=d9550407"></script>
+<script src="js/staff-modal.js?v=e4b3395a"></script>
 <script src="js/pull-refresh.js?v=8849e397"></script>
 <script src="js/nd-select.js?v=07611e9c"></script>
 <script src="js/nd-people.js?v=7bba13fe"></script>

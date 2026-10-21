@@ -18,7 +18,7 @@ function _initYearSelect(elId, onchange) {
 let _statsEditMode = false;
 // 근무 통계 자동 집계(스케줄 기준) — 화면 표시(renderWorkStats)와 검사(swap-backend/test-work-stats.cjs)가 같이 씀
 function _workStatsAuto(year) {
-  const active = data.staff.filter(s => s.active !== false);
+  const active = data.staff.filter(s => s.active !== false && s.dept !== '팀장');   // 팀장(근무표 밖)은 통계에서 뺌
 
   // 올해 한 달이라도(그 달 1일 기준) 조근 부서가 아니었던 사람만 — 부서 이동(deptSchedule)으로 조근에서 나간 사람도 포함
   const _dOn = (s, ds) => (typeof deptOn === 'function' ? deptOn(s, ds) : s.dept);

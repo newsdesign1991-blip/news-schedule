@@ -54,7 +54,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 | 19 | `js/schedule-finder.js` | 저녁 같이 먹을 사람 찾기, 개인 근무 보기, 내 근무 카드 | `openDinnerFinder` `openPersonSchedule` `renderMySchedule` |
 | 20 | `js/sync-init.js` | **앱 부팅**(데이터 로드, 2분 자동 동기화, 첫 렌더). 데이터·로그인 확인 요청은 `dashboard.html` `<head>` 인라인 스크립트가 맨 먼저 동시에 시작(`window.__ndBootMain`·`__ndBootSession`) — 여기서와 `employee-auth.js` `employeeRestore`가 그 응답을 씀. head의 주소·키는 `core.js` `SB_URL`·`SB_KEY`와 같게 유지 | `_migrateRemote` `_rerenderActiveView` |
 | 21 | `js/a2hs.js` | 홈 화면에 추가 안내 (+끝부분에 직원 편집 모달 `#staff-edit-modal` HTML 삽입 → staff-modal.js보다 먼저 와야 함) | `installA2HS` |
-| 22 | `js/staff-modal.js` | 직원 편집 모달(카드 UI). 부서를 바꿔 저장하면 오늘부터 그날 근무 목록(VW·CG·XR)도 새 부서로(`_deptMoveLists` — 데스크·VW대·CG대는 그대로) | `openStaffModal` `saveStaffModal` `_deptMoveLists` |
+| 22 | `js/staff-modal.js` | 직원 편집 모달(카드 UI). 부서를 바꿔 저장하면 오늘부터 그날 근무 목록(VW·CG·XR)도 새 부서로(`_deptMoveLists` — 데스크·VW대·CG대는 그대로). 부서 '팀장' = 근무표 밖·로그인만(`_ndLeadClear` 근무 태그 비움, 통계·서버 근무 알림 제외) | `openStaffModal` `saveStaffModal` `_deptMoveLists` |
 | 23 | `js/pull-refresh.js` | 당겨서 새로고침 | — |
 | 24 | `js/nd-select.js` | 넓은 화면(≥1001px·마우스) 드롭다운을 앱 스타일 목록으로(원래 select가 값의 주인, change 이벤트 그대로) | `ndSelectClose` |
 | 25 | `js/nd-people.js` | 사람 고르기 공통 부품(이름·부서·초성 검색 + 추천 목록 + 고른 사람 태그) — 일정·프로젝트·공통 근무일 조회 | `ndPeoplePicker(host,{selected,onChange})` |

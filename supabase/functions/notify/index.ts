@@ -606,6 +606,7 @@ Deno.serve(async (req) => {
   function getWorkType(staffId: string, staff: any): string | null {
     if (leaves.has(staffId)) return null
     if (staff && (staff.active === false || _outToday(staff))) return null   // 비활성·파견 중·계약 기간 밖은 알림 없음
+    if (_deptOn(staff) === '팀장') return null   // 팀장(근무표 밖, 로그인만 — 10-21)은 근무 알림 없음
     if (!entry) return _offOr()
     if (entry.danjik === staffId) return 'danjik'
     if (entry.satMorning === staffId) return 'jogeun'   // 토요 조근(표 '조근', 알림 제어 '조근 (평일·토요)')
