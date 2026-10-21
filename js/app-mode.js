@@ -386,7 +386,7 @@ function _ndToolToggle(btn){
   if(_ndUpd&&_ndUpd.available) showAvail(_ndUpd);
   setTimeout(()=>document.addEventListener('mousedown',function off(e){ if(!pop.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',off); } }),0);
 }
-// 앱 업데이트 저절로 확인(10-20 요청): 켜고 20초 뒤, 그 뒤 30분마다 공유 폴더 latest.json — 새 버전이면 렌치가 빨갛게 깜빡임(누르면 바로 [지금 업데이트])
+// 앱 업데이트 저절로 확인(10-20 요청): 켜고 20초 뒤, 그 뒤 5분마다(10-21) 공유 폴더 latest.json — 새 버전이면 렌치가 빨갛게 깜빡임(누르면 바로 [지금 업데이트])
 let _ndUpd=null;
 function _ndUpdMark(u){
   if(u&&!u.error) _ndUpd=u;
@@ -396,11 +396,21 @@ function _ndUpdMark(u){
   t.title=on?`새 버전 ${_ndUpd.latest}이 있어요 — 눌러서 업데이트`:'앱 정보·업데이트';
   t.setAttribute('aria-label',t.title);
 }
+// 10-21 '렌치가 감지를 너무 안 함': 30분 → 5분마다 + 창으로 돌아올 때(1분에 한 번까지), 새 판을 처음 알면 오른쪽 위 알림 카드 한 번(판마다)
+let _ndUpdLast=0, _ndUpdTold='';
 async function _ndUpdWatch(){
   if(!ND_APP||!window.ndApp?.updateCheck) return;
-  try{ _ndUpdMark(await window.ndApp.updateCheck()); }catch(e){ /* 사내망 밖 등 — 다음에 */ }
+  _ndUpdLast=Date.now();
+  try{
+    const u=await window.ndApp.updateCheck(); _ndUpdMark(u);
+    if(u&&u.available&&u.latest!==_ndUpdTold){
+      _ndUpdTold=u.latest;
+      const title=`근무표 앱 새 버전 ${u.latest}이 나왔어요`, body='오른쪽 위 렌치를 눌러 [지금 업데이트]'+(u.notes&&u.notes[0]?' · '+u.notes[0]:'');
+      if(window.ndApp.toast) window.ndApp.toast({title,body}); else if(typeof toast==='function') toast(title+' — '+body,'info');
+    }
+  }catch(e){ /* 사내망 밖 등 — 다음에 */ }
 }
-if(ND_APP){ setTimeout(_ndUpdWatch,20000); setInterval(_ndUpdWatch,30*60e3); }
+if(ND_APP){ setTimeout(_ndUpdWatch,20000); setInterval(_ndUpdWatch,5*60e3); addEventListener('focus',()=>{ if(Date.now()-_ndUpdLast>60e3) _ndUpdWatch(); }); }
 // 창 버튼(최소화·최대화·닫기) 바탕·글자색을 제목줄과 같게
 function _ndTitlebarColors(){
   const bar=document.getElementById('nd-titlebar'); if(!bar||!window.ndApp?.setTitleBar) return;

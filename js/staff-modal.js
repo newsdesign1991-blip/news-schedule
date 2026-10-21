@@ -105,6 +105,7 @@ function saveStaffModal() {
   const ov = document.getElementById('staff-edit-modal');
   const id = ov.querySelector('#modal-edit-staff-id').value;
   const p = data.staff.find(x=>x.id===id); if (!p) return;
+  const _old = { dept: p.dept, deptSchedule: Array.isArray(p.deptSchedule) ? p.deptSchedule.map(h=>({start:h.start,dept:h.dept})) : undefined };   // 부서 이동 전(근무 목록 옮기기용)
   const tags = _readModalTags(ov);
   p.dept = ov.querySelector('#modal-staff-dept').value;
   p.employmentType = ov.querySelector('#modal-staff-employment-type').value;
@@ -120,8 +121,44 @@ function saveStaffModal() {
   Object.assign(p, tags);
   const _ds=_modalDeptSched.filter(h=>h.start&&h.dept).sort((a,b)=>a.start<b.start?-1:1);
   if(_ds.length) p.deptSchedule=_ds; else delete p.deptSchedule;
-  saveData(data); renderStaffTable(); closeStaffModal(); toast('저장됨','success');
+  const _moved = _deptMoveLists(p, _old), _to = String(deptOn(p, _todayStr())||'').toUpperCase();
+  saveData(data); renderStaffTable(); closeStaffModal(); toast(_moved ? `저장됨 · 오늘부터 근무 ${_moved}일을 ${_to} 근무로 옮겼어요` : '저장됨','success');
   if(typeof wsInfoRefresh==='function') wsInfoRefresh();   // 참고 자료 창이 열려 있으면 바뀐 계약·부서 반영
+}
+// 부서를 옮기면 오늘부터 그날 근무 목록(VW·CG·XR)도 새 부서로(10-21) — 표는 부서 줄을 따르는데 홈 '오늘 근무'·CG배정·인원 셈은 이 목록을 따라서 어긋났음.
+// 옮기는 칸: 오늘 이후(배포·작성소 둘 다) 중 ① 이번 저장으로 그날 부서가 바뀐 날 ② 이미 부서를 옮겼는데 엑셀 칸이 그냥 '정근'인 채 예전 부서 목록에 남은 날
+// ③ 이미 옮겼는데 오늘 이후 근무 대부분(3일 이상·제 부서보다 많이)이 다른 한 부서 목록에 남아 있으면 그 목록 = 예전 부서로 봄(가끔 하는 대체 근무와 구분).
+// 'VW대'·'CG대'·VW2(대체 근무)와 데스크는 그대로. 엑셀 칸 글자는 계속 보이게 서명을 다시 맞춤. 반환 = 옮긴 날 수
+function _deptMoveLists(p, old) {
+  const key = d => ({ vw: 'vw', cg: 'cg', xr: 'xr' })[String(d || '').toLowerCase()];
+  const list = (e, k, make) => k === 'xr' ? (make ? (e.xr ||= []) : e.xr) : (make ? ((e[k] ||= {}).workers ||= []) : (e[k] && e[k].workers));
+  const today = _todayStr(), both = [[data.schedule, data.newLeaves], [data.draft && data.draft.schedule, data.draft && data.draft.newLeaves]];
+  const cnt = { vw: 0, cg: 0, xr: 0 }, moved = new Set(); let own = 0;
+  both.forEach(([sch]) => sch && Object.keys(sch).forEach(ds => {
+    const e = sch[ds], k = key(deptOn(p, ds)); if (ds < today || !e || !k) return;
+    ['vw', 'cg', 'xr'].forEach(f => { const L = list(e, f); if (L && L.includes(p.id)) { if (f === k) own++; else cnt[f]++; } });
+  }));
+  const stale = Object.keys(cnt).find(f => cnt[f] >= 3 && cnt[f] > own);
+  both.forEach(([sch, lvs]) => {
+    if (!sch) return;
+    Object.keys(sch).forEach(ds => {
+      const e = sch[ds]; if (ds < today || !e) return;
+      const to = key(deptOn(p, ds)); if (!to) return;
+      const was = key(deptOn(old, ds)), lv = lvs && lvs[ds];
+      ['vw', 'cg', 'xr'].forEach(from => {
+        const L = from === to ? null : list(e, from); if (!L || !L.includes(p.id)) return;
+        if ((from === 'vw' && e.vw.desk === p.id) || (from === 'cg' && [e.cg.desk8, e.cg.desk, e.cg.desk5].includes(p.id))) return;
+        const imp = _importCellDisplay(e, p.id, lv), k = imp ? WORK_TYPE_MAP[_normalizeImportedWorkType(imp.text)] : null;
+        if (k === 'vw-sub' || k === 'cg-sub' || _isVw2(e, p.id)) return;
+        if (!(from === was && was !== to) && k !== 'work' && from !== stale) return;
+        L.splice(L.indexOf(p.id), 1);
+        const T = list(e, to, true); if (!T.includes(p.id)) T.push(p.id);
+        if (imp) e.importedCells[p.id].signature = _importCellSignature(e, p.id, lv);
+        moved.add(ds);
+      });
+    });
+  });
+  return moved.size;   // 옮긴 날 수(배포·작성소에 같은 날이 있어도 하루로)
 }
 function _modalToggleActive(){
   const id=(document.getElementById('modal-edit-staff-id')||{}).value;

@@ -63,6 +63,16 @@ function _cgaPeople(ds) {
   const fl = id => (staffById(id) && staffById(id).employmentType === 'freelancer') ? 1 : 0;
   return out.filter(p => !del.has(p.id)).sort((a, b) => (fl(a.id) - fl(b.id)) || ((idx.get(a.id) ?? 9999) - (idx.get(b.id) ?? 9999)));
 }
+// 누가 바꿀 수 있나(10-21 사용자): 그날 데스크(8데스크·5데스크·오전데)와 최재영(마스터 — 늘 가능)만 사람 넣고 빼기·의뢰 배정·직접 배정·완료. 다른 사람은 보기만(크게 보기·인쇄·의뢰 숨기기는 됨)
+function _cgaCanEdit() {
+  if (typeof isMaster !== 'undefined' && isMaster) return true;
+  const u = typeof currentUser !== 'undefined' && currentUser; if (!u) return false;
+  const me = (u.staffId && staffById(u.staffId)) || (data.staff || []).find(s => s.name === u.name); if (!me) return false;
+  if (String(me.name || '').replace(/\s/g, '') === '최재영') return true;
+  const e = data.schedule && data.schedule[_cgaToday()]; if (!e) return false;
+  return [e.cg && e.cg.desk8, e.cg && e.cg.desk, e.cg && e.cg.desk5, e.morningDesk].includes(me.id);
+}
+function _cgaNoEdit() { toast('오늘 데스크(8데스크·5데스크·오전데)만 바꿀 수 있어요.', 'error'); return true; }
 // 사람 넣고 빼기 = 공용(10-21 '다른 PC도 똑같이'): 화면 먼저 바꾸고(낙관적) nd_data 'cgman'.adj[날짜] = { add:[], del:[] } 에 낙관적 잠금으로 저장
 function _cgaAdjGet() { const a = _cgmData && _cgmData.adj && _cgmData.adj[_cgaToday()]; return { add: (a && a.add) || [], del: (a && a.del) || [] }; }
 async function _cgaAdjSet(fn) {
@@ -74,6 +84,7 @@ async function _cgaAdjSet(fn) {
   _cgaPaint();
 }
 function _cgaDel(id) {
+  if (!_cgaCanEdit()) return _cgaNoEdit();
   const s = staffById(id); if (!s) return;
   document.getElementById('cga-delask')?.remove();
   const el = document.createElement('div'); el.id = 'cga-delask'; el.className = 'wt-pop';
@@ -94,6 +105,7 @@ function _cgaDel(id) {
 }
 function _cgaAdd(id) {
   document.getElementById('cga-pick')?.remove();
+  if (!_cgaCanEdit()) return _cgaNoEdit();
   // 원래 그날 근무자인지(넣기·빼기를 잠깐 비우고 계산) — 아니면 넣기 목록에도
   const day = _cgaToday(); _cgmData = _cgmData || { days: {} }; _cgmData.adj = _cgmData.adj || {};
   const saved = _cgmData.adj[day]; _cgmData.adj[day] = { add: [], del: [] };
@@ -106,6 +118,7 @@ function _cgaUnhide() { _cgaSave('nd_cga_hide', { day: _cgaToday(), ids: [] }); 
 // [사람 추가] 작은 창: 이름 찾기 + 오늘 뺀 사람 다시 넣기
 function _cgaPick(btn) {
   const old = document.getElementById('cga-pick'); if (old) { old.remove(); return; }
+  if (!_cgaCanEdit()) return _cgaNoEdit();
   const ds = _cgaToday(), on = new Set(_cgaPeople(ds).map(p => p.id)), del = new Set(_cgaAdjGet().del || []);
   const list = (data.staff || []).filter(s => s && s.name && !on.has(s.id) && (typeof isContractActive !== 'function' || isContractActive(s, ds)));
   const el = document.createElement('div'); el.id = 'cga-pick'; el.className = 'cga-pick'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', '사람 추가');
@@ -292,7 +305,9 @@ function _cgaPaint() {
     ..._cgmToday().filter(j => j.name === n && (!onlyActive || !j.done)).map(j => String(j.at || ''))].filter(Boolean).sort().pop() || '';
   const byOld = onlyActive => (x, y) => lastAt(x.name, onlyActive).localeCompare(lastAt(y.name, onlyActive));
   const work = [...people.filter(p => busy(p.name)), ...extra].sort(byOld(true)), idle = people.filter(p => !busy(p.name)).sort(byOld(false));
-  const sub = `CG제작 가능 인원 ${work.length + idle.length}명`;   // 10-20 사용자: 날짜·기준 시각 등은 빼고 이것만
+  const can = _cgaCanEdit();
+  const sub = `CG제작 가능 인원 ${work.length + idle.length}명` + (can ? '' : ' · 배정·사람 넣고 빼기는 오늘 데스크만');   // 10-20 사용자: 날짜·기준 시각 등은 빼고 이것만
+  const addBtn = document.querySelector('#cga-root .cga-addp'); if (addBtn) addBtn.style.display = can ? '' : 'none';
   const subEl = document.getElementById('cga-sub'); if (subEl.textContent !== sub) subEl.textContent = sub;
   const stat = loaded ? `<span class="cga-pill on"><i></i>작업 중 ${work.length}</span><span class="cga-pill">대기 ${idle.length}</span>` : '';
   const statEl = document.getElementById('cga-stat'); if (statEl._h !== stat) { statEl.innerHTML = stat; statEl._h = stat; }
@@ -300,7 +315,7 @@ function _cgaPaint() {
   // 오른쪽: 사람 카드(작업 중 먼저). 성씨 동그라미는 뺌(10-20)
   const card = p => {
     const a = active(p.name), mj = _cgmActive(p.name), on = a.length > 0 || mj.length > 0;
-    const manHtml = mj.map(j => `<div class="cga-job man k-${_cgmKey(j.kind)}"><div class="cga-who"><b>${_cgaEsc(j.kind)}</b><small>직접 배정${j.by ? ' · ' + _cgaEsc(j.by) : ''}</small><button type="button" class="cga-done" onclick="_cgmDone('${_cgaEsc(j.id)}')">완료</button></div>
+    const manHtml = mj.map(j => `<div class="cga-job man k-${_cgmKey(j.kind)}"><div class="cga-who"><b>${_cgaEsc(j.kind)}</b><small>직접 배정${j.by ? ' · ' + _cgaEsc(j.by) : ''}</small>${can ? `<button type="button" class="cga-done" onclick="_cgmDone('${_cgaEsc(j.id)}')">완료</button>` : ''}</div>
         <div class="cga-time"><span>배정 <b>${_cgaHM(j.at)}</b></span><span class="cga-ago" data-at="${_cgaEsc(j.at)}"></span></div></div>`).join('');
     let body;
     if (!loaded) body = `<div class="cga-wait">${_cgaErr ? '' : '불러오는 중…'}</div>`;
@@ -313,7 +328,7 @@ function _cgaPaint() {
     const last = [...a.map(r => ({ at: String(r.assignAt || ''), k: 'cg' })), ...mj.map(j => ({ at: String(j.at || ''), k: _cgmKey(j.kind) }))].sort((x, y) => y.at.localeCompare(x.at))[0];
     const tone = on && last && last.k !== 'cg' ? ' k-' + last.k : '';   // 앵커터치 빨강 · PT 주황 · 그 밖 파랑
     return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + tone + (CGA_PERSON_POP ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, CGA_PERSON_POP ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: CG·앵커터치·PT 배정)` }),
-      html: `<span class="cga-dot" aria-hidden="true"></span>${p.id ? `<button type="button" class="cga-x" onclick="_cgaDel('${_cgaEsc(p.id)}')" title="오늘 이 화면에서 빼기" aria-label="${_cgaEsc(p.name)} 빼기">×</button>` : ''}
+      html: `<span class="cga-dot" aria-hidden="true"></span>${p.id && can ? `<button type="button" class="cga-x" onclick="_cgaDel('${_cgaEsc(p.id)}')" title="오늘 이 화면에서 빼기" aria-label="${_cgaEsc(p.name)} 빼기">×</button>` : ''}
       <div class="cga-top"><div class="cga-nm"><b>${_cgaEsc(p.name)}</b><span class="cga-tag${p.extra ? ' x' : ''}">${_cgaEsc(p.tag || 'CG')}</span></div></div>
       <div class="cga-cbody">${body}</div>` };
   };
@@ -328,7 +343,7 @@ function _cgaPaint() {
   const nHid = all.length - wait.length, nReq = wait.filter(r => r.status === '0001').length;
   const item = r => {
     const fix = r.status === '0003';
-    return { key: 'r:' + r.id, cls: 'cga-req' + (fix ? ' fix' : ' drag'), attrs: fix ? { draggable: 'false' } : { draggable: 'false', 'data-rid': String(r.id), title: '누르면 크게 보기 · 끌어서 사람 카드에 놓으면 배정' },
+    return { key: 'r:' + r.id, cls: 'cga-req' + (fix ? ' fix' : can ? ' drag' : ''), attrs: fix ? { draggable: 'false' } : { draggable: 'false', 'data-rid': String(r.id), title: can ? '누르면 크게 보기 · 끌어서 사람 카드에 놓으면 배정' : '누르면 크게 보기' },
       html: `<button type="button" class="cga-x" onclick="_cgaHide(${Number(r.id) || 0})" title="이 앱에서만 숨기기(NDS엔 그대로)" aria-label="의뢰 숨기기">×</button>`
         + `<div class="cga-who"><b>${_cgaEsc(r.requester)}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}${fix ? '<em class="cga-fix">보완요청</em>' : ''}</div>`
         + (r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : '')
@@ -454,6 +469,7 @@ async function _cgmCommit(mutate) {
 }
 async function _cgmAssign(sid, name, kind) {
   document.getElementById('cga-ctx')?.remove();
+  if (!_cgaCanEdit()) return _cgaNoEdit();
   const day = _cgaToday(), by = (typeof currentUser !== 'undefined' && currentUser && currentUser.name) || '';
   const job = { id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), sid: sid || '', name, kind, at: _cgmNow(), by, done: null };
   const ok = await _cgmCommit(p => { (p.days[day] = p.days[day] || []).push(job); });
@@ -463,6 +479,7 @@ async function _cgmAssign(sid, name, kind) {
 }
 async function _cgmDone(id) {
   document.getElementById('cga-ctx')?.remove();
+  if (!_cgaCanEdit()) return _cgaNoEdit();
   const day = _cgaToday(), at = _cgmNow();
   let hit = null;
   const ok = await _cgmCommit(p => { const j = (p.days[day] || []).find(x => x.id === id); if (j && !j.done) { j.done = at; hit = j; } });
@@ -474,6 +491,7 @@ async function _cgmDone(id) {
 function _cgaCtx(e) {
   const c = e.target.closest('.cga-card[data-name]'); if (!c || c.classList.contains('cga-leaving')) return;
   e.preventDefault();
+  if (!_cgaCanEdit()) return _cgaNoEdit();
   document.getElementById('cga-ctx')?.remove();
   const name = c.dataset.name, sid = c.dataset.sid || '', act = _cgmActive(name);
   const el = document.createElement('div'); el.id = 'cga-ctx'; el.className = 'cga-ctx'; el.setAttribute('role', 'menu'); el.setAttribute('aria-label', name + ' 직접 배정');
@@ -516,7 +534,7 @@ function _cgaWireDnd() {
   list.addEventListener('dragstart', e => e.preventDefault());   // 브라우저 기본 끌기(그림 끌기 등) 끔
   list.addEventListener('pointerdown', e => {
     if (_cgaPull || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    const it = e.target.closest('.cga-req[data-rid]'); if (!it || e.target.closest('.cga-x')) return;
+    const it = e.target.closest('.cga-req.drag[data-rid]'); if (!it || e.target.closest('.cga-x') || !_cgaCanEdit()) return;
     _cgaPull = { it, id: Number(it.dataset.rid) || 0, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, pid: e.pointerId, phase: 0, vx: 0, vy: 0 };
   });
   document.addEventListener('pointermove', e => { const p = _cgaPull; if (!p || e.pointerId !== p.pid) return; p.x = e.clientX; p.y = e.clientY; _cgaPullMove(e); }, { passive: false });
@@ -633,6 +651,7 @@ function _cgaSlotOpen(it) {
 async function _cgaAssignAsk(id, name, slot) {
   const ds = _cgaToday(), rows = (_cgaData && _cgaData.day === ds && _cgaData.rows) || [];
   const reopen = () => { if (slot) _cgaSlotOpen(slot); };   // 배정 안 하고 닫으면 접어 둔 목록 칸을 다시 펼침
+  if (!_cgaCanEdit()) { reopen(); return _cgaNoEdit(); }
   const r = rows.find(x => x.id === id); if (!r) { reopen(); toast('그 의뢰를 찾지 못했어요. 새로고침 뒤 다시 해 주세요.', 'error'); return; }
   document.getElementById('cga-ask')?.remove();
   const can = !!(window.ndApp && window.ndApp.ndsAssign);
