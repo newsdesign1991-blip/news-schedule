@@ -226,7 +226,7 @@ function _cgaRoleTag(name, ds) {
   return String(deptOn(s, ds) || '근무').toUpperCase();
 }
 // 새 의뢰(0001)가 생기면 한 번 알림 — 처음 읽을 때는 기억만
-// 의뢰 제목으로 일 종류 짐작(10-21 사용자): '앵커터치'·'앵터'·'8터치' → 앵커터치(빨강), 'PT'·그냥 '터치' → PT(주황), 아니면 ''(CG 파랑)
+// 의뢰 제목으로 일 종류 짐작(10-21 사용자): '앵커터치'·'앵터'·'8터치' → 앵커터치, 'PT'·그냥 '터치' → PT (둘 다 주황 — 10-21 통일), 아니면 ''(CG 파랑)
 function _cgaKw(title) {
   const t = String(title || '');
   if (/앵커\s*터치|앵터|8\s*터치/.test(t)) return 'anchor';
@@ -389,17 +389,18 @@ function _cgaPaint() {
         <div class="cga-time"><span>배정 <b>${_cgaHM(j.at)}</b></span><span class="cga-ago" data-at="${_cgaEsc(j.at)}"></span></div></div>`).join('');
     let body;
     if (!loaded) body = `<div class="cga-wait">${_cgaErr ? '' : '불러오는 중…'}</div>`;
-    else if (on) body = `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>` + manHtml + a.slice(0, 2).map(r => `<div class="cga-job${_cgaKw(r.title) ? ' kw k-' + _cgaKw(r.title) : ''}" data-rid="${Number(r.id) || 0}" title="눌러서 의뢰 크게 보기">
+    else if (on) body = `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>` + manHtml + a.slice(0, 2).map(r => { const n8 = _cga8Rank(r), u8 = n8 > 0 && n8 <= CGA_URGENT, kw = u8 ? 'urgent' : _cgaKw(r.title);   // 8뉴스 1~10번째는 배정된 뒤에도 빨강+번호(10-21)
+        return `<div class="cga-job${kw ? ' kw k-' + kw : ''}" data-rid="${Number(r.id) || 0}" title="${u8 ? `8뉴스 큐시트 ${n8}번째 — ` : ''}눌러서 의뢰 크게 보기">${u8 ? `<span class="cga-jno">${n8}</span>` : ''}
         <div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>
         ${r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : ''}
         <div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span><span class="cga-ago" data-at="${_cgaEsc(r.assignAt)}"></span></div>
-      </div>`).join('') + (a.length > 2 ? `<div class="cga-more">+${a.length - 2}건 더</div>` : '');
+      </div>`; }).join('') + (a.length > 2 ? `<div class="cga-more">+${a.length - 2}건 더</div>` : '');
     else body = '<div class="cga-idle">대기 중</div>';   // 끝난 CG는 안 보여 줌(10-20)
     // 카드 빛 색(10-21 사용자): 손으로 넣은 앵커터치·PT·3D·XR 이나 제목에 PT·터치·앵터가 든 의뢰가 있으면 그 색(그중 최근 것) — 나중에 CG 의뢰가 붙어도
     // 그건 그 PT 내용이라 PT 색 그대로. 그런 게 없으면 CG 파랑
     const special = [...a.map(r => ({ at: String(r.assignAt || ''), k: _cgaKw(r.title) })), ...mj.map(j => ({ at: String(j.at || ''), k: _cgmKey(j.kind) }))]
       .filter(x => x.k && x.k !== 'cg').sort((x, y) => y.at.localeCompare(x.at))[0];
-    const tone = on && special ? ' k-' + special.k : '';   // 앵커터치 빨강 · PT 주황 · 3D 보라 · XR 초록 · 그 밖 파랑
+    const tone = on && special ? ' k-' + special.k : '';   // 앵커터치·PT 주황 · 3D 보라 · XR 초록 · 그 밖 파랑
     return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + tone + (CGA_PERSON_POP ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, CGA_PERSON_POP ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: CG·앵커터치·PT 배정)` }),
       html: `<span class="cga-dot" aria-hidden="true"></span>${p.id && can ? `<button type="button" class="cga-x" onclick="_cgaDel('${_cgaEsc(p.id)}')" title="오늘 이 화면에서 빼기" aria-label="${_cgaEsc(p.name)} 빼기">×</button>` : ''}
       <div class="cga-top"><div class="cga-nm"><b>${_cgaEsc(p.name)}</b><span class="cga-tag${p.extra ? ' x' : ''}">${_cgaEsc(p.tag || 'CG')}</span></div></div>
@@ -489,8 +490,8 @@ function _cgpPaint() {
 // ── 직접 배정(10-20): CG(손으로)·앵커터치·PT 처럼 NDS에 안 올라오는 일 — 카드 오른쪽 클릭 → [CG 배정]/[앵커터치 배정]/[PT 배정]/[완료]
 // 저장 = nd_data id='cgman'(main 밖 — 자주 바뀌어서), payload.days[날짜] = [{ id, sid, name, kind, at:'YYYY-MM-DD HH:MM:SS'(한국 시각), by, done }]
 // 여러 PC가 같이 봄(20초마다 읽음). 쓸 때는 updated_at 낙관적 잠금 + 재시도. 7일 지난 날짜는 지움. 관리자 테스트 모드는 저장 안 함(화면에만)
-const CGM_KINDS = ['CG', '앵커터치', 'PT', '3D CG', 'XR'];   // 앵커터치 = 흔히 '앵터'. 색: CG 파랑·앵커터치 빨강·PT 주황·3D CG 보라·XR 초록(10-21)
-// 종류별 색(카드 빛·깜빡이는 점·'작업 중' 글자·칸 색이 이 색 — css --g: CG 파랑·앵커터치 빨강·PT 주황)과 메뉴 아이콘. NDS CG 배정도 'cg'(파랑)
+const CGM_KINDS = ['CG', '앵커터치', 'PT', '3D CG', 'XR'];   // 앵커터치 = 흔히 '앵터'. 색: CG 파랑·앵커터치·PT 주황·3D CG 보라·XR 초록(10-21)
+// 종류별 색(카드 빛·깜빡이는 점·'작업 중' 글자·칸 색이 이 색 — css --g: CG 파랑·앵커터치·PT 주황)과 메뉴 아이콘. NDS CG 배정도 'cg'(파랑)
 const CGM_KIND = {
   'CG': { key: 'cg', ic: '<path d="M12 3 3 7.5l9 4.5 9-4.5L12 3z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>' },
   '앵커터치': { key: 'anchor', ic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21M8.5 21h7"/>' },

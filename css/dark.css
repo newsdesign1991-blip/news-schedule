@@ -530,7 +530,7 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cga-grid { position:relative; display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:14px; align-items:start; }   /* 일이 2건인 카드 때문에 옆 카드가 늘어나지 않게 */
 .cga-card { position:relative; padding:16px 16px 14px; border-radius:20px; background:var(--surface); border:1.5px solid var(--border); box-shadow:0 4px 18px -12px rgba(15,23,42,.3); transition:filter .7s ease, opacity .7s ease, border-color .7s ease, background-color .7s ease, box-shadow .7s ease; }
 .cga-card { --g:49,130,246; }
-.cga-card.k-anchor { --g:226,55,68; }   /* 앵커터치 = 빨강 */
+.cga-card.k-anchor { --g:247,103,7; }   /* 앵커터치 = PT 와 같은 주황(10-21 통일) */
 .cga-card.k-pt { --g:247,103,7; }   /* PT = 주황 */
 .cga-card.k-k3d { --g:124,58,237; }   /* 3D CG = 보라 */
 .cga-card.k-xr { --g:16,172,120; }   /* XR = 초록 */
@@ -643,7 +643,11 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cgp-none { margin:6px 0; color:var(--muted); font-size:13.5px; }
 /* CG배정 현황 직접 배정(CG·앵커터치·PT — 카드 오른쪽 클릭, js/cg-assign.js _cgaCtx) */
 .cga-job.man, .cga-job.kw { --j:49,130,246; background:rgba(var(--j),.08); }   /* kw = 제목에 PT·터치·앵터가 든 NDS 의뢰(10-21) */
-.cga-job.k-anchor { --j:226,55,68; }
+.cga-job.k-anchor { --j:247,103,7; }
+.cga-job.k-urgent { --j:226,55,68; }   /* 8뉴스 큐시트 1~10번째 의뢰 — 배정된 뒤에도 빨강(예전 앵커터치 빨강) */
+.cga-job { position:relative; }
+.cga-jno { position:absolute; top:8px; right:12px; color:#e23744; font-size:17px; font-weight:900; line-height:1.1; font-variant-numeric:tabular-nums; }
+.cga-job.k-urgent .cga-who, .cga-job.k-urgent .cga-ttl { margin-right:26px; }
 .cga-job.k-pt { --j:247,103,7; }
 .cga-job.k-k3d { --j:124,58,237; }
 .cga-job.k-xr { --j:16,172,120; }
@@ -660,7 +664,7 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cga-ctx button.dim { color:var(--muted); font-size:13px; }
 .cga-ctx-ic { flex:none; width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-style:normal; font-size:12px; font-weight:800; background:rgba(49,130,246,.12); color:#2f77f6; }
 .cga-ctx-ic.k-cg { background:rgba(49,130,246,.13); color:#2f77f6; }
-.cga-ctx-ic.k-anchor { background:rgba(226,55,68,.13); color:#e23744; }
+.cga-ctx-ic.k-anchor { background:rgba(247,103,7,.14); color:#e8590c; }
 .cga-ctx-ic.k-pt { background:rgba(247,103,7,.14); color:#e8590c; }
 .cga-ctx-ic.k-k3d { background:rgba(124,58,237,.13); color:#7c3aed; }
 .cga-ctx-ic.k-xr { background:rgba(16,172,120,.14); color:#0f9f6e; }
