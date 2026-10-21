@@ -226,10 +226,10 @@ function _cgaRoleTag(name, ds) {
   return String(deptOn(s, ds) || '근무').toUpperCase();
 }
 // 새 의뢰(0001)가 생기면 한 번 알림 — 처음 읽을 때는 기억만
-// 의뢰 제목으로 일 종류 짐작(10-21 사용자): '앵커터치'·'앵터' → 앵커터치(빨강), 'PT'·'터치'(터치 = PT) → PT(주황), 아니면 ''(CG 파랑)
+// 의뢰 제목으로 일 종류 짐작(10-21 사용자): '앵커터치'·'앵터'·'8터치' → 앵커터치(빨강), 'PT'·그냥 '터치' → PT(주황), 아니면 ''(CG 파랑)
 function _cgaKw(title) {
   const t = String(title || '');
-  if (/앵커\s*터치|앵터/.test(t)) return 'anchor';
+  if (/앵커\s*터치|앵터|8\s*터치/.test(t)) return 'anchor';
   if (/터치/.test(t) || /(^|[^A-Za-z])PT([^A-Za-z]|$)/i.test(t)) return 'pt';
   return '';
 }
@@ -824,7 +824,7 @@ function _cgvInfo(d) {
     <div class="cgv-rows">${row('의뢰', d.inputAt)}${row('프로그램', d.program)}${row('상태', d.statusName || ({ '0001': '의뢰', '0002': '배정', '0003': '보완요청', '0004': '완료' })[d.status] || '')}${row('디자이너', d.designer)}${row('배정', d.assignAt)}${row('완료', d.doneAt)}</div>`;
 }
 // NDS PrintTemplate(request-cg, 기본)과 같은 마크업·스타일
-function _cgaPrintHtml(d) {
+function _cgaPrintHtml(d, o = {}) {   // o = { gap: 빈 줄 줄이기, lh: 줄 간격 좁게, small: 글자 작게 } — 종이 아끼기(10-21), 없으면 NDS 그대로
   const L = 'style="width: 150px;"', V = 'style="margin: 0 5px; word-break:break-all;"', SPAN = 'colspan="3"';
   const tr = (k, v) => `<tr><td><div ${L}>${k}</div></td><td ${SPAN}><div ${V}>${_cgaEsc(v || '')}</div></td></tr>`;
   const table = `<table><tbody>${tr('제목', d.title)}${tr('의뢰일시', d.inputAt)}`
@@ -846,25 +846,75 @@ function _cgaPrintHtml(d) {
     div.print-content-place table > tbody > tr > td:first-child { border-left: 0; }
     div.print-content-place table > tbody > tr:last-child > td { border-bottom: 0.1rem solid #dfe7ef; }
     div.print-content-place p, div.print-content-place div { white-space: pre-wrap; }
-    div.print-content-place p { margin: 0; font-size: 10px; line-height: 1.9; }`;
+    div.print-content-place p { margin: 0; font-size: 10px; line-height: 1.9; }`
+    + `div.print-content-place .pgap { display: block; height: 4px; }`
+    + (o.lh ? `div.print-content-place, div.print-content-place p { line-height: 1.4; }` : '')
+    + (o.small ? `div.print-content-place { zoom: .82; }` : '')
+    + (o.tightEnd ? `div.print-content-place { padding-bottom: 0 !important; } div.view-contents > div:first-child { border-bottom: 0; }` : '');
   return `<!doctype html><html><head><meta charset="utf-8"><title>CG의뢰</title><style>${css}</style></head><body><div class="print-box">`
-    + `<div class="print-title"><h2>CG의뢰</h2></div><div class="view-box"><div class="view-contents"><div>${table}<div style="padding: 1.25rem;" class="print-content-place">${_cgaPrintBody(d.content)}</div></div></div></div></div></body></html>`;
+    + `<div class="print-title"><h2>CG의뢰</h2></div><div class="view-box"><div class="view-contents"><div>${table}<div style="padding: 1.25rem;" class="print-content-place">${_cgaPrintBody(d.content, o)}</div></div></div></div></div></body></html>`;
 }
 // NDS PrintTemplate 과 같게 본문 손질: 이미지는 width="100%"를 빼고(원래 크기, 넘치면 줄임) 블록으로, 빈 문단은 줄바꿈 한 줄
-function _cgaPrintBody(html) {
+function _cgaPrintBody(html, o = {}) {
   const clean = _cgaSanitize(html);
   try {
     const doc = new DOMParser().parseFromString('<div>' + clean + '</div>', 'text/html'), root = doc.body.firstChild;
     root.querySelectorAll('img').forEach((i) => { if (i.getAttribute('width') === '100%') i.removeAttribute('width'); i.style.maxWidth = '100%'; i.style.display = 'block'; });
     root.querySelectorAll('p').forEach((pp) => { if (!pp.querySelector('img') && !pp.textContent.replace(/\s/g, '')) pp.replaceWith(doc.createElement('br')); });
+    if (o.gap) _cgaPrintGaps(doc, root);
+    _cgaTrimEnd(root);   // 끝의 빈 줄은 늘 뺌(그것 때문에 글자 없는 장이 나오지 않게, 10-21)
     return root.innerHTML;
   } catch (e) { return clean; }
+}
+// 본문 끝의 빈 줄·빈 문단·끝 줄바꿈만 지움(글자·그림·표는 그대로) — 끝 빈 줄 때문에 다음 장에 표 테두리만 찍히던 것(10-21 사용자)
+function _cgaTrimEnd(root) {
+  const blank = (n) => n.nodeType === 8 || (n.nodeType === 3 && !n.nodeValue.replace(/[\s\u00a0]/g, ''))
+    || (n.nodeType === 1 && (n.tagName === 'BR' || n.classList.contains('pgap') || (/^(P|DIV|SPAN|FONT|B|STRONG|EM|I|U)$/.test(n.tagName) && !n.querySelector('img,table,video,iframe,hr,svg') && !n.textContent.replace(/[\s\u00a0]/g, ''))));
+  let box = root;
+  for (let depth = 0; box && depth < 20; depth++) {
+    while (box.lastChild && blank(box.lastChild)) box.lastChild.remove();
+    const last = box.lastChild;
+    if (!last) break;
+    if (last.nodeType === 3) { last.nodeValue = last.nodeValue.replace(/[\s\u00a0]+$/, ''); break; }
+    if (last.nodeType !== 1 || /^(TABLE|UL|OL|IMG|PRE)$/.test(last.tagName)) break;
+    box = last;   // 마지막 문단 안쪽 끝도(예: <div>글\n\n\n</div>)
+  }
+}
+// 빈 줄 줄이기(10-21 '기자들이 줄바꿈을 너무 많이 써서 종이가 아까움'): 글자·그림·표는 하나도 안 건드리고 '아무것도 없는 줄'만 —
+// 글 속 줄바꿈 여러 개는 하나로, 빈 줄(앞에 글이 없는 줄바꿈)이 이어지면 작은 틈(4px) 하나로. 글 끝의 줄바꿈(다음 줄로 넘기기)은 그대로
+function _cgaPrintGaps(doc, root) {
+  const tw = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT), ts = [];
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) ts.push(n);
+  ts.forEach((n) => { n.nodeValue = n.nodeValue.replace(/\n[ \t\u00a0]*(?:\n[ \t\u00a0]*)+/g, '\n'); });
+  const INLINE = /^(A|SPAN|B|STRONG|EM|I|U|S|FONT|SUB|SUP|MARK|SMALL|BIG|CODE|LABEL)$/;
+  [...root.querySelectorAll('br')].forEach((br) => {
+    let prev = br.previousSibling;
+    while (prev && ((prev.nodeType === 3 && !prev.nodeValue.replace(/[\s\u00a0]/g, '')) || prev.nodeType === 8)) prev = prev.previousSibling;
+    const isGap = prev && prev.nodeType === 1 && prev.classList.contains('pgap');
+    const afterText = prev && !isGap && ((prev.nodeType === 3) || (prev.nodeType === 1 && INLINE.test(prev.tagName) && prev.textContent.replace(/[\s\u00a0]/g, '')));
+    if (afterText) return;   // 글 다음 줄바꿈 = 줄 넘기기(빈 줄 아님)
+    if (isGap) { br.remove(); return; }   // 빈 줄이 또 이어짐 → 없앰
+    const g = doc.createElement('span'); g.className = 'pgap'; br.replaceWith(g);   // 빈 줄 → 작은 틈
+  });
+}
+// 다단으로 나눈 미리보기에서 글자·그림이 있는 마지막 단(장) 번호 — 그 뒤 장은 테두리·여백뿐
+function _cgaLastCol(doc, step) {
+  let last = 0;
+  try {
+    const box = doc.querySelector('.print-box'), tw = doc.createTreeWalker(box, NodeFilter.SHOW_TEXT), rg = doc.createRange();
+    for (let t = tw.nextNode(); t; t = tw.nextNode()) {
+      if (!t.nodeValue.replace(/[\s\u00a0]/g, '')) continue;
+      rg.selectNodeContents(t); [...rg.getClientRects()].forEach((r) => { if (r.height > 0) last = Math.max(last, Math.floor((r.left + doc.scrollingElement.scrollLeft + 1) / step)); });
+    }
+    doc.querySelectorAll('.print-box img').forEach((i) => { [...i.getClientRects()].forEach((r) => { if (r.height > 0) last = Math.max(last, Math.floor((r.left + doc.scrollingElement.scrollLeft + 1) / step)); }); });
+  } catch (e) { return 1e9; }
+  return last;
 }
 // 인쇄 미리보기(NDS 의 크롬 인쇄 창처럼): 왼쪽 A4 미리보기 / 오른쪽 대상·매수·레이아웃·컬러 + [인쇄](바로 인쇄)·[취소]. 고른 프린터·설정은 이 PC 에 기억
 async function _cgaPrintPreview(d) {
   document.getElementById('cga-pv')?.remove();
-  const html = _cgaPrintHtml(d);
   let pref = {}; try { pref = JSON.parse(localStorage.getItem('nd_cga_print') || '{}') || {}; } catch (e) { pref = {}; }
+  let opt = { gap: !!pref.gap, lh: !!pref.lh, small: !!pref.small }, html = _cgaPrintHtml(d, opt);   // 종이 아끼기(10-21) — 지난번 고른 대로
   const el = document.createElement('div'); el.id = 'cga-pv'; el.className = 'cpv-pop';
   el.innerHTML = `<div class="cpv-card" role="dialog" aria-modal="true" aria-label="인쇄">
     <div class="cpv-sheetwrap" id="cpv-wrap"><div class="cpv-pagelist" id="cpv-sheets"></div><iframe id="cpv-frame" class="cpv-hidden" title="인쇄용" sandbox="allow-same-origin" aria-hidden="true" tabindex="-1"></iframe></div>
@@ -875,6 +925,10 @@ async function _cgaPrintPreview(d) {
         <label class="cpv-f"><span>매수</span><input type="number" id="cpv-copies" min="1" max="50" value="${Math.min(Math.max(Number(pref.copies) || 1, 1), 50)}"></label>
         <div class="cpv-f"><span>방향</span><div class="cpv-seg" id="cpv-orient-seg"><button type="button" data-v="p">세로</button><button type="button" data-v="l">가로</button></div><select id="cpv-orient" hidden><option value="p">세로 방향</option><option value="l">가로 방향</option></select></div>
         <div class="cpv-f"><span>색</span><div class="cpv-seg" id="cpv-color-seg"><button type="button" data-v="c">컬러</button><button type="button" data-v="m">흑백</button></div><select id="cpv-color" hidden><option value="c">컬러</option><option value="m">흑백</option></select></div>
+        <p class="cpv-sec">종이 아끼기 <small>글자·그림은 그대로, 빈 줄·간격·크기만 줄여요</small></p>
+        <div class="cpv-f"><span>빈 줄</span><div class="cpv-seg" id="cpv-gap-seg"><button type="button" data-v="0">그대로</button><button type="button" data-v="1">줄이기</button></div><select id="cpv-gap" hidden><option value="0">그대로</option><option value="1">줄이기</option></select></div>
+        <div class="cpv-f"><span>줄 간격</span><div class="cpv-seg" id="cpv-lh-seg"><button type="button" data-v="0">기본</button><button type="button" data-v="1">좁게</button></div><select id="cpv-lh" hidden><option value="0">기본</option><option value="1">좁게</option></select></div>
+        <div class="cpv-f"><span>글자</span><div class="cpv-seg" id="cpv-small-seg"><button type="button" data-v="0">기본</button><button type="button" data-v="1">작게</button></div><select id="cpv-small" hidden><option value="0">기본</option><option value="1">작게</option></select></div>
         <p class="cpv-note">고른 프린터·설정은 다음에도 그대로예요.</p>
       </div>
       <p class="cpv-st" id="cpv-st" role="status"></p>
@@ -883,6 +937,8 @@ async function _cgaPrintPreview(d) {
   document.body.appendChild(el);
   const $ = (s) => el.querySelector(s), frame = $('#cpv-frame');
   $('#cpv-orient').value = pref.landscape ? 'l' : 'p'; $('#cpv-color').value = pref.color === false ? 'm' : 'c';
+  $('#cpv-gap').value = opt.gap ? '1' : '0'; $('#cpv-lh').value = opt.lh ? '1' : '0'; $('#cpv-small').value = opt.small ? '1' : '0';
+  const rebuild = () => { opt = { gap: $('#cpv-gap').value === '1', lh: $('#cpv-lh').value === '1', small: $('#cpv-small').value === '1' }; html = _cgaPrintHtml(d, opt); frame.srcdoc = html; fit(); };   // tightEnd 는 다시 잼
   const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
   const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
@@ -907,6 +963,7 @@ async function _cgaPrintPreview(d) {
       while (sheets.length > n) { const x = sheets.pop(); x.s.remove(); x.lab.remove(); }
       sheets.forEach((x, i) => { x.lab.textContent = `${i + 1} / ${n}`; });
       $('#cpv-pages').textContent = `용지 ${n}장`; scale();
+      if (n > 1 && !opt.tightEnd && _cgaLastCol(sheets[0].f.contentDocument, cw + G) < n - 1) { opt.tightEnd = true; html = _cgaPrintHtml(d, opt); frame.srcdoc = html; fit(); }
     };
     const add = (k) => {
       const sh = document.createElement('div'); sh.className = 'cpv-sheet'; sh.style.width = W + 'px'; sh.style.height = H + 'px';
@@ -928,9 +985,9 @@ async function _cgaPrintPreview(d) {
   frame.srcdoc = html;   // 앱이 아닐 때 [인쇄] = 이 숨은 칸의 인쇄
   fit();
   $('#cpv-orient').onchange = fit; $('#cpv-color').onchange = mono; addEventListener('resize', scale);
-  [['#cpv-orient-seg', '#cpv-orient'], ['#cpv-color-seg', '#cpv-color']].forEach(([sg, se]) => {
+  [['#cpv-orient-seg', '#cpv-orient'], ['#cpv-color-seg', '#cpv-color'], ['#cpv-gap-seg', '#cpv-gap'], ['#cpv-lh-seg', '#cpv-lh'], ['#cpv-small-seg', '#cpv-small']].forEach(([sg, se]) => {
     const seg = $(sg), selEl = $(se), paint = () => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === selEl.value)));
-    seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; selEl.value = b.dataset.v; paint(); if (se === '#cpv-orient') fit(); else mono(); });
+    seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; selEl.value = b.dataset.v; paint(); if (se === '#cpv-orient') fit(); else if (se === '#cpv-color') mono(); else rebuild(); });
     paint();
   });
   // 프린터 목록(앱 1.2.7~). 없으면 [인쇄] = 이 창의 인쇄(운영체제 창)
@@ -944,7 +1001,7 @@ async function _cgaPrintPreview(d) {
   $('.cpv-go').focus();
   $('.cpv-go').onclick = async () => {
     const o = { deviceName: sel.value, copies: Math.min(Math.max(Number($('#cpv-copies').value) || 1, 1), 50), landscape: $('#cpv-orient').value === 'l', color: $('#cpv-color').value !== 'm' };
-    try { localStorage.setItem('nd_cga_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color })); } catch (e) {}
+    try { localStorage.setItem('nd_cga_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color, gap: opt.gap, lh: opt.lh, small: opt.small })); } catch (e) {}
     if (!canApp) { try { frame.contentWindow.print(); } catch (e) { toast('인쇄하지 못했어요.', 'error'); } return; }
     const go = $('.cpv-go'); go.disabled = true; go.textContent = '보내는 중…'; $('#cpv-st').textContent = '';
     const r = await window.ndApp.printHtml(Object.assign({ html }, o)).catch((e) => ({ ok: false, error: e.message }));

@@ -775,6 +775,8 @@ body.cga-dragging .cga-card { outline:2px dashed rgba(49,130,246,.35); outline-o
 .cpv-seg button { height: 36px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; transition: background .2s, color .2s, box-shadow .2s; }
 .cpv-seg button[aria-pressed="true"] { background: var(--surface); color: #2f77f6; box-shadow: 0 2px 8px -3px rgba(15,23,42,.25); }
 .cpv-note { margin: 0; font-size: 12px; color: var(--muted); }
+.cpv-sec { margin: 6px 0 -6px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 14px; font-weight: 800; color: var(--text); display: flex; flex-direction: column; gap: 2px; }
+.cpv-sec small { font-size: 12px; font-weight: 600; color: var(--muted); }
 .cpv-st { flex: none; margin: 0 22px; color: #d65a52; font-size: 13px; font-weight: 700; }
 .cpv-st:empty { display: none; }
 .cpv-foot { flex: none; display: flex; gap: 8px; padding: 12px 22px 20px; }

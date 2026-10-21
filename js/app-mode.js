@@ -337,6 +337,7 @@ function ndPreviewHTML(){
   return '<div class="nd-prev"><div class="nd-prev-t">알림 미리보기 <small>이 PC에만 띄워요 · 서버로 보내지 않음</small></div>'
     +'<div class="nd-prev-b"><button type="button" onclick="ndPreviewAlert(\'card\')">일반 알림</button>'
     +'<button type="button" class="p8" onclick="ndPreviewAlert(\'8jin\')">8진 알림</button>'
+    +'<button type="button" class="p8" onclick="ndPreviewAlert(\'desk8\')">데스크 8진 알림</button>'
     +'<button type="button" class="pn" onclick="ndPreviewAlert(\'newsoh\')">오뉴스 진행 알림</button></div></div>';
 }
 function ndPreviewAlert(kind){

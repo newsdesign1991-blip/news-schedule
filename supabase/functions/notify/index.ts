@@ -665,6 +665,25 @@ Deno.serve(async (req) => {
         if (e.statusCode === 410 || e.statusCode === 404) await sb.from('push_subs').delete().eq('endpoint', sub.endpoint)
       }
     }
+    // 8데스크에게도 8진 진행 알림(10-21 사용자): 그날 CG 8데스크(cg.desk8, 없으면 cg.desk)에게 '8진 ○○님 진행 가야 해요' —
+    // 8뉴스 진입 20분 전(due8, 진입시각을 알 때만·알림 제어 8진 켜짐)·주말·공휴일 15시 뉴스(due15). 데스크가 그날 8진이면 위 8진 알림만.
+    // 제목 '근무 알림 — 8진 진행(데스크)' → PC 앱 빨간 강조 알림(1.2.9~ 머리 '8진 진행 시간이에요', 그 전 판은 '8진입니다'로 뜸)
+    const desk8 = entry && entry.cg ? (entry.cg.desk8 || entry.cg.desk) : null
+    if (desk8 && sub.staff_id === desk8 && wt !== '8jin' && pref(sub, 'news')) {
+      const who = [entry.weekday8jin, entry.weekend8jin, entry.weekday8jin2, entry.weekend8jin2].filter((x: any) => x && !leaves.has(x))
+        .map((id: any) => nd?.staff?.find((st: any) => st.id === id)?.name).filter(Boolean).join('·')
+      const go8 = !!(n8Use && due8 && (cfg.types || []).find((t: any) => t.key === '8jin')?.enabled)
+      for (const [go, what, at, tg] of [[go8, '8뉴스', n8Use, 'desk8'], [due15, '15시 뉴스', n15, 'desk15']] as [boolean, string, string, string][]) {
+        if (!go || !who) continue
+        try {
+          await deliver(sub, JSON.stringify({ title: '📅 근무 알림 — 8진 진행(데스크)', body: `8진 ${who}님 ${what} 진행 가야 해요. (${at} 진입)`, icon: 'icon-192.png', badge: 'icon-192.png', tag: `${tg}-${todayStr}-${sub.staff_id}`, data: { url: './' } }))
+          sent++
+        } catch (e: any) {
+          errors++
+          if (e.statusCode === 410 || e.statusCode === 404) await sb.from('push_subs').delete().eq('endpoint', sub.endpoint)
+        }
+      }
+    }
     if (!pref(sub, (wt === '8jin' || wt === 'newsoh') ? 'news' : 'work')) continue   // 8진·뉴오는 '8진·뉴오 진행 알림', 나머지는 '근무 알림'
 
     const typeCfg = (cfg.types || []).find((t: any) => t.key === wt)
