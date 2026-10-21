@@ -924,6 +924,7 @@ async function _cgaPrintPreview(d) {
         <label class="cpv-f"><span>프린터</span><select id="cpv-dev"><option value="">프린터 찾는 중…</option></select></label>
         <label class="cpv-f"><span>매수</span><input type="number" id="cpv-copies" min="1" max="50" value="${Math.min(Math.max(Number(pref.copies) || 1, 1), 50)}"></label>
         <div class="cpv-f"><span>방향</span><div class="cpv-seg" id="cpv-orient-seg"><button type="button" data-v="p">세로</button><button type="button" data-v="l">가로</button></div><select id="cpv-orient" hidden><option value="p">세로 방향</option><option value="l">가로 방향</option></select></div>
+        <div class="cpv-f" id="cpv-duplex-f"><span>양면</span><div class="cpv-seg" id="cpv-duplex-seg"><button type="button" data-v="0">단면</button><button type="button" data-v="1">양면</button></div><select id="cpv-duplex" hidden><option value="0">단면</option><option value="1">양면</option></select></div>
         <div class="cpv-f"><span>색</span><div class="cpv-seg" id="cpv-color-seg"><button type="button" data-v="c">컬러</button><button type="button" data-v="m">흑백</button></div><select id="cpv-color" hidden><option value="c">컬러</option><option value="m">흑백</option></select></div>
         <p class="cpv-sec">종이 아끼기 <small>글자·그림은 그대로, 빈 줄·간격·크기만 줄여요</small></p>
         <div class="cpv-f"><span>빈 줄</span><div class="cpv-seg" id="cpv-gap-seg"><button type="button" data-v="0">그대로</button><button type="button" data-v="1">줄이기</button></div><select id="cpv-gap" hidden><option value="0">그대로</option><option value="1">줄이기</option></select></div>
@@ -937,6 +938,9 @@ async function _cgaPrintPreview(d) {
   document.body.appendChild(el);
   const $ = (s) => el.querySelector(s), frame = $('#cpv-frame');
   $('#cpv-orient').value = pref.landscape ? 'l' : 'p'; $('#cpv-color').value = pref.color === false ? 'm' : 'c';
+  $('#cpv-duplex').value = pref.duplex ? '1' : '0';
+  if (!(window.ndApp && window.ndApp.printCaps && window.ndApp.printCaps.duplex)) $('#cpv-duplex-f').hidden = true;   // 양면은 앱 1.3.0~
+  let lastN = 1; const pagesLabel = () => { const dup = $('#cpv-duplex').value === '1' && !$('#cpv-duplex-f').hidden; $('#cpv-pages').textContent = dup && lastN > 1 ? `용지 ${Math.ceil(lastN / 2)}장 · ${lastN}쪽` : `용지 ${lastN}장`; };
   $('#cpv-gap').value = opt.gap ? '1' : '0'; $('#cpv-lh').value = opt.lh ? '1' : '0'; $('#cpv-small').value = opt.small ? '1' : '0';
   const rebuild = () => { opt = { gap: $('#cpv-gap').value === '1', lh: $('#cpv-lh').value === '1', small: $('#cpv-small').value === '1' }; html = _cgaPrintHtml(d, opt); frame.srcdoc = html; fit(); };   // tightEnd 는 다시 잼
   const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
@@ -962,7 +966,7 @@ async function _cgaPrintPreview(d) {
       while (sheets.length < n) add(sheets.length);
       while (sheets.length > n) { const x = sheets.pop(); x.s.remove(); x.lab.remove(); }
       sheets.forEach((x, i) => { x.lab.textContent = `${i + 1} / ${n}`; });
-      $('#cpv-pages').textContent = `용지 ${n}장`; scale();
+      lastN = n; pagesLabel(); scale();
       if (n > 1 && !opt.tightEnd && _cgaLastCol(sheets[0].f.contentDocument, cw + G) < n - 1) { opt.tightEnd = true; html = _cgaPrintHtml(d, opt); frame.srcdoc = html; fit(); }
     };
     const add = (k) => {
@@ -985,9 +989,9 @@ async function _cgaPrintPreview(d) {
   frame.srcdoc = html;   // 앱이 아닐 때 [인쇄] = 이 숨은 칸의 인쇄
   fit();
   $('#cpv-orient').onchange = fit; $('#cpv-color').onchange = mono; addEventListener('resize', scale);
-  [['#cpv-orient-seg', '#cpv-orient'], ['#cpv-color-seg', '#cpv-color'], ['#cpv-gap-seg', '#cpv-gap'], ['#cpv-lh-seg', '#cpv-lh'], ['#cpv-small-seg', '#cpv-small']].forEach(([sg, se]) => {
+  [['#cpv-orient-seg', '#cpv-orient'], ['#cpv-duplex-seg', '#cpv-duplex'], ['#cpv-color-seg', '#cpv-color'], ['#cpv-gap-seg', '#cpv-gap'], ['#cpv-lh-seg', '#cpv-lh'], ['#cpv-small-seg', '#cpv-small']].forEach(([sg, se]) => {
     const seg = $(sg), selEl = $(se), paint = () => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === selEl.value)));
-    seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; selEl.value = b.dataset.v; paint(); if (se === '#cpv-orient') fit(); else if (se === '#cpv-color') mono(); else rebuild(); });
+    seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; selEl.value = b.dataset.v; paint(); if (se === '#cpv-orient') fit(); else if (se === '#cpv-color') mono(); else if (se === '#cpv-duplex') pagesLabel(); else rebuild(); });
     paint();
   });
   // 프린터 목록(앱 1.2.7~). 없으면 [인쇄] = 이 창의 인쇄(운영체제 창)
@@ -1000,8 +1004,8 @@ async function _cgaPrintPreview(d) {
   } else sel.innerHTML = '<option value="">이 PC 기본 프린터</option>';
   $('.cpv-go').focus();
   $('.cpv-go').onclick = async () => {
-    const o = { deviceName: sel.value, copies: Math.min(Math.max(Number($('#cpv-copies').value) || 1, 1), 50), landscape: $('#cpv-orient').value === 'l', color: $('#cpv-color').value !== 'm' };
-    try { localStorage.setItem('nd_cga_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color, gap: opt.gap, lh: opt.lh, small: opt.small })); } catch (e) {}
+    const o = { deviceName: sel.value, copies: Math.min(Math.max(Number($('#cpv-copies').value) || 1, 1), 50), landscape: $('#cpv-orient').value === 'l', color: $('#cpv-color').value !== 'm', duplex: $('#cpv-duplex').value === '1' && !$('#cpv-duplex-f').hidden };
+    try { localStorage.setItem('nd_cga_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color, duplex: o.duplex, gap: opt.gap, lh: opt.lh, small: opt.small })); } catch (e) {}
     if (!canApp) { try { frame.contentWindow.print(); } catch (e) { toast('인쇄하지 못했어요.', 'error'); } return; }
     const go = $('.cpv-go'); go.disabled = true; go.textContent = '보내는 중…'; $('#cpv-st').textContent = '';
     const r = await window.ndApp.printHtml(Object.assign({ html }, o)).catch((e) => ({ ok: false, error: e.message }));
