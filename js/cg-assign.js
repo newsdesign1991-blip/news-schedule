@@ -824,7 +824,9 @@ function _cgvInfo(d) {
     <div class="cgv-rows">${row('의뢰', d.inputAt)}${row('프로그램', d.program)}${row('상태', d.statusName || ({ '0001': '의뢰', '0002': '배정', '0003': '보완요청', '0004': '완료' })[d.status] || '')}${row('디자이너', d.designer)}${row('배정', d.assignAt)}${row('완료', d.doneAt)}</div>`;
 }
 // NDS PrintTemplate(request-cg, 기본)과 같은 마크업·스타일
-function _cgaPrintHtml(d, o = {}) {   // o = { gap: 빈 줄 줄이기, lh: 줄 간격 좁게, small: 글자 작게 } — 종이 아끼기(10-21), 없으면 NDS 그대로
+// 인쇄 글자 크기 5단계(10-21 슬라이드) — 본문(그림 포함)을 이만큼 줄임, 마지막 = NDS 그대로
+const CGA_PRINT_ZOOM = [0.7, 0.78, 0.85, 0.92, 1];
+function _cgaPrintHtml(d, o = {}) {   // o = { gap: 빈 줄 줄이기, lh: 줄 간격 좁게, zoom: 글자 크기(1 = 그대로) } — 종이 아끼기(10-21), 없으면 NDS 그대로
   const L = 'style="width: 150px;"', V = 'style="margin: 0 5px; word-break:break-all;"', SPAN = 'colspan="3"';
   const tr = (k, v) => `<tr><td><div ${L}>${k}</div></td><td ${SPAN}><div ${V}>${_cgaEsc(v || '')}</div></td></tr>`;
   const table = `<table><tbody>${tr('제목', d.title)}${tr('의뢰일시', d.inputAt)}`
@@ -849,7 +851,7 @@ function _cgaPrintHtml(d, o = {}) {   // o = { gap: 빈 줄 줄이기, lh: 줄 �
     div.print-content-place p { margin: 0; font-size: 10px; line-height: 1.9; }`
     + `div.print-content-place .pgap { display: block; height: 4px; }`
     + (o.lh ? `div.print-content-place, div.print-content-place p { line-height: 1.4; }` : '')
-    + (o.small ? `div.print-content-place { zoom: .82; }` : '')
+    + (o.zoom && o.zoom < 1 ? `div.print-content-place { zoom: ${Number(o.zoom)}; }` : '')
     + (o.tightEnd ? `div.print-content-place { padding-bottom: 0 !important; } div.view-contents > div:first-child { border-bottom: 0; }` : '');
   return `<!doctype html><html><head><meta charset="utf-8"><title>CG의뢰</title><style>${css}</style></head><body><div class="print-box">`
     + `<div class="print-title"><h2>CG의뢰</h2></div><div class="view-box"><div class="view-contents"><div>${table}<div style="padding: 1.25rem;" class="print-content-place">${_cgaPrintBody(d.content, o)}</div></div></div></div></div></body></html>`;
@@ -914,7 +916,8 @@ function _cgaLastCol(doc, step) {
 async function _cgaPrintPreview(d) {
   document.getElementById('cga-pv')?.remove();
   let pref = {}; try { pref = JSON.parse(localStorage.getItem('nd_cga_print') || '{}') || {}; } catch (e) { pref = {}; }
-  let opt = { gap: !!pref.gap, lh: !!pref.lh, small: !!pref.small }, html = _cgaPrintHtml(d, opt);   // 종이 아끼기(10-21) — 지난번 고른 대로
+  const zi0 = Number.isInteger(pref.size) && pref.size >= 0 && pref.size < CGA_PRINT_ZOOM.length ? pref.size : (pref.small ? 2 : CGA_PRINT_ZOOM.length - 1);
+  let opt = { gap: !!pref.gap, lh: !!pref.lh, zoom: CGA_PRINT_ZOOM[zi0] }, html = _cgaPrintHtml(d, opt);   // 종이 아끼기(10-21) — 지난번 고른 대로
   const el = document.createElement('div'); el.id = 'cga-pv'; el.className = 'cpv-pop';
   el.innerHTML = `<div class="cpv-card" role="dialog" aria-modal="true" aria-label="인쇄">
     <div class="cpv-sheetwrap" id="cpv-wrap"><div class="cpv-pagelist" id="cpv-sheets"></div><iframe id="cpv-frame" class="cpv-hidden" title="인쇄용" sandbox="allow-same-origin" aria-hidden="true" tabindex="-1"></iframe></div>
@@ -929,7 +932,7 @@ async function _cgaPrintPreview(d) {
         <p class="cpv-sec">종이 아끼기 <small>글자·그림은 그대로, 빈 줄·간격·크기만 줄여요</small></p>
         <div class="cpv-f"><span>빈 줄</span><div class="cpv-seg" id="cpv-gap-seg"><button type="button" data-v="0">그대로</button><button type="button" data-v="1">줄이기</button></div><select id="cpv-gap" hidden><option value="0">그대로</option><option value="1">줄이기</option></select></div>
         <div class="cpv-f"><span>줄 간격</span><div class="cpv-seg" id="cpv-lh-seg"><button type="button" data-v="0">기본</button><button type="button" data-v="1">좁게</button></div><select id="cpv-lh" hidden><option value="0">기본</option><option value="1">좁게</option></select></div>
-        <div class="cpv-f"><span>글자</span><div class="cpv-seg" id="cpv-small-seg"><button type="button" data-v="0">기본</button><button type="button" data-v="1">작게</button></div><select id="cpv-small" hidden><option value="0">기본</option><option value="1">작게</option></select></div>
+        <div class="cpv-f"><span>글자 크기</span><div class="cpv-steps" id="cpv-steps" role="radiogroup" aria-label="글자 크기"><span class="cpv-thumb" aria-hidden="true"></span>${CGA_PRINT_ZOOM.map((z, i) => `<button type="button" role="radio" data-i="${i}">${Math.round(z * 100)}%</button>`).join('')}</div></div>
         <p class="cpv-note">고른 프린터·설정은 다음에도 그대로예요.</p>
       </div>
       <p class="cpv-st" id="cpv-st" role="status"></p>
@@ -941,8 +944,41 @@ async function _cgaPrintPreview(d) {
   $('#cpv-duplex').value = pref.duplex ? '1' : '0';
   if (!(window.ndApp && window.ndApp.printCaps && window.ndApp.printCaps.duplex)) $('#cpv-duplex-f').hidden = true;   // 양면은 앱 1.3.0~
   let lastN = 1; const pagesLabel = () => { const dup = $('#cpv-duplex').value === '1' && !$('#cpv-duplex-f').hidden; $('#cpv-pages').textContent = dup && lastN > 1 ? `용지 ${Math.ceil(lastN / 2)}장 · ${lastN}쪽` : `용지 ${lastN}장`; };
-  $('#cpv-gap').value = opt.gap ? '1' : '0'; $('#cpv-lh').value = opt.lh ? '1' : '0'; $('#cpv-small').value = opt.small ? '1' : '0';
-  const rebuild = () => { opt = { gap: $('#cpv-gap').value === '1', lh: $('#cpv-lh').value === '1', small: $('#cpv-small').value === '1' }; html = _cgaPrintHtml(d, opt); frame.srcdoc = html; fit(); };   // tightEnd 는 다시 잼
+  $('#cpv-gap').value = opt.gap ? '1' : '0'; $('#cpv-lh').value = opt.lh ? '1' : '0';
+  // 글자 크기: 딱 5칸(10-21 사용자) — 둥근 칸 안 흰 둥근 칸(.cpv-thumb)이 고른 칸으로 미끄러짐. 끌면 손을 따라오다 놓으면 가장 가까운 칸에 딱, ←→ 키도
+  let zi = zi0, sizeT = 0;
+  const zoomOf = () => CGA_PRINT_ZOOM[zi], steps = $('#cpv-steps'), thumb = steps.querySelector('.cpv-thumb'), last = CGA_PRINT_ZOOM.length - 1;
+  const paintSteps = () => {
+    steps.style.setProperty('--i', String(zi));
+    steps.querySelectorAll('button').forEach((b, i) => { b.classList.toggle('on', i === zi); b.setAttribute('aria-checked', String(i === zi)); b.tabIndex = i === zi ? 0 : -1; });
+  };
+  const setZ = (i, wait) => { i = Math.min(last, Math.max(0, i)); if (i === zi) return; zi = i; paintSteps(); clearTimeout(sizeT); sizeT = setTimeout(() => rebuild(), wait ? 220 : 0); };
+  const rebuild = () => { opt = { gap: $('#cpv-gap').value === '1', lh: $('#cpv-lh').value === '1', zoom: zoomOf() }; html = _cgaPrintHtml(d, opt); frame.srcdoc = html; fit(); };   // tightEnd 는 다시 잼
+  paintSteps();
+  steps.addEventListener('pointerdown', (e) => {
+    if (e.button > 0) return;
+    const r = steps.getBoundingClientRect(), pad = 4, w = (r.width - 2 * pad) / (last + 1);
+    const at = (x) => Math.floor((x - r.left - pad) / w);
+    let moved = false;
+    const move = (ev) => {   // 흰 칸이 손을 따라옴(양끝 안에서), 글자색은 가장 가까운 칸
+      if (!moved && Math.abs(ev.clientX - e.clientX) < 4) return;
+      moved = true; thumb.classList.add('drag');
+      const x = Math.min(r.width - pad - w, Math.max(pad, ev.clientX - r.left - w / 2));
+      thumb.style.left = x + 'px'; setZ(Math.round((x - pad) / w), true);
+    };
+    const up = (ev) => {
+      steps.removeEventListener('pointermove', move); steps.removeEventListener('pointerup', up); steps.removeEventListener('pointercancel', up);
+      thumb.classList.remove('drag'); thumb.style.left = '';   // 놓으면 그 칸 자리로 딱
+      if (!moved && ev.type === 'pointerup') setZ(at(ev.clientX));
+      steps.querySelector('button.on')?.focus();
+    };
+    try { steps.setPointerCapture(e.pointerId); } catch (x) {}
+    steps.addEventListener('pointermove', move); steps.addEventListener('pointerup', up); steps.addEventListener('pointercancel', up);
+  });
+  steps.addEventListener('keydown', (e) => {
+    const d = (e.key === 'ArrowRight' || e.key === 'ArrowUp') ? 1 : (e.key === 'ArrowLeft' || e.key === 'ArrowDown') ? -1 : 0; if (!d) return;
+    e.preventDefault(); setZ(zi + d); steps.querySelector('button.on')?.focus();
+  });
   const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
   const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
@@ -989,7 +1025,7 @@ async function _cgaPrintPreview(d) {
   frame.srcdoc = html;   // 앱이 아닐 때 [인쇄] = 이 숨은 칸의 인쇄
   fit();
   $('#cpv-orient').onchange = fit; $('#cpv-color').onchange = mono; addEventListener('resize', scale);
-  [['#cpv-orient-seg', '#cpv-orient'], ['#cpv-duplex-seg', '#cpv-duplex'], ['#cpv-color-seg', '#cpv-color'], ['#cpv-gap-seg', '#cpv-gap'], ['#cpv-lh-seg', '#cpv-lh'], ['#cpv-small-seg', '#cpv-small']].forEach(([sg, se]) => {
+  [['#cpv-orient-seg', '#cpv-orient'], ['#cpv-duplex-seg', '#cpv-duplex'], ['#cpv-color-seg', '#cpv-color'], ['#cpv-gap-seg', '#cpv-gap'], ['#cpv-lh-seg', '#cpv-lh']].forEach(([sg, se]) => {
     const seg = $(sg), selEl = $(se), paint = () => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === selEl.value)));
     seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; selEl.value = b.dataset.v; paint(); if (se === '#cpv-orient') fit(); else if (se === '#cpv-color') mono(); else if (se === '#cpv-duplex') pagesLabel(); else rebuild(); });
     paint();
@@ -1005,7 +1041,7 @@ async function _cgaPrintPreview(d) {
   $('.cpv-go').focus();
   $('.cpv-go').onclick = async () => {
     const o = { deviceName: sel.value, copies: Math.min(Math.max(Number($('#cpv-copies').value) || 1, 1), 50), landscape: $('#cpv-orient').value === 'l', color: $('#cpv-color').value !== 'm', duplex: $('#cpv-duplex').value === '1' && !$('#cpv-duplex-f').hidden };
-    try { localStorage.setItem('nd_cga_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color, duplex: o.duplex, gap: opt.gap, lh: opt.lh, small: opt.small })); } catch (e) {}
+    try { localStorage.setItem('nd_cga_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color, duplex: o.duplex, gap: opt.gap, lh: opt.lh, size: CGA_PRINT_ZOOM.indexOf(opt.zoom) })); } catch (e) {}
     if (!canApp) { try { frame.contentWindow.print(); } catch (e) { toast('인쇄하지 못했어요.', 'error'); } return; }
     const go = $('.cpv-go'); go.disabled = true; go.textContent = '보내는 중…'; $('#cpv-st').textContent = '';
     const r = await window.ndApp.printHtml(Object.assign({ html }, o)).catch((e) => ({ ok: false, error: e.message }));

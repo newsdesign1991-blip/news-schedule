@@ -768,6 +768,14 @@ body.cga-dragging .cga-card { outline:2px dashed rgba(49,130,246,.35); outline-o
 .cpv-fields { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 22px; display: flex; flex-direction: column; gap: 16px; }
 .cpv-f { display: flex; flex-direction: column; gap: 7px; font-size: 13px; }
 .cpv-f[hidden] { display: none; }
+/* 글자 크기 5칸(10-21) — 둥근 칸 안에 흰 둥근 칸이 고른 단계로 미끄러짐(세로/가로 고르기와 같은 모양) */
+.cpv-steps { --i: 4; position: relative; display: grid; grid-template-columns: repeat(5, 1fr); padding: 4px; border-radius: 13px; background: var(--surface2); border: 1px solid var(--border); touch-action: none; -webkit-user-select: none; user-select: none; cursor: pointer; }
+.cpv-thumb { position: absolute; top: 4px; bottom: 4px; left: calc(4px + (100% - 8px) / 5 * var(--i)); width: calc((100% - 8px) / 5); border-radius: 9px; background: var(--surface); box-shadow: 0 2px 8px -3px rgba(15,23,42,.25); transition: left .26s cubic-bezier(.3,.9,.3,1), box-shadow .2s; pointer-events: none; }
+.cpv-thumb.drag { transition: box-shadow .2s; box-shadow: 0 6px 16px -6px rgba(15,23,42,.38); }
+.cpv-steps button { position: relative; z-index: 1; height: 36px; padding: 0; border: 0; background: none; font: inherit; font-size: 13.5px; font-weight: 800; color: var(--muted); cursor: pointer; font-variant-numeric: tabular-nums; transition: color .2s; }
+.cpv-steps button.on { color: #2f77f6; }
+.cpv-steps button:focus-visible { outline: none; }
+.cpv-steps:focus-within .cpv-thumb { box-shadow: 0 2px 8px -3px rgba(15,23,42,.25), 0 0 0 3px rgba(49,130,246,.22); }
 .cpv-f > span { color: var(--muted); font-weight: 700; }
 .cpv-f select, .cpv-f input { height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font: inherit; font-size: 14.5px; font-weight: 700; min-width: 0; }
 .cpv-f select:focus, .cpv-f input:focus { outline: none; border-color: #2f77f6; box-shadow: 0 0 0 3px rgba(49,130,246,.18); }
