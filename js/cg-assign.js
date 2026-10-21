@@ -3,13 +3,14 @@
    - 근무자 = 홈 'CG 근무자'와 같은 기준(js/home.js): CG 근무 + XR 근무(10-20: XR도 CG 제작을 늘 해서 포함) + CG·XR 부서 8진·뉴오·일근, 휴가·수습·당직/퇴근·조근·오전데 빼고, 8데스·5데스 빼고
    - NDS = 근무표 PC 앱 window.ndApp.ndsCg(오늘) (desktop/nds-cue.js, 공용 계정) — 이 화면을 열어 둔 PC만 20초마다(창이 보일 때만). 웹·옛 앱은 안내만
    - 상태 0002 배정 = 작업 중(파란 빛·깜빡이는 점·'작업 중…'·기자·의뢰/배정 시각), 그 밖 = 대기(회색). 이름은 NDS 디자이너 이름과 근무표 이름이 같아야 맞음
-   - 10-20 추가: 프로젝트 인원은 늘 포함, [사람 추가]·카드 ×로 그날만 넣고 빼기(이 PC localStorage nd_cga_adj), 왼쪽 의뢰 ×로 이 앱에서만 숨기기(nd_cga_hide, NDS엔 그대로),
+   - 10-20 추가: 프로젝트 인원은 늘 포함, [사람 추가]·카드 ×로 그날만 넣고 빼기(10-21부터 모든 PC 공용 — nd_data 'cgman'.adj, 5초마다 맞춤), 왼쪽 의뢰 ×로 이 PC에서만 숨기기(nd_cga_hide, NDS엔 그대로),
      보완요청은 회색, 새 의뢰(0001)가 생기면 오른쪽 위 알림 카드(ndApp.toast — 1.2.4+, 옛 앱은 화면 아래 토스트)
    - 직접 배정(CG·앵커터치·PT — NDS에 안 올라옴): 카드 오른쪽 클릭 → 배정/완료, 공용 nd_data 'cgman'(아래 _cgm*)
-   - 끌어다 놓아 NDS 배정(10-21): 왼쪽 '의뢰'를 사람 카드에 → 확인 창 → 내 NDS 로그인(WISE × N)으로 NDS 에 배정(ndApp.ndsAssign, 앱 1.2.6~) */
+   - 끌어다 놓아 NDS 배정(10-21): 왼쪽 '의뢰'를 사람 카드에 → 확인 창 → 내 NDS 로그인(WISE × N)으로 NDS 에 배정(ndApp.ndsAssign, 앱 1.2.6~)
+   - 의뢰 누르면 크게 보기(본문 포함, ndApp.ndsCgDetail) + [인쇄] = NDS [인쇄 → 기본]과 같은 모양, 미리보기 창에서 프린터 골라 바로 인쇄(ndApp.printHtml) — 앱 1.2.7~ */
 const CGA_POLL = 20000;
 const CGA_PERSON_POP = false;   // 10-20 사용자: 카드 누르면 뜨는 사람 팝업(_cgaPersonPop)은 일단 숨김 — 코드는 남겨 둠, true 면 다시 켜짐
-let _cgaData = null, _cgaErr = '', _cgaBusy = false, _cgaTimer = null, _cgaTick = null, _cgaSeen = null;
+let _cgaData = null, _cgaErr = '', _cgaBusy = false, _cgaTimer = null, _cgaTick = null, _cgaSeen = null, _cgmTimer = null;
 // 그날만 쓰는 이 PC 설정(날짜가 바뀌면 비움): 숨긴 의뢰 id / 넣은·뺀 사람 id
 function _cgaLocal(key) { try { const v = JSON.parse(localStorage.getItem(key) || 'null'); if (v && v.day === _cgaToday()) return v; } catch (e) {} return { day: _cgaToday() }; }
 function _cgaSave(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} }
@@ -43,35 +44,82 @@ function _cgaPeople(ds) {
   (entry.project || []).forEach(id => { const s = staffById(id); if (!s || seen.has(id) || lv.has(id) || (typeof isProbation === 'function' && isProbation(s, ds))) return; seen.add(id); out.push({ id, name: s.name, tag: 'PROJECT' }); });
   [['8진', entry.weekend8jin], ['8진', entry.weekday8jin], ['8진', entry.weekend8jin2], ['8진', entry.weekday8jin2], ['뉴.오', entry.newsOh], ['뉴.오', entry.newsOh2], ['일근', entry.ilgeun]]
     .forEach(([t, id]) => { if (id && seen.has(id)) { const p = out.find(x => x.id === id); if (p && !p.tag) p.tag = t; } else add(id, t, true); });
-  // 손으로 넣고 뺀 사람(그날만)
-  const adj = _cgaLocal('nd_cga_adj'), del = new Set(adj.del || []);
+  // 표에 보이는 그대로(10-21): 엑셀에서 가져온 칸·손으로 쓴 칸은 그 글자를 따름 — 예) 부서를 VW→CG로 옮겼는데 그날 목록은 예전 VW 그대로이고
+  //   표의 CG 줄 칸엔 '정근'이 보이는 경우. 그냥 목록만 있는 칸(VW 대체 등)은 위에서 이미 셈. 회색(특별 작업)·집계 제외 칸은 뺌
+  if (typeof WORK_TYPE_MAP !== 'undefined' && typeof _normalizeImportedWorkType === 'function') (data.staff || []).forEach(s => {
+    if (!s || seen.has(s.id)) return;
+    const d = dept(s.id); if (d !== 'cg' && d !== 'xr') return;
+    const imp = typeof _importCellDisplay === 'function' ? _importCellDisplay(entry, s.id, [...lv]) : null, cus = entry.customCells && entry.customCells[s.id];
+    const text = imp ? imp.text : (cus && cus.text); if (!text) return;
+    if (imp ? (entry.importedCells[s.id] || {}).gray : cus.excl) return;
+    const k = WORK_TYPE_MAP[_normalizeImportedWorkType(text)];
+    const t = (k === 'work' || k === 'cg-sub') ? (d === 'xr' ? 'XR' : '') : (k === '8jin' || k === '8jin2') ? '8진' : (k === 'newsoh' || k === 'newsoh2') ? '뉴.오' : k === 'ilgeun' ? '일근' : undefined;
+    if (t !== undefined) add(s.id, t, true);
+  });
+  // 손으로 넣고 뺀 사람(그날만) — 10-21부터 모든 PC 공용(nd_data 'cgman' adj, 5초마다 맞춤)
+  const adj = _cgaAdjGet(), del = new Set(adj.del || []);
   (adj.add || []).forEach(id => { const s = staffById(id); if (s && !seen.has(id)) { seen.add(id); out.push({ id, name: s.name, tag: _cgaRoleTag(s.name, ds), added: true }); } });
   const idx = new Map((data.staff || []).map((s, i) => [s.id, i]));
   const fl = id => (staffById(id) && staffById(id).employmentType === 'freelancer') ? 1 : 0;
   return out.filter(p => !del.has(p.id)).sort((a, b) => (fl(a.id) - fl(b.id)) || ((idx.get(a.id) ?? 9999) - (idx.get(b.id) ?? 9999)));
 }
-function _cgaDel(id) { const v = _cgaLocal('nd_cga_adj'); v.add = (v.add || []).filter(x => x !== id); v.del = [...new Set([...(v.del || []), id])]; _cgaSave('nd_cga_adj', v); _cgaPaint(); }
+// 사람 넣고 빼기 = 공용(10-21 '다른 PC도 똑같이'): 화면 먼저 바꾸고(낙관적) nd_data 'cgman'.adj[날짜] = { add:[], del:[] } 에 낙관적 잠금으로 저장
+function _cgaAdjGet() { const a = _cgmData && _cgmData.adj && _cgmData.adj[_cgaToday()]; return { add: (a && a.add) || [], del: (a && a.del) || [] }; }
+async function _cgaAdjSet(fn) {
+  const day = _cgaToday();
+  _cgmData = _cgmData || { days: {} }; _cgmData.adj = _cgmData.adj || {};
+  const loc = _cgmData.adj[day] = _cgaAdjGet(); fn(loc); _cgaPaint();
+  const ok = await _cgmCommit(p => { p.adj = (p.adj && typeof p.adj === 'object') ? p.adj : {}; const v = p.adj[day] = { add: (p.adj[day] && p.adj[day].add) || [], del: (p.adj[day] && p.adj[day].del) || [] }; fn(v); });
+  if (!ok) { toast('저장하지 못했어요. 잠시 뒤 다시 해 주세요.', 'error'); await _cgmLoad(); }
+  _cgaPaint();
+}
+function _cgaDel(id) {
+  const s = staffById(id); if (!s) return;
+  document.getElementById('cga-delask')?.remove();
+  const el = document.createElement('div'); el.id = 'cga-delask'; el.className = 'wt-pop';
+  el.innerHTML = `<div class="wt-card cga-ask-card" role="dialog" aria-modal="true" aria-labelledby="cga-delask-t">
+    <div class="wt-head cga-del-head" id="cga-delask-t">사람 빼기</div>
+    <div class="wt-body"><p class="cga-ask-q"><b>${_cgaEsc(s.name)}</b>님을 오늘 CG배정 현황에서 뺄까요?</p>
+      <p class="cga-ask-who">오늘만 빠지고, 모든 PC에 같이 보여요. [사람 추가]에서 다시 넣을 수 있어요.</p></div>
+    <div class="wt-foot"><button type="button" class="wt-cancel">취소</button><button type="button" class="wt-go cga-del-go">빼기</button></div>
+  </div>`;
+  document.body.appendChild(el);
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); };
+  const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  document.addEventListener('keydown', onKey, true);
+  el.addEventListener('click', e => { if (e.target === el) close(); });
+  el.querySelector('.wt-cancel').onclick = () => close();
+  const go = el.querySelector('.wt-go'); go.focus();
+  go.onclick = () => { close(); _cgaAdjSet(v => { v.add = v.add.filter(x => x !== id); if (!v.del.includes(id)) v.del.push(id); }); };
+}
 function _cgaAdd(id) {
-  const v = _cgaLocal('nd_cga_adj'); v.del = (v.del || []).filter(x => x !== id); _cgaSave('nd_cga_adj', v);
-  if (!_cgaPeople(_cgaToday()).some(p => p.id === id)) { v.add = [...new Set([...(v.add || []), id])]; _cgaSave('nd_cga_adj', v); }
-  document.getElementById('cga-pick')?.remove(); _cgaPaint();
+  document.getElementById('cga-pick')?.remove();
+  // 원래 그날 근무자인지(넣기·빼기를 잠깐 비우고 계산) — 아니면 넣기 목록에도
+  const day = _cgaToday(); _cgmData = _cgmData || { days: {} }; _cgmData.adj = _cgmData.adj || {};
+  const saved = _cgmData.adj[day]; _cgmData.adj[day] = { add: [], del: [] };
+  const inBase = _cgaPeople(day).some(p => p.id === id);
+  if (saved) _cgmData.adj[day] = saved; else delete _cgmData.adj[day];
+  _cgaAdjSet(v => { v.del = v.del.filter(x => x !== id); if (!inBase && !v.add.includes(id)) v.add.push(id); });
 }
 function _cgaHide(id) { const v = _cgaLocal('nd_cga_hide'); v.ids = [...new Set([...(v.ids || []), id])]; _cgaSave('nd_cga_hide', v); _cgaPaint(); }
 function _cgaUnhide() { _cgaSave('nd_cga_hide', { day: _cgaToday(), ids: [] }); _cgaPaint(); }
 // [사람 추가] 작은 창: 이름 찾기 + 오늘 뺀 사람 다시 넣기
 function _cgaPick(btn) {
   const old = document.getElementById('cga-pick'); if (old) { old.remove(); return; }
-  const ds = _cgaToday(), on = new Set(_cgaPeople(ds).map(p => p.id)), del = new Set(_cgaLocal('nd_cga_adj').del || []);
+  const ds = _cgaToday(), on = new Set(_cgaPeople(ds).map(p => p.id)), del = new Set(_cgaAdjGet().del || []);
   const list = (data.staff || []).filter(s => s && s.name && !on.has(s.id) && (typeof isContractActive !== 'function' || isContractActive(s, ds)));
   const el = document.createElement('div'); el.id = 'cga-pick'; el.className = 'cga-pick'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', '사람 추가');
-  el.innerHTML = '<div class="cga-pick-h">사람 추가 <small>오늘만, 이 PC에서</small></div><input type="search" class="cga-pick-q" placeholder="이름 찾기" aria-label="이름 찾기"><div class="cga-pick-list"></div>';
+  el.innerHTML = '<div class="cga-pick-h">사람 추가 <small>오늘만 · 모든 PC에 같이 보여요</small></div><input type="search" class="cga-pick-q" placeholder="이름 쓰고 엔터" aria-label="이름 찾기 — 엔터로 바로 넣기"><div class="cga-pick-list"></div>';
   const paint = q => {
     const f = list.filter(s => !q || s.name.includes(q));
     const row = s => `<button type="button" data-id="${_cgaEsc(s.id)}"><b>${_cgaEsc(s.name)}</b><small>${_cgaEsc(_cgaRoleTag(s.name, ds))}</small>${del.has(s.id) ? '<em>뺀 사람</em>' : ''}</button>`;
     el.querySelector('.cga-pick-list').innerHTML = f.length ? [...f.filter(s => del.has(s.id)), ...f.filter(s => !del.has(s.id))].map(row).join('') : '<p>찾는 사람이 없어요.</p>';
   };
   el.addEventListener('click', e => { const b = e.target.closest('button[data-id]'); if (b) _cgaAdd(b.dataset.id); });
-  el.addEventListener('keydown', e => { if (e.key === 'Escape') el.remove(); });
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Escape') el.remove();
+    else if (e.key === 'Enter' && e.target.classList.contains('cga-pick-q') && !e.isComposing) { e.preventDefault(); const b = el.querySelector('.cga-pick-list button[data-id]'); if (b) _cgaAdd(b.dataset.id); }   // 이름 쓰고 엔터 = 맨 위 사람 바로 넣기
+  });
   el.querySelector('.cga-pick-q').addEventListener('input', e => paint(e.target.value.trim()));
   document.body.appendChild(el); paint('');
   const r = btn.getBoundingClientRect();
@@ -95,7 +143,9 @@ function renderCgAssign() {
       <div class="cga-body"><aside class="cga-side" id="cga-side"><section class="cga-box"><h3>배정 기다리는 의뢰 <span id="cga-reqn">…</span></h3><div class="cga-reqs" id="cga-reqs"></div><p class="cga-none" id="cga-none" hidden>지금 기다리는 의뢰가 없어요.</p><button type="button" class="cga-unhide" id="cga-unhide" onclick="_cgaUnhide()" hidden></button></section></aside><div class="cga-grid" id="cga-grid"></div></div>`;
   }
   const g = document.getElementById('cga-grid');
-  if (!g._ctx) { g._ctx = true; g.addEventListener('contextmenu', _cgaCtx); }
+  if (!g._ctx) { g._ctx = true; g.addEventListener('contextmenu', _cgaCtx);
+    g.addEventListener('click', e => { if (e.target.closest('.cga-x, .cga-done')) return; const j = e.target.closest('.cga-job[data-rid]'); if (!j) return; const id = Number(j.dataset.rid) || 0; if (id > 0) _cgaReqOpen(id); });   // 배정된 의뢰 칸 → 크게 보기(10-21)
+  }
   _cgaWireDnd();   // 의뢰 → 사람 카드 끌어다 놓기 배정(10-21)   // 카드 오른쪽 클릭 → CG·앵커터치·PT 직접 배정/완료
   if (CGA_PERSON_POP && !g._wired) {   // 카드 누르면 그 사람 오늘 CG(× 는 빼기)
     g._wired = true;
@@ -108,6 +158,13 @@ function renderCgAssign() {
   _cgaFetch(false);
   clearInterval(_cgaTimer); _cgaTimer = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTimer); _cgaTimer = null; return; } if (document.visibilityState === 'visible') _cgaFetch(false); }, CGA_POLL);
   clearInterval(_cgaTick); _cgaTick = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTick); _cgaTick = null; return; } _cgaAgoFill(); }, 30000);   // '몇 분째'만 갱신
+  // 직접 배정·사람 넣고 빼기(공용 'cgman')는 5초마다 — 다른 PC에서 바꾼 게 5초 안에 보이게(10-21). 바뀌었을 때만 다시 그림
+  clearInterval(_cgmTimer); _cgmTimer = setInterval(async () => {
+    if (currentView !== 'cgassign') { clearInterval(_cgmTimer); _cgmTimer = null; return; }
+    if (document.visibilityState !== 'visible' || _cgaPull) return;
+    const before = JSON.stringify(_cgmData || null); await _cgmLoad();
+    if (JSON.stringify(_cgmData || null) !== before) _cgaPaint();
+  }, 5000);
 }
 // 왼쪽 의뢰 창 아래 끝 = 사이드바 아래 끝에서 (사이드바 위 끝 ~ 'CG배정 현황' 글자) 만큼 위(10-20 사용자: 위아래 여백 같게). 좁아서 한 줄로 쌓이면 원래대로
 function _cgaFit() {
@@ -129,9 +186,12 @@ async function _cgaFetch(manual) {
     _cgaPaint(); return;
   }
   _cgaBusy = true;
+  if (typeof _checkRemoteUpdate === 'function') _checkRemoteUpdate().catch(() => {});   // 근무표가 바뀌었으면 받아 둠(인원 계산용) — 보통 2분 → 이 화면은 20초
   const btn = document.querySelector('#cga-root .cga-refresh'); if (btn) btn.classList.add('spin');
   try {
     const r = await window.ndApp.ndsCg(_cgaToday());
+    // 시험용 가짜 의뢰(개발판에서 애니메이션 볼 때만 — window._cgaFakeRows, id 는 음수. NDS 로 안 감)
+    if (r && r.ok && Array.isArray(window._cgaFakeRows)) r.rows = r.rows.concat(window._cgaFakeRows.filter(x => !r.rows.some(y => y.id === x.id)));
     if (r && r.ok) { _cgaNotifyNew(r); _cgaData = r; _cgaErr = ''; }
     else _cgaErr = !r ? 'NDS에서 읽지 못했어요.' : r.reason === 'noaccount' ? 'NDS 공용 계정이 이 PC에 없어요.' : r.reason === 'login' ? 'NDS 로그인 실패: ' + (r.error || '') : (r.error || 'NDS에서 읽지 못했어요.');
   } catch (e) { _cgaErr = 'NDS에서 읽지 못했어요.'; }
@@ -224,7 +284,7 @@ function _cgaPaint() {
   const names = new Set(people.map(p => p.name));
   const extra = [...new Set(rows.filter(r => r.status === '0002' && r.designer && !names.has(r.designer)).map(r => r.designer))]
     .map(n => { const st = (data.staff || []).find(x => x.name === n); return { id: st ? st.id : '', name: n, tag: _cgaRoleTag(n, ds), extra: true }; })
-    .filter(p => !(p.id && (_cgaLocal('nd_cga_adj').del || []).includes(p.id)));
+    .filter(p => !(p.id && (_cgaAdjGet().del || []).includes(p.id)));
   const busy = n => active(n).length > 0 || _cgmActive(n).length > 0;   // NDS 배정 또는 직접 배정(CG·앵커터치·PT)
   // 배정이 오래된 사람부터(10-20): 작업 중 = 지금 하는 일 중 가장 최근 배정 시각이 이른 순, 대기 = 오늘 마지막 배정 시각이 이른 순(오늘 한 번도 없으면 맨 앞).
   // 시각은 NDS 배정(assignAt)과 직접 배정(at) 둘 다 'YYYY-MM-DD HH:MM:SS'(한국 시각)라 글자 비교. 같으면 근무표 순서 그대로(정렬이 안정적)
@@ -244,7 +304,7 @@ function _cgaPaint() {
         <div class="cga-time"><span>배정 <b>${_cgaHM(j.at)}</b></span><span class="cga-ago" data-at="${_cgaEsc(j.at)}"></span></div></div>`).join('');
     let body;
     if (!loaded) body = `<div class="cga-wait">${_cgaErr ? '' : '불러오는 중…'}</div>`;
-    else if (on) body = `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>` + manHtml + a.slice(0, 2).map(r => `<div class="cga-job">
+    else if (on) body = `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>` + manHtml + a.slice(0, 2).map(r => `<div class="cga-job" data-rid="${Number(r.id) || 0}" title="눌러서 의뢰 크게 보기">
         <div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>
         ${r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : ''}
         <div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span><span class="cga-ago" data-at="${_cgaEsc(r.assignAt)}"></span></div>
@@ -268,7 +328,7 @@ function _cgaPaint() {
   const nHid = all.length - wait.length, nReq = wait.filter(r => r.status === '0001').length;
   const item = r => {
     const fix = r.status === '0003';
-    return { key: 'r:' + r.id, cls: 'cga-req' + (fix ? ' fix' : ' drag'), attrs: fix ? { draggable: 'false' } : { draggable: 'true', 'data-rid': String(r.id), title: '사람 카드에 끌어다 놓으면 배정해요' },
+    return { key: 'r:' + r.id, cls: 'cga-req' + (fix ? ' fix' : ' drag'), attrs: fix ? { draggable: 'false' } : { draggable: 'false', 'data-rid': String(r.id), title: '누르면 크게 보기 · 끌어서 사람 카드에 놓으면 배정' },
       html: `<button type="button" class="cga-x" onclick="_cgaHide(${Number(r.id) || 0})" title="이 앱에서만 숨기기(NDS엔 그대로)" aria-label="의뢰 숨기기">×</button>`
         + `<div class="cga-who"><b>${_cgaEsc(r.requester)}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}${fix ? '<em class="cga-fix">보완요청</em>' : ''}</div>`
         + (r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : '')
@@ -276,7 +336,7 @@ function _cgaPaint() {
   };
   const list = document.getElementById('cga-reqs');
   const cnt = document.getElementById('cga-reqn'), cntT = loaded ? String(nReq) : '…'; if (cnt.textContent !== cntT) cnt.textContent = cntT;
-  _cgaKeyed(list, wait.map(item), (el, i) => {
+  if (!_cgaPull) _cgaKeyed(list, wait.map(item), (el, i) => {   // 물방울을 끄는 동안엔 목록을 다시 그리지 않음(끄는 칸이 바뀌지 않게)
     // 목록 바닥(창 아래)에서 올라와 제자리에 쌓임 — 새로 여러 건이면 하나씩
     const lb = list.getBoundingClientRect().bottom, r = el.getBoundingClientRect(), dy = Math.max(60, lb - r.top);
     // 10-20 '더 부드럽게 천천히': 1.5초, 하나씩 0.35초 간격, 끝에서 살짝 감속 + 흐릿→선명
@@ -339,12 +399,14 @@ function _cgpPaint() {
 // ── 직접 배정(10-20): CG(손으로)·앵커터치·PT 처럼 NDS에 안 올라오는 일 — 카드 오른쪽 클릭 → [CG 배정]/[앵커터치 배정]/[PT 배정]/[완료]
 // 저장 = nd_data id='cgman'(main 밖 — 자주 바뀌어서), payload.days[날짜] = [{ id, sid, name, kind, at:'YYYY-MM-DD HH:MM:SS'(한국 시각), by, done }]
 // 여러 PC가 같이 봄(20초마다 읽음). 쓸 때는 updated_at 낙관적 잠금 + 재시도. 7일 지난 날짜는 지움. 관리자 테스트 모드는 저장 안 함(화면에만)
-const CGM_KINDS = ['CG', '앵커터치', 'PT'];   // 앵커터치 = 흔히 '앵터'
+const CGM_KINDS = ['CG', '앵커터치', 'PT', '3D CG', 'XR'];   // 앵커터치 = 흔히 '앵터'. 색: CG 파랑·앵커터치 빨강·PT 주황·3D CG 보라·XR 초록(10-21)
 // 종류별 색(카드 빛·깜빡이는 점·'작업 중' 글자·칸 색이 이 색 — css --g: CG 파랑·앵커터치 빨강·PT 주황)과 메뉴 아이콘. NDS CG 배정도 'cg'(파랑)
 const CGM_KIND = {
   'CG': { key: 'cg', ic: '<path d="M12 3 3 7.5l9 4.5 9-4.5L12 3z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>' },
   '앵커터치': { key: 'anchor', ic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21M8.5 21h7"/>' },
-  'PT': { key: 'pt', ic: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/><path d="m8 12 3-3 2 2 3-3"/>' }
+  'PT': { key: 'pt', ic: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/><path d="m8 12 3-3 2 2 3-3"/>' },
+  '3D CG': { key: 'k3d', ic: '<path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7z"/><path d="M3.5 7 12 11.5 20.5 7"/><path d="M12 11.5v10"/>' },
+  'XR': { key: 'xr', ic: '<path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-3.5l-2-2.5h-3l-2 2.5H5a2 2 0 0 1-2-2z"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/>' }
 };
 const _cgmKey = k => (CGM_KIND[k] && CGM_KIND[k].key) || 'cg';
 const _cgmIc = k => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${(CGM_KIND[k] || CGM_KIND.CG).ic}</svg>`;
@@ -372,6 +434,7 @@ async function _cgmCommit(mutate) {
     mutate(pay);
     const keep = new Date(Date.now() + 9 * 3600e3 - 7 * 864e5).toISOString().slice(0, 10);
     Object.keys(pay.days).forEach(k => { if (k < keep) delete pay.days[k]; });
+    if (pay.adj && typeof pay.adj === 'object') Object.keys(pay.adj).forEach(k => { if (k < keep) delete pay.adj[k]; });
     const nowIso = new Date().toISOString(), H = Object.assign({}, SB_HEADERS, { 'Prefer': 'return=representation' });
     try {
       if (!remote) {
@@ -437,38 +500,140 @@ function _cgaCtx(e) {
 
 // ── 끌어다 놓아 배정(10-21): 왼쪽 '의뢰'(0001)를 사람 카드에 놓으면 확인 창 → 내 NDS 로그인(WISE × N)으로 NDS 에 실제 배정(window.ndApp.ndsAssign, 앱 1.2.6~)
 // 보완요청(0003)은 NDS 도 배정이 안 돼서 못 끎. 놓은 뒤 화면은 바로 '작업 중'으로 바꾸고(낙관적) NDS 를 다시 읽어 맞춤
-let _cgaDragId = 0;
+// 10-21 '물방울' 끌기(iOS 26 처럼): 처음엔 자석에 붙은 듯 조금씩만 늘어나며 버티다가(고무줄) 일정 거리를 넘으면 '뾱' 하고 물방울이 떨어져 나와 손을 따라옴.
+//   카드 위에서 놓으면 그 카드로 빨려 들어가며 배정 확인, 아무 데나 놓으면 물방울이 제자리로 돌아가 합쳐짐. 브라우저 기본 끌기 대신 포인터로 직접(그래야 이 느낌이 남)
+const CGA_POP = 78;   // 이만큼(px) 끌면 떨어져 나옴
+let _cgaPull = null;   // { it, id, sx, sy, pid, phase:0 잡음|1 버팀|2 떨어짐, drop, x, y, gx, gy, vx, vy, raf, hot }
 function _cgaWireDnd() {
   const list = document.getElementById('cga-reqs'), grid = document.getElementById('cga-grid');
   if (!list || list._dnd) return; list._dnd = true;
-  list.addEventListener('dragstart', e => {
-    const it = e.target.closest && e.target.closest('.cga-req[data-rid]'); if (!it) return;
-    _cgaDragId = Number(it.dataset.rid) || 0;
-    try { e.dataTransfer.setData('text/plain', String(_cgaDragId)); e.dataTransfer.effectAllowed = 'move'; } catch (x) { /* 그래도 _cgaDragId 로 */ }
-    it.classList.add('dragging'); document.body.classList.add('cga-dragging');
+  // 의뢰를 한 번 누르면 크게 보기(10-21) — × 는 숨기기. 끌다 놓은 뒤 따라오는 클릭은 무시
+  list.addEventListener('click', e => {
+    if (list._pulledAt && Date.now() - list._pulledAt < 400) { e.stopPropagation(); return; }
+    if (e.target.closest('.cga-x')) return; const it = e.target.closest('.cga-req[data-k]'); if (!it) return;
+    const id = Number(String(it.dataset.k).replace(/^r:/, '')); if (id) _cgaReqOpen(id);
   });
-  list.addEventListener('dragend', e => {
-    const it = e.target.closest && e.target.closest('.cga-req'); if (it) it.classList.remove('dragging');
-    document.body.classList.remove('cga-dragging'); grid.querySelectorAll('.drop-hot').forEach(c => c.classList.remove('drop-hot'));
-    setTimeout(() => { _cgaDragId = 0; }, 0);
+  list.addEventListener('dragstart', e => e.preventDefault());   // 브라우저 기본 끌기(그림 끌기 등) 끔
+  list.addEventListener('pointerdown', e => {
+    if (_cgaPull || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const it = e.target.closest('.cga-req[data-rid]'); if (!it || e.target.closest('.cga-x')) return;
+    _cgaPull = { it, id: Number(it.dataset.rid) || 0, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, pid: e.pointerId, phase: 0, vx: 0, vy: 0 };
   });
-  grid.addEventListener('dragover', e => {
-    if (!_cgaDragId) return;
-    const c = e.target.closest && e.target.closest('.cga-card[data-name]'); if (!c || c.classList.contains('cga-leaving')) return;
-    e.preventDefault(); try { e.dataTransfer.dropEffect = 'move'; } catch (x) {}
-    if (!c.classList.contains('drop-hot')) { grid.querySelectorAll('.drop-hot').forEach(x => x.classList.remove('drop-hot')); c.classList.add('drop-hot'); }
-  });
-  grid.addEventListener('dragleave', e => { const c = e.target.closest && e.target.closest('.cga-card'); if (c && !c.contains(e.relatedTarget)) c.classList.remove('drop-hot'); });
-  grid.addEventListener('drop', e => {
-    const c = e.target.closest && e.target.closest('.cga-card[data-name]'); if (!c || !_cgaDragId) return;
-    e.preventDefault(); c.classList.remove('drop-hot'); document.body.classList.remove('cga-dragging');
-    const id = _cgaDragId; _cgaDragId = 0;
-    _cgaAssignAsk(id, c.dataset.name);
-  });
+  document.addEventListener('pointermove', e => { const p = _cgaPull; if (!p || e.pointerId !== p.pid) return; p.x = e.clientX; p.y = e.clientY; _cgaPullMove(e); }, { passive: false });
+  document.addEventListener('pointerup', e => { const p = _cgaPull; if (!p || e.pointerId !== p.pid) return; _cgaPullEnd(false); });
+  document.addEventListener('pointercancel', e => { const p = _cgaPull; if (!p || e.pointerId !== p.pid) return; _cgaPullEnd(true); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && _cgaPull && _cgaPull.phase) _cgaPullEnd(true); });
+  void grid;
 }
-async function _cgaAssignAsk(id, name) {
+// 고무줄: 끈 만큼 다 안 가고 점점 덜 따라옴(최대 약 R)
+function _cgaRubber(d, R) { return R * (1 - 1 / (d / R + 1)); }
+// 10-21 다듬기: ① 잡으면 그 칸이 그 자리에서 카드로 스르륵(배경·그림자만 서서히, 글자는 그대로) ② 버티며 늘어남 ③ 넘으면 '그 카드 자체가' 뾱 떨어져
+//   잡은 지점을 그대로 붙든 채 손을 따라옴(위에서 새로 생기지 않게) ④ 놓으면 카드로 빨려 들어가거나 제자리로 돌아가 합쳐짐
+function _cgaPullMove(e) {
+  const p = _cgaPull, dx = p.x - p.sx, dy = p.y - p.sy, d = Math.hypot(dx, dy);
+  if (p.phase === 0) {
+    if (d < 5) return; p.phase = 1; document.body.classList.add('cga-pulling'); try { p.it.setPointerCapture(p.pid); } catch (x) {}
+    // 목록 상자(스크롤 영역)에 잘리지 않게: 같은 칸을 화면 위(body)에 같은 자리로 띄워 그걸 움직임(위치는 transform 하나로)
+    const r = p.it.getBoundingClientRect(), cs = getComputedStyle(p.it), g = document.createElement('div');
+    const padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0;
+    g.className = 'cga-pullghost' + (p.it.classList.contains('late') ? ' late' : ''); g.setAttribute('aria-hidden', 'true');
+    g.innerHTML = [...p.it.children].filter(c => !c.classList.contains('cga-x')).map(c => c.outerHTML).join('');
+    Object.assign(g.style, { width: (r.width + 20) + 'px', minHeight: r.height + 'px', paddingLeft: (padL + 10) + 'px', paddingRight: (padR + 10) + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom });
+    p.bx = r.left - 10; p.by = r.top; p.gw = r.width + 20;
+    p.ox = p.sx - p.bx; p.oy = p.sy - p.by;   // 잡은 지점(카드 안 좌표) — 떨어진 뒤에도 이 점을 붙든 채 따라옴
+    g.style.transform = `translate(${p.bx}px,${p.by}px)`;
+    document.body.appendChild(g); p.ghost = g; p.it.classList.add('pulling');
+  }
+  if (e && e.cancelable) e.preventDefault();
+  if (p.phase === 1) {
+    const r = _cgaRubber(d, 36), ux = dx / (d || 1), uy = dy / (d || 1), a = Math.atan2(dy, dx) * 180 / Math.PI;
+    const st = Math.min(.16, d / 520);   // 끄는 쪽으로 늘어남
+    p.cx = p.bx + ux * r; p.cy = p.by + uy * r;
+    p.ghost.style.transform = `translate(${p.cx}px,${p.cy}px) rotate(${a}deg) scale(${1 + st},${1 - st * .55}) rotate(${-a}deg)`;
+    if (d > CGA_POP) _cgaPullPop();
+  }
+  // 떨어진 뒤: rAF 에서 손을 살짝 늦게 따라감(_cgaPullTick)
+}
+function _cgaPullPop() {
+  const p = _cgaPull, it = p.it, g = p.ghost;
+  p.phase = 2; p.drop = g; p.ghost = null;
+  p.gx = p.cx; p.gy = p.cy;
+  // 떨어져 나오며 유리 물방울로: 폭을 줄이되 잡은 지점은 손 아래 그대로
+  const w = Math.min(p.gw, 280); p.w = w; p.ox = Math.min(p.ox, w - 24);
+  g.classList.add('cga-drop'); g.style.width = w + 'px';
+  try { g.animate([{ scale: '1' }, { scale: '1.07', offset: .45 }, { scale: '1' }], { duration: 420, easing: 'cubic-bezier(.2,.9,.25,1)', composite: 'add' }); } catch (x) {}
+  p.h = g.offsetHeight;
+  _cgaSlotClose(it);   // 떨어져 나간 칸은 목록에서 접혀 사라지고 아래 칸들이 올라와 메움(10-21)
+  try { if (navigator.vibrate) navigator.vibrate(12); } catch (x) {}
+  document.body.classList.add('cga-dragging');
+  const tick = () => { if (!_cgaPull || _cgaPull.phase !== 2) return; _cgaPullTick(); _cgaPull.raf = requestAnimationFrame(tick); };
+  p.raf = requestAnimationFrame(tick);
+}
+function _cgaPullTick() {
+  const p = _cgaPull, g = p.drop; if (!g) return;
+  const tx = p.x - p.ox, ty = p.y - p.oy;
+  const nx = p.gx + (tx - p.gx) * .32, ny = p.gy + (ty - p.gy) * .32;
+  p.vx = nx - p.gx; p.vy = ny - p.gy; p.gx = nx; p.gy = ny;
+  // 움직이는 쪽으로 살짝 늘어나는 물방울
+  const v = Math.hypot(p.vx, p.vy), st = Math.min(.12, v / 100), a = Math.atan2(p.vy, p.vx) * 180 / Math.PI;
+  g.style.transform = `translate(${nx}px,${ny}px) rotate(${a}deg) scale(${1 + st},${1 - st * .6}) rotate(${-a}deg)`;
+  // 놓을 카드 표시
+  const el = document.elementFromPoint(p.x, p.y), c = el && el.closest && el.closest('#cga-grid .cga-card[data-name]');
+  if (c !== p.hot) { if (p.hot) p.hot.classList.remove('drop-hot'); if (c && !c.classList.contains('cga-leaving')) { c.classList.add('drop-hot'); p.hot = c; } else p.hot = null; g.classList.toggle('over', !!p.hot); }
+}
+function _cgaPullEnd(cancel) {
+  const p = _cgaPull; if (!p) return; _cgaPull = null;
+  cancelAnimationFrame(p.raf);
+  const it = p.it, list = document.getElementById('cga-reqs');
+  document.body.classList.remove('cga-pulling', 'cga-dragging');
+  try { it.releasePointerCapture(p.pid); } catch (x) {}
+  if (p.phase === 0) return;   // 그냥 누름 → 클릭(크게 보기)
+  if (list) list._pulledAt = Date.now();
+  if (p.phase === 1) {   // 덜 끌었음 → 고무줄처럼 '퐁' 제자리, 카드 모습은 서서히 목록 칸으로
+    const g = p.ghost, done = () => { if (g) g.remove(); it.classList.remove('pulling'); };
+    if (!g) { done(); return; }
+    g.classList.add('back');
+    try { const an = g.animate([{ transform: g.style.transform || 'none' }, { transform: `translate(${p.bx}px,${p.by}px)` }], { duration: 520, easing: 'cubic-bezier(.34,1.56,.64,1)', fill: 'forwards' }); an.onfinish = done; } catch (x) { done(); }
+    return;
+  }
+  const g = p.drop, card = !cancel && p.hot;
+  if (p.hot) p.hot.classList.remove('drop-hot');
+  if (card) {   // 카드로 빨려 들어감 → 배정 확인
+    const r = card.getBoundingClientRect(), cx = r.left + r.width / 2 - p.w / 2, cy = r.top + Math.min(r.height / 2, 60) - p.h / 2;
+    const an = g.animate([{ transform: g.style.transform, opacity: 1 }, { transform: `translate(${cx}px,${cy}px) scale(.35)`, opacity: 0 }], { duration: 300, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+    an.onfinish = () => g.remove();
+    try { card.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.035)' }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(.34,1.56,.64,1)' }); } catch (x) {}
+    _cgaAssignAsk(p.id, card.dataset.name, it);   // 확인 창이 떠 있는 동안 칸은 접힌 채, 취소하면 다시 벌어짐
+    return;
+  }
+  // 아무 데도 아님 → 물방울이 제자리로 돌아가 합쳐짐
+  const r = it.getBoundingClientRect(), bx = r.left - 10, by = r.top;
+  g.classList.add('back');
+  const an = g.animate([{ transform: g.style.transform, opacity: 1 }, { transform: `translate(${bx}px,${by}px)`, opacity: .15 }], { duration: 440, easing: 'cubic-bezier(.34,1.25,.64,1)', fill: 'forwards' });
+  _cgaSlotOpen(it);   // 칸이 다시 벌어지며 물방울이 그 자리로 들어가 합쳐짐
+  an.onfinish = () => { g.remove(); try { it.animate([{ transform: 'scale(.98)' }, { transform: 'scale(1.015)' }, { transform: 'none' }], { duration: 340, easing: 'ease-out' }); } catch (x) {} };
+}
+// 목록 칸 접기/펴기 — 접힌 동안은 높이·여백 0(안 보임), 펴면 원래 높이로 벌어지며 서서히 보임
+const CGA_SLOT0 = { height: '0px', paddingTop: '0px', paddingBottom: '0px', borderTopWidth: '0px', opacity: 0 };
+function _cgaSlotClose(it) {
+  const cs = getComputedStyle(it);
+  it._slotFull = { height: it.offsetHeight + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, borderTopWidth: cs.borderTopWidth, opacity: 0 };
+  it.style.overflow = 'hidden'; it.style.boxSizing = 'border-box';
+  if (it._slot) it._slot.cancel();
+  it._slot = it.animate([it._slotFull, CGA_SLOT0], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
+}
+function _cgaSlotOpen(it) {
+  const full = it._slotFull; it.classList.remove('pulling');
+  if (!full || !it.isConnected) { if (it._slot) it._slot.cancel(); it._slot = null; it._slotFull = null; return; }
+  if (it._slot) it._slot.cancel();
+  const an = it.animate([CGA_SLOT0, Object.assign({}, full, { opacity: 1 })], { duration: 400, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  it._slot = an; it._slotFull = null;
+  an.onfinish = () => { if (it._slot === an) it._slot = null; it.style.overflow = ''; it.style.boxSizing = ''; };
+}
+async function _cgaAssignAsk(id, name, slot) {
   const ds = _cgaToday(), rows = (_cgaData && _cgaData.day === ds && _cgaData.rows) || [];
-  const r = rows.find(x => x.id === id); if (!r) { toast('그 의뢰를 찾지 못했어요. 새로고침 뒤 다시 해 주세요.', 'error'); return; }
+  const reopen = () => { if (slot) _cgaSlotOpen(slot); };   // 배정 안 하고 닫으면 접어 둔 목록 칸을 다시 펼침
+  const r = rows.find(x => x.id === id); if (!r) { reopen(); toast('그 의뢰를 찾지 못했어요. 새로고침 뒤 다시 해 주세요.', 'error'); return; }
   document.getElementById('cga-ask')?.remove();
   const can = !!(window.ndApp && window.ndApp.ndsAssign);
   // NDS 가 배정 때 묻는 '알림(메시지)을 전송하시겠습니까?'를 여기 토글로 — 지난번 고른 대로 기억(이 PC, 처음엔 켜짐)
@@ -486,10 +651,10 @@ async function _cgaAssignAsk(id, name) {
     <div class="wt-foot"><button type="button" class="wt-cancel">취소</button><button type="button" class="wt-go" ${can ? '' : 'disabled'}>배정</button></div>
   </div>`;
   document.body.appendChild(el);
-  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); };
+  const close = ok => { el.remove(); document.removeEventListener('keydown', onKey, true); if (ok !== true) reopen(); };
   const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
-  el.querySelector('.wt-cancel').onclick = close;
+  el.querySelector('.wt-cancel').onclick = () => close();
   el.addEventListener('click', e => { if (e.target === el) close(); });
   const go = el.querySelector('.wt-go'), st = el.querySelector('#cga-ask-st'), who = el.querySelector('#cga-ask-who');
   el.querySelector('#cga-ask-push').addEventListener('change', e => { try { localStorage.setItem('nd_cga_push', e.target.checked ? '1' : '0'); } catch (x) {} });
@@ -502,9 +667,10 @@ async function _cgaAssignAsk(id, name) {
   go.onclick = async () => {
     go.disabled = true; go.textContent = '배정하는 중…'; st.textContent = '';
     const hint = (rows.find(x => x.designer === name && Number(x.designerId) > 0) || {}).designerId || 0;
-    const res = await window.ndApp.ndsAssign({ id, name, hintId: hint, push: el.querySelector('#cga-ask-push').checked }).catch(e => ({ ok: false, error: e.message }));
+    const res = id < 0 ? (() => { const f = (window._cgaFakeRows || []).find(x => x.id === id); if (f) Object.assign(f, { status: '0002', designer: name, assignAt: _cgmNow() }); return { ok: true, designerId: 0 }; })()   // 가짜 의뢰는 화면에서만
+      : await window.ndApp.ndsAssign({ id, name, hintId: hint, push: el.querySelector('#cga-ask-push').checked }).catch(e => ({ ok: false, error: e.message }));
     if (res && res.ok) {
-      close();
+      close(true);
       // 화면 먼저(낙관적) → NDS 다시 읽어 맞춤
       if (_cgaData && _cgaData.rows) { const x = _cgaData.rows.find(y => y.id === id); if (x) Object.assign(x, { status: '0002', designer: name, designerId: res.designerId || hint, assignAt: _cgmNow() }); }
       _cgaPaint(); toast(`${name}님에게 배정했어요.`, 'success');
@@ -514,5 +680,158 @@ async function _cgaAssignAsk(id, name) {
       st.textContent = (res && res.error) || '배정하지 못했어요.';
       if (res && res.reason === 'state') setTimeout(() => _cgaFetch(false), 300);
     }
+  };
+}
+
+// ── 의뢰 크게 보기·인쇄(10-21) — 왼쪽 의뢰를 누르면 큰 창(왼쪽 정보 / 오른쪽 본문), [인쇄] = NDS [인쇄 → 기본]과 같은 모양의 미리보기 → 프린터 골라 바로 인쇄 ──
+// 본문은 NDS 편집기 HTML — 보여 주기 전에 위험한 것(script·iframe·on…·javascript:)은 지움
+function _cgaSanitize(html) {
+  try {
+    const doc = new DOMParser().parseFromString('<div>' + String(html || '') + '</div>', 'text/html');
+    doc.querySelectorAll('script,style,iframe,object,embed,form,link,meta,base').forEach((e) => e.remove());
+    doc.querySelectorAll('*').forEach((e) => [...e.attributes].forEach((a) => {
+      const n = a.name.toLowerCase(), v = String(a.value || '');
+      if (n.startsWith('on') || ((n === 'href' || n === 'src' || n === 'xlink:href') && /^\s*(javascript|vbscript|data:text)/i.test(v))) e.removeAttribute(a.name);
+    }));
+    return doc.body.firstChild ? doc.body.firstChild.innerHTML : '';
+  } catch (e) { return _cgaEsc(String(html || '').replace(/<[^>]+>/g, ' ')); }
+}
+async function _cgaReqOpen(id) {
+  const ds = _cgaToday(), row = ((_cgaData && _cgaData.day === ds && _cgaData.rows) || []).find((x) => x.id === id) || {};
+  document.getElementById('cga-view')?.remove();
+  const el = document.createElement('div'); el.id = 'cga-view'; el.className = 'wt-pop';
+  el.innerHTML = `<div class="wt-card cgv-card" role="dialog" aria-modal="true" aria-labelledby="cgv-t">
+    <div class="wt-head cgv-head"><span id="cgv-t">CG 의뢰</span>
+      <button type="button" class="cgv-print" disabled><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>인쇄</button>
+      <button type="button" class="cgv-x" aria-label="닫기"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="cgv-body"><aside class="cgv-left" id="cgv-left">${_cgvInfo(row)}</aside><section class="cgv-right"><div class="cgv-content" id="cgv-content"><p class="cgv-wait">의뢰 내용 불러오는 중…</p></div></section></div>
+  </div>`;
+  document.body.appendChild(el);
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); };
+  const onKey = (e) => { if (e.key === 'Escape' && !document.getElementById('cga-pv')) { e.stopPropagation(); close(); } };
+  document.addEventListener('keydown', onKey, true);
+  el.querySelector('.cgv-x').onclick = close; el.addEventListener('click', (e) => { if (e.target === el) close(); });
+  el.querySelector('.cgv-x').focus();
+  if (id < 0) { el.querySelector('#cgv-content').innerHTML = _cgaSanitize(row.content || '<p>(시험 의뢰) 화면에서만 보이는 가짜 의뢰예요.</p>'); const pb0 = el.querySelector('.cgv-print'); pb0.disabled = false; pb0.onclick = () => _cgaPrintPreview(Object.assign({ content: '' }, row)); return; }   // 가짜 의뢰
+  if (!(window.ndApp && window.ndApp.ndsCgDetail)) { el.querySelector('#cgv-content').innerHTML = '<p class="cgv-wait">근무표 앱을 업데이트(1.2.7)하면 의뢰 내용을 볼 수 있어요.</p>'; return; }
+  const r = await window.ndApp.ndsCgDetail(id).catch(() => null);
+  if (!el.isConnected) return;
+  if (!r || !r.ok) { el.querySelector('#cgv-content').innerHTML = `<p class="cgv-wait">${_cgaEsc((r && r.error) || 'NDS에서 의뢰를 못 읽었어요.')}</p>`; return; }
+  const d = r.d;
+  el.querySelector('#cgv-left').innerHTML = _cgvInfo(d);
+  el.querySelector('#cgv-content').innerHTML = _cgaSanitize(d.content) || '<p class="cgv-wait">내용이 없어요.</p>';
+  el.querySelectorAll('#cgv-content a[href]').forEach((a) => { a.target = '_blank'; a.rel = 'noopener'; });
+  const pb = el.querySelector('.cgv-print'); pb.disabled = false; pb.onclick = () => _cgaPrintPreview(d);
+}
+function _cgvInfo(d) {
+  const row = (k, v) => v ? `<div class="cgv-row"><span>${k}</span><b>${_cgaEsc(v)}</b></div>` : '';
+  return `<div class="cgv-title">${_cgaEsc(d.title || '(제목 없음)')}</div>
+    <div class="cgv-who"><b>${_cgaEsc(d.requester || '')}</b><small>${_cgaEsc(d.requesterDept || '')}</small>${(d.reqCnt || 1) > 1 ? `<em>${d.reqCnt}건</em>` : ''}</div>
+    <div class="cgv-rows">${row('의뢰', d.inputAt)}${row('프로그램', d.program)}${row('상태', d.statusName || ({ '0001': '의뢰', '0002': '배정', '0003': '보완요청', '0004': '완료' })[d.status] || '')}${row('디자이너', d.designer)}${row('배정', d.assignAt)}${row('완료', d.doneAt)}</div>`;
+}
+// NDS PrintTemplate(request-cg, 기본)과 같은 마크업·스타일
+function _cgaPrintHtml(d) {
+  const L = 'style="width: 150px;"', V = 'style="margin: 0 5px; word-break:break-all;"', SPAN = 'colspan="3"';
+  const tr = (k, v) => `<tr><td><div ${L}>${k}</div></td><td ${SPAN}><div ${V}>${_cgaEsc(v || '')}</div></td></tr>`;
+  const table = `<table><tbody>${tr('제목', d.title)}${tr('의뢰일시', d.inputAt)}`
+    + `<tr><td><div ${L}>취재기자</div></td><td><div ${V}>${_cgaEsc(d.requester || '')}</div></td><td style="border-left: 1px solid #dfe7ef;"><div ${L}>의뢰부서</div></td><td><div ${V}>${_cgaEsc(d.requesterDept || '')}</div></td></tr>`
+    + `${tr('배정일시', d.assignAt)}${tr('완료일시', d.doneAt)}${tr('프로그램', d.program)}${tr('디자이너', d.designer)}`
+    + `<tr><td colspan="4" style="text-align: left; border-right: 0;"><div style="padding-left: 4.1rem;">내용</div></td></tr></tbody></table>`;
+  const css = `@page { margin: 10mm 15mm; }
+    body { margin: 0; color: #000; font-family: 'Malgun Gothic','맑은 고딕',sans-serif; }
+    img { max-width: 100%; height: auto; }
+    div.print-title { width: 100%; text-align: center; }
+    div.print-title > h2 { padding: 0; margin: 0; font-size: 18px; border-bottom: 2px solid #dfe7ef; margin-bottom: 15px; padding-bottom: 10px; }
+    div.view-box > table { font-size: 16px; width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; }
+    div.view-contents > div:first-child { border: 1px solid #dfe7ef; }
+    div.view-contents > div:first-child > table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 5px; font-size: 10px; }
+    div.view-contents > div:first-child > table > tbody > tr > td { width: 10px; text-align: left; border-bottom: 1px solid #dfe7ef; padding: 7px 0; }
+    div.view-contents > div:first-child > table > tbody > tr > td:nth-child(odd) { border-right: 1px solid #dfe7ef; width: 10%; text-align: center; }
+    div.print-content-place table { font-size: 16px; border-collapse: separate; border-spacing: 0; border: 0.1rem solid #dfe7ef; border-top: 0; border-bottom: 0; }
+    div.print-content-place table > tbody > tr > td { border-top: 0.1rem solid #dfe7ef; border-left: 0.1rem solid #dfe7ef; }
+    div.print-content-place table > tbody > tr > td:first-child { border-left: 0; }
+    div.print-content-place table > tbody > tr:last-child > td { border-bottom: 0.1rem solid #dfe7ef; }
+    div.print-content-place p, div.print-content-place div { white-space: pre-wrap; }
+    div.print-content-place p { margin: 0; font-size: 10px; line-height: 1.9; }`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>CG의뢰</title><style>${css}</style></head><body><div class="print-box">`
+    + `<div class="print-title"><h2>CG의뢰</h2></div><div class="view-box"><div class="view-contents"><div>${table}<div style="padding: 1.25rem;" class="print-content-place">${_cgaPrintBody(d.content)}</div></div></div></div></div></body></html>`;
+}
+// NDS PrintTemplate 과 같게 본문 손질: 이미지는 width="100%"를 빼고(원래 크기, 넘치면 줄임) 블록으로, 빈 문단은 줄바꿈 한 줄
+function _cgaPrintBody(html) {
+  const clean = _cgaSanitize(html);
+  try {
+    const doc = new DOMParser().parseFromString('<div>' + clean + '</div>', 'text/html'), root = doc.body.firstChild;
+    root.querySelectorAll('img').forEach((i) => { if (i.getAttribute('width') === '100%') i.removeAttribute('width'); i.style.maxWidth = '100%'; i.style.display = 'block'; });
+    root.querySelectorAll('p').forEach((pp) => { if (!pp.querySelector('img') && !pp.textContent.replace(/\s/g, '')) pp.replaceWith(doc.createElement('br')); });
+    return root.innerHTML;
+  } catch (e) { return clean; }
+}
+// 인쇄 미리보기(NDS 의 크롬 인쇄 창처럼): 왼쪽 A4 미리보기 / 오른쪽 대상·매수·레이아웃·컬러 + [인쇄](바로 인쇄)·[취소]. 고른 프린터·설정은 이 PC 에 기억
+async function _cgaPrintPreview(d) {
+  document.getElementById('cga-pv')?.remove();
+  const html = _cgaPrintHtml(d);
+  let pref = {}; try { pref = JSON.parse(localStorage.getItem('nd_cga_print') || '{}') || {}; } catch (e) { pref = {}; }
+  const el = document.createElement('div'); el.id = 'cga-pv'; el.className = 'cpv-pop';
+  el.innerHTML = `<div class="cpv-card" role="dialog" aria-modal="true" aria-label="인쇄">
+    <div class="cpv-sheetwrap" id="cpv-wrap"><div class="cpv-sheet" id="cpv-sheet"><iframe id="cpv-frame" title="인쇄 미리보기" sandbox="allow-same-origin"></iframe></div></div>
+    <aside class="cpv-side">
+      <div class="cpv-h"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg><b>인쇄</b><span id="cpv-pages">용지 …장</span></div>
+      <div class="cpv-fields">
+        <label class="cpv-f"><span>프린터</span><select id="cpv-dev"><option value="">프린터 찾는 중…</option></select></label>
+        <label class="cpv-f"><span>매수</span><input type="number" id="cpv-copies" min="1" max="50" value="${Math.min(Math.max(Number(pref.copies) || 1, 1), 50)}"></label>
+        <div class="cpv-f"><span>방향</span><div class="cpv-seg" id="cpv-orient-seg"><button type="button" data-v="p">세로</button><button type="button" data-v="l">가로</button></div><select id="cpv-orient" hidden><option value="p">세로 방향</option><option value="l">가로 방향</option></select></div>
+        <div class="cpv-f"><span>색</span><div class="cpv-seg" id="cpv-color-seg"><button type="button" data-v="c">컬러</button><button type="button" data-v="m">흑백</button></div><select id="cpv-color" hidden><option value="c">컬러</option><option value="m">흑백</option></select></div>
+        <p class="cpv-note">고른 프린터·설정은 다음에도 그대로예요.</p>
+      </div>
+      <p class="cpv-st" id="cpv-st" role="status"></p>
+      <div class="cpv-foot"><button type="button" class="cpv-cancel">취소</button><button type="button" class="cpv-go">인쇄</button></div>
+    </aside></div>`;
+  document.body.appendChild(el);
+  const $ = (s) => el.querySelector(s), frame = $('#cpv-frame');
+  $('#cpv-orient').value = pref.landscape ? 'l' : 'p'; $('#cpv-color').value = pref.color === false ? 'm' : 'c';
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); };
+  const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  document.addEventListener('keydown', onKey, true);
+  $('.cpv-cancel').onclick = close; el.addEventListener('click', (e) => { if (e.target === el) close(); });
+  // A4(210×297mm, 여백 10·15mm) 크기로 그려 창에 맞춰 줄임 — 몇 장인지도 대충 셈
+  const fit = () => {
+    const land = $('#cpv-orient').value === 'l', wMM = land ? 297 : 210, hMM = land ? 210 : 297, mm = 96 / 25.4;
+    const sheet = $('#cpv-sheet'), wrap = $('#cpv-wrap'), W = wMM * mm, H = hMM * mm;
+    const k = Math.min(1, (wrap.clientWidth - 48) / W);
+    sheet.style.width = W + 'px'; sheet.style.transform = `scale(${k})`; sheet.style.marginBottom = (-(1 - k) * sheet.offsetHeight) + 'px';
+    frame.style.width = (W - 30 * mm) + 'px'; frame.style.margin = `${10 * mm}px ${15 * mm}px`;
+    try {
+      const doc = frame.contentDocument, ch = doc ? doc.documentElement.scrollHeight : 0, pageH = (hMM - 20) * mm;
+      frame.style.height = Math.max(ch, pageH) + 'px';
+      const n = Math.max(1, Math.ceil(ch / pageH)); $('#cpv-pages').textContent = `용지 ${n}장`;
+      sheet.style.minHeight = H + 'px';
+    } catch (e) { /* 계산 못 함 */ }
+    $('#cpv-color').value === 'm' ? frame.classList.add('mono') : frame.classList.remove('mono');
+  };
+  frame.addEventListener('load', () => { setTimeout(fit, 50); try { [...frame.contentDocument.images].forEach((i) => { if (!i.complete) i.addEventListener('load', fit); }); } catch (e) {} });
+  frame.srcdoc = html;
+  $('#cpv-orient').onchange = fit; $('#cpv-color').onchange = fit; addEventListener('resize', fit, { once: true });
+  [['#cpv-orient-seg', '#cpv-orient'], ['#cpv-color-seg', '#cpv-color']].forEach(([sg, se]) => {
+    const seg = $(sg), selEl = $(se), paint = () => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === selEl.value)));
+    seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; selEl.value = b.dataset.v; paint(); fit(); });
+    paint();
+  });
+  // 프린터 목록(앱 1.2.7~). 없으면 [인쇄] = 이 창의 인쇄(운영체제 창)
+  const sel = $('#cpv-dev'), canApp = !!(window.ndApp && window.ndApp.printers && window.ndApp.printHtml);
+  if (canApp) {
+    const ps = await window.ndApp.printers().catch(() => []) || [];
+    sel.innerHTML = ps.length ? ps.map((p) => `<option value="${_cgaEsc(p.name)}">${_cgaEsc(p.displayName)}${p.isDefault ? ' (기본)' : ''}</option>`).join('') : '<option value="">기본 프린터</option>';
+    const want = pref.device && ps.some((p) => p.name === pref.device) ? pref.device : ((ps.find((p) => p.isDefault) || ps[0] || {}).name || '');
+    sel.value = want;
+  } else sel.innerHTML = '<option value="">이 PC 기본 프린터</option>';
+  $('.cpv-go').focus();
+  $('.cpv-go').onclick = async () => {
+    const o = { deviceName: sel.value, copies: Math.min(Math.max(Number($('#cpv-copies').value) || 1, 1), 50), landscape: $('#cpv-orient').value === 'l', color: $('#cpv-color').value !== 'm' };
+    try { localStorage.setItem('nd_cga_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color })); } catch (e) {}
+    if (!canApp) { try { frame.contentWindow.print(); } catch (e) { toast('인쇄하지 못했어요.', 'error'); } return; }
+    const go = $('.cpv-go'); go.disabled = true; go.textContent = '보내는 중…'; $('#cpv-st').textContent = '';
+    const r = await window.ndApp.printHtml(Object.assign({ html }, o)).catch((e) => ({ ok: false, error: e.message }));
+    if (r && r.ok) { close(); toast('인쇄를 보냈어요.', 'success'); }
+    else { go.disabled = false; go.textContent = '인쇄'; $('#cpv-st').textContent = (r && r.error) || '인쇄하지 못했어요.'; }
   };
 }

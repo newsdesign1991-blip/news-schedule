@@ -445,7 +445,7 @@ function _hmSpans(items){
   var ordered=items.map(function(it,i){return {it:it,o:parseFloat(getComputedStyle(it).order)||0,i:i};})
                    .sort(function(a,b){return a.o-b.o||a.i-b.i;}).map(function(x){return x.it;});
   // 균형 보정: 유독 큰 단칸 패널 1개를 '넓은 패널 바로 다음'으로 끌어올려 열을 일찍 안정 → 정돈 순서는 유지하면서 바닥 균형 개선.
-  if(cols>1 && ordered.length>3){
+  if(cols>1 && ordered.length>3 && !grid.classList.contains('hk-custom')){   // 사용자가 직접 옮긴 배치(.hk-custom)면 그 순서 그대로
     var info=ordered.map(function(it){ var h=it.getBoundingClientRect().height; var gc=getComputedStyle(it).gridColumn; return {it:it,h:h,wide:/\/\s*-1/.test(gc)||/span\s*2/.test(gc)}; });
     var singles=info.filter(function(m){return m.h>0 && !m.wide;});
     if(singles.length>=4){
@@ -518,6 +518,7 @@ function _hmApply(){
 }
 // renderHome/renderPolls가 호출: 재배치+FLIP + 아이템 재관찰(1회). RO 콜백은 _hmApplySpans(즉시)만 부르므로 루프 없음.
 function layoutHomeMasonry(){
+  if(typeof ndTilesApply==='function') ndTilesApply();   // 길게 눌러 옮긴 홈 배치(js/home-tiles.js) — 저장된 순서를 먼저 씌움
   var items=_hmApply();
   if(window.ResizeObserver){
     if(!_hmRO){ _hmRO=new ResizeObserver(function(){ _hmApplySpans(); }); }

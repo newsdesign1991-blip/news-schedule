@@ -33,6 +33,7 @@ function _rerenderActiveView() {
   else if (v==='view-month') renderMonth();
   else if (v==='view-leavereq') renderLeaveReqView();
   else if (v==='view-workshop') renderWorkshopTable();
+  else if (v==='view-cgassign' && typeof _cgaPaint==='function') _cgaPaint();   // CG배정 현황: 근무표가 바뀌면 인원 다시 셈
 }
 async function _reloadRemoteData() {
   if(ndSaving || ndSaveQueue.length || _lrHasPending())return false;

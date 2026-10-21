@@ -241,3 +241,20 @@
 .tw-row .cue-in.none { color:var(--muted); background:transparent; font-weight:700; }
 [data-theme="dark"] .tw-row .cue-in.n8 { color:#ff8a94; background:rgba(240,68,82,.16); }
 [data-theme="dark"] .tw-row .cue-in.noh { color:#a5a8ff; background:rgba(129,140,248,.16); }
+/* 홈 타일 길게 눌러 옮기기(10-21, js/home-tiles.js) — 좁은 화면은 옮긴 사람만 세로 한 줄로 펴서 카드마다 order */
+@media (max-width: 1119px) {
+  #view-home.hk-flat.active { display: flex; flex-direction: column; }
+  #view-home.hk-flat > .home-row, #view-home.hk-flat > .home-summary-duty { display: contents; }
+  #view-home.hk-flat [data-hk] { margin: 0 0 14px !important; }
+  #view-home.hk-flat [data-hk]:empty { margin: 0 !important; }
+  #view-home.hk-flat.home-enter [data-hk] { animation: homeRiseSlow .82s cubic-bezier(.28,0,.05,1) both; }
+}
+#view-home [data-hk] { -webkit-touch-callout: none; }
+#view-home .ht-lift { position: relative; z-index: 60; pointer-events: none; box-shadow: 0 26px 54px -18px rgba(15,23,42,.5) !important; border-radius: 22px; }
+body.ht-dragging, body.ht-dragging * { user-select: none !important; -webkit-user-select: none !important; cursor: grabbing !important; }
+.ht-pill { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 9300; display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 18px; border-radius: 999px; background: rgba(30,41,59,.92); color: #fff; font-size: 13.5px; font-weight: 700; box-shadow: 0 14px 34px -12px rgba(0,0,0,.45); transform: translateX(-50%); animation: htPillIn .3s cubic-bezier(.2,.8,.2,1) both; }
+@media (min-width: 761px) { .ht-pill { bottom: 28px; } }
+.ht-pill button { height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: rgba(255,255,255,.16); color: #fff; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.ht-pill button:hover { background: rgba(255,255,255,.26); }
+.ht-pill.out { opacity: 0; transform: translate(-50%, 8px); transition: opacity .25s, transform .25s; }
+@keyframes htPillIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translateX(-50%); } }

@@ -64,7 +64,8 @@ function _mealApplyPos(){
   if(top && msc.nextElementSibling!==card) msc.after(card);
   else if(!top && _mealSlot.nextSibling!==card && _mealSlot.parentNode) _mealSlot.after(card);
   card.classList.toggle('meal-top', top);
-  if(!card._mealLP && typeof _bindLP==='function'){ card._mealLP=true; _bindLP(card, (x,y)=>_mealPosPop(x,y)); }   // 길게 누르기(js/notice.js)
+  // 10-21: 길게 누르기는 홈 타일 옮기기(js/home-tiles.js)로 바뀜 — 예전 '위/아래로' 팝업은 그게 없을 때만
+  if(!card._mealLP && typeof _bindLP==='function' && typeof ndTilesApply!=='function'){ card._mealLP=true; _bindLP(card, (x,y)=>_mealPosPop(x,y)); }
 }
 // 길게 누른 자리 옆에 뜨는 작은 토스 카드(주황 머리) — 바깥 누르기·Esc·스크롤로 닫힘
 function _mealPosPop(x, y){

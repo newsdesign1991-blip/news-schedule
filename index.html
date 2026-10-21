@@ -40,9 +40,9 @@
 window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.href)||''; if(u.indexOf(location.origin)===0 && /\/(js|css)\/[\w.-]+\.(js|css)(\?|$)/.test(u)) (window.__ndModFail=window.__ndModFail||[]).push(u); }, true);
 </script>
 <link rel="stylesheet" href="css/base.css?v=49d694c3">
-<link rel="stylesheet" href="css/dark.css?v=94fe1dac">
+<link rel="stylesheet" href="css/dark.css?v=be36a490">
 <link rel="stylesheet" href="css/nav.css?v=bd336f40">
-<link rel="stylesheet" href="css/home.css?v=523b09f9">
+<link rel="stylesheet" href="css/home.css?v=b6e61659">
 <link rel="stylesheet" href="css/notice-poll.css?v=01718f6c">
 <link rel="stylesheet" href="css/toss-common.css?v=f6f7ca81">
 <link rel="stylesheet" href="css/calendar.css?v=fb8bf996">
@@ -152,6 +152,7 @@ html body #dinner-modal .dinner-note { font-size:12px !important; line-height:1.
 }
 /* One day surface: broadcast and events are edge-to-edge tinted sections. */
 #view-home .week-day-mini { padding:9px 0 0; overflow:hidden; }
+#view-home .week-day-mini:not(:has(.wm-ev-list)) { padding-bottom:9px; }   /* 10-21: 일정 없는 날은 숫자 아래도 위와 같은 여백(일정 있으면 목록이 카드 바닥까지) */
 #view-home .wm-ev-list { gap:0; margin-top:9px; }
 #view-home .wm-news-card { border:0; border-radius:0; box-shadow:none; padding:12px 10px; background:rgba(49,130,246,.085); gap:8px; }
 #view-home .wm-news-field { background:none; border:0; border-radius:0; padding:0; gap:7px; }
@@ -1210,7 +1211,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.21 02:18';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.21 14:12';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1470,7 +1471,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/core.js?v=41a6f982"></script>
 <script src="js/project-gantt.js?v=64b2c52b"></script>
 <script src="js/nav-admin.js?v=d3fe8bd0"></script>
-<script src="js/home.js?v=d6ab5dae"></script>
+<script src="js/home.js?v=a8f02027"></script>
 <script src="js/table-view.js?v=c17c7122"></script>
 <script src="js/calendar.js?v=4e6b00eb"></script>
 <script src="js/generation.js?v=51ad9cf3"></script>
@@ -1486,7 +1487,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/notice.js?v=5f269061"></script>
 <script src="js/poll.js?v=0cd98cbc"></script>
 <script src="js/schedule-finder.js?v=dc123704"></script>
-<script src="js/sync-init.js?v=df7f12a6"></script>
+<script src="js/sync-init.js?v=38c612ff"></script>
 <script src="js/a2hs.js?v=a3d059a3"></script>
 <script src="js/staff-modal.js?v=dc014935"></script>
 <script src="js/pull-refresh.js?v=8849e397"></script>
@@ -1494,12 +1495,13 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/nd-people.js?v=7bba13fe"></script>
 <script src="js/nd-cal.js?v=e3d3ed58"></script>
 <script src="js/nd-comments.js?v=736684f3"></script>
-<script src="js/meal.js?v=089d1004"></script>
+<script src="js/meal.js?v=97ff29e2"></script>
 <script src="js/alarms.js?v=7345bb10"></script>
 <script src="js/news-cue.js?v=230e8b80"></script>
 <script src="js/holiday-work.js?v=332135fe"></script>
 <script src="js/onboard.js?v=b07ca88f"></script>
-<script src="js/cg-assign.js?v=cf0a5a58"></script>
+<script src="js/home-tiles.js?v=68cfb2c2"></script>
+<script src="js/cg-assign.js?v=1067a920"></script>
 <script src="js/app-mode.js?v=fea55259"></script>
 <script>
 // 모듈 로드 실패 안내 — CSS가 빠졌을 수도 있으니 스타일은 전부 인라인
