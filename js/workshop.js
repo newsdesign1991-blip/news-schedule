@@ -327,7 +327,7 @@ function renderWorkshopTable() {
           workCount[s.id]++;bg='var(--cg-bg)';color='var(--cg-light)';fw='700';text='CG';
         }
       }
-      const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};`:'');
+      const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};${fw!=='500'?`font-weight:${fw};`:''}`:'');   // 바탕 없는 칸도 굵기 그대로(8진2·VW데 등이 엑셀 칸처럼 굵게 — 10-21)
       tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="cursor:pointer;${st}${extraStyle}">${text||'<span class="cell-off">-</span>'}</td>`;
     });
 
@@ -362,7 +362,7 @@ function renderWorkshopTable() {
       else if((entry?.vw?.workers||[]).includes(s.id)){workCount[s.id]++;bg='var(--vw-bg)';color='var(--vw-light)';fw='700';text='VW';}
       else if((entry?.cg?.workers||[]).includes(s.id)){workCount[s.id]++;bg='var(--cg-bg)';color='var(--cg-light)';fw='700';text='CG';}
       else if(entry){bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';workCount[s.id]++;}
-      const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};`:'');
+      const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};${fw!=='500'?`font-weight:${fw};`:''}`:'');   // 바탕 없는 칸도 굵기 그대로(8진2·VW데 등이 엑셀 칸처럼 굵게 — 10-21)
       tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="cursor:pointer;${st}${extraStyle}">${text||'<span class="cell-off">-</span>'}</td>`;
     });
 
@@ -427,7 +427,7 @@ function renderWorkshopTable() {
           workCount[s.id]++;bg='var(--cg-bg)';color='var(--cg-light)';fw='700';text='CG';
         }
       }
-      const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};`:'');
+      const st=bg?`background:${bg};color:${color};font-weight:${fw};`:(color?`color:${color};${fw!=='500'?`font-weight:${fw};`:''}`:'');   // 바탕 없는 칸도 굵기 그대로(8진2·VW데 등이 엑셀 칸처럼 굵게 — 10-21)
       tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="cursor:pointer;${st}${extraStyle}${_gb}">${text||'<span class="cell-off">-</span>'}</td>`;
     });
 
