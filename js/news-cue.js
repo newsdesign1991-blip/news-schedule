@@ -4,7 +4,7 @@
    가져오기 = 서버(notify serverCue — 비밀값 NDS_ID·NDS_PW, 오후 5분·그 외 15분)가 먼저. 서버가 못 읽으면 '담당 PC' 1대만(10-17): 근무표 앱들 중 서버 자리표(leader, 20분)를 잡은 PC만 NDS 에 붙어 오후(14:00~20:30) 5분·그 외 15분마다 확인.
      다른 앱은 자리표가 살아 있으면 NDS 도 서버 함수도 안 부르고 읽기만. 담당 PC가 꺼지면 자리표가 끝나 다른 앱이 이어받음.
    서버가 저장할 때 오늘 진입시간이 바뀌면 그날 8진·뉴오에게 '진입시간 변경' 알림, 크론은 시작 20분 전 알림(시간이 바뀌면 새 시각 기준으로 한 번 더)
-   쓰는 곳: 홈 '오늘의 근무' 8진·뉴오 줄(_cuePaint — 8뉴스는 공지에 직접 넣은 시각이 먼저, cueNews8), 8뉴스가 평소(지난 5주 같은 요일에 가장 많던 시각)와 5분 넘게 다르면 오늘의 공지 자동 등록(_cueNotice, 알림 없이) */
+   쓰는 곳: 홈 '오늘의 근무' 8진·뉴오 줄(_cuePaint — 8뉴스는 공지에 직접 넣은 시각이 먼저, cueNews8), 8뉴스가 평소(지난 5주 같은 요일에 가장 많던 시각)와 30분 이상 다르면 오늘의 공지 자동 등록(_cueNotice, 알림 없이) */
 // NDS 프로그램 이름(brdcPgmNm) — 10-17 실제: '8시뉴스'(월~목 19:48·금 19:46·토 19:53·일 19:56), '오뉴스'(평일 16:52~16:55, 주말 없음). 재방송 '(R)'은 뺌
 const CUE_PGM={ news8:/8시\s*뉴스|8\s*뉴스/, newsOh:/^(SBS\s*)?오\s*뉴스/, skip:/\(R\)|스포츠|예고|재방|하이라이트/ };
 let _cueDoc=null, _cueLoading=null, _cueNoAcct=false, _cueNext=0, _cueBusy=false;
@@ -68,10 +68,11 @@ const _cueMin=t=>(+t.slice(0,2))*60+(+t.slice(3));
 // 8뉴스가 평소와 다르면 오늘의 공지에 자동으로(알림 없이). 시간이 또 바뀌면 글을 고치고, 평소로 돌아오면 지움. id 하나(cue8-날짜)
 // 공지에 8뉴스 시각을 직접 넣었으면 자동 공지는 안 만듦(있으면 지움 — 시각이 둘로 보이지 않게)
 // 올린 시각·글은 main cue8Auto[날짜] = { t, text }에 기억(7일): 사람이 지웠으면 같은 시각으론 다시 안 올림(시각이 또 바뀌면 새로), 사람이 글을 고쳤으면 덮지도 지우지도 않음
+const CUE_NOTICE_MIN = 30;   // 평소와 이만큼(분) 이상 다르면 자동 공지(10-21: 5 → 30)
 function _cueWant(ds, box){
   const c=cueDay(ds), usual=_cueUsual(ds);
   if(_cueMan8(box)||!(c&&c.news8&&usual)) return '';
-  return Math.abs(_cueMin(c.news8)-_cueMin(usual))>=5?`오늘 8뉴스 진입시간은 ${c.news8}이에요. (평소 ${usual})`:'';   // 5분 넘게 다를 때만(1~2분은 그날 큐시트 사정)
+  return Math.abs(_cueMin(c.news8)-_cueMin(usual))>=CUE_NOTICE_MIN?`오늘 8뉴스 진입시간은 ${c.news8}이에요. (평소 ${usual})`:'';   // 30분 이상 다를 때만(10-21 사용자 — 몇 분 차이는 그날 큐시트 사정)
 }
 // 할 일: '' 그대로 · 'del' 지움 · 'put' 올리기/고치기 (it = 지금 자동 공지, mm = 기억한 { t, text }, n8 = 지금 큐시트 시각)
 function _cueAct(it, want, mm, n8){

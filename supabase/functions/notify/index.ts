@@ -592,6 +592,9 @@ Deno.serve(async (req) => {
   const n15 = _offDayT ? ((Array.isArray(cueT?.progs) ? cueT.progs : []).filter((g: any) => /SBS\s*뉴스\s*\(\s*15\s*시\s*\)|^15시\s*뉴스/.test(String(g?.n || '')) && !/\(R\)|재방/.test(String(g?.n || ''))).map((g: any) => String(g?.s || '')).filter((v: string) => /^\d{2}:\d{2}$/.test(v)).sort()[0] || '') : ''
   const n15Min = _hmMin(n15)
   const due15 = n15Min >= 0 && curMin >= n15Min - 20 && curMin < n15Min && _sentMk.news15 !== n15
+  // 8데스크에게 가는 8진 진행 알림은 진입 10분 전(10-21 사용자) — 8진 본인(20분 전)과 따로 보냄 표시(sent.desk8·desk15)
+  const dueD8 = n8Min >= 0 && curMin >= n8Min - 10 && curMin < n8Min && _sentMk.desk8 !== n8Use
+  const dueD15 = n15Min >= 0 && curMin >= n15Min - 10 && curMin < n15Min && _sentMk.desk15 !== n15
   // 그날 부서(부서 이동 deptSchedule 반영 — js/core.js deptOn 과 같은 규칙: start<=오늘 중 가장 늦은 것, 없으면 기준부서 s.dept)
   const _deptOn = (s: any) => { let best: any = null; for (const h of (Array.isArray(s?.deptSchedule) ? s.deptSchedule : [])) if (h && h.start && h.dept && h.start <= todayStr && (!best || h.start > best.start)) best = h; return best ? best.dept : s?.dept }
   // 표에서 빈칸(회색)인 날 — js/core.js isDispatched(직원 파견 기간)·isContractActive(프리랜서 계약 기간 밖)와 같은 규칙
@@ -666,14 +669,14 @@ Deno.serve(async (req) => {
       }
     }
     // 8데스크에게도 8진 진행 알림(10-21 사용자): 그날 CG 8데스크(cg.desk8, 없으면 cg.desk)에게 '8진 ○○님 진행 가야 해요' —
-    // 8뉴스 진입 20분 전(due8, 진입시각을 알 때만·알림 제어 8진 켜짐)·주말·공휴일 15시 뉴스(due15). 데스크가 그날 8진이면 위 8진 알림만.
+    // 8뉴스 진입 10분 전(dueD8, 진입시각을 알 때만·알림 제어 8진 켜짐)·주말·공휴일 15시 뉴스 10분 전(dueD15). 데스크가 그날 8진이면 위 8진 알림만.
     // 제목 '근무 알림 — 8진 진행(데스크)' → PC 앱 빨간 강조 알림(1.2.9~ 머리 '8진 진행 시간이에요', 그 전 판은 '8진입니다'로 뜸)
     const desk8 = entry && entry.cg ? (entry.cg.desk8 || entry.cg.desk) : null
     if (desk8 && sub.staff_id === desk8 && wt !== '8jin' && pref(sub, 'news')) {
       const who = [entry.weekday8jin, entry.weekend8jin, entry.weekday8jin2, entry.weekend8jin2].filter((x: any) => x && !leaves.has(x))
         .map((id: any) => nd?.staff?.find((st: any) => st.id === id)?.name).filter(Boolean).join('·')
-      const go8 = !!(n8Use && due8 && (cfg.types || []).find((t: any) => t.key === '8jin')?.enabled)
-      for (const [go, what, at, tg] of [[go8, '8뉴스', n8Use, 'desk8'], [due15, '15시 뉴스', n15, 'desk15']] as [boolean, string, string, string][]) {
+      const go8 = !!(n8Use && dueD8 && (cfg.types || []).find((t: any) => t.key === '8jin')?.enabled)
+      for (const [go, what, at, tg] of [[go8, '8뉴스', n8Use, 'desk8'], [dueD15, '15시 뉴스', n15, 'desk15']] as [boolean, string, string, string][]) {
         if (!go || !who) continue
         try {
           await deliver(sub, JSON.stringify({ title: '📅 근무 알림 — 8진 진행(데스크)', body: `8진 ${who}님 ${what} 진행 가야 해요. (${at} 진입)`, icon: 'icon-192.png', badge: 'icon-192.png', tag: `${tg}-${todayStr}-${sub.staff_id}`, data: { url: './' } }))
@@ -720,7 +723,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (due8 || dueOh || due15) {   // 이 진입시각으로는 보냈음(같은 시각으로 다시 안 보냄, 시각이 바뀌면 새로)
+  if (due8 || dueOh || due15 || dueD8 || dueD15) {   // 이 진입시각으로는 보냈음(같은 시각으로 다시 안 보냄, 시각이 바뀌면 새로)
     // 오늘 큐시트 칸이 없어도(NDS 를 못 읽은 날 공지에 넣은 8뉴스 시각만 있을 때) sent 틀만 만들어 남김 — 안 남기면 20분 동안 크론마다 다시 감.
     // 나중에 큐시트를 받으면 cueStore 가 old.sent 를 그대로 가져감. cue 행이 아예 없으면 새로 만듦
     for (let attempt = 0; attempt < 6; attempt++) {
@@ -732,6 +735,8 @@ Deno.serve(async (req) => {
       if (due8) sm.news8 = n8Use
       if (dueOh) sm.newsOh = String(cueT.newsOh)
       if (due15) sm.news15 = n15
+      if (dueD8) sm.desk8 = n8Use
+      if (dueD15) sm.desk15 = n15
       p.days[todayStr] = { ...(p.days[todayStr] || {}), sent: sm }
       const nowIso = new Date().toISOString()
       if (!row) { const { error: ie } = await sb.from('nd_data').insert({ id: 'cue', payload: p, updated_at: nowIso }); if (!ie) break }
