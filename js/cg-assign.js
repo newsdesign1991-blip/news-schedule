@@ -113,7 +113,7 @@ function _cgaAdd(id) {
   if (saved) _cgmData.adj[day] = saved; else delete _cgmData.adj[day];
   _cgaAdjSet(v => { v.del = v.del.filter(x => x !== id); if (!inBase && !v.add.includes(id)) v.add.push(id); });
 }
-function _cgaHide(id) { const v = _cgaLocal('nd_cga_hide'); v.ids = [...new Set([...(v.ids || []), id])]; _cgaSave('nd_cga_hide', v); _cgaPaint(); }
+function _cgaHide(id, st) { const v = _cgaLocal('nd_cga_hide'); v.ids = [...new Set([...(v.ids || []), id + ':' + st])]; _cgaSave('nd_cga_hide', v); _cgaPaint(); }   // '번호:상태'로 숨김(10-22) — 상태가 바뀌면(보완요청→의뢰) 다시 보임
 function _cgaUnhide() { _cgaSave('nd_cga_hide', { day: _cgaToday(), ids: [] }); _cgaPaint(); }
 // [사람 추가] 작은 창: 이름 찾기 + 오늘 뺀 사람 다시 넣기
 function _cgaPick(btn) {
@@ -295,10 +295,16 @@ function _cgaDemoEnd() {
   setTimeout(() => _cgaFetch(false), 300);   // 진짜 큐시트로 돌려놓기
 }
 function _cgaNotifyNew(r) {
-  const req = (r.rows || []).filter(x => x.status === '0001');
-  if (!_cgaSeen || _cgaSeen.day !== r.day) { _cgaSeen = { day: r.day, ids: new Set(req.map(x => x.id)) }; return; }
-  const fresh = req.filter(x => !_cgaSeen.ids.has(x.id));
-  fresh.forEach(x => _cgaSeen.ids.add(x.id));
+  const req = (r.rows || []).filter(x => x.status === '0001'), fix = new Set((r.rows || []).filter(x => x.status === '0003').map(x => x.id));
+  if (!_cgaSeen || _cgaSeen.day !== r.day) { _cgaSeen = { day: r.day, ids: new Set(req.map(x => x.id)), fix }; return; }
+  const back = req.filter(x => _cgaSeen.fix.has(x.id));   // 보완요청이 풀려 다시 의뢰로(10-22)
+  const fresh = req.filter(x => !_cgaSeen.ids.has(x.id) && !_cgaSeen.fix.has(x.id));
+  req.forEach(x => _cgaSeen.ids.add(x.id)); _cgaSeen.fix = fix;
+  if (back.length) {
+    const b = back[0], t = back.length > 1 ? `보완이 끝난 의뢰 ${back.length}건` : '보완이 끝나 다시 의뢰가 들어왔어요';
+    const bd = back.length > 1 ? back.map(x => x.requester).filter(Boolean).join(', ') : `${b.requester}${b.requesterDept ? ' (' + b.requesterDept + ')' : ''}${b.title ? ' — ' + b.title : ''}`;
+    if (window.ndApp && window.ndApp.toast) window.ndApp.toast({ title: t, body: bd }); else toast(t + ' · ' + bd, 'success');
+  }
   if (!fresh.length) return;
   const f = fresh[0], n8 = _cga8Rank(f, r.cue8), title = fresh.length > 1 ? `새 CG 의뢰 ${fresh.length}건` : n8 && n8 <= CGA_URGENT ? `급함 — 8뉴스 ${n8}번째 CG 의뢰가 들어왔어요` : '새 CG 의뢰가 들어왔어요';
   const body = fresh.length > 1 ? fresh.map(x => x.requester).filter(Boolean).join(', ') : `${f.requester}${f.requesterDept ? ' (' + f.requesterDept + ')' : ''}${f.title ? ' — ' + f.title : ''}`;
@@ -411,15 +417,15 @@ function _cgaPaint() {
   const firstPaint = _cgaFirstPaint && loaded; if (loaded) _cgaFirstPaint = false;
   _cgaKeyed(grid, cards, (el, i) => el.animate([{ opacity: 0, transform: 'translateY(10px) scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 460, delay: firstPaint ? i * 35 : 0, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' }));
   // 왼쪽: 배정 기다리는 의뢰(의뢰·보완요청), 오래된 것부터 위로 쌓임. 새 의뢰는 아래에서 스르륵 올라옴. 15분 넘으면 빨강, 보완요청은 회색(맨 아래), ×로 이 앱에서만 숨김
-  const hid = new Set(_cgaLocal('nd_cga_hide').ids || []);
+  const hid = new Set((_cgaLocal('nd_cga_hide').ids || []).map(x => typeof x === 'number' ? x + ':0003' : x));   // 예전에 번호만 적힌 숨김은 보완요청으로 봄(10-22)
   const all = rows.filter(r => r.status === '0001' || r.status === '0003');
   const rk = new Map(all.map(r => { const n = r.status === '0001' ? _cga8Rank(r) : 0; return [r.id, n && n <= CGA_URGENT ? n : 0]; })), urg = r => rk.get(r.id) || 0;   // 8뉴스 1~10번째(10-21)
-  const wait = all.filter(r => !hid.has(r.id)).sort((a, b) => ((a.status === '0003') - (b.status === '0003')) || ((urg(b) > 0) - (urg(a) > 0)) || (urg(a) - urg(b)) || String(a.inputAt).localeCompare(String(b.inputAt)));
+  const wait = all.filter(r => !hid.has(r.id + ':' + r.status)).sort((a, b) => ((a.status === '0003') - (b.status === '0003')) || ((urg(b) > 0) - (urg(a) > 0)) || (urg(a) - urg(b)) || String(a.inputAt).localeCompare(String(b.inputAt)));
   const nHid = all.length - wait.length, nReq = wait.filter(r => r.status === '0001').length;
   const item = r => {
     const fix = r.status === '0003', n8 = urg(r);
     return { key: 'r:' + r.id, cls: 'cga-req' + (fix ? ' fix' : can ? ' drag' : '') + (n8 ? ' urgent' : ''), attrs: fix ? { draggable: 'false' } : { draggable: 'false', 'data-rid': String(r.id), title: can ? '누르면 크게 보기 · 끌어서 사람 카드에 놓으면 배정' : '누르면 크게 보기' },
-      html: `<button type="button" class="cga-x" onclick="_cgaHide(${Number(r.id) || 0})" title="이 앱에서만 숨기기(NDS엔 그대로)" aria-label="의뢰 숨기기">×</button>`
+      html: `<button type="button" class="cga-x" onclick="_cgaHide(${Number(r.id) || 0}, '${fix ? '0003' : '0001'}')" title="${fix ? '보완이 끝나 다시 의뢰가 되면 또 보여요' : '이 앱에서만 숨기기(NDS엔 그대로)'}" aria-label="의뢰 숨기기">×</button>`
         + (n8 ? `<span class="cga-no" title="8뉴스 큐시트 ${n8}번째 아이템 — 먼저 방송돼요">${n8}</span>` : '')
         + `<div class="cga-who"><b>${_cgaEsc(r.requester)}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}${fix ? '<em class="cga-fix">보완요청</em>' : ''}</div>`
         + (r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : '')
