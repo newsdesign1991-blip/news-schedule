@@ -161,13 +161,13 @@ function renderCgAssign() {
         <button type="button" class="cga-refresh" onclick="_cgaFetch(true)" title="지금 새로고침" aria-label="지금 새로고침"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
       </div>
       <div class="cga-msg" id="cga-msg" role="status"></div>
-      <div class="cga-body"><aside class="cga-side" id="cga-side"><section class="cga-box"><h3>배정 기다리는 의뢰 <span id="cga-reqn">…</span></h3><div class="cga-reqs" id="cga-reqs"></div><p class="cga-none" id="cga-none" hidden>지금 기다리는 의뢰가 없어요.</p><button type="button" class="cga-unhide" id="cga-unhide" onclick="_cgaUnhide()" hidden></button></section></aside><div class="cga-grid" id="cga-grid"></div></div>
+      <div class="cga-body"><aside class="cga-side" id="cga-side"><section class="cga-box"><h3>배정 기다리는 의뢰 <span id="cga-reqn">…</span></h3><div class="cga-reqs" id="cga-reqs"></div><p class="cga-none" id="cga-none" hidden>지금 기다리는 의뢰가 없어요.</p><button type="button" class="cga-unhide" id="cga-unhide" onclick="_cgaUnhide()" hidden></button></section></aside><div class="cga-main" id="cga-main"><div class="cga-grid" id="cga-grid"></div><div class="cga-grid cga-dj" id="cga-dj"></div></div></div>
       <button type="button" class="cga-demo" onclick="_cgaDemo()" title="가짜 의뢰가 들어오는 모습을 이 화면에서만 보여 줘요(NDS엔 아무것도 안 가요)">시험 의뢰</button>`;   // 자주 안 써서 화면 오른쪽 아래 구석(10-21 사용자)
   }
   const g = document.getElementById('cga-grid');
-  if (!g._ctx) { g._ctx = true; g.addEventListener('contextmenu', _cgaCtx);
-    g.addEventListener('click', e => { if (e.target.closest('.cga-x, .cga-done')) return; const j = e.target.closest('.cga-job[data-rid]'); if (!j) return; const id = Number(j.dataset.rid) || 0; if (id) _cgaReqOpen(id); });   // 배정된 의뢰 칸 → 크게 보기(10-21, 시험 의뢰도)
-  }
+  [g, document.getElementById('cga-dj')].forEach(h => { if (h._ctx) return; h._ctx = true; h.addEventListener('contextmenu', _cgaCtx);   // 당직 칸(10-22)도 같게
+    h.addEventListener('click', e => { if (e.target.closest('.cga-x, .cga-done')) return; const j = e.target.closest('.cga-job[data-rid]'); if (!j) return; const id = Number(j.dataset.rid) || 0; if (id) _cgaReqOpen(id); });   // 배정된 의뢰 칸 → 크게 보기(10-21, 시험 의뢰도)
+  });
   _cgaWireDnd();   // 의뢰 → 사람 카드 끌어다 놓기 배정(10-21)   // 카드 오른쪽 클릭 → CG·앵커터치·PT 직접 배정/완료
   if (CGA_PERSON_POP && !g._wired) {   // 카드 누르면 그 사람 오늘 CG(× 는 빼기)
     g._wired = true;
@@ -192,12 +192,14 @@ function renderCgAssign() {
 function _cgaFit() {
   const side = document.getElementById('cga-side'), nav = document.getElementById('side-nav'), t = document.querySelector('#cga-root .cga-title'), body = document.querySelector('#cga-root .cga-body');
   if (!side || !body) return;
-  if (!nav || !t || !nav.offsetWidth || getComputedStyle(side).position !== 'sticky') { side.style.height = ''; return; }
+  const main = document.getElementById('cga-main'), fitMain = () => { if (main) main.style.minHeight = getComputedStyle(side).position === 'sticky' ? side.offsetHeight + 'px' : ''; };   // 당직 칸 아래 끝 = 의뢰 상자 아래 끝(10-22)
+  if (!nav || !t || !nav.offsetWidth || getComputedStyle(side).position !== 'sticky') { side.style.height = ''; fitMain(); return; }
   const n = nav.getBoundingClientRect(), sy = window.scrollY || 0;
   const gap = Math.max(0, (t.getBoundingClientRect().top + sy) - n.top);
   if (sy > 4) return;   // 내려 둔 상태(창이 위에 붙음)에선 재지 않음 — 맨 위일 때 잰 값 유지
   const h = Math.round((n.bottom - gap) - side.getBoundingClientRect().top);
   side.style.height = h > 240 ? h + 'px' : '';
+  fitMain();
 }
 addEventListener('resize', () => { if (typeof currentView !== 'undefined' && currentView === 'cgassign') _cgaFit(); });
 async function _cgaFetch(manual) {
@@ -432,9 +434,11 @@ function _cgaPaint() {
   };
   const cards = [...work, ...idle].map(card);
   if (!cards.length) cards.push({ key: 'empty', cls: 'cga-empty', html: '오늘 근무표에 CG 근무자가 없어요.' });
-  if (dj.length) cards.push({ key: 'sep:danjik', cls: 'cga-sep', attrs: { role: 'separator' }, html: '<span>당직</span>' }, ...dj.map(card));   // 선 하나 + 당직자 카드(배정도 똑같이)
+  const djCards = dj.length ? [{ key: 'sep:danjik', cls: 'cga-sep', attrs: { role: 'separator' }, html: '<span>당직</span>' }, ...dj.map(card)] : [];   // 선 하나 + 당직자 카드(배정도 똑같이) — 오른쪽 맨 아래(#cga-dj)
   const firstPaint = _cgaFirstPaint && loaded; if (loaded) _cgaFirstPaint = false;
-  _cgaKeyed(grid, cards, (el, i) => el.animate([{ opacity: 0, transform: 'translateY(10px) scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 460, delay: firstPaint ? i * 35 : 0, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' }));
+  const cardIn = (el, i) => el.animate([{ opacity: 0, transform: 'translateY(10px) scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 460, delay: firstPaint ? i * 35 : 0, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' });
+  _cgaKeyed(grid, cards, cardIn);
+  const djHost = document.getElementById('cga-dj'); if (djHost) _cgaKeyed(djHost, djCards, cardIn);
   // 왼쪽: 배정 기다리는 의뢰(의뢰·보완요청), 오래된 것부터 위로 쌓임. 새 의뢰는 아래에서 스르륵 올라옴. 15분 넘으면 빨강, 보완요청은 회색(맨 아래), ×로 이 앱에서만 숨김
   const hid = new Set((_cgaLocal('nd_cga_hide').ids || []).map(x => typeof x === 'number' ? x + ':0003' : x));   // 예전에 번호만 적힌 숨김은 보완요청으로 봄(10-22)
   const all = rows.filter(r => r.status === '0001' || r.status === '0003');
@@ -698,7 +702,7 @@ function _cgaPullTick() {
   const v = Math.hypot(p.vx, p.vy), st = Math.min(.12, v / 100), a = Math.atan2(p.vy, p.vx) * 180 / Math.PI;
   g.style.transform = `translate(${nx}px,${ny}px) rotate(${a}deg) scale(${1 + st},${1 - st * .6}) rotate(${-a}deg)`;
   // 놓을 카드 표시
-  const el = document.elementFromPoint(p.x, p.y), c = el && el.closest && el.closest('#cga-grid .cga-card[data-name]');
+  const el = document.elementFromPoint(p.x, p.y), c = el && el.closest && el.closest('#cga-grid .cga-card[data-name], #cga-dj .cga-card[data-name]');
   if (c !== p.hot) { if (p.hot) p.hot.classList.remove('drop-hot'); if (c && !c.classList.contains('cga-leaving')) { c.classList.add('drop-hot'); p.hot = c; } else p.hot = null; g.classList.toggle('over', !!p.hot); }
 }
 function _cgaPullEnd(cancel) {

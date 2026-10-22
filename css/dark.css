@@ -569,7 +569,9 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cga-last { margin-top:3px; font-size:12px; color:var(--muted); }
 .cga-wait { margin-top:12px; font-size:12.5px; color:var(--muted); }
 .cga-empty { padding:40px 0; color:var(--muted); font-weight:700; }
-.cga-sep { grid-column:1/-1; display:flex; align-items:center; gap:12px; margin-top:10px; font-size:12.5px; font-weight:800; color:var(--muted); }   /* 사람 카드 아래 선 + 당직자(10-22) */
+.cga-main { display:flex; flex-direction:column; gap:14px; min-width:0; }   /* 사람 카드 + 맨 아래 당직 칸 — 높이는 _cgaFit 이 왼쪽 의뢰 상자에 맞춤(10-22) */
+.cga-dj { margin-top:auto; }
+.cga-sep { grid-column:1/-1; display:flex; align-items:center; gap:12px; font-size:12.5px; font-weight:800; color:var(--muted); }   /* 사람 카드 아래 선 + 당직자(10-22) */
 .cga-sep::after { content:''; flex:1; height:1px; background:var(--border); }
 .cga-box { padding:16px 16px 6px; border-radius:20px; background:var(--surface); border:1px solid var(--border); margin-bottom:14px; box-shadow:0 4px 18px -12px rgba(15,23,42,.3); }
 .cga-box h3 { display:flex; align-items:center; gap:7px; margin:0 0 6px; font-size:15px; font-weight:800; color:var(--text); }
