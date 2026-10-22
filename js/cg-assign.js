@@ -321,7 +321,11 @@ function _cgaKeyed(host, items, enter) {
   items.forEach(it => {
     let el = old.get(it.key);
     if (!el) { el = document.createElement('div'); el.dataset.k = it.key; fresh.push(el); }
-    if (el.className !== it.cls) el.className = it.cls;
+    if (el.className !== it.cls) {
+      // 의뢰 칸 상태가 바뀌면(의뢰→보완요청 등, 10-22) 바뀌기 전 모습을 잡아 두고 아래에서 스르륵 — 자리를 옮기면(insertBefore) CSS transition 이 안 걸려서 직접
+      if (!reduce && old.has(it.key) && it.key.startsWith('r:')) { const cs = getComputedStyle(el); el._from = { opacity: cs.opacity, filter: cs.filter, backgroundColor: cs.backgroundColor }; }
+      el.className = it.cls;
+    }
     Object.entries(it.attrs || {}).forEach(([a, v]) => { if (el.getAttribute(a) !== v) el.setAttribute(a, v); });
     if (el._h !== it.html) { if (el._h !== undefined) changed.add(el); el.innerHTML = it.html; el._h = it.html; }
     const ref = prev ? prev.nextSibling : host.firstChild;
@@ -344,9 +348,14 @@ function _cgaKeyed(host, items, enter) {
     if (!f) return;
     const r = el.getBoundingClientRect(), dx = f.left - r.left, dy = f.top - r.top;
     if (Math.abs(dx) > 1 || Math.abs(dy) > 1) el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }], { duration: 560, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    if (el._from) {   // 도착 모습은 CSS transition 을 잠깐 끄고 읽음(켜 둔 채 읽으면 아직 바뀌기 전 값이라 끝에 팍 바뀜)
+      el.style.transition = 'none'; const cs = getComputedStyle(el), to = { opacity: cs.opacity, filter: cs.filter, backgroundColor: cs.backgroundColor }; el.style.transition = '';
+      el.animate([el._from, to], { duration: 750, easing: 'ease' }); el._from = null;
+    }
     if (changed.has(el)) {
       if (Math.abs(f.height - r.height) > 1) { el.style.overflow = 'hidden'; el.animate([{ height: f.height + 'px' }, { height: r.height + 'px' }], { duration: 480, easing: 'cubic-bezier(.2,.8,.2,1)' }).onfinish = () => { el.style.overflow = ''; }; }
       const c = el.querySelector('.cga-cbody'); if (c) c.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'ease-out' });
+      else [...el.children].forEach(x => x.animate([{ opacity: .2 }, { opacity: 1 }], { duration: 520, easing: 'ease-out' }));   // 의뢰 칸 글자(보완요청 표시 등)도 스르륵
     }
   });
   fresh.forEach((el, i) => enter(el, i));
@@ -436,8 +445,9 @@ function _cgaPaint() {
   if (!_cgaPull) _cgaKeyed(list, wait.map(item), (el, i) => {   // 물방울을 끄는 동안엔 목록을 다시 그리지 않음(끄는 칸이 바뀌지 않게)
     // 목록 바닥(창 아래)에서 올라와 제자리에 쌓임 — 새로 여러 건이면 하나씩
     const lb = list.getBoundingClientRect().bottom, r = el.getBoundingClientRect(), dy = Math.max(60, lb - r.top);
+    const cs = getComputedStyle(el), o = +cs.opacity, gf = cs.filter === 'none' ? '' : ' ' + cs.filter;   // 보완요청(흐림·회색)이면 그 모습으로 끝나게(10-22)
     // 10-20 '더 부드럽게 천천히': 1.5초, 하나씩 0.35초 간격, 끝에서 살짝 감속 + 흐릿→선명
-    el.animate([{ opacity: 0, transform: `translateY(${dy}px) scale(.98)`, filter: 'blur(3px)' }, { opacity: .85, filter: 'blur(0)', offset: .55 }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: 1500, delay: i * 350, easing: 'cubic-bezier(.22,.9,.24,1)', fill: 'backwards' });
+    el.animate([{ opacity: 0, transform: `translateY(${dy}px) scale(.98)`, filter: 'blur(3px)' + gf }, { opacity: .85 * o, filter: 'blur(0px)' + gf, offset: .55 }, { opacity: o, transform: 'none', filter: 'blur(0px)' + gf }], { duration: 1500, delay: i * 350, easing: 'cubic-bezier(.22,.9,.24,1)', fill: 'backwards' });
   });
   const none = document.getElementById('cga-none'); none.hidden = !(loaded && !wait.length);
   const un = document.getElementById('cga-unhide'); un.hidden = !nHid; if (nHid) un.textContent = `숨긴 의뢰 ${nHid}건 다시 보이기`;

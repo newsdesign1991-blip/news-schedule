@@ -1,5 +1,14 @@
 /* [모듈] js/staff.js — 직원 관리(태그·폼·목록·드래그 정렬) | dashboard.html 메인 스크립트에서 분리됨. 로드 순서 = dashboard.html의 <script> 순서(바꾸지 말 것) */
 // ===== STAFF =====
+// 부서 색 — 근무표·부서 뱃지와 같은 색(css/base.css·dark.css 변수). 직원 관리·계정 관리 카드 아래 빛(10-22)
+function staffDeptColor(dept) { return ({'VW':'var(--vw)','CG':'var(--cg)','조근':'#8893dc','XR':'var(--xr)','PROJECT':'var(--project)','SPORTS':'var(--sports)','팀장':'#64748b'})[dept] || '#64748b'; }
+// 건제 순서(10-22 사용자가 준 우리 팀 순서, 부서 상관없이) — 직원 관리·계정 관리 카드가 이 순서. 목록에 없는 사람(직원B·새 사람)은 그 뒤에 data.staff 순서(직원 관리에서 끌어 놓은 순서), 비활성은 맨 뒤
+const STAFF_ORG_ORDER = ['최양욱', '박정권', '이종정', '한흥수', '정회윤', '홍성용', '강윤정', '서현중', '제갈찬', '손호석', '홍한기', '김원일', '손승필', '장성범', '최진회', '이재준', '박천웅', '김한길', '류상수', '김민영', '이준호', '최하늘', '전유근', '최재영', '임찬혁', '양기태'];
+function staffOrgSort(list, pick = x => x) {
+  const rank = s => { if (!s) return [2, 1e9, 1e9]; const k = STAFF_ORG_ORDER.indexOf(String(s.name || '').trim()); return [s.active === false ? 1 : 0, k < 0 ? STAFF_ORG_ORDER.length : k, data.staff.indexOf(s)]; };
+  const r = new Map(list.map(x => [x, rank(pick(x))]));
+  return [...list].sort((a, b) => { const p = r.get(a), q = r.get(b); return p[0] - q[0] || p[1] - q[1] || p[2] - q[2]; });
+}
 function _tagDefs(dept, employmentType) {
   const tags = [];
   if (dept==='VW'||dept==='CG') {
@@ -126,8 +135,8 @@ function setStaffFilter(dept) {
 function renderStaffTable() {
   const all = data.staff;
   const filtered = staffDeptFilter === 'ALL' ? all : all.filter(s => s.dept === staffDeptFilter);
-  const employees = filtered.filter(s => s.employmentType !== 'freelancer');
-  const freelancers = filtered.filter(s => s.employmentType === 'freelancer');
+  const employees = staffOrgSort(filtered.filter(s => s.employmentType !== 'freelancer'));   // 건제 순서
+  const freelancers = staffOrgSort(filtered.filter(s => s.employmentType === 'freelancer'));
   const activeAll = all.filter(s => s.active !== false);
   const filterLabel = staffDeptFilter === 'ALL' ? '' : ` (${staffDeptFilter} 필터)`;
   document.getElementById('staff-count-label').textContent =
@@ -145,7 +154,6 @@ function renderStaffTable() {
   }
 
   function staffCard(s) {
-    const DEPT_COLORS = {'VW':'#6366f1','CG':'#4a9fbd','조근':'#8893dc','XR':'#0891b2','PROJECT':'#e6a817','SPORTS':'#22a06b'};
     const chip=(bg,color,txt,bd)=>`<span style="background:${bg};color:${color};${bd?('border:1px solid '+bd+';'):''}font-size:10.5px;padding:2px 7px;border-radius:5px;font-weight:700;white-space:nowrap;">${txt}</span>`;
     const tags=[
       s.canDanjik&&chip('#fde2e0','#c0392b','당직'),
@@ -164,7 +172,8 @@ function renderStaffTable() {
     ].filter(Boolean).join('');
     const sub=[s.employmentType==='freelancer'?'직원B':'직원A'];
     if((s.dept==='VW'||s.dept==='CG')&&s.deskPriority) sub.push('데스크 '+s.deskPriority+'번');
-    return `<div class="staff-card${s.active===false?' inactive':''}" draggable="true" data-staff-id="${s.id}"
+    if(s.active===false) sub.push('비활성');   // 초록 재직 점을 뺀 대신(10-22)
+    return `<div class="staff-card${s.active===false?' inactive':''}" style="--dc:${staffDeptColor(s.dept)}" draggable="true" data-staff-id="${s.id}"
       ondragstart="staffDragStart(event,'${s.id}')" ondragover="staffDragOver(event)" ondragleave="staffDragLeave(event)" ondrop="staffDrop(event,'${s.id}')" ondragend="staffDragEnd(event)"
       onclick="openStaffModal('${s.id}')">
       <div class="sc-body">
@@ -172,7 +181,6 @@ function renderStaffTable() {
         <div class="sc-sub">${sub.join(' · ')}</div>
         <div class="sc-tags">${tags||'<span style="color:var(--muted);font-size:10.5px;">근무 속성 없음</span>'}</div>
       </div>
-      <span class="sc-dot ${s.active!==false?'on':'off'}" title="${s.active!==false?'재직':'비활성'}"></span>
     </div>`;
   }
 
