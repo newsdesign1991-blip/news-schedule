@@ -63,6 +63,14 @@ function _cgaPeople(ds) {
   const fl = id => (staffById(id) && staffById(id).employmentType === 'freelancer') ? 1 : 0;
   return out.filter(p => !del.has(p.id)).sort((a, b) => (fl(a.id) - fl(b.id)) || ((idx.get(a.id) ?? 9999) - (idx.get(b.id) ?? 9999)));
 }
+// 당직자(10-22 사용자 — 사람 카드 아래 선 긋고 따로): 새벽(9시 전)엔 아직 근무 중인 어젯밤 당직(당직퇴근), 그 밖엔 오늘 밤 당직. 휴가·×로 뺀 사람은 뺌
+function _cgaDanjik(ds) {
+  const e = data.schedule && data.schedule[ds]; if (!e) return [];
+  const id = new Date().getHours() < 9 && typeof getDanjikExitStaff === 'function' ? getDanjikExitStaff(ds) : e.danjik;
+  const s = id && staffById(id), lv = new Set((data.newLeaves && data.newLeaves[ds]) || []);
+  if (!s || lv.has(id) || (_cgaAdjGet().del || []).includes(id)) return [];
+  return [{ id, name: s.name, tag: '당직' }];
+}
 // 누가 바꿀 수 있나(10-21 사용자): 그날 데스크(8데스크·5데스크·오전데)와 최재영(마스터 — 늘 가능)만 사람 넣고 빼기·의뢰 배정·직접 배정·완료. 다른 사람은 보기만(크게 보기·인쇄·의뢰 숨기기는 됨)
 function _cgaCanEdit() {
   if (typeof isMaster !== 'undefined' && isMaster) return true;
@@ -380,7 +388,8 @@ function _cgaPaint() {
   const active = n => (byName[n] || []).filter(r => r.status === '0002').sort((a, b) => String(b.assignAt).localeCompare(String(a.assignAt)));
   // 카드에 없는 사람이 작업 중이면 그 사람 카드도(그날 역할 표시)
   const names = new Set(people.map(p => p.name));
-  const extra = [...new Set(rows.filter(r => r.status === '0002' && r.designer && !names.has(r.designer)).map(r => r.designer))]
+  const dj = _cgaDanjik(ds).filter(p => !names.has(p.name)), djN = new Set(dj.map(p => p.name));   // 당직자는 아래 따로(위 목록에 이미 있으면 거기)
+  const extra = [...new Set(rows.filter(r => r.status === '0002' && r.designer && !names.has(r.designer) && !djN.has(r.designer)).map(r => r.designer))]
     .map(n => { const st = (data.staff || []).find(x => x.name === n); return { id: st ? st.id : '', name: n, tag: _cgaRoleTag(n, ds), extra: true }; })
     .filter(p => !(p.id && (_cgaAdjGet().del || []).includes(p.id)));
   const busy = n => active(n).length > 0 || _cgmActive(n).length > 0;   // NDS 배정 또는 직접 배정(CG·앵커터치·PT)
@@ -423,6 +432,7 @@ function _cgaPaint() {
   };
   const cards = [...work, ...idle].map(card);
   if (!cards.length) cards.push({ key: 'empty', cls: 'cga-empty', html: '오늘 근무표에 CG 근무자가 없어요.' });
+  if (dj.length) cards.push({ key: 'sep:danjik', cls: 'cga-sep', attrs: { role: 'separator' }, html: '<span>당직</span>' }, ...dj.map(card));   // 선 하나 + 당직자 카드(배정도 똑같이)
   const firstPaint = _cgaFirstPaint && loaded; if (loaded) _cgaFirstPaint = false;
   _cgaKeyed(grid, cards, (el, i) => el.animate([{ opacity: 0, transform: 'translateY(10px) scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 460, delay: firstPaint ? i * 35 : 0, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' }));
   // 왼쪽: 배정 기다리는 의뢰(의뢰·보완요청), 오래된 것부터 위로 쌓임. 새 의뢰는 아래에서 스르륵 올라옴. 15분 넘으면 빨강, 보완요청은 회색(맨 아래), ×로 이 앱에서만 숨김
