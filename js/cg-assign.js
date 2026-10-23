@@ -182,7 +182,7 @@ function renderCgAssign() {
   _cgaPaint();
   requestAnimationFrame(_cgaFit);
   _cgaFetch(false);
-  clearInterval(_cgaTimer); _cgaTimer = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTimer); _cgaTimer = null; return; } if (document.visibilityState === 'visible') _cgaFetch(false); }, CGA_POLL);
+  clearInterval(_cgaTimer); _cgaTimer = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTimer); _cgaTimer = null; return; } if (document.visibilityState === 'visible' && Date.now() - _cgaLastAt >= _cgaPollGap() - 1500) _cgaFetch(false); }, CGA_POLL);
   clearInterval(_cgaTick); _cgaTick = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTick); _cgaTick = null; return; } _cgaAgoFill(); }, 30000);   // '몇 분째'만 갱신
   // 직접 배정·사람 넣고 빼기(공용 'cgman')는 5초마다 — 다른 PC에서 바꾼 게 5초 안에 보이게(10-21). 바뀌었을 때만 다시 그림
   clearInterval(_cgmTimer); _cgmTimer = setInterval(async () => {
@@ -206,14 +206,24 @@ function _cgaFit() {
   fitMain();
 }
 addEventListener('resize', () => { if (typeof currentView !== 'undefined' && currentView === 'cgassign') _cgaFit(); });
+// NDS 가 안 될 때 두드리지 않게(10-23 사용자): 실패하면 40초 → 80초 → … 최대 5분 쉼, 로그인 실패(비밀번호 바뀜 등)는 10분(공용 계정이 잠기지 않게). 새로고침 버튼은 바로
+let _cgaFail = 0, _cgaNextAt = 0, _cgaLastAt = 0;
+// 저절로 읽는 간격(10-23 사용자 '최대한 부담 안 주게'): 이 화면을 보며 손대고 있을 때만 20초, 다른 창을 보거나 3분 넘게 손 안 대면 1분,
+// 30분 넘게 손 안 대면 2분, 새벽 1~6시는 2분. 창을 내려 두면 안 읽음(위 타이머). 배정·새로고침 뒤 읽기는 바로
+function _cgaPollGap() {
+  const t = typeof _ndTouched !== 'undefined' && _ndTouched ? _ndTouched : (typeof _ND_BOOT !== 'undefined' ? _ND_BOOT : 0), idle = t ? Date.now() - t : 0, h = new Date().getHours();
+  if ((h >= 1 && h < 6) || idle > 30 * 60e3) return 120e3;
+  if (!document.hasFocus() || idle > 3 * 60e3) return 60e3;
+  return CGA_POLL;
+}
 async function _cgaFetch(manual) {
-  if (_cgaBusy) return;
+  if (_cgaBusy || (!manual && Date.now() < _cgaNextAt)) return;
   await _cgmLoad();   // 직접 배정(앵커·PT) — 여러 PC 공용
   if (!(typeof ND_APP !== 'undefined' && ND_APP && window.ndApp && window.ndApp.ndsCg)) {
     _cgaErr = (typeof ND_APP !== 'undefined' && ND_APP) ? '근무표 앱을 업데이트하면 볼 수 있어요. 오른쪽 위 렌치에서 업데이트해 주세요.' : 'CG배정 현황은 근무표 PC 앱에서 볼 수 있어요.';
     _cgaPaint(); return;
   }
-  _cgaBusy = true;
+  _cgaBusy = true; _cgaLastAt = Date.now();
   if (typeof _checkRemoteUpdate === 'function') _checkRemoteUpdate().catch(() => {});   // 근무표가 바뀌었으면 받아 둠(인원 계산용) — 보통 2분 → 이 화면은 20초
   const btn = document.querySelector('#cga-root .cga-refresh'); if (btn) btn.classList.add('spin');
   try {
@@ -221,10 +231,16 @@ async function _cgaFetch(manual) {
     // 시험용 가짜 의뢰(개발판에서 애니메이션 볼 때만 — window._cgaFakeRows, id 는 음수. NDS 로 안 감)
     if (r && r.ok && Array.isArray(window._cgaFakeRows)) r.rows = r.rows.concat(window._cgaFakeRows.filter(x => !r.rows.some(y => y.id === x.id)));
     if (r && r.ok && window._cgaFakeCue8 && (!r.cue8 || window._cgaFakeCue8.force)) r.cue8 = window._cgaFakeCue8;   // 시험용 8뉴스 큐시트(큐시트가 안 오거나 시험에 쓸 이름이 모자랄 때)
-    if (r && r.ok) { _cgaNotifyNew(r); _cgaData = r; _cgaErr = ''; }
+    if (r && r.ok) { _cgaNotifyNew(r); _cgaData = r; _cgaErr = ''; _cgaFail = 0; _cgaNextAt = 0; }
     else _cgaErr = !r ? 'NDS에서 읽지 못했어요.' : r.reason === 'noaccount' ? 'NDS 공용 계정이 이 PC에 없어요.' : r.reason === 'login' ? 'NDS 로그인 실패: ' + (r.error || '') : (r.error || 'NDS에서 읽지 못했어요.');
   } catch (e) { _cgaErr = 'NDS에서 읽지 못했어요.'; }
   finally { _cgaBusy = false; if (btn) setTimeout(() => btn.classList.remove('spin'), 400); }
+  if (_cgaErr) {   // 쉬는 시간(위) — 화면에도 언제 다시 읽는지
+    _cgaFail++;
+    const wait = /^NDS 로그인 실패/.test(_cgaErr) ? 10 * 60e3 : Math.min(5 * 60e3, 20e3 * 2 ** _cgaFail);
+    _cgaNextAt = Date.now() + wait;
+    _cgaErr += ` (${wait >= 60e3 ? Math.round(wait / 60e3) + '분' : Math.round(wait / 1000) + '초'} 뒤 다시 읽어요 — 오른쪽 위 새로고침으로 바로)`;
+  }
   _cgaPaint();
   if (manual && !_cgaErr) toast('새로 읽었어요.', 'success');
 }

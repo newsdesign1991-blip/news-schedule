@@ -148,8 +148,12 @@ html.nd-app .fl-detail { top:60px; }
 html.nd-app #nd-titlebar { position:fixed; top:0; left:0; right:0; height:44px; z-index:10001; display:flex; align-items:center; gap:10px; padding:0 150px 0 16px; box-sizing:border-box; background:var(--bg); color:var(--text); -webkit-app-region:drag; user-select:none; }
 /* 제목줄(z 10001)보다 위에 뜨는 덮개·팝업: 창 끌기 영역은 z 순서와 상관없이 정해져서, no-drag가 없으면 위쪽 44px를 눌러도 창이 끌림(바깥 눌러 닫기·버튼이 안 됨, 더블클릭은 최대화). 닫히면 DOM에서 빠지거나 display:none이라 평소 끌기는 그대로 */
 html.nd-app :is(.wt-pop, .lr-adj, .special-duty-overlay, .meal-pos-pop, .react-picker, .nds-pop, .nd-toolbar-calendar, #react2-modal, #project-modal, #ev-discard-ov, #nd-modfail) { -webkit-app-region:no-drag; }
-html.nd-app #nd-titlebar .ndt-brand { display:flex; align-items:center; gap:8px; flex:none; margin-right:6px; font-size:13px; font-weight:800; letter-spacing:-.01em; }
-html.nd-app #nd-titlebar .ndt-brand img { width:18px; height:18px; border-radius:5px; }
+/* 앱 이름 = 사이드바 맨 위(10-24 사용자 — 날씨앱 .appHeader 와 같은 모양: 38px 아이콘 + 15px 굵은 이름 + 11.5px 만든 사람), 제목줄엔 없음 */
+html.nd-app #side-nav .snav-brand.nd-app-brand { gap:11px; padding:2px 6px 0; }
+html.nd-app .nd-app-brand img { width:38px; height:38px; flex:none; border-radius:10px; filter:drop-shadow(0 2px 4px rgba(15,23,42,.18)); }
+html.nd-app .nd-app-brand .nab-t { display:flex; flex-direction:column; line-height:1.25; min-width:0; }
+html.nd-app .nd-app-brand .nab-t b { font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--text); }
+html.nd-app .nd-app-brand .nab-t small { font-size:11.5px; font-weight:600; letter-spacing:0; color:var(--muted); }
 html.nd-app #nd-titlebar .ndt-nav { display:none; align-items:center; gap:2px; min-width:0; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; padding:6px 3px; }   /* 위아래 여백 = 켜진 탭 그림자가 안 잘리게(가로 스크롤 상자는 그림자를 자름) */
 html.nd-app body.admin-mode-active #nd-titlebar .ndt-nav { display:flex; }
 /* 탭이 넘치면(창이 좁을 때) 넘친 쪽 끝을 흐리게 — 가로 스크롤 위치를 따라감(scroll-timeline, 안 넘치면 효과 없음). 세로 휠로 넘기기는 js/app-mode.js */
