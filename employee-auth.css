@@ -33,6 +33,12 @@
 [data-theme="dark"] .staff-card.ea-card[data-password-ready="true"]{background:var(--sc-glow) padding-box,linear-gradient(135deg,#203859 0%,#243349 65%,#1c304e 100%) padding-box,linear-gradient(135deg,#426da5,#344c70) border-box;box-shadow:0 3px 12px rgba(0,0,0,.18)}
 .ea-card[data-password-ready="true"] .ea-st{background:rgba(255,255,255,.65);color:#245fb5}
 [data-theme="dark"] .ea-card[data-password-ready="true"] .ea-st{background:rgba(103,167,255,.16);color:#b3d4ff}
+/* PC 근무표 앱 판(10-22): 회색 = 최신, 주황 = 아직 최신 전, 흐림 = 7일 넘게 기록 없음 */
+.ea-card .ea-ver{font-style:normal;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;background:rgba(100,116,139,.13);color:#475569;white-space:nowrap}
+.ea-card .ea-ver.behind{background:rgba(234,88,12,.15);color:#c2410c}
+.ea-card .ea-ver.stale{opacity:.5}
+[data-theme="dark"] .ea-card .ea-ver{background:rgba(148,163,184,.16);color:#cbd5e1}
+[data-theme="dark"] .ea-card .ea-ver.behind{background:rgba(251,146,60,.2);color:#fdba74}
 .ea-card .ea-pw{margin-top:8px;font-size:12px;color:var(--muted)}
 .ea-card .ea-pw summary{cursor:pointer;padding:4px 0}
 .ea-card .ea-pw output{display:block;font-size:16px;font-weight:700;letter-spacing:.15em;color:var(--text)}

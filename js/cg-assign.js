@@ -9,7 +9,12 @@
    - 끌어다 놓아 NDS 배정(10-21): 왼쪽 '의뢰'를 사람 카드에 → 확인 창 → 내 NDS 로그인(WISE × N)으로 NDS 에 배정(ndApp.ndsAssign, 앱 1.2.6~)
    - 의뢰 누르면 크게 보기(본문 포함, ndApp.ndsCgDetail) + [인쇄] = NDS [인쇄 → 기본]과 같은 모양, 미리보기 창에서 프린터 골라 바로 인쇄(ndApp.printHtml) — 앱 1.2.7~ */
 const CGA_POLL = 20000;
-const CGA_PERSON_POP = false;   // 10-20 사용자: 카드 누르면 뜨는 사람 팝업(_cgaPersonPop)은 일단 숨김 — 코드는 남겨 둠, true 면 다시 켜짐
+// 카드 누르면 뜨는 사람 팝업(_cgaPersonPop — 그 사람 오늘 한 CG): 10-20 숨김 → 10-22 사용자: 최재영으로 로그인했을 때만
+function _cgaPopOn() {
+  const u = typeof currentUser !== 'undefined' && currentUser; if (!u) return false;
+  const me = (u.staffId && staffById(u.staffId)) || (data.staff || []).find(s => s.name === u.name);
+  return String((me && me.name) || u.name || '').replace(/\s/g, '') === '최재영';
+}
 let _cgaData = null, _cgaErr = '', _cgaBusy = false, _cgaTimer = null, _cgaTick = null, _cgaSeen = null, _cgmTimer = null;
 // 그날만 쓰는 이 PC 설정(날짜가 바뀌면 비움): 숨긴 의뢰 id / 넣은·뺀 사람 id
 function _cgaLocal(key) { try { const v = JSON.parse(localStorage.getItem(key) || 'null'); if (v && v.day === _cgaToday()) return v; } catch (e) {} return { day: _cgaToday() }; }
@@ -169,12 +174,11 @@ function renderCgAssign() {
     h.addEventListener('click', e => { if (e.target.closest('.cga-x, .cga-done')) return; const j = e.target.closest('.cga-job[data-rid]'); if (!j) return; const id = Number(j.dataset.rid) || 0; if (id) _cgaReqOpen(id); });   // 배정된 의뢰 칸 → 크게 보기(10-21, 시험 의뢰도)
   });
   _cgaWireDnd();   // 의뢰 → 사람 카드 끌어다 놓기 배정(10-21)   // 카드 오른쪽 클릭 → CG·앵커터치·PT 직접 배정/완료
-  if (CGA_PERSON_POP && !g._wired) {   // 카드 누르면 그 사람 오늘 CG(× 는 빼기)
-    g._wired = true;
-    const open = e => { if (e.target.closest('.cga-x, .cga-done')) return; const c = e.target.closest('.cga-card[data-name]'); if (c && !c.classList.contains('cga-leaving')) _cgaPersonPop(c.dataset.name); };
-    g.addEventListener('click', open);
-    g.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('cga-card')) { e.preventDefault(); open(e); } });
-  }
+  [g, document.getElementById('cga-dj')].forEach(h => { if (h._wired) return; h._wired = true;   // 카드 누르면 그 사람 오늘 CG(× 는 빼기, 의뢰 칸은 크게 보기) — 최재영만(_cgaPopOn)
+    const open = e => { if (!_cgaPopOn() || e.target.closest('.cga-x, .cga-done, .cga-job[data-rid]')) return; const c = e.target.closest('.cga-card[data-name]'); if (c && !c.classList.contains('cga-leaving')) _cgaPersonPop(c.dataset.name); };
+    h.addEventListener('click', open);
+    h.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('cga-card')) { e.preventDefault(); open(e); } });
+  });
   _cgaPaint();
   requestAnimationFrame(_cgaFit);
   _cgaFetch(false);
@@ -401,7 +405,7 @@ function _cgaPaint() {
     ..._cgmToday().filter(j => j.name === n && (!onlyActive || !j.done)).map(j => String(j.at || ''))].filter(Boolean).sort().pop() || '';
   const byOld = onlyActive => (x, y) => lastAt(x.name, onlyActive).localeCompare(lastAt(y.name, onlyActive));
   const work = [...people.filter(p => busy(p.name)), ...extra].sort(byOld(true)), idle = people.filter(p => !busy(p.name)).sort(byOld(false));
-  const can = _cgaCanEdit();
+  const can = _cgaCanEdit(), pop = _cgaPopOn();
   const sub = `CG제작 가능 인원 ${work.length + idle.length}명` + (can ? '' : ' · 배정·사람 넣고 빼기는 오늘 데스크만') + (_cgaDemoOn() ? ' · 시험 중(가짜 의뢰 — NDS엔 안 가요)' : '');   // 10-20 사용자: 날짜·기준 시각 등은 빼고 이것만
   const addBtn = document.querySelector('#cga-root .cga-addp'); if (addBtn) addBtn.style.display = can ? '' : 'none';
   const subEl = document.getElementById('cga-sub'); if (subEl.textContent !== sub) subEl.textContent = sub;
@@ -427,7 +431,7 @@ function _cgaPaint() {
     const special = [...a.map(r => ({ at: String(r.assignAt || ''), k: _cgaKw(r.title) })), ...mj.map(j => ({ at: String(j.at || ''), k: _cgmKey(j.kind) }))]
       .filter(x => x.k && x.k !== 'cg').sort((x, y) => y.at.localeCompare(x.at))[0];
     const tone = on && special ? ' k-' + special.k : '';   // 앵커터치·PT 주황 · 3D 보라 · XR 초록 · 그 밖 파랑
-    return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + tone + (CGA_PERSON_POP ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, CGA_PERSON_POP ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: CG·앵커터치·PT 배정)` }),
+    return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + tone + (pop ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, pop ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: CG·앵커터치·PT 배정)` }),
       html: `<span class="cga-dot" aria-hidden="true"></span>${p.id && can ? `<button type="button" class="cga-x" onclick="_cgaDel('${_cgaEsc(p.id)}')" title="오늘 이 화면에서 빼기" aria-label="${_cgaEsc(p.name)} 빼기">×</button>` : ''}
       <div class="cga-top"><div class="cga-nm"><b>${_cgaEsc(p.name)}</b><span class="cga-tag${p.extra ? ' x' : ''}">${_cgaEsc(p.tag || 'CG')}</span></div></div>
       <div class="cga-cbody">${body}</div>` };
@@ -483,9 +487,13 @@ function _cgaPersonPop(name) {
   </div>`;
   document.body.appendChild(el);
   const close = () => { el.remove(); _cgpName = ''; document.removeEventListener('keydown', onKey, true); };
-  const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  const onKey = e => { if (e.key === 'Escape' && !document.getElementById('cga-view') && !document.getElementById('cga-pv')) { e.stopPropagation(); close(); } };   // 위에 의뢰 크게 보기·인쇄가 떠 있으면 그것부터
   document.addEventListener('keydown', onKey, true);
   el.querySelector('.cgp-x').onclick = close;
+  // 오늘 처리한 CG 칸을 누르면 그 의뢰 크게 보기(10-22 사용자 — 팝업 위로 뜸)
+  const openRow = e => { const row = e.target.closest('.cgp-row[data-rid]'); if (!row) return; const id = Number(row.dataset.rid) || 0; if (id) _cgaReqOpen(id); };
+  el.querySelector('#cgp-list').addEventListener('click', openRow);
+  el.querySelector('#cgp-list').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRow(e); } });
   el.addEventListener('click', e => { if (e.target === el) close(); });
   _cgpPaint();
   el.querySelector('.cgp-x').focus();
@@ -508,7 +516,7 @@ function _cgpPaint() {
   const list = [...on, ...done.sort((a, b) => String(b.doneAt).localeCompare(String(a.doneAt)))];
   el.querySelector('#cgp-list').innerHTML = list.length ? list.map(r => {
     const live = r.status === '0002', took = live ? null : (() => { const a = Date.parse(String(r.assignAt).replace(' ', 'T')), b = Date.parse(String(r.doneAt).replace(' ', 'T')); return isNaN(a) || isNaN(b) ? null : Math.max(0, Math.round((b - a) / 60000)); })();
-    return `<div class="cgp-row${live ? ' on' : ''}">
+    return `<div class="cgp-row${live ? ' on' : ''}" data-rid="${Number(r.id) || 0}" role="button" tabindex="0" title="눌러서 의뢰 크게 보기">
       <div class="cgp-row-h"><div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div><span class="cgp-badge">${live ? '작업 중' : '완료'}</span></div>
       ${r.title ? `<div class="cgp-ttl">${_cgaEsc(r.title)}</div>` : ''}
       <div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span>${live ? '' : `<span>완료 <b>${_cgaHM(r.doneAt)}</b></span>`}<span class="cga-ago"${live ? ` data-at="${_cgaEsc(r.assignAt)}"` : ''}>${live ? '' : took != null ? took + '분 걸림' : ''}</span></div>

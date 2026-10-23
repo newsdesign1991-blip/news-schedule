@@ -368,7 +368,8 @@ function _deviceId(){
 function _recordLogin(force){
   try {
     if(!currentUser||!currentUser.staffId) return;
-    const key='nd_loginlog_'+_bkToday();
+    const appV=((navigator.userAgent||'').match(/NDScheduleApp\/([\d.]+)/)||[])[1]||'';
+    const key='nd_loginlog_'+_bkToday()+(appV?'_'+appV:'');   // 근무표 앱은 판이 바뀌면 그날도 다시 기록(10-22 — 로그인 기록 탭에서 누가 업데이트했는지 보이게)
     if(!force && localStorage.getItem(key)) return;   // 자동로그인은 하루 1회만 갱신
     localStorage.setItem(key,'1');
     const st=staffById(currentUser.staffId);
@@ -387,6 +388,10 @@ function _recordLogout(){
     }).catch(()=>{});
   } catch(e){}
 }
+// 근무표 앱 판(10-22): UA 끝 'NDScheduleApp/1.3.1'(desktop/main.js) — 로그인 기록 탭·계정 관리 카드(employee-auth.js)가 같이 씀. 7일 넘게 기록 없는 기기는 옛 기록으로 봄
+function _ndAppVer(ua){ return ((ua||'').match(/NDScheduleApp\/([\d.]+)/)||[])[1]||''; }
+function _ndCmpVer(a,b){ const x=a.split('.').map(Number),y=b.split('.').map(Number); for(let i=0;i<3;i++){ if((x[i]||0)!==(y[i]||0)) return (x[i]||0)-(y[i]||0); } return 0; }
+function _ndRecentLog(r){ return !!(r&&r.last_login&&Date.now()-new Date(r.last_login).getTime()<7*864e5); }
 async function renderLoginLog(){
   const box=document.getElementById('loginlog-body'); if(!box) return;
   box.innerHTML='불러오는 중…';
@@ -398,7 +403,11 @@ async function renderLoginLog(){
     }
     const rows=await res.json();
     if(!rows.length){ box.innerHTML='<div style="color:var(--muted);">아직 로그인한 사람이 없습니다. (직원이 이름으로 접속하면 여기에 표시됩니다)</div>'; return; }
-    const devName=ua=>{ ua=ua||''; if(/iPhone|iPad|iPod/.test(ua))return '📱 iOS'; if(/SamsungBrowser/.test(ua))return '📱 삼성인터넷'; if(/Android/.test(ua))return '📱 안드로이드'; if(/Windows/.test(ua))return '💻 PC'; if(/Mac/.test(ua))return '💻 Mac'; return '기타'; };
+    const appVer=_ndAppVer, cmpV=_ndCmpVer;
+    // 근무표 앱 판(10-22): 기기마다 마지막 기록의 판 — 가장 높은 판이 최신, 그보다 낮으면 주황(아직 업데이트 안 됨). 7일 넘게 기록 없는 기기(다시 깐 PC의 옛 기록 등)는 셈에서 빼고 흐리게
+    const recent=_ndRecentLog;
+    const vers=rows.filter(recent).map(r=>appVer(r.ua)).filter(Boolean), newest=vers.reduce((m,v)=>!m||cmpV(v,m)>0?v:m,'');
+    const devName=(ua,r)=>{ ua=ua||''; const v=appVer(ua); if(v) return !recent(r)?`<span style="opacity:.55;">근무표 앱 ${v}</span>`:v===newest?`근무표 앱 ${v}`:`<b style="color:#c2410c;">근무표 앱 ${v}</b>`; if(/iPhone|iPad|iPod/.test(ua))return '📱 iOS'; if(/SamsungBrowser/.test(ua))return '📱 삼성인터넷'; if(/Android/.test(ua))return '📱 안드로이드'; if(/Windows/.test(ua))return '💻 PC'; if(/Mac/.test(ua))return '💻 Mac'; return '기타'; };
     const fmt=iso=>{ if(!iso)return '-'; try{ const k=new Date(iso); const mm=String(k.getMonth()+1).padStart(2,'0'),dd=String(k.getDate()).padStart(2,'0'),hh=String(k.getHours()).padStart(2,'0'),mi=String(k.getMinutes()).padStart(2,'0'); return `${mm}-${dd} ${hh}:${mi}`; }catch(e){ return iso; } };
     const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
     // 사람(staff_id)별로 묶기 — 여러 기기 로그인 가능
@@ -407,12 +416,15 @@ async function renderLoginLog(){
       const g=byStaff[k]; if(r.logged_in) g.loggedIn=true; if((r.last_login||'')>(g.lastLogin||'')) g.lastLogin=r.last_login; g.devs.push(r); });
     const list=Object.values(byStaff).sort((a,b)=> (b.loggedIn-a.loggedIn) || ((b.lastLogin||'')>(a.lastLogin||'')?1:-1));
     const onCnt=list.filter(p=>p.loggedIn).length;
-    const head=`<div style="margin-bottom:12px;color:var(--text);">한번이라도 로그인 <b>${list.length}명</b> · <span style="color:#16a34a;">🟢 로그인 중 <b>${onCnt}명</b></span> · ⚪ 로그아웃 <b>${list.length-onCnt}명</b></div>`;
+    const vc={}; vers.forEach(v=>{ vc[v]=(vc[v]||0)+1; });
+    const old=vers.filter(v=>v!==newest).length;
+    const appLine=vers.length?`<div style="margin:-4px 0 12px;color:var(--muted);font-size:12.5px;">근무표 앱(PC, 최근 7일) ${vers.length}대: ${Object.keys(vc).sort((a,b)=>cmpV(b,a)).map(v=>`${v} <b style="color:${v===newest?'var(--text)':'#c2410c'};">${vc[v]}대</b>`).join(' · ')}${old?` — 주황은 아직 ${newest} 전`:' — 모두 최신'}</div>`:'';
+    const head=`<div style="margin-bottom:12px;color:var(--text);">한번이라도 로그인 <b>${list.length}명</b> · <span style="color:#16a34a;">🟢 로그인 중 <b>${onCnt}명</b></span> · ⚪ 로그아웃 <b>${list.length-onCnt}명</b></div>`+appLine;
     const trs=list.map(p=>{
       const badge = p.loggedIn
         ? '<span style="background:#dcfce7;color:#16a34a;font-weight:700;font-size:11px;padding:2px 9px;border-radius:20px;white-space:nowrap;">🟢 로그인 중</span>'
         : '<span style="background:var(--surface2);color:var(--muted);font-weight:700;font-size:11px;padding:2px 9px;border-radius:20px;white-space:nowrap;">⚪ 로그아웃</span>';
-      const devs=[...new Set(p.devs.map(d=>devName(d.ua)))].join(', ');
+      const devs=[...new Set(p.devs.map(d=>devName(d.ua,d)))].join(', ');
       return `<tr style="border-bottom:1px solid var(--border);">
         <td style="padding:8px 10px;font-weight:700;color:var(--text);white-space:nowrap;">${esc(p.name)}</td>
         <td style="padding:8px 10px;color:var(--muted);white-space:nowrap;">${esc(p.dept)}</td>

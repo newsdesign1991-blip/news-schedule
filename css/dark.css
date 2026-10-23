@@ -638,6 +638,8 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cgp-right h4 { flex:none; margin:0; padding:18px 22px 10px; font-size:15px; font-weight:800; color:var(--text); }
 .cgp-list { flex:1; min-height:0; overflow-y:auto; padding:0 22px 20px; display:flex; flex-direction:column; gap:8px; }
 .cgp-row { padding:12px 14px; border-radius:14px; background:var(--surface2); border:1px solid var(--border); }
+.cgp-row[data-rid] { cursor:pointer; transition:border-color .15s, background .15s; }
+.cgp-row[data-rid]:hover { border-color:rgba(49,130,246,.45); }
 .cgp-row.on { background:rgba(49,130,246,.07); border-color:rgba(49,130,246,.35); }
 .cgp-row-h { display:flex; align-items:center; gap:8px; }
 .cgp-badge { margin-left:auto; flex:none; padding:2px 9px; border-radius:999px; background:var(--surface); border:1px solid var(--border); font-size:11.5px; font-weight:800; color:var(--muted); }

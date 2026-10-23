@@ -404,14 +404,69 @@ async function _ndUpdWatch(){
   _ndUpdLast=Date.now();
   try{
     const u=await window.ndApp.updateCheck(); _ndUpdMark(u);
-    if(u&&u.available&&u.latest!==_ndUpdTold){
+    if(u&&u.available&&u.latest!==_ndUpdTold&&!_ndUpdPop(u)){
       _ndUpdTold=u.latest;
       const title=`근무표 앱 새 버전 ${u.latest}이 나왔어요`, body='오른쪽 위 렌치를 눌러 [지금 업데이트]'+(u.notes&&u.notes[0]?' · '+u.notes[0]:'');
       if(window.ndApp.toast) window.ndApp.toast({title,body}); else if(typeof toast==='function') toast(title+' — '+body,'info');
     }
   }catch(e){ /* 사내망 밖 등 — 다음에 */ }
+  _ndAutoUpdate();
 }
 if(ND_APP){ setTimeout(_ndUpdWatch,20000); setInterval(_ndUpdWatch,5*60e3); addEventListener('focus',()=>{ if(Date.now()-_ndUpdLast>60e3) _ndUpdWatch(); }); }
+// 새 판 안내 팝업(10-22 사용자 '다음 열었을 때 팝업 한번'): 판마다 이 PC에서 한 번 — 창이 보일 때만(트레이에 숨어 있으면 보일 때까지 기다림, 그 사이 손 안 대면 자동 업데이트가 먼저).
+// 떠 있는 동안은 자동 업데이트가 기다림(팝업 열림). [지금 업데이트] = 렌치와 같은 설치. 띄웠거나 띄울 참이면 true(알림 카드는 안 보냄)
+function _ndUpdPop(u){
+  if(!u||!u.available||!window.ndApp?.updateInstall) return false;
+  let seen=''; try{ seen=localStorage.getItem('nd_upd_pop')||''; }catch(e){}
+  if(seen===u.latest) return false;
+  if(document.getElementById('nd-updpop')) return true;
+  if(document.visibilityState!=='visible'){
+    if(!_ndUpdPop.wait){ _ndUpdPop.wait=true; document.addEventListener('visibilitychange',function f(){ if(document.visibilityState!=='visible') return; document.removeEventListener('visibilitychange',f); _ndUpdPop.wait=false; if(_ndUpd&&_ndUpd.available) _ndUpdPop(_ndUpd); }); }
+    return true;
+  }
+  try{ localStorage.setItem('nd_upd_pop',u.latest); }catch(e){}
+  const el=document.createElement('div'); el.id='nd-updpop'; el.className='wt-pop';
+  el.innerHTML=`<div class="wt-card" role="dialog" aria-modal="true" aria-labelledby="nd-updpop-t">
+    <div class="wt-head" id="nd-updpop-t">근무표 앱 업데이트</div>
+    <div class="wt-body"><p>새 버전 <b>${_wiEsc(u.latest)}</b>이 나왔어요 (지금 ${_wiEsc(u.current)}). 지금 업데이트해 주세요.</p>${u.notes&&u.notes.length?'<ul>'+u.notes.map(n=>'<li>'+_wiEsc(n)+'</li>').join('')+'</ul>':''}
+      <p style="color:var(--muted);font-size:12.5px;">앱이 15~20초쯤 꺼졌다가 새 버전으로 켜져요. [나중에]를 누르면 오른쪽 위 렌치로 언제든 할 수 있고, 한동안 손을 안 대면 저절로 돼요.</p><p class="nd-updpop-st" role="status" style="color:#c2410c;font-weight:700;"></p></div>
+    <div class="wt-foot"><button type="button" class="wt-cancel">나중에</button><button type="button" class="wt-go">지금 업데이트</button></div></div>`;
+  document.body.appendChild(el);
+  const go=el.querySelector('.wt-go'), no=el.querySelector('.wt-cancel'), st=el.querySelector('.nd-updpop-st');
+  const close=()=>{ if(go.disabled) return; el.remove(); document.removeEventListener('keydown',onKey,true); };
+  const onKey=e=>{ if(e.key==='Escape'){ e.stopPropagation(); close(); } };
+  document.addEventListener('keydown',onKey,true);
+  no.onclick=close; go.focus();
+  go.onclick=async()=>{
+    go.disabled=true; no.disabled=true; go.textContent='받는 중…'; st.textContent='';
+    const off=window.ndApp.onUpdateProgress?.(p=>{ if(p.phase==='copy'&&p.total>0) go.textContent='받는 중… '+Math.min(100,Math.floor(p.got*100/p.total))+'%'; else if(p.phase==='helper') go.textContent='업데이트 창 여는 중…'; });
+    const r=await window.ndApp.updateInstall().catch(e=>({ok:false,error:e.message}));
+    if(typeof off==='function') off();
+    if(r&&r.ok){ go.textContent='설치 중…'; st.style.color='var(--muted)'; st.textContent='곧 앱이 닫히고 새 버전이 켜져요.'; }
+    else { st.textContent=(r&&r.error)||'업데이트하지 못했어요. 오른쪽 위 렌치에서 다시 해 주세요.'; go.disabled=false; no.disabled=false; go.textContent='다시 시도'; }
+  };
+  return true;
+}
+// 자동 업데이트(10-22 사용자 — 한 사람씩 렌치 누르러 다니지 않게): 새 판이 있으면 손 안 대는 때 저절로 설치(앱이 15~20초 꺼졌다 새 판으로 켜짐)
+//  · 언제: 앱(화면)을 켜고 3분 안에 아직 아무것도 안 건드렸을 때 · 10분 넘게 손 안 댔을 때(트레이에 숨겨 둔 창 포함)
+//  · 미룸: 근무표 작성소 화면, 팝업·인쇄 창이 떠 있을 때, 진행 알림 시간대(16:00~17:00 오뉴스 · 19:00~20:30 8뉴스 — 알림이 떠 있는데 앱이 꺼지면 못 봄)
+//  설치는 렌치 [지금 업데이트]와 같은 ndApp.updateInstall(이미 깔린 앱에 있음) — 그래서 push 만으로 지금 깔린 앱도 저절로. 실패하면 30분 뒤 다시(렌치로도 됨)
+const _ND_BOOT=Date.now(); let _ndTouched=0, _ndAutoNext=0;
+if(ND_APP) ['pointerdown','keydown','wheel','mousemove','touchstart'].forEach(t=>addEventListener(t,()=>{ _ndTouched=Date.now(); },{capture:true,passive:true}));
+function _ndAutoUpdOk(){
+  const now=Date.now(), d=new Date(), h=d.getHours()+d.getMinutes()/60;
+  if((h>=16&&h<17)||(h>=19&&h<20.5)) return false;
+  if(typeof currentView!=='undefined'&&currentView==='workshop') return false;
+  const open=[...document.querySelectorAll('.modal-overlay, .nd-modal, [role="dialog"], #cga-pv')].some(e=>e.id!=='login-overlay'&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden');
+  if(open) return false;
+  return (!_ndTouched&&now-_ND_BOOT<3*60e3) || now-(_ndTouched||_ND_BOOT)>=10*60e3;
+}
+async function _ndAutoUpdate(){
+  if(!ND_APP||!window.ndApp?.updateInstall||!_ndUpd||!_ndUpd.available||Date.now()<_ndAutoNext||!_ndAutoUpdOk()) return;
+  _ndAutoNext=Date.now()+30*60e3;
+  try{ const r=await window.ndApp.updateInstall(); if(r&&r.ok) _ndAutoNext=Date.now()+5*60e3; }catch(e){ /* 30분 뒤 다시 */ }
+}
+if(ND_APP) setInterval(_ndAutoUpdate,60e3);
 // 창 버튼(최소화·최대화·닫기) 바탕·글자색을 제목줄과 같게
 function _ndTitlebarColors(){
   const bar=document.getElementById('nd-titlebar'); if(!bar||!window.ndApp?.setTitleBar) return;
