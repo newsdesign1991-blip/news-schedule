@@ -20,19 +20,13 @@
 .employee-head h2{font-size:20px;margin:0 0 8px}.employee-head p,.employee-hint{font-size:14px;color:var(--muted);line-height:1.65}
 .employee-form{padding:20px;display:grid;gap:14px}.employee-form label{font-size:14px;font-weight:650}.employee-form input{display:block;width:100%;box-sizing:border-box;min-width:0;min-height:48px;padding:12px;margin-top:7px;font-size:16px;border-radius:12px;border:1px solid var(--border);color:var(--text);background:var(--surface)}
 .employee-form button{min-height:44px}.employee-form [role=status]{color:#c5534b;font-size:14px}
-/* 직원 계정 카드 — 직원 관리 카드(css/admin.css .staff-card·.staff-cards-wrap)를 그대로 쓰고 계정용만 덧붙임(10-22): 상태 표시·비밀번호 보기·초기화 */
+/* 직원 계정 카드 — 직원 관리 카드(css/admin.css .staff-card·.staff-cards-wrap)를 그대로 쓰고 계정용만 덧붙임(10-22): PC 앱 판·비밀번호 보기·초기화 */
 .ea-wrap{margin-top:16px}
 .staff-card.ea-card{cursor:default}
 .staff-card.ea-card:active{transform:none}
-.ea-card .ea-st{font-style:normal;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;background:rgba(240,140,40,.13);color:#b4621a;white-space:nowrap}
-.ea-card[data-password-ready="true"] .ea-st{background:rgba(49,130,246,.13);color:#2f6fd6}
-[data-theme="dark"] .ea-card .ea-st{background:rgba(240,140,40,.2);color:#f3b373}
-[data-theme="dark"] .ea-card[data-password-ready="true"] .ea-st{background:rgba(49,130,246,.24);color:#97c3ff}
 /* 비밀번호 설정 완료 = 카드 전체 파란 그라디언트(예전 그대로 — 한눈에 구분, 10-22 사용자) + 아래 부서 색 빛 */
 .staff-card.ea-card[data-password-ready="true"]{background:var(--sc-glow) padding-box,linear-gradient(135deg,#deebff 0%,#ebf3ff 65%,#dfecff 100%) padding-box,linear-gradient(135deg,#a9cdff,#bed9ff) border-box;box-shadow:0 3px 12px rgba(49,130,246,.10)}
 [data-theme="dark"] .staff-card.ea-card[data-password-ready="true"]{background:var(--sc-glow) padding-box,linear-gradient(135deg,#203859 0%,#243349 65%,#1c304e 100%) padding-box,linear-gradient(135deg,#426da5,#344c70) border-box;box-shadow:0 3px 12px rgba(0,0,0,.18)}
-.ea-card[data-password-ready="true"] .ea-st{background:rgba(255,255,255,.65);color:#245fb5}
-[data-theme="dark"] .ea-card[data-password-ready="true"] .ea-st{background:rgba(103,167,255,.16);color:#b3d4ff}
 /* PC 근무표 앱 판(10-22): 회색 = 최신, 주황 = 아직 최신 전, 흐림 = 7일 넘게 기록 없음 */
 .ea-card .ea-ver{font-style:normal;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;background:rgba(100,116,139,.13);color:#475569;white-space:nowrap}
 .ea-card .ea-ver.behind{background:rgba(234,88,12,.15);color:#c2410c}

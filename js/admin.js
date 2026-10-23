@@ -365,24 +365,30 @@ function _deviceId(){
   if(!id){ id='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); localStorage.setItem('nd_device_id', id); }
   return id;
 }
-function _recordLogin(force){
+// 근무표 앱이면 PC 마다 하나인 번호(앱 알림 번호 ndapp:<번호> — 앱을 다시 깔거나 개발판이어도 그대로)로 기록(10-22 — 예전엔 화면 저장소 번호라 한 PC가 여러 줄로 남음)
+async function _loginDeviceId(){
+  if(ND_APP&&window.ndApp?.notifyStatus){ try{ const m=String(((await window.ndApp.notifyStatus())||{}).endpoint||'').match(/^ndapp:([A-Za-z0-9-]{8,64})$/); if(m) return 'app-'+m[1]; }catch(e){} }
+  return _deviceId();
+}
+async function _recordLogin(force){
   try {
     if(!currentUser||!currentUser.staffId) return;
-    const appV=((navigator.userAgent||'').match(/NDScheduleApp\/([\d.]+)/)||[])[1]||'';
-    const key='nd_loginlog_'+_bkToday()+(appV?'_'+appV:'');   // 근무표 앱은 판이 바뀌면 그날도 다시 기록(10-22 — 로그인 기록 탭에서 누가 업데이트했는지 보이게)
+    const appV=_ndAppVer(navigator.userAgent);
+    const key='nd_loginlog_'+_bkToday()+(appV?'_'+appV+'_pc':'');   // 근무표 앱은 판이 바뀌면 그날도 다시 기록(10-22 — 로그인 기록 탭에서 누가 업데이트했는지 보이게)
     if(!force && localStorage.getItem(key)) return;   // 자동로그인은 하루 1회만 갱신
     localStorage.setItem(key,'1');
-    const st=staffById(currentUser.staffId);
+    const st=staffById(currentUser.staffId), dev=await _loginDeviceId();
     fetch(`${SB_URL}/rest/v1/login_log?on_conflict=device_id`, {
       method:'POST', headers:{...SB_HEADERS,'Prefer':'resolution=merge-duplicates,return=minimal'},
-      body: JSON.stringify({ device_id:_deviceId(), staff_id:currentUser.staffId, name:currentUser.name, dept:(st&&st.dept)||'', ua:(navigator.userAgent||'').slice(0,200), logged_in:true, last_login:new Date().toISOString() })
+      body: JSON.stringify({ device_id:dev, staff_id:currentUser.staffId, name:currentUser.name, dept:(st&&st.dept)||'', ua:(navigator.userAgent||'').slice(0,200), logged_in:true, last_login:new Date().toISOString() })
     }).catch(()=>{});
   } catch(e){}
 }
-function _recordLogout(){
+async function _recordLogout(){
   try {
-    localStorage.removeItem('nd_loginlog_'+_bkToday());
-    fetch(`${SB_URL}/rest/v1/login_log?device_id=eq.${encodeURIComponent(_deviceId())}`, {
+    const pre='nd_loginlog_'+_bkToday(); Object.keys(localStorage).filter(k=>k.startsWith(pre)).forEach(k=>localStorage.removeItem(k));
+    const dev=await _loginDeviceId();
+    fetch(`${SB_URL}/rest/v1/login_log?device_id=eq.${encodeURIComponent(dev)}`, {
       method:'PATCH', headers:{...SB_HEADERS,'Prefer':'return=minimal'},
       body: JSON.stringify({ logged_in:false, last_logout:new Date().toISOString() })
     }).catch(()=>{});
@@ -392,6 +398,18 @@ function _recordLogout(){
 function _ndAppVer(ua){ return ((ua||'').match(/NDScheduleApp\/([\d.]+)/)||[])[1]||''; }
 function _ndCmpVer(a,b){ const x=a.split('.').map(Number),y=b.split('.').map(Number); for(let i=0;i<3;i++){ if((x[i]||0)!==(y[i]||0)) return (x[i]||0)-(y[i]||0); } return 0; }
 function _ndRecentLog(r){ return !!(r&&r.last_login&&Date.now()-new Date(r.last_login).getTime()<7*864e5); }
+// 사람(staff_id)별 PC 근무표 앱 [{ v, recent, row }]: PC 번호('app-…', 10-22~)로 남은 기록이 있으면 그것만(PC 한 대 = 한 줄 — 두 대면 둘),
+// 없으면 예전 기록(화면 저장소 번호라 다시 깔면 같은 PC가 여러 줄 — PC 구분 불가) 가운데 7일 안 가장 최근 하나만(앱을 한 번 열면 PC 번호 기록으로 바뀜)
+function _ndAppDevices(rows){
+  const by={}, out={};
+  (rows||[]).filter(r=>_ndAppVer(r.ua)).forEach(r=>{ const k=r.staff_id||r.name; (by[k]=by[k]||[]).push(r); });
+  Object.keys(by).forEach(k=>{
+    const list=by[k].slice().sort((a,b)=>String(b.last_login||'').localeCompare(String(a.last_login||''))), pc=list.filter(r=>/^app-/.test(r.device_id||''));
+    const use=pc.length?pc:list.filter(_ndRecentLog).slice(0,1);
+    out[k]=use.map(r=>({v:_ndAppVer(r.ua),recent:_ndRecentLog(r),row:r}));
+  });
+  return out;
+}
 async function renderLoginLog(){
   const box=document.getElementById('loginlog-body'); if(!box) return;
   box.innerHTML='불러오는 중…';
@@ -406,13 +424,13 @@ async function renderLoginLog(){
     const appVer=_ndAppVer, cmpV=_ndCmpVer;
     // 근무표 앱 판(10-22): 기기마다 마지막 기록의 판 — 가장 높은 판이 최신, 그보다 낮으면 주황(아직 업데이트 안 됨). 7일 넘게 기록 없는 기기(다시 깐 PC의 옛 기록 등)는 셈에서 빼고 흐리게
     const recent=_ndRecentLog;
-    const vers=rows.filter(recent).map(r=>appVer(r.ua)).filter(Boolean), newest=vers.reduce((m,v)=>!m||cmpV(v,m)>0?v:m,'');
+    const appDev=_ndAppDevices(rows), vers=Object.values(appDev).flat().filter(x=>x.recent).map(x=>x.v), newest=vers.reduce((m,v)=>!m||cmpV(v,m)>0?v:m,'');
     const devName=(ua,r)=>{ ua=ua||''; const v=appVer(ua); if(v) return !recent(r)?`<span style="opacity:.55;">근무표 앱 ${v}</span>`:v===newest?`근무표 앱 ${v}`:`<b style="color:#c2410c;">근무표 앱 ${v}</b>`; if(/iPhone|iPad|iPod/.test(ua))return '📱 iOS'; if(/SamsungBrowser/.test(ua))return '📱 삼성인터넷'; if(/Android/.test(ua))return '📱 안드로이드'; if(/Windows/.test(ua))return '💻 PC'; if(/Mac/.test(ua))return '💻 Mac'; return '기타'; };
     const fmt=iso=>{ if(!iso)return '-'; try{ const k=new Date(iso); const mm=String(k.getMonth()+1).padStart(2,'0'),dd=String(k.getDate()).padStart(2,'0'),hh=String(k.getHours()).padStart(2,'0'),mi=String(k.getMinutes()).padStart(2,'0'); return `${mm}-${dd} ${hh}:${mi}`; }catch(e){ return iso; } };
     const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
     // 사람(staff_id)별로 묶기 — 여러 기기 로그인 가능
     const byStaff={};
-    rows.forEach(r=>{ const k=r.staff_id||r.name; if(!byStaff[k]) byStaff[k]={name:r.name,dept:r.dept,loggedIn:false,lastLogin:r.last_login,devs:[]};
+    rows.forEach(r=>{ const k=r.staff_id||r.name; if(!byStaff[k]) byStaff[k]={k,name:r.name,dept:r.dept,loggedIn:false,lastLogin:r.last_login,devs:[]};
       const g=byStaff[k]; if(r.logged_in) g.loggedIn=true; if((r.last_login||'')>(g.lastLogin||'')) g.lastLogin=r.last_login; g.devs.push(r); });
     const list=Object.values(byStaff).sort((a,b)=> (b.loggedIn-a.loggedIn) || ((b.lastLogin||'')>(a.lastLogin||'')?1:-1));
     const onCnt=list.filter(p=>p.loggedIn).length;
@@ -424,7 +442,7 @@ async function renderLoginLog(){
       const badge = p.loggedIn
         ? '<span style="background:#dcfce7;color:#16a34a;font-weight:700;font-size:11px;padding:2px 9px;border-radius:20px;white-space:nowrap;">🟢 로그인 중</span>'
         : '<span style="background:var(--surface2);color:var(--muted);font-weight:700;font-size:11px;padding:2px 9px;border-radius:20px;white-space:nowrap;">⚪ 로그아웃</span>';
-      const devs=[...new Set(p.devs.map(d=>devName(d.ua,d)))].join(', ');
+      const devs=[...new Set(p.devs.filter(d=>!appVer(d.ua)).map(d=>devName(d.ua,d))), ...(appDev[p.k]||[]).map(x=>devName(x.row.ua,x.row))].join(', ');   // PC 앱은 PC 마다(두 대면 둘)
       return `<tr style="border-bottom:1px solid var(--border);">
         <td style="padding:8px 10px;font-weight:700;color:var(--text);white-space:nowrap;">${esc(p.name)}</td>
         <td style="padding:8px 10px;color:var(--muted);white-space:nowrap;">${esc(p.dept)}</td>
