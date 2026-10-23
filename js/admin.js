@@ -373,14 +373,17 @@ async function _loginDeviceId(){
 async function _recordLogin(force){
   try {
     if(!currentUser||!currentUser.staffId) return;
+    if(/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;   // 개발판·로컬 확인은 기록 안 함(10-22 — 한 PC가 두 대로 보이지 않게)
     const appV=_ndAppVer(navigator.userAgent);
-    const key='nd_loginlog_'+_bkToday()+(appV?'_'+appV+'_pc':'');   // 근무표 앱은 판이 바뀌면 그날도 다시 기록(10-22 — 로그인 기록 탭에서 누가 업데이트했는지 보이게)
+    // 휴대폰 앱(10-22): 홈 화면에 깐 앱으로 열었으면 ua 앞에 'NDPWA/1 ', 브라우저면 'NDWEB/1 '(그 전 기록은 모름) — 기록 표는 그대로
+    const pwa=!appV&&((window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true);
+    const key='nd_loginlog_'+_bkToday()+(appV?'_'+appV+'_pc':pwa?'_pwa':'_web');   // 근무표 앱은 판이 바뀌면 그날도 다시 기록(10-22 — 로그인 기록 탭에서 누가 업데이트했는지 보이게)
     if(!force && localStorage.getItem(key)) return;   // 자동로그인은 하루 1회만 갱신
     localStorage.setItem(key,'1');
     const st=staffById(currentUser.staffId), dev=await _loginDeviceId();
     fetch(`${SB_URL}/rest/v1/login_log?on_conflict=device_id`, {
       method:'POST', headers:{...SB_HEADERS,'Prefer':'resolution=merge-duplicates,return=minimal'},
-      body: JSON.stringify({ device_id:dev, staff_id:currentUser.staffId, name:currentUser.name, dept:(st&&st.dept)||'', ua:(navigator.userAgent||'').slice(0,200), logged_in:true, last_login:new Date().toISOString() })
+      body: JSON.stringify({ device_id:dev, staff_id:currentUser.staffId, name:currentUser.name, dept:(st&&st.dept)||'', ua:((appV?'':pwa?'NDPWA/1 ':'NDWEB/1 ')+(navigator.userAgent||'')).slice(0,200), logged_in:true, last_login:new Date().toISOString() })
     }).catch(()=>{});
   } catch(e){}
 }
@@ -397,6 +400,8 @@ async function _recordLogout(){
 // 근무표 앱 판(10-22): UA 끝 'NDScheduleApp/1.3.1'(desktop/main.js) — 로그인 기록 탭·계정 관리 카드(employee-auth.js)가 같이 씀. 7일 넘게 기록 없는 기기는 옛 기록으로 봄
 function _ndAppVer(ua){ return ((ua||'').match(/NDScheduleApp\/([\d.]+)/)||[])[1]||''; }
 function _ndCmpVer(a,b){ const x=a.split('.').map(Number),y=b.split('.').map(Number); for(let i=0;i<3;i++){ if((x[i]||0)!==(y[i]||0)) return (x[i]||0)-(y[i]||0); } return 0; }
+function _ndPhone(ua){ return /iPhone|iPad|iPod|Android/.test(ua||''); }
+function _ndPwa(ua){ return /^NDPWA\//.test(ua||''); }   // 휴대폰 홈 화면 앱으로 연 기록(10-22~)
 function _ndRecentLog(r){ return !!(r&&r.last_login&&Date.now()-new Date(r.last_login).getTime()<7*864e5); }
 // 사람(staff_id)별 PC 근무표 앱 [{ v, recent, row }]: PC 번호('app-…', 10-22~)로 남은 기록이 있으면 그것만(PC 한 대 = 한 줄 — 두 대면 둘),
 // 없으면 예전 기록(화면 저장소 번호라 다시 깔면 같은 PC가 여러 줄 — PC 구분 불가) 가운데 7일 안 가장 최근 하나만(앱을 한 번 열면 PC 번호 기록으로 바뀜)
@@ -425,7 +430,8 @@ async function renderLoginLog(){
     // 근무표 앱 판(10-22): 기기마다 마지막 기록의 판 — 가장 높은 판이 최신, 그보다 낮으면 주황(아직 업데이트 안 됨). 7일 넘게 기록 없는 기기(다시 깐 PC의 옛 기록 등)는 셈에서 빼고 흐리게
     const recent=_ndRecentLog;
     const appDev=_ndAppDevices(rows), vers=Object.values(appDev).flat().filter(x=>x.recent).map(x=>x.v), newest=vers.reduce((m,v)=>!m||cmpV(v,m)>0?v:m,'');
-    const devName=(ua,r)=>{ ua=ua||''; const v=appVer(ua); if(v) return !recent(r)?`<span style="opacity:.55;">근무표 앱 ${v}</span>`:v===newest?`근무표 앱 ${v}`:`<b style="color:#c2410c;">근무표 앱 ${v}</b>`; if(/iPhone|iPad|iPod/.test(ua))return '📱 iOS'; if(/SamsungBrowser/.test(ua))return '📱 삼성인터넷'; if(/Android/.test(ua))return '📱 안드로이드'; if(/Windows/.test(ua))return '💻 PC'; if(/Mac/.test(ua))return '💻 Mac'; return '기타'; };
+    const devName=(ua,r)=>{ ua=ua||''; const v=appVer(ua); if(v) return !recent(r)?`<span style="opacity:.55;">근무표 앱 ${v}</span>`:v===newest?`근무표 앱 ${v}`:`<b style="color:#c2410c;">근무표 앱 ${v}</b>`; const how=_ndPhone(ua)?(_ndPwa(ua)?' 앱':/^NDWEB\//.test(ua)?' 브라우저':''):'';   // 휴대폰: 홈 화면 앱 / 브라우저(예전 기록은 모름)
+      if(/iPhone|iPad|iPod/.test(ua))return '📱 iOS'+how; if(/SamsungBrowser/.test(ua))return '📱 삼성인터넷'+how; if(/Android/.test(ua))return '📱 안드로이드'+how; if(/Windows/.test(ua))return '💻 PC'; if(/Mac/.test(ua))return '💻 Mac'; return '기타'; };
     const fmt=iso=>{ if(!iso)return '-'; try{ const k=new Date(iso); const mm=String(k.getMonth()+1).padStart(2,'0'),dd=String(k.getDate()).padStart(2,'0'),hh=String(k.getHours()).padStart(2,'0'),mi=String(k.getMinutes()).padStart(2,'0'); return `${mm}-${dd} ${hh}:${mi}`; }catch(e){ return iso; } };
     const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
     // 사람(staff_id)별로 묶기 — 여러 기기 로그인 가능
@@ -436,7 +442,9 @@ async function renderLoginLog(){
     const onCnt=list.filter(p=>p.loggedIn).length;
     const vc={}; vers.forEach(v=>{ vc[v]=(vc[v]||0)+1; });
     const old=vers.filter(v=>v!==newest).length;
-    const appLine=vers.length?`<div style="margin:-4px 0 12px;color:var(--muted);font-size:12.5px;">근무표 앱(PC, 최근 7일) ${vers.length}대: ${Object.keys(vc).sort((a,b)=>cmpV(b,a)).map(v=>`${v} <b style="color:${v===newest?'var(--text)':'#c2410c'};">${vc[v]}대</b>`).join(' · ')}${old?` — 주황은 아직 ${newest} 전`:' — 모두 최신'}</div>`:'';
+    const pwaN=new Set(rows.filter(r=>_ndPwa(r.ua)&&recent(r)).map(r=>r.staff_id||r.name)).size;   // 휴대폰 앱(홈 화면)으로 연 사람(최근 7일)
+    const pcPart=vers.length?`근무표 앱(PC, 최근 7일) ${vers.length}대: ${Object.keys(vc).sort((a,b)=>cmpV(b,a)).map(v=>`${v} <b style="color:${v===newest?'var(--text)':'#c2410c'};">${vc[v]}대</b>`).join(' · ')}${old?` — 주황은 아직 ${newest} 전`:' — 모두 최신'}`:'';
+    const appLine=vers.length||pwaN?`<div style="margin:-4px 0 12px;color:var(--muted);font-size:12.5px;">${pcPart}${pcPart&&pwaN?'<br>':''}${pwaN?`휴대폰 앱(홈 화면, 최근 7일) <b style="color:var(--text);">${pwaN}명</b>`:''}</div>`:'';
     const head=`<div style="margin-bottom:12px;color:var(--text);">한번이라도 로그인 <b>${list.length}명</b> · <span style="color:#16a34a;">🟢 로그인 중 <b>${onCnt}명</b></span> · ⚪ 로그아웃 <b>${list.length-onCnt}명</b></div>`+appLine;
     const trs=list.map(p=>{
       const badge = p.loggedIn
