@@ -558,6 +558,8 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cga-dots i:nth-child(2) { animation-delay:.2s; } .cga-dots i:nth-child(3) { animation-delay:.4s; }
 @keyframes cgaDot { 0%,60%,100% { opacity:.2; } 30% { opacity:1; } }
 @media (prefers-reduced-motion: reduce) { .cga-card.on, .cga-card.on .cga-dot, .cga-pill.on i, .cga-dots i { animation:none; } }
+/* 하는 일이 모두 결과 영상까지 올라온 카드(10-26): '작업 업로드함.' — 깜빡임(카드 빛·점) 멈춤, 색은 그대로 */
+.cga-card.on.up, .cga-card.on.up .cga-dot { animation:none; }
 .cga-job { margin-top:8px; padding:10px 12px; border-radius:14px; background:rgba(49,130,246,.08); }
 /* 결과 영상(10-26): 의뢰 칸 오른쪽 1/4 [▶ 업로드됨] — 의뢰 칸과 같은 색(--j: 보통 파랑, 8뉴스 급함 빨강, 앵커터치·PT 주황)·같은 둥글기 */
 .cga-jrow { display:flex; align-items:stretch; gap:6px; margin-top:8px; }

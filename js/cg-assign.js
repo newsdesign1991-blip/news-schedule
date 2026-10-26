@@ -237,7 +237,8 @@ async function _cgaPlay(id, btn) {
   if (!r || !r.ok) { toast((r && r.error) || '재생하지 못했어요.', 'error'); _cgaUploadScan(true); return; }
   toast(`NewsPlayer에서 재생해요${r.n > 1 ? ` · 비슷한 이름 ${r.n - 1}개도 재생 목록에` : ''}`, 'success');
 }
-const CGA_PLAY_IC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 5.6v12.8a1 1 0 0 0 1.53.85l10.2-6.4a1 1 0 0 0 0-1.7L9.53 4.75A1 1 0 0 0 8 5.6z"/></svg>';
+// [업로드됨] 칸 아이콘 = 동그라미 안 체크(10-26 사용자 — 재생 표시 말고 '작업이 끝났다'는 느낌). 누르면 여전히 NewsPlayer 로 재생
+const CGA_PLAY_IC = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/><path d="M7.8 12.3l2.9 2.9 5.5-5.8"/></svg>';
 function _cgaDanjik(ds) {
   const e = data.schedule && data.schedule[ds]; if (!e) return [];
   const id = new Date().getHours() < 9 && typeof getDanjikExitStaff === 'function' ? getDanjikExitStaff(ds) : e.danjik;
@@ -615,11 +616,13 @@ function _cgaPaint() {
   // 오른쪽: 사람 카드(작업 중 먼저). 성씨 동그라미는 뺌(10-20)
   const card = p => {
     const a = active(p.name), mj = _cgmActive(p.name), on = a.length > 0 || mj.length > 0;
+    // 하는 일(NDS 의뢰)이 모두 결과 영상까지 올라왔으면(10-26 사용자): '작업 중…' → '작업 업로드함.', 깜빡임(카드 빛·점·말줄임표) 멈춤. 직접 배정 일이 남아 있으면 그대로
+    const allUp = a.length > 0 && mj.length === 0 && a.every(r => (_cgaUp[r.id] || (window._cgaFakeUp && window._cgaFakeUp[r.id]) || []).length > 0);
     const manHtml = mj.map(j => `<div class="cga-job man k-${_cgmKey(j.kind)}"><div class="cga-who"><b>${_cgaEsc(j.kind)}</b><small>직접 배정${j.by ? ' · ' + _cgaEsc(j.by) : ''}</small>${can ? `<button type="button" class="cga-done" onclick="_cgmDone('${_cgaEsc(j.id)}')">완료</button>` : ''}</div>
         <div class="cga-time"><span>배정 <b>${_cgaHM(j.at)}</b></span><span class="cga-ago" data-at="${_cgaEsc(j.at)}"></span></div></div>`).join('');
     let body;
     if (!loaded) body = `<div class="cga-wait">${_cgaErr ? '' : '불러오는 중…'}</div>`;
-    else if (on) body = `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>` + manHtml + a.slice(0, 2).map(r => { const n8 = _cga8Rank(r), u8 = n8 > 0 && n8 <= CGA_URGENT, kw = u8 ? 'urgent' : _cgaKw(r.title);   // 8뉴스 1~10번째는 배정된 뒤에도 빨강+번호(10-21)
+    else if (on) body = (allUp ? '<div class="cga-now up">작업 업로드함.</div>' : `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>`) + manHtml + a.slice(0, 2).map(r => { const n8 = _cga8Rank(r), u8 = n8 > 0 && n8 <= CGA_URGENT, kw = u8 ? 'urgent' : _cgaKw(r.title);   // 8뉴스 1~10번째는 배정된 뒤에도 빨강+번호(10-21)
         const up = (_cgaUp[r.id] || (window._cgaFakeUp && window._cgaFakeUp[r.id]) || []).length;   // 결과 영상(업로드 폴더) — 오른쪽 1/4 칸(10-26), 시험 의뢰는 _cgaFakeUp
         return `${up ? '<div class="cga-jrow">' : ''}<div class="cga-job${kw ? ' kw k-' + kw : ''}" data-rid="${Number(r.id) || 0}" title="${u8 ? `8뉴스 큐시트 ${n8}번째 — ` : ''}눌러서 의뢰 크게 보기">${u8 ? `<span class="cga-jno">${n8}</span>` : ''}
         <div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>
@@ -632,7 +635,7 @@ function _cgaPaint() {
     const special = [...a.map(r => ({ at: String(r.assignAt || ''), k: _cgaKw(r.title) })), ...mj.map(j => ({ at: String(j.at || ''), k: _cgmKey(j.kind) }))]
       .filter(x => x.k && x.k !== 'cg').sort((x, y) => y.at.localeCompare(x.at))[0];
     const tone = on && special ? ' k-' + special.k : '';   // 앵커터치·PT 주황 · 3D 보라 · XR 초록 · 그 밖 파랑
-    return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + tone + (pop ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, pop ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: CG·앵커터치·PT 배정)` }),
+    return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + (on && allUp ? ' up' : '') + tone + (pop ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, pop ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: CG·앵커터치·PT 배정)` }),
       html: `<span class="cga-dot" aria-hidden="true"></span>${p.id && can ? `<button type="button" class="cga-x" onclick="_cgaDel('${_cgaEsc(p.id)}')" title="오늘 이 화면에서 빼기" aria-label="${_cgaEsc(p.name)} 빼기">×</button>` : ''}
       <div class="cga-top"><div class="cga-nm"><b>${_cgaEsc(p.name)}</b><span class="cga-tag${p.extra ? ' x' : ''}">${_cgaEsc(p.tag || 'CG')}</span></div></div>
       <div class="cga-cbody">${body}</div>` };
