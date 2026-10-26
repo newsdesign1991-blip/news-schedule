@@ -526,7 +526,8 @@ async function _cgaFetch(manual) {
     // 시험용 가짜 의뢰(개발판에서 애니메이션 볼 때만 — window._cgaFakeRows, id 는 음수. NDS 로 안 감)
     if (r && r.ok && Array.isArray(window._cgaFakeRows)) r.rows = r.rows.concat(window._cgaFakeRows.filter(x => !r.rows.some(y => y.id === x.id)));
     if (r && r.ok && window._cgaFakeCue8 && (!r.cue8 || window._cgaFakeCue8.force)) r.cue8 = window._cgaFakeCue8;   // 시험용 8뉴스 큐시트(큐시트가 안 오거나 시험에 쓸 이름이 모자랄 때)
-    if (r && r.ok) { _cgaNotifyNew(r); _cgaData = r; _cgaErr = ''; _cgaFail = 0; _cgaNextAt = 0; _cgaDsgLearn(r.rows); }
+    // 지난 날 의뢰(carry, 앱 1.3.6~)는 작업 중이어도 안 보임(10-27 사용자 — 날짜가 바뀌면 오늘 것만). 작업자 계정 기억에만 씀
+    if (r && r.ok) { _cgaDsgLearn(r.rows); r.rows = (r.rows || []).filter(x => !x.carry); _cgaNotifyNew(r); _cgaData = r; _cgaErr = ''; _cgaFail = 0; _cgaNextAt = 0; }
     else _cgaErr = !r ? 'NDS에서 읽지 못했어요.' : r.reason === 'noaccount' ? 'NDS 공용 계정이 이 PC에 없어요.' : r.reason === 'login' ? 'NDS 로그인 실패: ' + (r.error || '') : (r.error || 'NDS에서 읽지 못했어요.');
   } catch (e) { _cgaErr = 'NDS에서 읽지 못했어요.'; }
   finally { _cgaBusy = false; if (btn) setTimeout(() => btn.classList.remove('spin'), 400); }
@@ -776,7 +777,7 @@ function _cgaPaint() {
   const djHost = document.getElementById('cga-dj'); if (djHost) _cgaKeyed(djHost, djCards, cardIn);
   // 왼쪽: 배정 기다리는 의뢰(의뢰·보완요청), 오래된 것부터 위로 쌓임. 새 의뢰는 아래에서 스르륵 올라옴. 15분 넘으면 빨강, 보완요청은 회색(맨 아래), ×로 이 앱에서만 숨김
   const hid = new Set(Object.keys(_cgaHideGet()));   // 숨긴 의뢰 '번호:상태' — 날이 바뀌어도 그대로(10-26)
-  const all = rows.filter(r => (r.status === '0001' || r.status === '0003') && !r.carry);   // 지난 날 들어와 아직 기다리는 의뢰는 안 보임(10-26 사용자 — 지난 날 것은 작업 중인 것만 카드에)
+  const all = rows.filter(r => (r.status === '0001' || r.status === '0003') && !r.carry);   // 지난 날 의뢰는 불러올 때 이미 뺌(10-27)
   const rk = new Map(all.map(r => { const n = r.status === '0001' ? _cga8Rank(r) : 0; return [r.id, n && n <= CGA_URGENT ? n : 0]; })), urg = r => rk.get(r.id) || 0;   // 8뉴스 1~10번째(10-21)
   const wait = all.filter(r => !hid.has(r.id + ':' + r.status)).sort((a, b) => ((a.status === '0003') - (b.status === '0003')) || ((urg(b) > 0) - (urg(a) > 0)) || (urg(a) - urg(b)) || String(a.inputAt).localeCompare(String(b.inputAt)));
   const nHid = all.length - wait.length, nReq = wait.filter(r => r.status === '0001').length;
