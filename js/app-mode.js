@@ -6,9 +6,9 @@
 function _ndTitlebarInit(){
   if(!ND_APP||document.getElementById('nd-titlebar')) return;
   const bar=document.createElement('div'); bar.id='nd-titlebar';
-  // 앱 이름은 제목줄 대신 사이드바 맨 위에(10-24 사용자 — 날씨앱처럼 아이콘 + 근무표 + 만든 사람)
+  // 앱 이름은 제목줄 대신 사이드바 맨 위에(10-24 사용자 — 날씨앱처럼 아이콘 + 이름 + 만든 사람, 10-26 이름은 영어 'Schedule' — 날씨앱 'Weather CG'처럼)
   const sb=document.querySelector('#side-nav .snav-brand');
-  if(sb){ sb.classList.add('nd-app-brand'); sb.innerHTML='<img src="icon-192.png" alt=""><span class="nab-t"><b>근무표</b><small>ChoiJaeYoung</small></span>'; }
+  if(sb){ sb.classList.add('nd-app-brand'); sb.innerHTML='<img src="icon-192.png" alt=""><span class="nab-t"><b>Schedule</b><small>ChoiJaeYoung</small></span>'; }
   bar.innerHTML='<nav class="ndt-nav" aria-label="앱 메뉴"><button class="ndt-ws" type="button" onclick="showView(\'workshop\')">근무표 작성소</button><span class="ndt-sep" aria-hidden="true"></span></nav>'
     +'<nav class="ndt-user" aria-label="내 메뉴"><button type="button" onclick="openNotifySheet()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>알림 설정</button></nav>';
   const tabs=document.querySelector('#admin-area .admin-tabs'), nav=bar.querySelector('.ndt-nav');
