@@ -559,6 +559,19 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 @keyframes cgaDot { 0%,60%,100% { opacity:.2; } 30% { opacity:1; } }
 @media (prefers-reduced-motion: reduce) { .cga-card.on, .cga-card.on .cga-dot, .cga-pill.on i, .cga-dots i { animation:none; } }
 .cga-job { margin-top:8px; padding:10px 12px; border-radius:14px; background:rgba(49,130,246,.08); }
+/* 결과 영상(10-26): 의뢰 칸 오른쪽 1/4 [▶ 업로드됨] — 의뢰 칸과 같은 색(--j: 보통 파랑, 8뉴스 급함 빨강, 앵커터치·PT 주황)·같은 둥글기 */
+.cga-jrow { display:flex; align-items:stretch; gap:6px; margin-top:8px; }
+.cga-jrow > .cga-job { flex:1 1 0; min-width:0; margin-top:0; }
+.cga-play { --j:49,130,246; flex:0 0 25%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:8px 4px; border:0; border-radius:14px; background:rgba(var(--j),.08); color:rgb(var(--j)); font:inherit; cursor:pointer; transition:transform .12s ease, background .15s ease; }
+.cga-play.k-urgent { --j:226,55,68; }
+.cga-play.k-anchor, .cga-play.k-pt { --j:247,103,7; }
+.cga-play:hover { background:rgba(var(--j),.15); transform:translateY(-1px); }
+.cga-play:active { transform:scale(.97); }
+.cga-play:disabled { opacity:.7; cursor:progress; }
+.cga-play b { font-size:11.5px; font-weight:800; line-height:1.15; letter-spacing:-.01em; }
+/* 네임드랍 물결 덮개(10-26) — 카드 그림 위에 WebGL 캔버스, 테두리까지 덮고 같은 둥글기 */
+.cga-card > .cga-drop { position:absolute; inset:-1.5px; z-index:8; border-radius:21.5px; overflow:hidden; pointer-events:none; }   /* 테두리(1.5px) 바깥까지 → 둥글기 20+1.5 */
+.cga-drop canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
 .cga-who { display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; }
 .cga-who b { font-size:15px; font-weight:800; color:var(--text); }
 .cga-who small { font-size:12px; color:var(--muted); font-weight:600; }
@@ -759,6 +772,22 @@ body.cga-dragging .cga-card { outline:2px dashed rgba(49,130,246,.35); outline-o
 .cgv-content { padding: 22px 26px 30px; font-size: 15.5px; line-height: 1.75; color: var(--text); overflow-wrap: anywhere; }
 .cgv-content p { margin: 0; min-height: 1.75em; }
 .cgv-content img { max-width: 100%; height: auto; border-radius: 10px; margin: 6px 0; }
+/* 의뢰 첨부파일(10-26 — NDS 의뢰 화면처럼 목록 + 전체 다운로드) */
+.cgv-files { margin: 18px 26px 0; padding: 10px 12px 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface2); }
+.cgv-files-h { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
+.cgv-files-h span { color: var(--muted); font-size: 12px; font-weight: 600; }
+.cgv-dl-all { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border: 0; border-radius: 8px; background: none; color: #2f77f6; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.cgv-dl-all:hover { background: rgba(49,130,246,.1); }
+.cgv-dl-all:disabled { opacity: .55; cursor: progress; }
+.cgv-flist { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; counter-reset: cgvf; }
+.cgv-flist li { display: flex; align-items: center; gap: 9px; padding: 6px 6px 6px 10px; border-radius: 10px; background: var(--surface); font-size: 13px; counter-increment: cgvf; }
+.cgv-flist li::before { content: counter(cgvf); min-width: 14px; color: var(--muted); font-size: 12px; font-weight: 700; text-align: center; }
+.cgv-fn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text); }
+.cgv-flist small { flex: none; color: var(--muted); font-size: 11.5px; }
+.cgv-dl, .cgv-open { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 28px; padding: 0 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: #2f77f6; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.cgv-dl:hover, .cgv-open:hover { background: rgba(49,130,246,.08); }
+.cgv-dl.busy { opacity: .5; cursor: progress; }
+.cgv-flist li.done .cgv-open { color: #16a34a; }
 .cgv-content table { border-collapse: collapse; max-width: 100%; }
 .cgv-content td, .cgv-content th { border: 1px solid var(--border); padding: 4px 8px; }
 .cgv-wait { color: var(--muted); font-size: 14px; }

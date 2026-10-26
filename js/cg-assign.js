@@ -69,6 +69,175 @@ function _cgaPeople(ds) {
   return out.filter(p => !del.has(p.id)).sort((a, b) => (fl(a.id) - fl(b.id)) || ((idx.get(a.id) ?? 9999) - (idx.get(b.id) ?? 9999)));
 }
 // 당직자(10-22 사용자 — 사람 카드 아래 선 긋고 따로): 새벽(9시 전)엔 아직 근무 중인 어젯밤 당직(당직퇴근), 그 밖엔 오늘 밤 당직. 휴가·×로 뺀 사람은 뺌
+// 결과 영상(10-26 사용자): 작업 중 의뢰의 결과 영상이 업로드 폴더에 있으면 그 칸 오른쪽에 초록 [업로드됨 영상보기] → SBS NewsPlayer 재생 목록에 넣고 재생.
+// 찾기는 앱(desktop/upload-play.js — 의뢰 제목이 파일 이름에 든 영상, NDS 는 안 부름)이 함. 앱 1.3.3~(ndApp.uploadFind). 25초에 한 번까지, 찾은 게 달라졌을 때만 다시 그림
+let _cgaUp = {}, _cgaUpAt = 0, _cgaUpBusy = false, _cgaUpKey = '';
+async function _cgaUploadScan(force) {
+  if (!(window.ndApp && window.ndApp.uploadFind) || _cgaUpBusy || (!force && Date.now() - _cgaUpAt < 25e3)) return;
+  const ds = _cgaToday(), rows = (_cgaData && _cgaData.day === ds && _cgaData.rows) || [];
+  const items = rows.filter((r) => r.status === '0002' && r.title && r.id > 0).map((r) => ({ id: r.id, title: r.title }));
+  _cgaUpBusy = true;
+  try {
+    const m = items.length ? ((await window.ndApp.uploadFind(items)) || {}) : {};
+    _cgaUpAt = Date.now(); _cgaUp = m;
+    const key = JSON.stringify(Object.keys(m).sort().map((k) => [k, (m[k] || []).map((f) => f.name).join('|')]));
+    if (key !== _cgaUpKey) { _cgaUpKey = key; _cgaPaint(); }
+    if (Object.keys(m).length) setTimeout(_cgaShotWarm, 1200);   // 물결용 카드 그림 미리(그려지고 움직임이 끝난 뒤)
+  } catch (e) { /* 다음에 */ } finally { _cgaUpBusy = false; }
+}
+// 네임드랍 물결(10-26 사용자 — 여론조사 CG 앱 web/fx-namedrop.js 의 아이폰 NameDrop 효과를 그대로 옮김: 위 가운데에서 밝은 고리 두 겹이 퍼지며 굴절·흐림).
+// [업로드됨]을 누르면 그 이름 카드에: 카드를 그림으로 떠(html2canvas) 같은 그림 두 장(지금 → 새 = 같은 카드)으로 1초쯤 덮었다 걷음.
+// WebGL2·html2canvas 가 없거나 '움직임 줄이기'면 그냥 넘어감(재생은 그대로)
+const CgaNameDrop = (function () {
+  const VS = `#version 300 es
+in vec2 p; out vec2 vUv; void main() { vUv = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
+  const FS = `#version 300 es
+precision highp float;
+uniform sampler2D uOld, uNew; uniform float uT; uniform vec2 uSize; uniform float uTexH; uniform float uTaps; uniform float uBgra; uniform float uReveal;
+in vec2 vUv; out vec4 outColor;
+vec4 tx(sampler2D s, vec2 uv, float lod) { vec4 c = textureLod(s, clamp(uv, 0., 1.), lod); return uBgra > .5 ? c.bgra : c; }
+vec4 blurS(sampler2D s, vec2 uv, float r) {   // 반지름 r(화면 높이 비율) 원판 평균 ≈ 밉맵 한 단계 + 둘레 몇 점
+  float px = r * uTexH, lod = log2(max(1., px * 1.2));
+  vec4 c = tx(s, uv, lod);
+  if (uTaps > .5 && px > 1.5) {
+    vec2 rr = vec2(r * uSize.y / uSize.x, r) * .55;
+    for (int k = 0; k < 6; k++) { float a = float(k) * 1.0471976; c += tx(s, uv + vec2(cos(a), sin(a)) * rr, lod); }
+    c /= 7.;
+  }
+  return c;
+}
+void main() {
+  float aT = uT, dio = .46;   // aT = 원본 t − 1 ('탕' 뒤 초), dio = 닿는 곳(위 가운데) 높이
+  vec2 uv = vUv, u2 = uv - .5; float asp = uSize.x / uSize.y; u2.x *= asp;
+  float L = length(vec2(u2.x, u2.y - dio));
+  float bd = (aT * .16) / L; bd = smoothstep(.09, .05, bd) * smoothstep(.04, .07, bd) * (uv.y + .05);
+  float bd2 = ((aT - .085) * .14) / L; bd2 = smoothstep(.09, .05, bd2) * smoothstep(.04, .07, bd2) * (uv.y + .05);
+  // 굴절: 원본 (-8·bd·x, -4·bd·(y−.4))·.1 + 둘째 고리 ×(−.02) — x 는 폰 가로/세로(.462) 기준을 이 화면 비율로 환산(픽셀로 같은 크기)
+  vec2 bo = vec2(-.37 * u2.x / asp, -.4 * (u2.y - .4)) * (bd - .2 * bd2);
+  float front = aT * .16 / .06;   // 고리 한가운데(bd 원값 .06 자리)
+  float mixNew = smoothstep(front + .04, front - .06, L);   // 고리가 지나간 안쪽 = 새 화면
+  vec2 sb = uv + bo;
+  float R = bd * .05;
+  float g = bd * (500. / 600.) * smoothstep(.05, .1, aT);   // 원본: bang_d*500 을 600 표본 평균에 더함 → 밝은 고리
+  if (uReveal > .5) {   // 화면 전체: 새 화면은 그림이 아니라 실제 화면 — 고리가 지나간 안쪽을 뚫고(미리 곱한 알파) 흰 고리는 그 위에
+    vec4 o = blurS(uOld, sb, R); float m = mixNew * step(.0001, aT), w = clamp(g, 0., 1.);
+    outColor = vec4(min(o.rgb + w, 1.) * (1. - m) + vec3(w) * m, (1. - m) + w * m);
+    return;
+  }
+  vec4 col = mix(blurS(uOld, sb, R), blurS(uNew, sb, R), mixNew);
+  col.rgb += g;
+  outColor = vec4(col.rgb, 1.);
+}`;
+  const END = 0.75;   // 원본 t 0.75 면 고리가 화면 구석까지 다 지나감
+  // canvas 에 그림. opts: { lite, reveal(고리 안쪽을 뚫어 아래 실제 화면을 보임 — 새 화면 그림 필요 없음), width, height(캔버스 픽셀, 없으면 그림 크기) } → { setNew(그림), frame(t), play(속도) → Promise, stop() } · WebGL2 가 안 되면 null
+  function create(cv, oldSrc, opts) {
+    opts = opts || {};
+    const sw = oldSrc.width, sh = oldSrc.height;
+    cv.width = Math.max(1, Math.round(opts.width || sw)); cv.height = Math.max(1, Math.round(opts.height || sh));
+    const gl = cv.getContext('webgl2', { alpha: !!opts.reveal, antialias: false, premultipliedAlpha: !!opts.reveal, preserveDrawingBuffer: false });   // reveal = 화면 전체(뚫린 곳으로 실제 화면)
+    if (!gl) return null;
+    const sh_ = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+    const pr = gl.createProgram();
+    try { gl.attachShader(pr, sh_(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh_(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr)); }
+    catch (e) { console.warn('NameDrop', e); return null; }
+    gl.useProgram(pr);
+    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    const tex = (unit, src) => {
+      const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      if (src.data) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, src.width, src.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, src.data instanceof Uint8Array ? src.data : new Uint8Array(src.data));
+      else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      return t;
+    };
+    const t0 = tex(0, oldSrc);
+    if (opts.reveal) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, t0); }   // 새 화면 그림은 안 씀 → 같은 그림을 묶어 둠(다시 올리지 않게)
+    else tex(1, oldSrc);
+    gl.uniform1f(gl.getUniformLocation(pr, 'uReveal'), opts.reveal ? 1 : 0);
+    gl.uniform1i(gl.getUniformLocation(pr, 'uOld'), 0); gl.uniform1i(gl.getUniformLocation(pr, 'uNew'), 1);
+    gl.uniform2f(gl.getUniformLocation(pr, 'uSize'), cv.width, cv.height); gl.uniform1f(gl.getUniformLocation(pr, 'uTexH'), sh);
+    gl.uniform1f(gl.getUniformLocation(pr, 'uTaps'), opts.lite ? 0 : 1); gl.uniform1f(gl.getUniformLocation(pr, 'uBgra'), oldSrc.data ? 1 : 0);   // 화면 캡처는 BGRA 순서
+    const uT = gl.getUniformLocation(pr, 'uT');
+    gl.viewport(0, 0, cv.width, cv.height);
+    const draw = t => { gl.uniform1f(uT, t); gl.drawArrays(gl.TRIANGLES, 0, 3); };
+    draw(0);   // 첫 장면 = 지금 화면 그대로(겹쳐도 티 안 남)
+    let raf = 0, stopped = false;
+    return {
+      setNew(src) { if (!stopped) tex(1, src); },
+      frame: draw,   // t(초) 장면 하나만 그림(시험·확인용)
+      play(speed) {
+        const sp = speed || 0.75;
+        return new Promise(res => {
+          let last = performance.now(), t = 0;
+          const step = now => {
+            if (stopped) return res();
+            t += Math.min(0.05, (now - last) / 1000) * sp; last = now;
+            draw(Math.min(t, END));
+            if (t >= END) return res();
+            raf = requestAnimationFrame(step);
+          };
+          raf = requestAnimationFrame(step);
+        });
+      },
+      stop() { stopped = true; cancelAnimationFrame(raf); try { const x = gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* 이미 끝남 */ } },
+    };
+  }
+  return { create, END };
+})();
+// 카드 그림(html2canvas — 0.5초쯤 걸림): [업로드됨] 칸이 생기면 한가할 때 미리 떠 둠(_cgaShotWarm) → 누르자마자 물결. 카드 내용(_h)·크기가 바뀌면 다시
+async function _cgaShot(card) {
+  const key = card._h + '|' + card.offsetWidth + 'x' + card.offsetHeight;
+  if (card._shot && card._shotKey === key) return card._shot;
+  if (typeof html2canvas === 'undefined') await ndLoadLib('h2c');
+  // 바탕을 카드 색으로 채워 뜸 — 투명(둥근 모서리 바깥)으로 두면 물결의 흐림·굴절이 그 투명을 검정으로 섞어 가장자리가 검게 보임(10-26 사용자)
+  const tr = (c) => !c || c === 'transparent' || /rgba\([^)]*,\s*0\)$/.test(c);
+  let bg = getComputedStyle(card).backgroundColor; if (tr(bg)) bg = getComputedStyle(document.body).backgroundColor; if (tr(bg)) bg = '#ffffff';
+  const shot = await html2canvas(card, { backgroundColor: bg, scale: Math.min(2, window.devicePixelRatio || 1), logging: false });
+  card._shot = shot; card._shotKey = key;
+  return shot;
+}
+function _cgaShotWarm() {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(async () => {
+    for (const c of document.querySelectorAll('#cga-grid .cga-card, #cga-dj .cga-card')) {
+      if (!c.querySelector('.cga-play') || c._drop) continue;
+      try { await _cgaShot(c); } catch (e) { /* 누를 때 다시 */ }
+    }
+  }, { timeout: 4000 });
+}
+async function _cgaDropCard(card) {
+  if (!card || card._drop || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  card._drop = true;
+  try {
+    const shot = await _cgaShot(card);
+    if (!card.isConnected) return;
+    const ov = document.createElement('div'); ov.className = 'cga-drop';
+    const cv = document.createElement('canvas'); ov.appendChild(cv); card.appendChild(ov);
+    const d = CgaNameDrop.create(cv, shot);
+    if (!d) { ov.remove(); return; }
+    ov.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 90, fill: 'forwards' });
+    await d.play(0.75);
+    await ov.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' }).finished.catch(() => {});
+    d.stop(); ov.remove();
+  } catch (e) { /* 효과 없이 */ } finally { card._drop = false; }
+}
+async function _cgaPlay(id, btn) {
+  const f = _cgaUp[id] || (window._cgaFakeUp && window._cgaFakeUp[id]) || [];
+  if (f.length && f[0].demo) {   // 시험 의뢰: 물결만
+    if (btn) { btn.disabled = true; _cgaDropCard(btn.closest('.cga-card')); setTimeout(() => { btn.disabled = false; }, 1500); }
+    toast('시험이라 영상은 열지 않아요. 실제 의뢰는 NewsPlayer에서 바로 재생돼요.', 'success'); return;
+  }
+  if (!f.length || !(window.ndApp && window.ndApp.uploadPlay)) return;
+  if (btn) { btn.disabled = true; _cgaDropCard(btn.closest('.cga-card')); }   // 이름 카드에 네임드랍 물결(10-26)
+  const r = await window.ndApp.uploadPlay(f.map((x) => x.path)).catch((e) => ({ ok: false, error: e.message }));
+  if (btn) setTimeout(() => { btn.disabled = false; }, 1500);
+  if (!r || !r.ok) { toast((r && r.error) || '재생하지 못했어요.', 'error'); _cgaUploadScan(true); return; }
+  toast(`NewsPlayer에서 재생해요${r.n > 1 ? ` · 비슷한 이름 ${r.n - 1}개도 재생 목록에` : ''}`, 'success');
+}
+const CGA_PLAY_IC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 5.6v12.8a1 1 0 0 0 1.53.85l10.2-6.4a1 1 0 0 0 0-1.7L9.53 4.75A1 1 0 0 0 8 5.6z"/></svg>';
 function _cgaDanjik(ds) {
   const e = data.schedule && data.schedule[ds]; if (!e) return [];
   const id = new Date().getHours() < 9 && typeof getDanjikExitStaff === 'function' ? getDanjikExitStaff(ds) : e.danjik;
@@ -171,11 +340,11 @@ function renderCgAssign() {
   }
   const g = document.getElementById('cga-grid');
   [g, document.getElementById('cga-dj')].forEach(h => { if (h._ctx) return; h._ctx = true; h.addEventListener('contextmenu', _cgaCtx);   // 당직 칸(10-22)도 같게
-    h.addEventListener('click', e => { if (e.target.closest('.cga-x, .cga-done')) return; const j = e.target.closest('.cga-job[data-rid]'); if (!j) return; const id = Number(j.dataset.rid) || 0; if (id) _cgaReqOpen(id); });   // 배정된 의뢰 칸 → 크게 보기(10-21, 시험 의뢰도)
+    h.addEventListener('click', e => { const pl = e.target.closest('.cga-play[data-play]'); if (pl) { if (!pl.disabled) _cgaPlay(Number(pl.dataset.play) || 0, pl); return; } if (e.target.closest('.cga-x, .cga-done')) return; const j = e.target.closest('.cga-job[data-rid]'); if (!j) return; const id = Number(j.dataset.rid) || 0; if (id) _cgaReqOpen(id); });   // 배정된 의뢰 칸 → 크게 보기(10-21, 시험 의뢰도)
   });
   _cgaWireDnd();   // 의뢰 → 사람 카드 끌어다 놓기 배정(10-21)   // 카드 오른쪽 클릭 → CG·앵커터치·PT 직접 배정/완료
   [g, document.getElementById('cga-dj')].forEach(h => { if (h._wired) return; h._wired = true;   // 카드 누르면 그 사람 오늘 CG(× 는 빼기, 의뢰 칸은 크게 보기) — 최재영만(_cgaPopOn)
-    const open = e => { if (!_cgaPopOn() || e.target.closest('.cga-x, .cga-done, .cga-job[data-rid]')) return; const c = e.target.closest('.cga-card[data-name]'); if (c && !c.classList.contains('cga-leaving')) _cgaPersonPop(c.dataset.name); };
+    const open = e => { if (!_cgaPopOn() || e.target.closest('.cga-x, .cga-done, .cga-job[data-rid], .cga-play')) return; const c = e.target.closest('.cga-card[data-name]'); if (c && !c.classList.contains('cga-leaving')) _cgaPersonPop(c.dataset.name); };
     h.addEventListener('click', open);
     h.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('cga-card')) { e.preventDefault(); open(e); } });
   });
@@ -183,7 +352,7 @@ function renderCgAssign() {
   requestAnimationFrame(_cgaFit);
   _cgaFetch(false);
   clearInterval(_cgaTimer); _cgaTimer = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTimer); _cgaTimer = null; return; } if (document.visibilityState === 'visible' && Date.now() - _cgaLastAt >= _cgaPollGap() - 1500) _cgaFetch(false); }, CGA_POLL);
-  clearInterval(_cgaTick); _cgaTick = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTick); _cgaTick = null; return; } _cgaAgoFill(); }, 30000);   // '몇 분째'만 갱신
+  clearInterval(_cgaTick); _cgaTick = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTick); _cgaTick = null; return; } _cgaAgoFill(); if (document.visibilityState === 'visible') _cgaUploadScan(); }, 30000);   // '몇 분째' 갱신 + 결과 영상 찾기(NDS 안 부름)
   // 직접 배정·사람 넣고 빼기(공용 'cgman')는 5초마다 — 다른 PC에서 바꾼 게 5초 안에 보이게(10-21). 바뀌었을 때만 다시 그림
   clearInterval(_cgmTimer); _cgmTimer = setInterval(async () => {
     if (currentView !== 'cgassign') { clearInterval(_cgmTimer); _cgmTimer = null; return; }
@@ -243,6 +412,7 @@ async function _cgaFetch(manual) {
   }
   _cgaPaint();
   if (manual && !_cgaErr) toast('새로 읽었어요.', 'success');
+  _cgaUploadScan(manual);
 }
 // 근무표 CG 인원이 아닌데 지금 CG를 하는 사람(데스크·XR 등) 카드에 붙일 그날 역할
 function _cgaRoleTag(name, ds) {
@@ -312,6 +482,20 @@ function _cgaDemo() {
     window._cgaFakeRows.push(Object.assign({ id: base - i - 1, status: '0001', inputAt: _cgmNow(), designer: '', demo: true, content: `<p><b>(시험 의뢰)</b> 이 화면에서만 보이는 가짜 의뢰예요. NDS 에는 없어요.</p><p>${_cgaEsc(r.title)}</p>` }, r));
     _cgaDemoApply();
   }, 400 + i * 2600));
+  // 결과 영상 시험(10-26 사용자): 의뢰가 다 들어온 뒤 대기 중인 사람에게 '작업 중' 시험 의뢰 → 4초 뒤 그 옆에 [▶ 업로드됨](누르면 물결만, 영상은 안 엶)
+  const tJob = 400 + rows.length * 2600 + 1500;
+  _cgaDemoT.push(setTimeout(() => {
+    if (!Array.isArray(window._cgaFakeRows)) return;
+    const who = (document.querySelector('#cga-grid .cga-card.off[data-name]') || document.querySelector('#cga-grid .cga-card[data-name]') || {}).dataset;
+    if (!who || !who.name) return;
+    window._cgaFakeRows.push({ id: base - 9, status: '0002', inputAt: _cgmNow(), assignAt: _cgmNow(), designer: who.name, demo: true, requester: '편집제작부', requesterDept: '뉴스브리핑', title: '[시험] 결과 영상 업로드 — 오른쪽 칸을 눌러 보세요', reqCnt: 1, pgm: 53, content: '<p><b>(시험 의뢰)</b> 결과 영상이 업로드 폴더에 올라오면 이 의뢰 칸 오른쪽에 [업로드됨]이 붙어요.</p>' });
+    _cgaDemoApply();
+  }, tJob));
+  _cgaDemoT.push(setTimeout(() => {
+    if (!Array.isArray(window._cgaFakeRows)) return;
+    window._cgaFakeUp = { [base - 9]: [{ name: '[시험] 결과 영상.mxf', path: '', demo: true }] };
+    _cgaPaint(); setTimeout(_cgaShotWarm, 1200);
+  }, tJob + 4000));
   _cgaDemoT.push(setTimeout(_cgaDemoEnd, 10 * 60e3));
   window._cgaFakeRows.push({ id: base, status: '0004', demo: true, title: '', designer: '' });   // 시험 중 표시용(목록·카드엔 안 나옴: 완료·디자이너 없음)
   _cgaDemoBtn(); _cgaPaint();
@@ -319,7 +503,7 @@ function _cgaDemo() {
 }
 function _cgaDemoEnd() {
   _cgaDemoT.forEach(clearTimeout); _cgaDemoT = [];
-  window._cgaFakeRows = null; window._cgaFakeCue8 = null;
+  window._cgaFakeRows = null; window._cgaFakeCue8 = null; window._cgaFakeUp = null;
   if (_cgaData) { _cgaData.rows = (_cgaData.rows || []).filter(x => x.id > 0); if (_cgaData.cue8 && _cgaData.cue8.fake) _cgaData.cue8 = null; }
   _cgaPaint(); _cgaDemoBtn();
   setTimeout(() => _cgaFetch(false), 300);   // 진짜 큐시트로 돌려놓기
@@ -436,11 +620,12 @@ function _cgaPaint() {
     let body;
     if (!loaded) body = `<div class="cga-wait">${_cgaErr ? '' : '불러오는 중…'}</div>`;
     else if (on) body = `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>` + manHtml + a.slice(0, 2).map(r => { const n8 = _cga8Rank(r), u8 = n8 > 0 && n8 <= CGA_URGENT, kw = u8 ? 'urgent' : _cgaKw(r.title);   // 8뉴스 1~10번째는 배정된 뒤에도 빨강+번호(10-21)
-        return `<div class="cga-job${kw ? ' kw k-' + kw : ''}" data-rid="${Number(r.id) || 0}" title="${u8 ? `8뉴스 큐시트 ${n8}번째 — ` : ''}눌러서 의뢰 크게 보기">${u8 ? `<span class="cga-jno">${n8}</span>` : ''}
+        const up = (_cgaUp[r.id] || (window._cgaFakeUp && window._cgaFakeUp[r.id]) || []).length;   // 결과 영상(업로드 폴더) — 오른쪽 1/4 칸(10-26), 시험 의뢰는 _cgaFakeUp
+        return `${up ? '<div class="cga-jrow">' : ''}<div class="cga-job${kw ? ' kw k-' + kw : ''}" data-rid="${Number(r.id) || 0}" title="${u8 ? `8뉴스 큐시트 ${n8}번째 — ` : ''}눌러서 의뢰 크게 보기">${u8 ? `<span class="cga-jno">${n8}</span>` : ''}
         <div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>
         ${r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : ''}
         <div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span><span class="cga-ago" data-at="${_cgaEsc(r.assignAt)}"></span></div>
-      </div>`; }).join('') + (a.length > 2 ? `<div class="cga-more">+${a.length - 2}건 더</div>` : '');
+      </div>${up ? `<button type="button" class="cga-play${kw ? ' k-' + kw : ''}" data-play="${Number(r.id) || 0}" title="업로드된 결과 영상을 NewsPlayer로 보기${up > 1 ? ` (비슷한 이름 ${up - 1}개 더)` : ''}">${CGA_PLAY_IC}<b>업로드됨</b></button></div>` : ''}`; }).join('') + (a.length > 2 ? `<div class="cga-more">+${a.length - 2}건 더</div>` : '');
     else body = '<div class="cga-idle">대기 중</div>';   // 끝난 CG는 안 보여 줌(10-20)
     // 카드 빛 색(10-21 사용자): 손으로 넣은 앵커터치·PT·3D·XR 이나 제목에 PT·터치·앵터가 든 의뢰가 있으면 그 색(그중 최근 것) — 나중에 CG 의뢰가 붙어도
     // 그건 그 PT 내용이라 PT 색 그대로. 그런 게 없으면 CG 파랑
@@ -870,7 +1055,35 @@ async function _cgaReqOpen(id) {
   el.querySelector('#cgv-left').innerHTML = _cgvInfo(d);
   el.querySelector('#cgv-content').innerHTML = _cgaSanitize(d.content) || '<p class="cgv-wait">내용이 없어요.</p>';
   el.querySelectorAll('#cgv-content a[href]').forEach((a) => { a.target = '_blank'; a.rel = 'noopener'; });
+  _cgvFiles(el, d.files);
   const pb = el.querySelector('.cgv-print'); pb.disabled = false; pb.onclick = () => _cgaPrintPreview(d);
+}
+// 의뢰 첨부파일(10-26 사용자 — NDS 의뢰 화면처럼 목록 + [전체 다운로드]): 앱 1.3.3~(d.files · ndApp.ndsFile). 받으면 다운로드 폴더, 그 줄은 [열기]로 바뀜
+const CGV_DL_IC = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>';
+function _cgvFiles(el, files) {
+  if (!Array.isArray(files) || !files.length || !(window.ndApp && window.ndApp.ndsFile)) return;
+  const kb = (n) => n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB';
+  const box = document.createElement('div'); box.className = 'cgv-files';
+  box.innerHTML = `<div class="cgv-files-h"><b>첨부파일</b><span>${files.length}개</span><button type="button" class="cgv-dl-all">${CGV_DL_IC}전체 다운로드</button></div>
+    <ol class="cgv-flist">${files.map((f, i) => `<li data-i="${i}"><span class="cgv-fn" title="${_cgaEsc(f.name)}">${_cgaEsc(f.name)}</span><small>${f.size ? kb(f.size) : ''}</small><button type="button" class="cgv-dl" title="다운로드 폴더에 받기" aria-label="${_cgaEsc(f.name)} 받기">${CGV_DL_IC}</button></li>`).join('')}</ol>`;
+  el.querySelector('#cgv-content').insertAdjacentElement('beforebegin', box);
+  const get = async (i) => {
+    const li = box.querySelector(`li[data-i="${i}"]`), btn = li.querySelector('button');
+    if (li.dataset.path) { window.ndApp.showDownload(li.dataset.path, true); return null; }   // 이미 받았으면 열기
+    btn.disabled = true; btn.classList.add('busy');
+    const r = await window.ndApp.ndsFile({ url: files[i].url, name: files[i].name }).catch((e) => ({ ok: false, error: e.message }));
+    btn.disabled = false; btn.classList.remove('busy');
+    if (!r || !r.ok) { toast((r && r.error) || '받지 못했어요.', 'error'); return null; }
+    li.dataset.path = r.path; li.classList.add('done'); btn.className = 'cgv-open'; btn.textContent = '열기'; btn.title = '받은 파일 열기'; btn.setAttribute('aria-label', files[i].name + ' 열기');
+    return r;
+  };
+  box.querySelector('.cgv-flist').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || b.disabled) return; get(Number(b.closest('li').dataset.i)).then((r) => { if (r) toast(`다운로드 폴더에 저장했어요 · ${r.name}`, 'success'); }); });
+  box.querySelector('.cgv-dl-all').onclick = async (e) => {
+    const b = e.currentTarget; b.disabled = true; let n = 0, last = null;
+    for (let i = 0; i < files.length; i++) { if (box.querySelector(`li[data-i="${i}"]`).dataset.path) { n++; continue; } const r = await get(i); if (r) { n++; last = r; } }
+    b.disabled = false;
+    if (last) { toast(`다운로드 폴더에 ${n}개 저장했어요`, 'success'); window.ndApp.showDownload(last.path, false); }   // 폴더 열어 보여 줌
+  };
 }
 function _cgvInfo(d) {
   const row = (k, v) => v ? `<div class="cgv-row"><span>${k}</span><b>${_cgaEsc(v)}</b></div>` : '';
