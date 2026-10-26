@@ -401,7 +401,7 @@ async function _cgaFetch(manual) {
     // 시험용 가짜 의뢰(개발판에서 애니메이션 볼 때만 — window._cgaFakeRows, id 는 음수. NDS 로 안 감)
     if (r && r.ok && Array.isArray(window._cgaFakeRows)) r.rows = r.rows.concat(window._cgaFakeRows.filter(x => !r.rows.some(y => y.id === x.id)));
     if (r && r.ok && window._cgaFakeCue8 && (!r.cue8 || window._cgaFakeCue8.force)) r.cue8 = window._cgaFakeCue8;   // 시험용 8뉴스 큐시트(큐시트가 안 오거나 시험에 쓸 이름이 모자랄 때)
-    if (r && r.ok) { _cgaNotifyNew(r); _cgaData = r; _cgaErr = ''; _cgaFail = 0; _cgaNextAt = 0; }
+    if (r && r.ok) { _cgaNotifyNew(r); _cgaData = r; _cgaErr = ''; _cgaFail = 0; _cgaNextAt = 0; _cgaDsgLearn(r.rows); }
     else _cgaErr = !r ? 'NDS에서 읽지 못했어요.' : r.reason === 'noaccount' ? 'NDS 공용 계정이 이 PC에 없어요.' : r.reason === 'login' ? 'NDS 로그인 실패: ' + (r.error || '') : (r.error || 'NDS에서 읽지 못했어요.');
   } catch (e) { _cgaErr = 'NDS에서 읽지 못했어요.'; }
   finally { _cgaBusy = false; if (btn) setTimeout(() => btn.classList.remove('spin'), 400); }
@@ -1003,9 +1003,15 @@ async function _cgaAssignAsk(id, name, slot) {
   }).catch(() => {});
   go.onclick = async () => {
     go.disabled = true; go.textContent = '배정하는 중…'; st.textContent = '';
-    const hint = (rows.find(x => x.designer === name && Number(x.designerId) > 0) || {}).designerId || 0;
-    const res = id < 0 ? (() => { const f = (window._cgaFakeRows || []).find(x => x.id === id); if (f) Object.assign(f, { status: '0002', designer: name, assignAt: _cgmNow() }); return { ok: true, designerId: 0 }; })()   // 가짜 의뢰는 화면에서만
-      : await window.ndApp.ndsAssign({ id, name, hintId: hint, push: el.querySelector('#cga-ask-push').checked }).catch(e => ({ ok: false, error: e.message }));
+    let hint = Number((rows.find(x => x.designer === name && Number(x.designerId) > 0) || {}).designerId) || Number(_cgaDsgGet()[name]) || 0;   // 오늘 목록 → 이 PC가 기억한 번호(10-26)
+    const ask = (h) => window.ndApp.ndsAssign({ id, name, hintId: h, push: el.querySelector('#cga-ask-push').checked }).catch(e => ({ ok: false, error: e.message }));
+    let res = id < 0 ? (() => { const f = (window._cgaFakeRows || []).find(x => x.id === id); if (f) Object.assign(f, { status: '0002', designer: name, assignAt: _cgmNow() }); return { ok: true, designerId: 0 }; })()   // 가짜 의뢰는 화면에서만
+      : await ask(hint);
+    if (id > 0 && res && !res.ok && !hint && /명이에요/.test(res.error || '')) {   // 같은 이름 계정이 여럿 → 지난 의뢰에서 이 사람이 받은 번호를 찾아 한 번 더(10-26)
+      st.textContent = '같은 이름 계정이 여럿이라 지난 의뢰에서 찾는 중…';
+      hint = await _cgaDsgLookBack(name);
+      if (hint && el.isConnected) res = await ask(hint);
+    }
     if (res && res.ok) {
       close(true);
       // 화면 먼저(낙관적) → NDS 다시 읽어 맞춤
@@ -1018,6 +1024,26 @@ async function _cgaAssignAsk(id, name, slot) {
       if (res && res.reason === 'state') setTimeout(() => _cgaFetch(false), 300);
     }
   };
+}
+
+// 디자이너 NDS 번호 기억(10-26 사용자 — NDS 에 같은 이름 계정이 둘(인사에서 자동으로 들어온 '용역' 계정)이라 배정이 '…2명이에요'로 멈추던 것: 이가진·방민주 등).
+// 의뢰 목록에서 본 이름 → 실제로 일을 받은 NDS 사람 번호를 이 PC에 기억(nd_cga_dsg)해 배정 때 넘김. 그래도 모르면 지난 의뢰에서 찾음(같은 이름이 여럿이라고 할 때만)
+function _cgaDsgGet() { try { return JSON.parse(localStorage.getItem('nd_cga_dsg') || '{}') || {}; } catch (e) { return {}; } }
+function _cgaDsgLearn(rows) {
+  const m = _cgaDsgGet(); let ch = false;
+  (rows || []).forEach(x => { const d = Number(x.designerId) || 0; if (x.designer && d > 0 && m[x.designer] !== d) { m[x.designer] = d; ch = true; } });
+  if (ch) try { localStorage.setItem('nd_cga_dsg', JSON.stringify(m)); } catch (e) { /* 못 씀 */ }
+}
+async function _cgaDsgLookBack(name) {   // 어제부터 10일 전까지 하루씩 — 찾으면 바로 멈춤
+  for (let i = 1; i <= 10; i++) {
+    const t = new Date(Date.now() - i * 864e5), ds = toDateStr(t.getFullYear(), t.getMonth() + 1, t.getDate());
+    const r = await window.ndApp.ndsCg(ds).catch(() => null);
+    if (!r || !r.ok) return 0;
+    _cgaDsgLearn(r.rows);
+    const hit = (r.rows || []).find(x => x.designer === name && Number(x.designerId) > 0);
+    if (hit) return Number(hit.designerId);
+  }
+  return 0;
 }
 
 // ── 의뢰 크게 보기·인쇄(10-21) — 왼쪽 의뢰를 누르면 큰 창(왼쪽 정보 / 오른쪽 본문), [인쇄] = NDS [인쇄 → 기본]과 같은 모양의 미리보기 → 프린터 골라 바로 인쇄 ──
