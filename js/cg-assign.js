@@ -75,7 +75,7 @@ let _cgaUp = {}, _cgaUpAt = 0, _cgaUpBusy = false, _cgaUpKey = '';
 async function _cgaUploadScan(force) {
   if (!(window.ndApp && window.ndApp.uploadFind) || _cgaUpBusy || (!force && Date.now() - _cgaUpAt < 25e3)) return;
   const ds = _cgaToday(), rows = (_cgaData && _cgaData.day === ds && _cgaData.rows) || [];
-  const items = rows.filter((r) => r.status === '0002' && r.title && r.id > 0).map((r) => ({ id: r.id, title: r.title }));
+  const items = rows.filter((r) => r.status === '0002' && r.title && r.id > 0).map((r) => ({ id: r.id, title: r.title, names: (_cgaCont[r.id] || []).map((x) => x.title).filter(Boolean) }));   // names = NDS 콘텐츠 제목(올린 파일 이름, 10-26)
   _cgaUpBusy = true;
   try {
     const m = items.length ? ((await window.ndApp.uploadFind(items)) || {}) : {};
@@ -224,15 +224,44 @@ async function _cgaDropCard(card) {
     d.stop(); ov.remove();
   } catch (e) { /* 효과 없이 */ } finally { card._drop = false; }
 }
+// NDS 콘텐츠(결과물, 10-26 사용자 — NDS 의뢰 창 '콘텐츠' 탭에 올라오면 바로): 앱 1.3.6~(ndApp.ndsCgContent). 작업 중 의뢰마다 —
+// 아직 없으면 1분(손 안 댈 땐 _cgaPollGap 의 3배까지 느리게), 이미 있으면 5분마다 다시. 창이 숨어 있거나 NDS 가 안 될 때(_cgaErr)는 안 읽음
+let _cgaCont = {}, _cgaContSeen = {}, _cgaContBusy = false;
+async function _cgaContentScan(force) {
+  if (!(window.ndApp && window.ndApp.ndsCgContent) || _cgaContBusy || _cgaErr || document.visibilityState !== 'visible') return;
+  const ds = _cgaToday(), rows = (_cgaData && _cgaData.day === ds && _cgaData.rows) || [], now = Date.now();
+  const wait = (id) => (_cgaCont[id] || []).length ? 5 * 60e3 : Math.max(60e3, (typeof _cgaPollGap === 'function' ? _cgaPollGap() : 20e3) * 3);
+  const due = rows.filter((r) => r.status === '0002' && r.id > 0 && (force || now - (_cgaContSeen[r.id] || 0) >= wait(r.id) - 2000)).map((r) => r.id).slice(0, 20);
+  if (!due.length) return;
+  _cgaContBusy = true;
+  try {
+    const res = await window.ndApp.ndsCgContent(due);
+    if (res && res.ok) {
+      let changed = false;
+      due.forEach((id) => {
+        _cgaContSeen[id] = Date.now();
+        const v = (res.map && res.map[id]) || [];
+        if (v.map((x) => x.media).join() !== (_cgaCont[id] || []).map((x) => x.media).join()) changed = true;
+        _cgaCont[id] = v;
+      });
+      if (changed) { _cgaPaint(); _cgaUploadScan(true); setTimeout(_cgaShotWarm, 1200); }
+    }
+  } catch (e) { /* 다음에 */ } finally { _cgaContBusy = false; }
+}
+// 결과물이 올라왔나(업로드 폴더 파일 또는 NDS 콘텐츠, 시험 의뢰는 _cgaFakeUp) — [업로드됨] 칸·'작업 업로드함.'
+const _cgaUpN = (id) => (_cgaUp[id] || (window._cgaFakeUp && window._cgaFakeUp[id]) || []).length || (_cgaCont[id] || []).length;
 async function _cgaPlay(id, btn) {
   const f = _cgaUp[id] || (window._cgaFakeUp && window._cgaFakeUp[id]) || [];
   if (f.length && f[0].demo) {   // 시험 의뢰: 물결만
     if (btn) { btn.disabled = true; _cgaDropCard(btn.closest('.cga-card')); setTimeout(() => { btn.disabled = false; }, 1500); }
     toast('시험이라 영상은 열지 않아요. 실제 의뢰는 NewsPlayer에서 바로 재생돼요.', 'success'); return;
   }
-  if (!f.length || !(window.ndApp && window.ndApp.uploadPlay)) return;
+  // 틀 것: 업로드 폴더 파일(콘텐츠 제목과 같은 이름 포함) → 없으면 NDS 저화질 영상(콘텐츠 url)
+  const paths = f.length ? f.map((x) => x.path) : (_cgaCont[id] || []).map((x) => x.url).filter(Boolean);
+  if (!(window.ndApp && window.ndApp.uploadPlay)) return;
+  if (!paths.length) { if ((_cgaCont[id] || []).length) toast('NDS에 올라왔는데 아직 영상을 만드는 중이에요. 잠시 뒤 다시 눌러 주세요.', 'error'); return; }
   if (btn) { btn.disabled = true; _cgaDropCard(btn.closest('.cga-card')); }   // 이름 카드에 네임드랍 물결(10-26)
-  const r = await window.ndApp.uploadPlay(f.map((x) => x.path)).catch((e) => ({ ok: false, error: e.message }));
+  const r = await window.ndApp.uploadPlay(paths).catch((e) => ({ ok: false, error: e.message }));
   if (btn) setTimeout(() => { btn.disabled = false; }, 1500);
   if (!r || !r.ok) { toast((r && r.error) || '재생하지 못했어요.', 'error'); _cgaUploadScan(true); return; }
   toast(`NewsPlayer에서 재생해요${r.n > 1 ? ` · 비슷한 이름 ${r.n - 1}개도 재생 목록에` : ''}`, 'success');
@@ -353,7 +382,7 @@ function renderCgAssign() {
   requestAnimationFrame(_cgaFit);
   _cgaFetch(false);
   clearInterval(_cgaTimer); _cgaTimer = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTimer); _cgaTimer = null; return; } if (document.visibilityState === 'visible' && Date.now() - _cgaLastAt >= _cgaPollGap() - 1500) _cgaFetch(false); }, CGA_POLL);
-  clearInterval(_cgaTick); _cgaTick = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTick); _cgaTick = null; return; } _cgaAgoFill(); if (document.visibilityState === 'visible') _cgaUploadScan(); }, 30000);   // '몇 분째' 갱신 + 결과 영상 찾기(NDS 안 부름)
+  clearInterval(_cgaTick); _cgaTick = setInterval(() => { if (currentView !== 'cgassign') { clearInterval(_cgaTick); _cgaTick = null; return; } _cgaAgoFill(); if (document.visibilityState === 'visible') { _cgaUploadScan(); _cgaContentScan(); } }, 30000);   // '몇 분째' 갱신 + 결과 영상 찾기(NDS 안 부름)
   // 직접 배정·사람 넣고 빼기(공용 'cgman')는 5초마다 — 다른 PC에서 바꾼 게 5초 안에 보이게(10-21). 바뀌었을 때만 다시 그림
   clearInterval(_cgmTimer); _cgmTimer = setInterval(async () => {
     if (currentView !== 'cgassign') { clearInterval(_cgmTimer); _cgmTimer = null; return; }
@@ -414,6 +443,7 @@ async function _cgaFetch(manual) {
   _cgaPaint();
   if (manual && !_cgaErr) toast('새로 읽었어요.', 'success');
   _cgaUploadScan(manual);
+  _cgaContentScan(manual);   // NDS 콘텐츠(결과물) — 의뢰마다 간격은 안에서
 }
 // 근무표 CG 인원이 아닌데 지금 CG를 하는 사람(데스크·XR 등) 카드에 붙일 그날 역할
 function _cgaRoleTag(name, ds) {
@@ -596,9 +626,10 @@ function _cgaPaint() {
   // 카드에 없는 사람이 작업 중이면 그 사람 카드도(그날 역할 표시)
   const names = new Set(people.map(p => p.name));
   const dj = _cgaDanjik(ds).filter(p => !names.has(p.name)), djN = new Set(dj.map(p => p.name));   // 당직자는 아래 따로(위 목록에 이미 있으면 거기)
-  const extra = [...new Set(rows.filter(r => r.status === '0002' && r.designer && !names.has(r.designer) && !djN.has(r.designer)).map(r => r.designer))]
-    .map(n => { const st = (data.staff || []).find(x => x.name === n); return { id: st ? st.id : '', name: n, tag: _cgaRoleTag(n, ds), extra: true }; })
-    .filter(p => !(p.id && (_cgaAdjGet().del || []).includes(p.id)));
+  // 작업 중인데 카드가 없는 사람(NDS 배정 + 직접 배정) — ×로 뺀 사람이어도 일이 생기면 보임(10-26 사용자: 뺀 최하늘이 그 뒤 NDS 배정을 받았는데 안 보였음). 일이 끝나면 다시 빠짐
+  const extra = [...new Set([...rows.filter(r => r.status === '0002' && r.designer).map(r => r.designer), ..._cgmToday().filter(j => !j.done && j.name).map(j => j.name)])]
+    .filter(n => !names.has(n) && !djN.has(n))
+    .map(n => { const st = (data.staff || []).find(x => x.name === n); return { id: st ? st.id : '', name: n, tag: _cgaRoleTag(n, ds), extra: true }; });
   const busy = n => active(n).length > 0 || _cgmActive(n).length > 0;   // NDS 배정 또는 직접 배정(CG·앵커터치·PT)
   // 배정이 오래된 사람부터(10-20): 작업 중 = 지금 하는 일 중 가장 최근 배정 시각이 이른 순, 대기 = 오늘 마지막 배정 시각이 이른 순(오늘 한 번도 없으면 맨 앞).
   // 시각은 NDS 배정(assignAt)과 직접 배정(at) 둘 다 'YYYY-MM-DD HH:MM:SS'(한국 시각)라 글자 비교. 같으면 근무표 순서 그대로(정렬이 안정적)
@@ -617,13 +648,13 @@ function _cgaPaint() {
   const card = p => {
     const a = active(p.name), mj = _cgmActive(p.name), on = a.length > 0 || mj.length > 0;
     // 하는 일(NDS 의뢰)이 모두 결과 영상까지 올라왔으면(10-26 사용자): '작업 중…' → '작업 업로드함.', 깜빡임(카드 빛·점·말줄임표) 멈춤. 직접 배정 일이 남아 있으면 그대로
-    const allUp = a.length > 0 && mj.length === 0 && a.every(r => (_cgaUp[r.id] || (window._cgaFakeUp && window._cgaFakeUp[r.id]) || []).length > 0);
+    const allUp = a.length > 0 && mj.length === 0 && a.every(r => _cgaUpN(r.id) > 0);
     const manHtml = mj.map(j => `<div class="cga-job man k-${_cgmKey(j.kind)}"><div class="cga-who"><b>${_cgaEsc(j.kind)}</b><small>직접 배정${j.by ? ' · ' + _cgaEsc(j.by) : ''}</small>${can ? `<button type="button" class="cga-done" onclick="_cgmDone('${_cgaEsc(j.id)}')">완료</button>` : ''}</div>
         <div class="cga-time"><span>배정 <b>${_cgaHM(j.at)}</b></span><span class="cga-ago" data-at="${_cgaEsc(j.at)}"></span></div></div>`).join('');
     let body;
     if (!loaded) body = `<div class="cga-wait">${_cgaErr ? '' : '불러오는 중…'}</div>`;
     else if (on) body = (allUp ? '<div class="cga-now up">작업 업로드함.</div>' : `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>`) + manHtml + a.slice(0, 2).map(r => { const n8 = _cga8Rank(r), u8 = n8 > 0 && n8 <= CGA_URGENT, kw = u8 ? 'urgent' : _cgaKw(r.title);   // 8뉴스 1~10번째는 배정된 뒤에도 빨강+번호(10-21)
-        const up = (_cgaUp[r.id] || (window._cgaFakeUp && window._cgaFakeUp[r.id]) || []).length;   // 결과 영상(업로드 폴더) — 오른쪽 1/4 칸(10-26), 시험 의뢰는 _cgaFakeUp
+        const up = _cgaUpN(r.id);   // 결과물(업로드 폴더 파일 또는 NDS 콘텐츠) — 오른쪽 1/4 칸(10-26), 시험 의뢰는 _cgaFakeUp
         return `${up ? '<div class="cga-jrow">' : ''}<div class="cga-job${kw ? ' kw k-' + kw : ''}" data-rid="${Number(r.id) || 0}" title="${u8 ? `8뉴스 큐시트 ${n8}번째 — ` : ''}눌러서 의뢰 크게 보기">${u8 ? `<span class="cga-jno">${n8}</span>` : ''}
         <div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>
         ${r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : ''}
@@ -636,7 +667,7 @@ function _cgaPaint() {
       .filter(x => x.k && x.k !== 'cg').sort((x, y) => y.at.localeCompare(x.at))[0];
     const tone = on && special ? ' k-' + special.k : '';   // 앵커터치·PT 주황 · 3D·XR 보라(10-26 XR도 보라) · 그 밖 파랑
     return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + (on && allUp ? ' up' : '') + tone + (pop ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, pop ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: CG·앵커터치·PT 배정)` }),
-      html: `<span class="cga-dot" aria-hidden="true"></span>${p.id && can ? `<button type="button" class="cga-x" onclick="_cgaDel('${_cgaEsc(p.id)}')" title="오늘 이 화면에서 빼기" aria-label="${_cgaEsc(p.name)} 빼기">×</button>` : ''}
+      html: `<span class="cga-dot" aria-hidden="true"></span>${p.id && can && !p.extra ? `<button type="button" class="cga-x" onclick="_cgaDel('${_cgaEsc(p.id)}')" title="오늘 이 화면에서 빼기" aria-label="${_cgaEsc(p.name)} 빼기">×</button>` : ''}
       <div class="cga-top"><div class="cga-nm"><b>${_cgaEsc(p.name)}</b><span class="cga-tag${p.extra ? ' x' : ''}">${_cgaEsc(p.tag || 'CG')}</span></div></div>
       <div class="cga-cbody">${body}</div>` };
   };
