@@ -336,7 +336,51 @@ function _cgaHideGet() {
   return items;
 }
 function _cgaHide(id, st) { const items = _cgaHideGet(); items[id + ':' + st] = Date.now(); _cgaSave('nd_cga_hide', { items }); _cgaPaint(); }
+const CGA_EYEOFF_IC = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6 0 9.5 7 9.5 7a17.6 17.6 0 0 1-2.6 3.5M6.3 6.3C3.9 7.9 2.5 12 2.5 12s3.5 7 9.5 7a9.8 9.8 0 0 0 4.6-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';   // 숨긴 의뢰·숨긴 사람 버튼(10-26)
 function _cgaUnhide() { _cgaSave('nd_cga_hide', { items: {} }); _cgaPaint(); }
+// 숨긴 사람(10-26 사용자 — 당직 줄 위 오른쪽 [숨긴 사람 n]): 오늘 ×로 뺀 사람(nd_data cgman adj.del, 모든 PC 공용). 작업이 생겨 화면에 다시 나온 사람은 그렇다고 표시.
+// [다시 넣기]·[모두 다시 넣기]는 바꿀 수 있는 사람(오늘 데스크·최재영)만
+function _cgaAddMany(ids) {
+  if (!_cgaCanEdit()) return _cgaNoEdit();
+  const day = _cgaToday(); _cgmData = _cgmData || { days: {} }; _cgmData.adj = _cgmData.adj || {};
+  const saved = _cgmData.adj[day]; _cgmData.adj[day] = { add: [], del: [] };
+  const base = new Set(_cgaPeople(day).map((p) => p.id));   // 원래 그날 근무자(넣기·빼기를 잠깐 비우고 계산) — 아니면 넣기 목록에도
+  if (saved) _cgmData.adj[day] = saved; else delete _cgmData.adj[day];
+  _cgaAdjSet((v) => { v.del = v.del.filter((x) => !ids.includes(x)); ids.forEach((id) => { if (!base.has(id) && !v.add.includes(id)) v.add.push(id); }); });
+}
+function _cgaDelRows() {
+  const ds = _cgaToday(), seen = new Set([...document.querySelectorAll('#cga-grid .cga-card[data-sid], #cga-dj .cga-card[data-sid]')].map((c) => c.dataset.sid));
+  return (_cgaAdjGet().del || []).map((id) => staffById(id)).filter(Boolean).map((s) => ({ id: s.id, name: s.name, tag: _cgaRoleTag(s.name, ds) || s.dept || '', shown: seen.has(s.id) }));
+}
+function _cgaDelFill() {
+  const el = document.getElementById('cga-delpop'); if (!el) return;
+  const list = _cgaDelRows(), can = _cgaCanEdit();
+  el.querySelector('#cga-del-t').textContent = `숨긴 사람 ${list.length}명`;
+  const all = el.querySelector('.cga-del-all'); all.hidden = !can; all.disabled = !list.length;
+  el.querySelector('#cga-del-list').innerHTML = list.length ? list.map((p) => `<div class="cga-hid-row cga-delrow">
+      <div class="cga-hid-main"><div class="cga-who"><b>${_cgaEsc(p.name)}</b>${p.tag ? `<small>${_cgaEsc(p.tag)}</small>` : ''}</div>
+        <div class="cga-ttl">${p.shown ? '작업이 있어서 지금 화면에 보여요(일이 끝나면 다시 빠져요)' : '오늘 이 화면에서 뺐어요'}</div></div>
+      ${can ? `<button type="button" class="cga-hid-show" data-id="${_cgaEsc(p.id)}">다시 넣기</button>` : ''}</div>`).join('')
+    : '<p class="cga-hid-none">숨긴 사람이 없어요.</p>';
+}
+function _cgaDelPop() {
+  document.getElementById('cga-delpop')?.remove();
+  const el = document.createElement('div'); el.id = 'cga-delpop'; el.className = 'wt-pop';
+  el.innerHTML = `<div class="wt-card cga-hid-card" role="dialog" aria-modal="true" aria-labelledby="cga-del-t">
+    <div class="wt-head" id="cga-del-t">숨긴 사람</div>
+    <div class="wt-body"><p class="cga-hid-note">오늘 CG배정 현황에서 ×로 뺀 사람이에요. 모든 PC에 같이 적용되고, 내일이면 다시 보여요.</p><div class="cga-hid-list" id="cga-del-list"></div></div>
+    <div class="wt-foot"><button type="button" class="wt-cancel">닫기</button><button type="button" class="wt-go cga-del-all">모두 다시 넣기</button></div></div>`;
+  document.body.appendChild(el);
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); };
+  const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  document.addEventListener('keydown', onKey, true);
+  el.addEventListener('click', (e) => { if (e.target === el) close(); });
+  el.querySelector('.wt-cancel').onclick = close;
+  el.querySelector('.cga-del-all').onclick = () => { const ids = _cgaDelRows().map((p) => p.id); if (ids.length) _cgaAddMany(ids); close(); };
+  el.querySelector('#cga-del-list').addEventListener('click', (e) => { const b = e.target.closest('.cga-hid-show[data-id]'); if (b) { b.disabled = true; _cgaAdd(b.dataset.id); } });
+  _cgaDelFill();
+  el.querySelector('.wt-cancel').focus();
+}
 function _cgaUnhideOne(key) { const items = _cgaHideGet(); delete items[key]; _cgaSave('nd_cga_hide', { items }); _cgaPaint(); }
 // 숨긴 의뢰 모아 보기(10-26 사용자 — 왼쪽 아래 [숨긴 의뢰 n]): 오늘 기다리는 의뢰 가운데 숨긴 것, 최근에 숨긴 것부터. 칸을 누르면 크게 보기, [다시 보이기]·[모두 다시 보이기]
 function _cgaHiddenRows() {
@@ -417,7 +461,7 @@ function renderCgAssign() {
         <button type="button" class="cga-refresh" onclick="_cgaFetch(true)" title="지금 새로고침" aria-label="지금 새로고침"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
       </div>
       <div class="cga-msg" id="cga-msg" role="status"></div>
-      <div class="cga-body"><aside class="cga-side" id="cga-side"><section class="cga-box"><h3>배정 기다리는 의뢰 <span id="cga-reqn">…</span></h3><div class="cga-reqs" id="cga-reqs"></div><p class="cga-none" id="cga-none" hidden>지금 기다리는 의뢰가 없어요.</p><button type="button" class="cga-unhide" id="cga-unhide" onclick="_cgaHiddenPop()" hidden></button></section></aside><div class="cga-main" id="cga-main"><div class="cga-grid" id="cga-grid"></div><div class="cga-grid cga-dj" id="cga-dj"></div></div></div>
+      <div class="cga-body"><aside class="cga-side" id="cga-side"><section class="cga-box"><h3>배정 기다리는 의뢰 <span id="cga-reqn">…</span></h3><div class="cga-reqs" id="cga-reqs"></div><p class="cga-none" id="cga-none" hidden>지금 기다리는 의뢰가 없어요.</p><button type="button" class="cga-unhide" id="cga-unhide" onclick="_cgaHiddenPop()" hidden></button></section></aside><div class="cga-main" id="cga-main"><div class="cga-grid" id="cga-grid"></div><div class="cga-delbar" id="cga-delbar" hidden><button type="button" class="cga-delp" id="cga-delp" onclick="_cgaDelPop()"></button></div><div class="cga-grid cga-dj" id="cga-dj"></div></div></div>
       <button type="button" class="cga-demo" onclick="_cgaDemo()" title="가짜 의뢰가 들어오는 모습을 이 화면에서만 보여 줘요(NDS엔 아무것도 안 가요)">시험 의뢰</button>`;   // 자주 안 써서 화면 오른쪽 아래 구석(10-21 사용자)
   }
   const g = document.getElementById('cga-grid');
@@ -756,8 +800,12 @@ function _cgaPaint() {
   });
   const none = document.getElementById('cga-none'); none.hidden = !(loaded && !wait.length);
   const un = document.getElementById('cga-unhide'); un.hidden = !nHid;   // 왼쪽 아래 '숨긴 의뢰 n' → 눌러서 모아 보기(10-26 사용자)
-  if (nHid) { const h = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6 0 9.5 7 9.5 7a17.6 17.6 0 0 1-2.6 3.5M6.3 6.3C3.9 7.9 2.5 12 2.5 12s3.5 7 9.5 7a9.8 9.8 0 0 0 4.6-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>숨긴 의뢰 <b>${nHid}</b>`; if (un._h !== h) { un.innerHTML = h; un._h = h; } un.title = '숨긴 의뢰 모아 보기 — 다시 보이게 할 수 있어요'; }
+  if (nHid) { const h = `${CGA_EYEOFF_IC}숨긴 의뢰 <b>${nHid}</b>`; if (un._h !== h) { un.innerHTML = h; un._h = h; } un.title = '숨긴 의뢰 모아 보기 — 다시 보이게 할 수 있어요'; }
   if (document.getElementById('cga-hidpop')) _cgaHiddenFill();   // 모아 보기 창이 열려 있으면 같이
+  // 당직 줄 바로 위 오른쪽 끝 [숨긴 사람 n](10-26 사용자) — 오늘 ×로 뺀 사람(모든 PC 공용), 누르면 목록·다시 넣기
+  const delN = (_cgaAdjGet().del || []).filter((id) => staffById(id)).length, dbar = document.getElementById('cga-delbar'), dbtn = document.getElementById('cga-delp');
+  if (dbar && dbtn) { dbar.hidden = !delN; if (delN) { const h = `${CGA_EYEOFF_IC}숨긴 사람 <b>${delN}</b>`; if (dbtn._h !== h) { dbtn.innerHTML = h; dbtn._h = h; } dbtn.title = '오늘 이 화면에서 뺀 사람 — 눌러서 보기·다시 넣기'; } }
+  if (document.getElementById('cga-delpop')) _cgaDelFill();
   _cgaAgoFill();
   _cgpPaint();   // 사람 팝업이 열려 있으면 같이
 }
