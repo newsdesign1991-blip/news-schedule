@@ -634,7 +634,7 @@ function _cgaPaint() {
     // 그건 그 PT 내용이라 PT 색 그대로. 그런 게 없으면 CG 파랑
     const special = [...a.map(r => ({ at: String(r.assignAt || ''), k: _cgaKw(r.title) })), ...mj.map(j => ({ at: String(j.at || ''), k: _cgmKey(j.kind) }))]
       .filter(x => x.k && x.k !== 'cg').sort((x, y) => y.at.localeCompare(x.at))[0];
-    const tone = on && special ? ' k-' + special.k : '';   // 앵커터치·PT 주황 · 3D 보라 · XR 초록 · 그 밖 파랑
+    const tone = on && special ? ' k-' + special.k : '';   // 앵커터치·PT 주황 · 3D·XR 보라(10-26 XR도 보라) · 그 밖 파랑
     return { key: 'p:' + (p.id || p.name), cls: 'cga-card' + (on ? ' on' : loaded ? ' off' : '') + (on && allUp ? ' up' : '') + tone + (pop ? ' pop' : ''), attrs: Object.assign({ 'data-name': p.name, 'data-sid': p.id || '' }, pop ? { role: 'button', tabindex: '0', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} — 오늘 처리한 CG 보기` } : { role: 'group', 'aria-label': `${p.name} ${on ? '작업 중' : '대기'} (오른쪽 클릭: CG·앵커터치·PT 배정)` }),
       html: `<span class="cga-dot" aria-hidden="true"></span>${p.id && can ? `<button type="button" class="cga-x" onclick="_cgaDel('${_cgaEsc(p.id)}')" title="오늘 이 화면에서 빼기" aria-label="${_cgaEsc(p.name)} 빼기">×</button>` : ''}
       <div class="cga-top"><div class="cga-nm"><b>${_cgaEsc(p.name)}</b><span class="cga-tag${p.extra ? ' x' : ''}">${_cgaEsc(p.tag || 'CG')}</span></div></div>
@@ -732,7 +732,7 @@ function _cgpPaint() {
 // ── 직접 배정(10-20): CG(손으로)·앵커터치·PT 처럼 NDS에 안 올라오는 일 — 카드 오른쪽 클릭 → [CG 배정]/[앵커터치 배정]/[PT 배정]/[완료]
 // 저장 = nd_data id='cgman'(main 밖 — 자주 바뀌어서), payload.days[날짜] = [{ id, sid, name, kind, at:'YYYY-MM-DD HH:MM:SS'(한국 시각), by, done }]
 // 여러 PC가 같이 봄(20초마다 읽음). 쓸 때는 updated_at 낙관적 잠금 + 재시도. 7일 지난 날짜는 지움. 관리자 테스트 모드는 저장 안 함(화면에만)
-const CGM_KINDS = ['CG', '앵커터치', 'PT', '3D CG', 'XR'];   // 앵커터치 = 흔히 '앵터'. 색: CG 파랑·앵커터치·PT 주황·3D CG 보라·XR 초록(10-21)
+const CGM_KINDS = ['CG', '앵커터치', 'PT', '3D CG', 'XR'];   // 앵커터치 = 흔히 '앵터'. 색: CG 파랑·앵커터치·PT 주황·3D CG·XR 보라(10-21, 10-26 XR 초록→보라)
 // 종류별 색(카드 빛·깜빡이는 점·'작업 중' 글자·칸 색이 이 색 — css --g: CG 파랑·앵커터치·PT 주황)과 메뉴 아이콘. NDS CG 배정도 'cg'(파랑)
 const CGM_KIND = {
   'CG': { key: 'cg', ic: '<path d="M12 3 3 7.5l9 4.5 9-4.5L12 3z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>' },
