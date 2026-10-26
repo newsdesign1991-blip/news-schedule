@@ -325,8 +325,18 @@ function _cgaAdd(id) {
   if (saved) _cgmData.adj[day] = saved; else delete _cgmData.adj[day];
   _cgaAdjSet(v => { v.del = v.del.filter(x => x !== id); if (!inBase && !v.add.includes(id)) v.add.push(id); });
 }
-function _cgaHide(id, st) { const v = _cgaLocal('nd_cga_hide'); v.ids = [...new Set([...(v.ids || []), id + ':' + st])]; _cgaSave('nd_cga_hide', v); _cgaPaint(); }   // '번호:상태'로 숨김(10-22) — 상태가 바뀌면(보완요청→의뢰) 다시 보임
-function _cgaUnhide() { _cgaSave('nd_cga_hide', { day: _cgaToday(), ids: [] }); _cgaPaint(); }
+// 숨긴 의뢰(이 PC만): '번호:상태'로 숨김(10-22) — 상태가 바뀌면(보완요청→의뢰) 다시 보임.
+// 10-26 사용자 '숨긴 의뢰는 그냥 안 보여도 됨': 날이 바뀌어도 그대로 숨김(지난 며칠 의뢰도 목록에 남게 바뀌어서) — { items: { '번호:상태': 숨긴 때 } }, 7일 지나면 저절로 정리.
+// 예전 꼴({ day, ids })은 그날 것만 옮겨 옴, 번호만 적힌 아주 예전 것은 보완요청으로 봄
+function _cgaHideGet() {
+  let v = null; try { v = JSON.parse(localStorage.getItem('nd_cga_hide') || 'null'); } catch (e) { v = null; }
+  const now = Date.now(), items = {};
+  if (v && v.items && typeof v.items === 'object') Object.entries(v.items).forEach(([k, t]) => { if (now - Number(t) < 7 * 864e5) items[k] = Number(t); });
+  else if (v && v.day === _cgaToday() && Array.isArray(v.ids)) v.ids.forEach((x) => { items[typeof x === 'number' ? x + ':0003' : String(x)] = now; });
+  return items;
+}
+function _cgaHide(id, st) { const items = _cgaHideGet(); items[id + ':' + st] = Date.now(); _cgaSave('nd_cga_hide', { items }); _cgaPaint(); }
+function _cgaUnhide() { _cgaSave('nd_cga_hide', { items: {} }); _cgaPaint(); }
 // [사람 추가] 작은 창: 이름 찾기 + 오늘 뺀 사람 다시 넣기
 function _cgaPick(btn) {
   const old = document.getElementById('cga-pick'); if (old) { old.remove(); return; }
@@ -679,8 +689,8 @@ function _cgaPaint() {
   _cgaKeyed(grid, cards, cardIn);
   const djHost = document.getElementById('cga-dj'); if (djHost) _cgaKeyed(djHost, djCards, cardIn);
   // 왼쪽: 배정 기다리는 의뢰(의뢰·보완요청), 오래된 것부터 위로 쌓임. 새 의뢰는 아래에서 스르륵 올라옴. 15분 넘으면 빨강, 보완요청은 회색(맨 아래), ×로 이 앱에서만 숨김
-  const hid = new Set((_cgaLocal('nd_cga_hide').ids || []).map(x => typeof x === 'number' ? x + ':0003' : x));   // 예전에 번호만 적힌 숨김은 보완요청으로 봄(10-22)
-  const all = rows.filter(r => r.status === '0001' || r.status === '0003');
+  const hid = new Set(Object.keys(_cgaHideGet()));   // 숨긴 의뢰 '번호:상태' — 날이 바뀌어도 그대로(10-26)
+  const all = rows.filter(r => (r.status === '0001' || r.status === '0003') && !r.carry);   // 지난 날 들어와 아직 기다리는 의뢰는 안 보임(10-26 사용자 — 지난 날 것은 작업 중인 것만 카드에)
   const rk = new Map(all.map(r => { const n = r.status === '0001' ? _cga8Rank(r) : 0; return [r.id, n && n <= CGA_URGENT ? n : 0]; })), urg = r => rk.get(r.id) || 0;   // 8뉴스 1~10번째(10-21)
   const wait = all.filter(r => !hid.has(r.id + ':' + r.status)).sort((a, b) => ((a.status === '0003') - (b.status === '0003')) || ((urg(b) > 0) - (urg(a) > 0)) || (urg(a) - urg(b)) || String(a.inputAt).localeCompare(String(b.inputAt)));
   const nHid = all.length - wait.length, nReq = wait.filter(r => r.status === '0001').length;
