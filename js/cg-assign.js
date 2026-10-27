@@ -1206,9 +1206,21 @@ function _cgaPullTick() {
   // 움직이는 쪽으로 살짝 늘어나는 물방울
   const v = Math.hypot(p.vx, p.vy), st = Math.min(.12, v / 100), a = Math.atan2(p.vy, p.vx) * 180 / Math.PI;
   g.style.transform = `translate(${nx}px,${ny}px) rotate(${a}deg) scale(${1 + st},${1 - st * .6}) rotate(${-a}deg)`;
+  _cgaEdgeScroll(p);
   // 놓을 카드 표시
   const el = document.elementFromPoint(p.x, p.y), c = el && el.closest && el.closest('#cga-grid .cga-card[data-name], #cga-dj .cga-card[data-name]');
   if (c !== p.hot) { if (p.hot) p.hot.classList.remove('drop-hot'); if (c && !c.classList.contains('cga-leaving')) { c.classList.add('drop-hot'); p.hot = c; } else p.hot = null; g.classList.toggle('over', !!p.hot); }
+}
+// 끄는 동안 화면 아래·위 끝에 가면 저절로 스크롤(10-27 사용자 — 이름 카드가 밑에 있으면 누른 채 휠 굴리기 어려움). 끝에 가까울수록 빠르고, 들어가자마자 확 안 가게 살짝 가속.
+// 잡은 자리가 이미 끝 근처면(위쪽 목록에서 잡음 등) 한 번 벗어났다 다시 들어와야 그쪽으로 감
+function _cgaEdgeScroll(p) {
+  const H = innerHeight, Z = Math.min(110, H * .15);
+  if (p.y < H - Z - 16) p.esDn = true;
+  if (p.y > Z + 16) p.esUp = true;
+  const v = p.y > H - Z && p.esDn ? Math.min(1, (p.y - (H - Z)) / Z) : p.y < Z && p.esUp ? -Math.min(1, (Z - p.y) / Z) : 0;
+  if (!v) { p.es = 0; return; }
+  p.es = Math.min(1, (p.es || 0) + .05);
+  scrollBy(0, Math.sign(v) * (3 + 17 * v * v) * p.es);
 }
 // 놓은 걸 못 받은 '잡음'(10-27 사용자 '켜 두면 새로고침해야 최신'): 창 밖에서 놓거나 창이 바뀌면 pointerup 이 안 와서 _cgaPull 이 남고,
 // 그동안 기다리는 의뢰 목록·공용 배정(5초)이 안 바뀌었음 → 버튼 안 누른 채 움직이거나·창을 떠나거나·다시 누르거나·1분 넘으면 취소하고 다시 그림
