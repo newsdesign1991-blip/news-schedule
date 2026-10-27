@@ -289,10 +289,11 @@ function parseExcelSchedule() {
       _prevDay = dayNum;
 
       const dateStr=`${useYear}-${String(useMon).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
-      const entries=[];
+      const entries=[], _nNotes=[];
       colMap.forEach(({name,colIdx})=>{
         // 셀 안의 공백·줄바꿈을 제거해 표기 변형 흡수 ('오전 데'→'오전데', '뉴.오 2'→'뉴.오2' 등)
-        const val=String(row[colIdx]||'').replace(/\s+/g,'').trim();
+        let val=String(row[colIdx]||'').replace(/\s+/g,'').trim();
+        const _nv=_xlSplitN(val); if(_nv){ val=_nv; _nNotes.push(name+' N'); }   // 'N/8진' 등 → 칸엔 8진, N은 비고
         if(val&&val!=='-'&&val!=='0'){
           const _cell = (XLSX.utils.encode_cell && ws) ? ws[XLSX.utils.encode_cell({r:r+sheetStart.r, c:colIdx+sheetStart.c})] : null;   // 칸 주소로 바탕색 읽기
           entries.push(_isGrayCell(_cell) ? {name,workType:val,gray:true} : _isPinkCell(_cell) ? {name,workType:val,pink:true} : {name,workType:val});
@@ -311,6 +312,7 @@ function parseExcelSchedule() {
         });
         _note=_parts.join(' · ');
       }
+      if (_nNotes.length) _note=[_note, ..._nNotes].filter(Boolean).join(' · ');
       schedule.push({date:dateStr,entries,note:_note});
     }
 
@@ -322,6 +324,15 @@ function parseExcelSchedule() {
   } catch(err) {
     toast('엑셀 파싱 오류: '+err.message, 'error');
   }
+}
+// N(적응 중)과 다른 근무가 한 칸에 같이 적힘(예: 'N/8진'·'8진(N)'·줄바꿈 'N 8진') → 칸엔 그 근무, N은 그날 비고에(10-27 사용자 'N보다 8진이 더 중요').
+// 그 자체로 아는 글자(N·NDS 등)는 그대로. 남은 글자가 아는 근무일 때만 나눔(반환 = 칸에 쓸 글자, 아니면 null)
+function _xlSplitN(v) {
+  v = String(v || ''); if (!v || WORK_TYPE_MAP[_normalizeImportedWorkType(v)] !== undefined) return null;
+  const r = v.replace(/^N[\/,·+]?/i, '').replace(/[\/,·+]?\(?N\)?$/i, '');
+  if (!r || r === v) return null;
+  const k = WORK_TYPE_MAP[_normalizeImportedWorkType(r)];
+  return (k && k !== 'skip' && k !== 'nocount') ? r : null;
 }
 // 엑셀 부서 칸 위치로 부서 이동 찾기(10-27 사용자 '엑셀에서 양기태가 VW 쪽에 있으면 이 기간부터 그 부서로'). 이름 위 부서 병합 헤더(VW·CG/3D/XR·PJ·SPORTS·조근)가 그 사람 부서.
 // CG/3D/XR 묶음은 CG·XR·PJ·SPORTS 누구든 그대로(열만으론 구분 불가), 조근 헤더가 따로 없으면 VW 묶음 속 조근원도 그대로. 적용 전 미리보기에서 빼고 고를 수 있음
@@ -482,8 +493,8 @@ function _renderImgResult(parsed) {
   document.getElementById('img-apply-btn').style.display = 'block';
 }
 
-function _isVw2(entry,id) { return String(entry?.customCells?.[id]?.text || '').replace(/\s/g,'').toUpperCase() === 'VW2'; }
-function _normalizeImportedWorkType(value){return String(value||'').replace(/\s+/g,'').replace(/^jr[.．]?/i,'Jr.').replace(/^ai교육$/i,'AI 교육');}
+function _isVw2(entry,id) { return _normalizeImportedWorkType(entry?.customCells?.[id]?.text).toUpperCase() === 'VW2'; }   // VW2·VW② = 배우는 중(인원 X)
+function _normalizeImportedWorkType(value,keepNum){return String(value||'').replace(/\s+/g,'').replace(/[①-⑨]/g,c=>keepNum?c:String(c.charCodeAt(0)-0x245F)).replace(/^jr[.．]?/i,'Jr.').replace(/^ai교육$/i,'AI 교육');}   // 동그라미 숫자(VW②·뉴.오①·8진②)는 보통 숫자로 읽음(10-27) — keepNum 이면 칸에 보일 글자라 그대로 둠(사용자: 작성소에도 그 번호를 붙여서)
 const WORK_TYPE_MAP = {
   '정근': 'work', '신휴가': 'leave', 'Jr.휴가': 'leave', '출장': 'offsite', 'Jr.캠프': 'offsite', 'AI 교육': 'offsite', '당직': 'danjik',
   'VW데': 'vw-desk', '데스크': 'desk-auto',
@@ -491,7 +502,7 @@ const WORK_TYPE_MAP = {
   'CG대': 'cg-sub', 'CG대체': 'cg-sub', 'CG대체자': 'cg-sub',
   '8데스크': 'desk8', '8데스': 'desk8', '5데스크': 'desk5', '5데스': 'desk5',
   '오전데스크': 'ojende', '오전데': 'ojende', '오데': 'ojende', '오데/반차': 'ojende',
-  '조근': 'jogeun', '8진': '8jin', '8진2': '8jin2', '8진②': '8jin2',
+  '조근': 'jogeun', '8진': '8jin', '8진1': '8jin', '8진2': '8jin2', '8진②': '8jin2',
   '뉴오': 'newsoh', '뉴.오': 'newsoh', '뉴오1': 'newsoh', '뉴.오1': 'newsoh',
   '뉴오2': 'newsoh2', '뉴.오2': 'newsoh2', '뉴오②': 'newsoh2',
   '일근': 'ilgeun',
@@ -501,7 +512,7 @@ const WORK_TYPE_MAP = {
   '교육': 'offsite', '면접관': 'offsite', '대의원': 'offsite', '주.캠': 'offsite', 'NDS': 'offsite',
   '오전8데': 'ojende8', '오전8데스': 'ojende8',
   // 부서명 라벨 = "그 부서에서 근무". 같은 부서면 정근, 타부서 사람이면 대체로 자동 표시(cg.workers/vw.workers).
-  'CG': 'cg-sub', 'VW': 'vw-sub', 'VW2': 'vw2', 'vw2': 'vw2',
+  'CG': 'cg-sub', 'VW': 'vw-sub', 'VW1': 'vw-sub', 'VW2': 'vw2', 'vw2': 'vw2',   // VW2(VW②) = 배우는 중(깍두기) — 칸에만 보이고 인원 수엔 안 셈
   // 당직 지정 시 자동 계산되는 항목 → 가져오기에서 무시
   '퇴근': 'skip', '당직퇴근': 'skip', '비번': 'skip', '당직비번': 'skip'
 };
@@ -610,13 +621,14 @@ function _doApplyImageSchedule(skipNames) {
       const s = (data.staff||[]).find(x=>x.name===name);
       if (!s) return;
       const dOn = (typeof deptOn==='function') ? deptOn(s, ds) : (s.dept||'');   // 시점부서(부서이동 예약 반영) — 기준부서 s.dept 대신 사용
+      const shown = _normalizeImportedWorkType(workType, true);   // 칸에 보일 글자(엑셀 번호 ①② 그대로)
       workType = _normalizeImportedWorkType(workType);
       const wt = WORK_TYPE_MAP[workType];
       if (wt === 'skip') return;   // 당직퇴근·비번 등 자동 계산 항목은 가져오지 않음
       if (pink && wt !== 'leave') {
         // 분홍 바탕(출장·교육·기타, 10-27 사용자): 무슨 글자든 엑셀에 적힌 그대로 분홍 칸으로, 근무 목록엔 안 넣음 = 인원 집계 제외(특수 근무 '출장 · 교육 · 기타'와 같음)
         if (!entry.customCells) entry.customCells = {};
-        entry.customCells[s.id] = {text:workType, bg:'#ffc1df', color:'#000000'};
+        entry.customCells[s.id] = {text:shown, bg:'#ffc1df', color:'#000000'};
         applied++; return;
       }
       if (wt === undefined) {      // 매핑 안 된 표기(면접관 등) → 자동 배정 않고 메모에 '수동입력 필요' 기록
@@ -626,7 +638,7 @@ function _doApplyImageSchedule(skipNames) {
       if (gray && (wt === 'work' || wt === 'nocount')) {
         // 회색 바탕(특별 작업으로 따로 빼 둔 사람): 칸에는 그 글자를 회색으로, 총인원(근무자 명단)에는 넣지 않음
         if (!entry.customCells) entry.customCells = {};
-        entry.customCells[s.id] = {text:workType, bg:'#d9d9d9', color:'#333333', excl:true};
+        entry.customCells[s.id] = {text:shown, bg:'#d9d9d9', color:'#333333', excl:true};
         applied++; return;
       }
       if (wt === 'leave') {
@@ -636,7 +648,7 @@ function _doApplyImageSchedule(skipNames) {
         if(workType!=='신휴가'){if(!entry.leaveLabels)entry.leaveLabels={};entry.leaveLabels[s.id]=workType;}   // Jr.휴가·경조·공가 등은 그 이름으로 표시
       } else if (wt === 'offsite') {
         if(!entry.customCells)entry.customCells={};
-        entry.customCells[s.id]={text:workType,bg:'#ffc1df',color:'#000000'};
+        entry.customCells[s.id]={text:shown,bg:'#ffc1df',color:'#000000'};
       } else if (wt === 'danjik') {
         entry.danjik = s.id;
       } else if (wt === 'desk8') {
@@ -660,7 +672,7 @@ function _doApplyImageSchedule(skipNames) {
       } else if (wt === 'nocount') {
         // N 등 — 칸에는 보이되 총인원(근무자 명단)에는 넣지 않음
         if (!entry.customCells) entry.customCells = {};
-        entry.customCells[s.id] = {text:workType, bg:'var(--surface2)', color:'var(--muted)', excl:true};
+        entry.customCells[s.id] = {text:shown, bg:'var(--surface2)', color:'var(--muted)', excl:true};
       } else if (wt === 'ojende8') {
         // 오전데 + 8데스를 한 사람이 함께(1·2순위 데스크가 모두 없을 때)
         entry.morningDesk = s.id;
@@ -675,7 +687,7 @@ function _doApplyImageSchedule(skipNames) {
       } else if (wt === 'vw2') {
         // Display this assignment without adding it to staffing headcounts.
         if (!entry.customCells) entry.customCells = {};
-        entry.customCells[s.id] = {text:'VW2', bg:'var(--vw-bg)', color:'var(--vw-light)'};
+        entry.customCells[s.id] = {text:shown, bg:'var(--vw-bg)', color:'var(--vw-light)'};
       } else if (wt === 'vw-sub') {
         // VW 대체자(타부서 사람이 VW 자리) → vw.workers에만 추가(메인데스크로 만들지 않음)
         if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id);
@@ -728,11 +740,11 @@ function _doApplyImageSchedule(skipNames) {
       (_imgParsedData.staffNames||[]).forEach(name=>{
         if(skipSet.has(name))return;
         const person=(data.staff||[]).find(p=>p.name===name);if(!person)return;
-        const text=_normalizeImportedWorkType(originals.get(name)||'');
+        const text=_normalizeImportedWorkType(originals.get(name)||'', true);   // 엑셀 번호(①②)까지 그대로 보이게
         const _e=(day.entries||[]).find(e=>e.name===name);
         entry.importedCells[person.id]={text,signature:_importCellSignature(entry,person.id,data.draft.newLeaves[ds])};
         if(_e&&_e.gray) entry.importedCells[person.id].gray=true;   // 회색 바탕(특별 작업) — 표시 색
-        else if(_e&&_e.pink&&WORK_TYPE_MAP[text]!=='leave') entry.importedCells[person.id].pink=true;   // 분홍 바탕(출장·교육·기타)
+        else if(_e&&_e.pink&&WORK_TYPE_MAP[_normalizeImportedWorkType(text)]!=='leave') entry.importedCells[person.id].pink=true;   // 분홍 바탕(출장·교육·기타)
       });
     }
   });

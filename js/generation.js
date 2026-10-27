@@ -66,7 +66,7 @@ function _genVC(e, ds, pe){
   const dep=id=>String(deptOn(staffById(id),ds)||'').toLowerCase();
   const dw=new Date(ds+'T00:00:00').getDay(), we=dw===0||dw===6, hol=!!(data.holidays&&data.holidays[ds]);
   const lv=new Set((data.newLeaves&&data.newLeaves[ds])||[]), sp=new Set([e.satMorning,e.morningDesk].filter(Boolean));
-  const ex=id=>{ const p=staffById(id); return id===e.danjik||(!!pe&&id===pe.danjik)||dep(id)==='조근'||sp.has(id)||lv.has(id)||String(e.customCells?.[id]?.text||'').replace(/\s/g,'').toUpperCase()==='VW2'||(!!p&&!isContractActive(p,ds)); };
+  const ex=id=>{ const p=staffById(id); return id===e.danjik||(!!pe&&id===pe.danjik)||dep(id)==='조근'||sp.has(id)||lv.has(id)||String(e.customCells?.[id]?.text||'').replace(/\s/g,'').replace(/②/g,'2').toUpperCase()==='VW2'||(!!p&&!isContractActive(p,ds)); };
   const cgW=new Set(e.cg?.workers||[]);
   const vw=new Set((e.vw?.workers||[]).filter(id=>!ex(id)&&!(cgW.has(id)&&dep(id)==='vw')));
   let v=vw.size, c=[...cgW].filter(id=>!ex(id)&&!vw.has(id)).length+(e.xr||[]).filter(id=>!ex(id)).length;
