@@ -482,6 +482,7 @@ function renderCgAssign() {
   // 직접 배정·사람 넣고 빼기(공용 'cgman')는 5초마다 — 다른 PC에서 바꾼 게 5초 안에 보이게(10-21). 바뀌었을 때만 다시 그림
   clearInterval(_cgmTimer); _cgmTimer = setInterval(async () => {
     if (currentView !== 'cgassign') { clearInterval(_cgmTimer); _cgmTimer = null; return; }
+    if (_cgaPull && Date.now() - (_cgaPull.t || 0) > 60e3) _cgaPullStale();
     if (document.visibilityState !== 'visible' || _cgaPull) return;
     const before = JSON.stringify(_cgmData || null); await _cgmLoad();
     if (JSON.stringify(_cgmData || null) !== before) _cgaPaint();
@@ -501,6 +502,10 @@ function _cgaFit() {
   fitMain();
 }
 addEventListener('resize', () => { if (typeof currentView !== 'undefined' && currentView === 'cgassign') _cgaFit(); });
+// 다른 창을 보다가(또는 창을 내렸다가) 돌아오면 바로 새로 읽음(10-27) — 마지막으로 읽은 지 10초 넘었을 때만, NDS 쉬는 중(_cgaNextAt)이면 기다림
+function _cgaWake() { if (typeof currentView !== 'undefined' && currentView === 'cgassign' && document.visibilityState === 'visible' && Date.now() - _cgaLastAt > 10e3) _cgaFetch(false); }
+addEventListener('focus', _cgaWake);
+document.addEventListener('visibilitychange', _cgaWake);
 // NDS 가 안 될 때 두드리지 않게(10-23 사용자): 실패하면 40초 → 80초 → … 최대 5분 쉼, 로그인 실패(비밀번호 바뀜 등)는 10분(공용 계정이 잠기지 않게). 새로고침 버튼은 바로
 let _cgaFail = 0, _cgaNextAt = 0, _cgaLastAt = 0;
 // 저절로 읽는 간격(10-23 사용자 '최대한 부담 안 주게'): 이 화면을 보며 손대고 있을 때만 20초, 다른 창을 보거나 3분 넘게 손 안 대면 1분,
@@ -733,7 +738,9 @@ function _cgaPaint() {
   const lastAt = (n, onlyActive) => [...(byName[n] || []).filter(r => (onlyActive ? r.status === '0002' : (r.status === '0002' || r.status === '0004'))).map(r => String(r.assignAt || '')),
     ..._cgmToday().filter(j => j.name === n && (!onlyActive || !j.done)).map(j => String(j.at || ''))].filter(Boolean).sort().pop() || '';
   const byOld = onlyActive => (x, y) => lastAt(x.name, onlyActive).localeCompare(lastAt(y.name, onlyActive));
-  const work = [...people.filter(p => busy(p.name)), ...extra].sort(byOld(true)), idle = people.filter(p => !busy(p.name)).sort(byOld(false));
+  // 하는 일(NDS 의뢰)이 모두 결과물까지 올라온 사람(카드 초록 'up')은 맨 앞(10-27 사용자)
+  const isUp = n => { const a = active(n); return a.length > 0 && _cgmActive(n).length === 0 && a.every(r => _cgaUpN(r.id) > 0); };
+  const work = [...people.filter(p => busy(p.name)), ...extra].sort((x, y) => (isUp(y.name) - isUp(x.name)) || byOld(true)(x, y)), idle = people.filter(p => !busy(p.name)).sort(byOld(false));
   const can = _cgaCanEdit(), pop = _cgaPopOn();
   const sub = `CG제작 가능 인원 ${work.length + idle.length}명` + (can ? '' : ' · 배정·사람 넣고 빼기는 오늘 데스크만') + (_cgaDemoOn() ? ' · 시험 중(가짜 의뢰 — NDS엔 안 가요)' : '');   // 10-20 사용자: 날짜·기준 시각 등은 빼고 이것만
   const addBtn = document.querySelector('#cga-root .cga-addp'); if (addBtn) addBtn.style.display = can ? '' : 'none';
@@ -745,7 +752,7 @@ function _cgaPaint() {
   const card = p => {
     const a = active(p.name), mj = _cgmActive(p.name), on = a.length > 0 || mj.length > 0;
     // 하는 일(NDS 의뢰)이 모두 결과 영상까지 올라왔으면(10-26 사용자): '작업 중…' → '작업 업로드함.', 깜빡임(카드 빛·점·말줄임표) 멈춤. 직접 배정 일이 남아 있으면 그대로
-    const allUp = a.length > 0 && mj.length === 0 && a.every(r => _cgaUpN(r.id) > 0);
+    const allUp = isUp(p.name);
     const manHtml = mj.map(j => `<div class="cga-job man k-${_cgmKey(j.kind)}"><div class="cga-who"><b>${_cgaEsc(j.kind)}</b><small>직접 배정${j.by ? ' · ' + _cgaEsc(j.by) : ''}</small>${can ? `<button type="button" class="cga-done" onclick="_cgmDone('${_cgaEsc(j.id)}')">완료</button>` : ''}</div>
         <div class="cga-time"><span>배정 <b>${_cgaHM(j.at)}</b></span><span class="cga-ago" data-at="${_cgaEsc(j.at)}"></span></div></div>`).join('');
     let body;
@@ -985,11 +992,13 @@ function _cgaWireDnd() {
   });
   list.addEventListener('dragstart', e => e.preventDefault());   // 브라우저 기본 끌기(그림 끌기 등) 끔
   list.addEventListener('pointerdown', e => {
-    if (_cgaPull || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (_cgaPull) _cgaPullStale();   // 새로 눌렀으면 전에 잡은 건 이미 놓은 것
     const it = e.target.closest('.cga-req.drag[data-rid]'); if (!it || e.target.closest('.cga-x') || !_cgaCanEdit()) return;
-    _cgaPull = { it, id: Number(it.dataset.rid) || 0, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, pid: e.pointerId, phase: 0, vx: 0, vy: 0 };
+    _cgaPull = { it, id: Number(it.dataset.rid) || 0, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, pid: e.pointerId, phase: 0, vx: 0, vy: 0, t: Date.now() };
   });
-  document.addEventListener('pointermove', e => { const p = _cgaPull; if (!p || e.pointerId !== p.pid) return; p.x = e.clientX; p.y = e.clientY; _cgaPullMove(e); }, { passive: false });
+  document.addEventListener('pointermove', e => { const p = _cgaPull; if (!p) return; if (e.pointerType === 'mouse' && !(e.buttons & 1)) return _cgaPullStale(); if (e.pointerId !== p.pid) return; p.x = e.clientX; p.y = e.clientY; _cgaPullMove(e); }, { passive: false });
+  addEventListener('blur', () => { if (_cgaPull) _cgaPullStale(); });
   document.addEventListener('pointerup', e => { const p = _cgaPull; if (!p || e.pointerId !== p.pid) return; _cgaPullEnd(false); });
   document.addEventListener('pointercancel', e => { const p = _cgaPull; if (!p || e.pointerId !== p.pid) return; _cgaPullEnd(true); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && _cgaPull && _cgaPull.phase) _cgaPullEnd(true); });
@@ -1051,6 +1060,9 @@ function _cgaPullTick() {
   const el = document.elementFromPoint(p.x, p.y), c = el && el.closest && el.closest('#cga-grid .cga-card[data-name], #cga-dj .cga-card[data-name]');
   if (c !== p.hot) { if (p.hot) p.hot.classList.remove('drop-hot'); if (c && !c.classList.contains('cga-leaving')) { c.classList.add('drop-hot'); p.hot = c; } else p.hot = null; g.classList.toggle('over', !!p.hot); }
 }
+// 놓은 걸 못 받은 '잡음'(10-27 사용자 '켜 두면 새로고침해야 최신'): 창 밖에서 놓거나 창이 바뀌면 pointerup 이 안 와서 _cgaPull 이 남고,
+// 그동안 기다리는 의뢰 목록·공용 배정(5초)이 안 바뀌었음 → 버튼 안 누른 채 움직이거나·창을 떠나거나·다시 누르거나·1분 넘으면 취소하고 다시 그림
+function _cgaPullStale() { if (!_cgaPull) return; _cgaPullEnd(true); setTimeout(() => { if (!_cgaPull && currentView === 'cgassign') _cgaPaint(); }, 650); }
 function _cgaPullEnd(cancel) {
   const p = _cgaPull; if (!p) return; _cgaPull = null;
   cancelAnimationFrame(p.raf);
