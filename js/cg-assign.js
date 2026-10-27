@@ -347,8 +347,9 @@ async function _cgaPlay(id, btn) {
   const paths = f.length ? f.map((x) => x.path) : (_cgaCont[id] || []).map((x) => x.url).filter(Boolean);
   if (!(window.ndApp && window.ndApp.uploadPlay)) return;
   if (!paths.length) { if ((_cgaCont[id] || []).length) toast('NDS에 올라왔는데 아직 영상을 만드는 중이에요. 잠시 뒤 다시 눌러 주세요.', 'error'); return; }
+  const pr = window.ndApp.uploadPlay(paths).catch((e) => ({ ok: false, error: e.message }));   // NewsPlayer 먼저(10-27 사용자 '더 빨리') — 물결 그림을 뜨는 동안 기다리지 않게
   if (btn) { btn.disabled = true; _cgaDropCard(btn.closest('.cga-card'), btn); }   // 이름 카드에 네임드랍 물결(10-26) — 누른 버튼 자리에서 퍼짐(10-27)
-  const r = await window.ndApp.uploadPlay(paths).catch((e) => ({ ok: false, error: e.message }));
+  const r = await pr;
   if (btn) setTimeout(() => { btn.disabled = false; }, 1500);
   if (!r || !r.ok) { toast((r && r.error) || '재생하지 못했어요.', 'error'); _cgaUploadScan(true); return; }
   toast(`NewsPlayer에서 재생해요${r.n > 1 ? ` · 비슷한 이름 ${r.n - 1}개도 재생 목록에` : ''}`, 'success');
