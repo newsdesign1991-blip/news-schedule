@@ -6,7 +6,7 @@
    - 10-20 추가: 프로젝트 인원은 늘 포함, [사람 추가]·카드 ×로 그날만 넣고 빼기(10-21부터 모든 PC 공용 — nd_data 'cgman'.adj, 5초마다 맞춤), 왼쪽 의뢰 ×로 이 PC에서만 숨기기(nd_cga_hide, NDS엔 그대로),
      보완요청은 회색, 새 의뢰(0001)가 생기면 오른쪽 위 알림 카드(ndApp.toast — 1.2.4+, 옛 앱은 화면 아래 토스트)
    - 직접 배정(CG·앵커터치·PT — NDS에 안 올라옴): 카드 오른쪽 클릭 → 배정/완료, 공용 nd_data 'cgman'(아래 _cgm*)
-   - 끌어다 놓아 NDS 배정(10-21): 왼쪽 '의뢰'를 사람 카드에 → 확인 창 → 내 NDS 로그인(WISE × N)으로 NDS 에 배정(ndApp.ndsAssign, 앱 1.2.6~)
+   - 끌어다 놓아 NDS 배정(10-21): 왼쪽 '의뢰'를 사람 카드에 → (10-27~ 확인 창 없이, 알림은 위쪽 토글) 내 NDS 로그인(WISE × N)으로 NDS 에 배정(ndApp.ndsAssign, 앱 1.2.6~)
    - 의뢰 누르면 크게 보기(본문 포함, ndApp.ndsCgDetail) + [인쇄] = NDS [인쇄 → 기본]과 같은 모양, 미리보기 창에서 프린터 골라 바로 인쇄(ndApp.printHtml) — 앱 1.2.7~ */
 const CGA_POLL = 20000;
 // 카드 누르면 뜨는 사람 팝업(_cgaPersonPop — 그 사람 오늘 한 CG): 10-20 숨김 → 10-22 사용자: 최재영으로 로그인했을 때만
@@ -93,7 +93,7 @@ const CgaNameDrop = (function () {
 in vec2 p; out vec2 vUv; void main() { vUv = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
   const FS = `#version 300 es
 precision highp float;
-uniform sampler2D uOld, uNew; uniform float uT; uniform vec2 uSize; uniform float uTexH; uniform float uTaps; uniform float uBgra; uniform float uReveal;
+uniform sampler2D uOld, uNew; uniform float uT; uniform vec2 uSize; uniform float uTexH; uniform float uTaps; uniform float uBgra; uniform float uReveal; uniform vec2 uO;
 in vec2 vUv; out vec4 outColor;
 vec4 tx(sampler2D s, vec2 uv, float lod) { vec4 c = textureLod(s, clamp(uv, 0., 1.), lod); return uBgra > .5 ? c.bgra : c; }
 vec4 blurS(sampler2D s, vec2 uv, float r) {   // 반지름 r(화면 높이 비율) 원판 평균 ≈ 밉맵 한 단계 + 둘레 몇 점
@@ -107,13 +107,14 @@ vec4 blurS(sampler2D s, vec2 uv, float r) {   // 반지름 r(화면 높이 비�
   return c;
 }
 void main() {
-  float aT = uT, dio = .46;   // aT = 원본 t − 1 ('탕' 뒤 초), dio = 닿는 곳(위 가운데) 높이
-  vec2 uv = vUv, u2 = uv - .5; float asp = uSize.x / uSize.y; u2.x *= asp;
-  float L = length(vec2(u2.x, u2.y - dio));
-  float bd = (aT * .16) / L; bd = smoothstep(.09, .05, bd) * smoothstep(.04, .07, bd) * (uv.y + .05);
-  float bd2 = ((aT - .085) * .14) / L; bd2 = smoothstep(.09, .05, bd2) * smoothstep(.04, .07, bd2) * (uv.y + .05);
-  // 굴절: 원본 (-8·bd·x, -4·bd·(y−.4))·.1 + 둘째 고리 ×(−.02) — x 는 폰 가로/세로(.462) 기준을 이 화면 비율로 환산(픽셀로 같은 크기)
-  vec2 bo = vec2(-.37 * u2.x / asp, -.4 * (u2.y - .4)) * (bd - .2 * bd2);
+  float aT = uT;   // aT = 원본 t − 1 ('탕' 뒤 초)
+  vec2 uv = vUv; float asp = uSize.x / uSize.y;
+  vec2 d = uv - uO; d.x *= asp;   // 닿는 곳(uO, 아래가 0) 에서 — 원래는 위 가운데, 10-27 사용자: 누른 버튼 자리에서 퍼지게
+  float L = length(d), fade = clamp(1.05 - L * .95, .05, 1.);   // 멀어질수록 고리가 흐려짐(원래 위→아래로 흐려지던 것과 같음)
+  float bd = (aT * .16) / L; bd = smoothstep(.09, .05, bd) * smoothstep(.04, .07, bd) * fade;
+  float bd2 = ((aT - .085) * .14) / L; bd2 = smoothstep(.09, .05, bd2) * smoothstep(.04, .07, bd2) * fade;
+  // 굴절: 원본 (-8·bd·x, -4·bd·(y−.4))·.1 + 둘째 고리 ×(−.02) — 닿는 곳 기준, x 는 폰 가로/세로(.462) 기준을 이 화면 비율로 환산(픽셀로 같은 크기)
+  vec2 bo = vec2(-.37 * d.x / asp, -.4 * d.y) * (bd - .2 * bd2);
   float front = aT * .16 / .06;   // 고리 한가운데(bd 원값 .06 자리)
   float mixNew = smoothstep(front + .04, front - .06, L);   // 고리가 지나간 안쪽 = 새 화면
   vec2 sb = uv + bo;
@@ -128,8 +129,9 @@ void main() {
   col.rgb += g;
   outColor = vec4(col.rgb, 1.);
 }`;
-  const END = 0.75;   // 원본 t 0.75 면 고리가 화면 구석까지 다 지나감
-  // canvas 에 그림. opts: { lite, reveal(고리 안쪽을 뚫어 아래 실제 화면을 보임 — 새 화면 그림 필요 없음), width, height(캔버스 픽셀, 없으면 그림 크기) } → { setNew(그림), frame(t), play(속도) → Promise, stop() } · WebGL2 가 안 되면 null
+  const END = 0.75;   // 원본 t 0.75 면 고리가 화면 구석까지 다 지나감(위 가운데에서) — 다른 곳에서 퍼지면 play 가 더 길게(endFor)
+  // canvas 에 그림. opts: { lite, reveal(고리 안쪽을 뚫어 아래 실제 화면을 보임 — 새 화면 그림 필요 없음), width, height(캔버스 픽셀, 없으면 그림 크기),
+  //   origin:{x,y}(퍼지는 곳, 0~1 · 왼쪽 위가 0 — 없으면 위 가운데) } → { setNew(그림), frame(t), play(속도) → Promise, stop() } · WebGL2 가 안 되면 null
   function create(cv, oldSrc, opts) {
     opts = opts || {};
     const sw = oldSrc.width, sh = oldSrc.height;
@@ -157,19 +159,23 @@ void main() {
     if (opts.reveal) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, t0); }   // 새 화면 그림은 안 씀 → 같은 그림을 묶어 둠(다시 올리지 않게)
     else tex(1, oldSrc);
     gl.uniform1f(gl.getUniformLocation(pr, 'uReveal'), opts.reveal ? 1 : 0);
+    const o = opts.origin || { x: .5, y: .04 }; gl.uniform2f(gl.getUniformLocation(pr, 'uO'), o.x, 1 - o.y);   // 텍스처를 뒤집어 올려서 셰이더는 아래가 0
     gl.uniform1i(gl.getUniformLocation(pr, 'uOld'), 0); gl.uniform1i(gl.getUniformLocation(pr, 'uNew'), 1);
     gl.uniform2f(gl.getUniformLocation(pr, 'uSize'), cv.width, cv.height); gl.uniform1f(gl.getUniformLocation(pr, 'uTexH'), sh);
     gl.uniform1f(gl.getUniformLocation(pr, 'uTaps'), opts.lite ? 0 : 1); gl.uniform1f(gl.getUniformLocation(pr, 'uBgra'), oldSrc.data ? 1 : 0);   // 화면 캡처는 BGRA 순서
     const uT = gl.getUniformLocation(pr, 'uT');
     gl.viewport(0, 0, cv.width, cv.height);
     const draw = t => { gl.uniform1f(uT, t); gl.drawArrays(gl.TRIANGLES, 0, 3); };
+    // 가장 먼 구석까지 거리(화면 높이 단위) → 고리 한가운데(L = t·.16/.06)가 거기를 조금 넘을 때까지
+    const asp = cv.width / cv.height, far = Math.max(...[[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => Math.hypot((x - o.x) * asp, y - o.y)));
+    const endT = Math.max(END, (far + 0.12) * 0.06 / 0.16);
     draw(0);   // 첫 장면 = 지금 화면 그대로(겹쳐도 티 안 남)
     let raf = 0, stopped = false;
     return {
       setNew(src) { if (!stopped) tex(1, src); },
       frame: draw,   // t(초) 장면 하나만 그림(시험·확인용)
       play(speed) {
-        const sp = speed || 0.75;
+        const sp = speed || 0.75, END = endT;
         return new Promise(res => {
           let last = performance.now(), t = 0;
           const step = now => {
@@ -191,11 +197,13 @@ void main() {
 async function _cgaShot(card) {
   const key = card._h + '|' + card.offsetWidth + 'x' + card.offsetHeight;
   if (card._shot && card._shotKey === key) return card._shot;
+  if (card._shotP && card._shotPKey === key) return card._shotP;   // 뜨는 중이면 그걸 기다림
+  const p = _cgaShotNow(card, key); card._shotP = p; card._shotPKey = key;
+  try { return await p; } finally { if (card._shotP === p) card._shotP = null; }
+}
+async function _cgaShotNow(card, key) {
   if (typeof html2canvas === 'undefined') await ndLoadLib('h2c');
-  // 바탕을 카드 색으로 채워 뜸 — 투명(둥근 모서리 바깥)으로 두면 물결의 흐림·굴절이 그 투명을 검정으로 섞어 가장자리가 검게 보임(10-26 사용자)
-  const tr = (c) => !c || c === 'transparent' || /rgba\([^)]*,\s*0\)$/.test(c);
-  let bg = getComputedStyle(card).backgroundColor; if (tr(bg)) bg = getComputedStyle(document.body).backgroundColor; if (tr(bg)) bg = '#ffffff';
-  const shot = await html2canvas(card, { backgroundColor: bg, scale: Math.min(2, window.devicePixelRatio || 1), logging: false });
+  const shot = await html2canvas(card, { backgroundColor: _cgaShotBg(card), scale: Math.min(2, window.devicePixelRatio || 1), logging: false, ignoreElements: _cgaShotOnly(card) });
   card._shot = shot; card._shotKey = key;
   return shot;
 }
@@ -208,7 +216,81 @@ function _cgaShotWarm() {
     }
   }, { timeout: 4000 });
 }
-async function _cgaDropCard(card) {
+// 끌어다 놓아 배정한 카드(10-27 사용자): NDS 결과를 기다리는 동안 물결 그림 둘(전 색·새 색, 새 내용·다 늘어난 크기)을 떠 두고,
+// 배정되면 ① 높이가 부드럽게 늘고 ② 살짝 눌렸다 튀고(바운드) ③ 가운데서 네임드랍 물결이 퍼지며 배정된 색으로 — 셋이 같이(사용자: 순서대로면 느림).
+// 다 바뀐 뒤 앞자리로 천천히 옮김. 그동안 카드 순서는 그대로(_cgaFreeze), 그림 뜨는 동안 이 카드 DOM 은 안 바꿈(el._fxHold → 새 모습은 el._fxPend),
+// 물결 동안 CSS 전환 끔(el._fxNofx → cga-nofx). 덮개는 body 에(카드 내용이 바뀌어도 안 지워지게) — 높이는 카드를 따라 늘고, 그림은 다 늘어난 크기 그대로
+let _cgaFreeze = false, _cgaSlowMove = false;
+function _cgaCardOf(name) { return [...document.querySelectorAll('#cga-grid .cga-card[data-name], #cga-dj .cga-card[data-name]')].find(c => c.dataset.name === name && !c.classList.contains('cga-leaving')); }
+// 카드만 뜸(10-27): 다른 화면 요소는 복제 안 함 — 한 장 0.4초 → 0.09초(크기는 같음). head(스타일)·카드 조상·카드 속은 그대로
+const _cgaShotOnly = (card) => (el) => !(el === document.head || document.head.contains(el) || el.contains(card) || card.contains(el));
+function _cgaShotBg(card) {   // 바탕을 카드 색으로 채워 뜸 — 투명(둥근 모서리 바깥)으로 두면 물결의 흐림·굴절이 그 투명을 검정으로 섞어 가장자리가 검게 보임(10-26 사용자)
+  const tr = (c) => !c || c === 'transparent' || /rgba\([^)]*,\s*0\)$/.test(c);
+  let bg = getComputedStyle(card).backgroundColor; if (tr(bg)) bg = getComputedStyle(document.body).backgroundColor; if (tr(bg)) bg = '#ffffff';
+  return bg;
+}
+async function _cgaShotAs(card, cls, html) {   // 복제본만 class(·내용)를 바꿔 뜸(캐시 안 함) — 화면 카드는 그대로
+  if (typeof html2canvas === 'undefined') await ndLoadLib('h2c');
+  card.dataset.fxShot = '1';
+  try {
+    return await html2canvas(card, { backgroundColor: _cgaShotBg(card), scale: Math.min(2, window.devicePixelRatio || 1), logging: false, ignoreElements: _cgaShotOnly(card),
+      onclone: (doc) => { const x = doc.querySelector('[data-fx-shot]'); if (!x) return; x.className = cls; if (html != null) x.innerHTML = html; } });
+  } finally { delete card.dataset.fxShot; }
+}
+function _cgaGray(src) {   // 대기 카드는 화면에서 흑백(filter) — html2canvas 가 filter 를 안 그려서 직접(CSS grayscale 과 같은 비율)
+  const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; const g = c.getContext('2d'); g.drawImage(src, 0, 0);
+  try { const im = g.getImageData(0, 0, c.width, c.height), a = im.data; for (let i = 0; i < a.length; i += 4) { const y = a[i] * .2126 + a[i + 1] * .7152 + a[i + 2] * .0722; a[i] = a[i + 1] = a[i + 2] = y; } g.putImageData(im, 0, 0); } catch (e) { /* 그대로 */ }
+  return c;
+}
+async function _cgaAssignFx(name, apply, req, revert) {   // req = NDS 배정 Promise → 그 결과를 돌려줌. 안 되면 revert 로 되돌림
+  const card = _cgaCardOf(name);
+  if (!card || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {   // 효과 없이: 결과를 보고 바로
+    const res = await req; if (res && res.ok) { apply(); _cgaSlowMove = true; _cgaPaint(); _cgaSlowMove = false; } return res;
+  }
+  const oldCls = card.className.replace(/\s*\b(cga-nofx|drop-hot)\b/g, '');
+  card._fxHold = true; _cgaFreeze = true;
+  apply(); _cgaPaint();   // 숫자·의뢰 목록은 바로, 이 카드는 그대로(새 모습은 card._fxPend 에)
+  const pend = card._fxPend;
+  const shots = (async () => {
+    if (!pend) return null;
+    const o = await _cgaShotAs(card, oldCls + ' cga-nofx', pend.html), n = await _cgaShotAs(card, pend.cls + ' cga-nofx', pend.html);
+    return { from: /\boff\b/.test(oldCls) ? _cgaGray(o) : o, to: n };
+  })().catch(() => null);
+  const res = await req;
+  if (!res || !res.ok) {   // 배정 안 됨 → 되돌림
+    await shots; card._fxHold = false; card._fxPend = null; revert(); _cgaFreeze = false; _cgaPaint(); return res;
+  }
+  const sh = await shots;
+  let ov = null, d = null, raf = 0;
+  card._fxHold = false; card._fxPend = null; card._fxNofx = true;
+  try {
+    const b = card.getBoundingClientRect(), w = card.offsetWidth, h0 = card.offsetHeight;
+    const left = b.left + (b.width - w) / 2 + scrollX, top = b.top + (b.height - h0) / 2 + scrollY;   // 놓을 때 살짝 커진 움직임(transform)은 빼고 제자리
+    if (sh && w) {
+      ov = document.createElement('div'); ov.className = 'cga-fx';
+      Object.assign(ov.style, { left: left + 'px', top: top + 'px', width: w + 'px', height: h0 + 'px' });
+      const cv = document.createElement('canvas'); cv.style.height = (sh.to.height * w / sh.to.width) + 'px'; ov.appendChild(cv);   // 그림은 다 늘어난 크기 그대로
+      d = CgaNameDrop.create(cv, sh.from, { origin: { x: .5, y: .5 } });
+      if (d) { d.setNew(sh.to); document.body.appendChild(ov); } else ov = null;
+    }
+    _cgaPaint();   // 덮개 아래 카드를 새 모습으로 — 높이는 _cgaKeyed 가 부드럽게 늘림
+    const kf = [{ transform: 'scale(1)' }, { transform: 'scale(.955)', offset: .3 }, { transform: 'scale(1.016)', offset: .68 }, { transform: 'scale(1)' }], tm = { duration: 640, easing: 'cubic-bezier(.3,.7,.3,1)' };
+    const c = _cgaCardOf(name) || card;
+    c.animate(kf, tm);
+    if (ov) { ov.animate(kf, tm); const follow = () => { ov.style.height = c.offsetHeight + 'px'; raf = requestAnimationFrame(follow); }; follow(); }   // 덮개 높이 = 늘어나는 카드 높이
+    if (d) await d.play(0.75); else await new Promise(r => setTimeout(r, 700));
+  } catch (e) { /* 효과 없이 */ }
+  finally {
+    cancelAnimationFrame(raf);
+    [card, _cgaCardOf(name)].forEach(x => { if (x) { x._fxHold = false; x._fxNofx = false; } });
+    _cgaPaint();   // cga-nofx 빠짐(값이 이미 같아 전환 없음)
+    if (ov) { await ov.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, fill: 'forwards' }).finished.catch(() => {}); ov.remove(); }
+    if (d) d.stop();
+    _cgaFreeze = false; _cgaSlowMove = true; _cgaPaint(); _cgaSlowMove = false;   // 이제 제자리(앞쪽)로 천천히
+  }
+  return res;
+}
+async function _cgaDropCard(card, from) {   // from = 누른 요소(그 가운데서 퍼짐, 10-27 사용자) — 없으면 위 가운데
   if (!card || card._drop || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
   card._drop = true;
   try {
@@ -216,7 +298,12 @@ async function _cgaDropCard(card) {
     if (!card.isConnected) return;
     const ov = document.createElement('div'); ov.className = 'cga-drop';
     const cv = document.createElement('canvas'); ov.appendChild(cv); card.appendChild(ov);
-    const d = CgaNameDrop.create(cv, shot);
+    let origin = null;
+    if (from && from.getBoundingClientRect) {
+      const cr = card.getBoundingClientRect(), br = from.getBoundingClientRect();
+      if (cr.width && cr.height) origin = { x: Math.min(1, Math.max(0, (br.left + br.width / 2 - cr.left) / cr.width)), y: Math.min(1, Math.max(0, (br.top + br.height / 2 - cr.top) / cr.height)) };
+    }
+    const d = CgaNameDrop.create(cv, shot, { origin });
     if (!d) { ov.remove(); return; }
     ov.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 90, fill: 'forwards' });
     await d.play(0.75);
@@ -253,14 +340,14 @@ const _cgaUpN = (id) => (_cgaUp[id] || (window._cgaFakeUp && window._cgaFakeUp[i
 async function _cgaPlay(id, btn) {
   const f = _cgaUp[id] || (window._cgaFakeUp && window._cgaFakeUp[id]) || [];
   if (f.length && f[0].demo) {   // 시험 의뢰: 물결만
-    if (btn) { btn.disabled = true; _cgaDropCard(btn.closest('.cga-card')); setTimeout(() => { btn.disabled = false; }, 1500); }
+    if (btn) { btn.disabled = true; _cgaDropCard(btn.closest('.cga-card'), btn); setTimeout(() => { btn.disabled = false; }, 1500); }
     toast('시험이라 영상은 열지 않아요. 실제 의뢰는 NewsPlayer에서 바로 재생돼요.', 'success'); return;
   }
   // 틀 것: 업로드 폴더 파일(콘텐츠 제목과 같은 이름 포함) → 없으면 NDS 저화질 영상(콘텐츠 url)
   const paths = f.length ? f.map((x) => x.path) : (_cgaCont[id] || []).map((x) => x.url).filter(Boolean);
   if (!(window.ndApp && window.ndApp.uploadPlay)) return;
   if (!paths.length) { if ((_cgaCont[id] || []).length) toast('NDS에 올라왔는데 아직 영상을 만드는 중이에요. 잠시 뒤 다시 눌러 주세요.', 'error'); return; }
-  if (btn) { btn.disabled = true; _cgaDropCard(btn.closest('.cga-card')); }   // 이름 카드에 네임드랍 물결(10-26)
+  if (btn) { btn.disabled = true; _cgaDropCard(btn.closest('.cga-card'), btn); }   // 이름 카드에 네임드랍 물결(10-26) — 누른 버튼 자리에서 퍼짐(10-27)
   const r = await window.ndApp.uploadPlay(paths).catch((e) => ({ ok: false, error: e.message }));
   if (btn) setTimeout(() => { btn.disabled = false; }, 1500);
   if (!r || !r.ok) { toast((r && r.error) || '재생하지 못했어요.', 'error'); _cgaUploadScan(true); return; }
@@ -456,9 +543,12 @@ function renderCgAssign() {
     root.dataset.built = '1';
     root.innerHTML = `<div class="cga-head">
         <div><h2 class="cga-title">CG배정 현황</h2><div class="cga-sub" id="cga-sub"></div></div>
+        <div class="cga-head-r">   <!-- 오른쪽 칸(사람 카드 위): 작업 중·대기는 카드 왼쪽 끝, 토글·버튼은 오른쪽 끝(10-27) -->
         <div class="cga-stat" id="cga-stat"></div>
+        <label class="cga-pushsw" title="끌어다 놓아 배정할 때 NDS 알림(메시지)을 작업자에게 보내요"><span>배정 알림</span><input type="checkbox" role="switch" id="cga-push" onchange="_cgaPushSet(this.checked)"><i class="cga-sw" aria-hidden="true"></i></label>
         <button type="button" class="cga-addp" onclick="_cgaPick(this)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>사람 추가</button>
         <button type="button" class="cga-refresh" onclick="_cgaFetch(true)" title="지금 새로고침" aria-label="지금 새로고침"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+        </div>
       </div>
       <div class="cga-msg" id="cga-msg" role="status"></div>
       <div class="cga-body"><aside class="cga-side" id="cga-side"><section class="cga-box"><h3>배정 기다리는 의뢰 <span id="cga-reqn">…</span></h3><div class="cga-reqs" id="cga-reqs"></div><p class="cga-none" id="cga-none" hidden>지금 기다리는 의뢰가 없어요.</p><button type="button" class="cga-unhide" id="cga-unhide" onclick="_cgaHiddenPop()" hidden></button></section></aside><div class="cga-main" id="cga-main"><div class="cga-grid" id="cga-grid"></div><div class="cga-delbar" id="cga-delbar" hidden><button type="button" class="cga-delp" id="cga-delp" onclick="_cgaDelPop()"></button></div><div class="cga-grid cga-dj" id="cga-dj"></div></div></div>
@@ -668,13 +758,17 @@ function _cgaKeyed(host, items, enter) {
   items.forEach(it => {
     let el = old.get(it.key);
     if (!el) { el = document.createElement('div'); el.dataset.k = it.key; fresh.push(el); }
-    if (el.className !== it.cls) {
-      // 의뢰 칸 상태가 바뀌면(의뢰→보완요청 등, 10-22) 바뀌기 전 모습을 잡아 두고 아래에서 스르륵 — 자리를 옮기면(insertBefore) CSS transition 이 안 걸려서 직접
-      if (!reduce && old.has(it.key) && it.key.startsWith('r:')) { const cs = getComputedStyle(el); el._from = { opacity: cs.opacity, filter: cs.filter, backgroundColor: cs.backgroundColor }; }
-      el.className = it.cls;
+    if (el._fxHold) el._fxPend = { cls: it.cls, html: it.html };   // 배정 물결 그림을 뜨는 중(_cgaAssignFx) — 이 카드는 그대로, 새 모습만 받아 둠
+    else {
+      const cls = it.cls + (el._fxNofx ? ' cga-nofx' : '');   // 물결 동안엔 CSS 전환 끔
+      if (el.className !== cls) {
+        // 의뢰 칸 상태가 바뀌면(의뢰→보완요청 등, 10-22) 바뀌기 전 모습을 잡아 두고 아래에서 스르륵 — 자리를 옮기면(insertBefore) CSS transition 이 안 걸려서 직접
+        if (!reduce && old.has(it.key) && it.key.startsWith('r:')) { const cs = getComputedStyle(el); el._from = { opacity: cs.opacity, filter: cs.filter, backgroundColor: cs.backgroundColor }; }
+        el.className = cls;
+      }
+      Object.entries(it.attrs || {}).forEach(([a, v]) => { if (el.getAttribute(a) !== v) el.setAttribute(a, v); });
+      if (el._h !== it.html) { if (el._h !== undefined) changed.add(el); el.innerHTML = it.html; el._h = it.html; }
     }
-    Object.entries(it.attrs || {}).forEach(([a, v]) => { if (el.getAttribute(a) !== v) el.setAttribute(a, v); });
-    if (el._h !== it.html) { if (el._h !== undefined) changed.add(el); el.innerHTML = it.html; el._h = it.html; }
     const ref = prev ? prev.nextSibling : host.firstChild;
     if (el !== ref) host.insertBefore(el, ref);
     prev = el; keep.add(it.key);
@@ -694,7 +788,7 @@ function _cgaKeyed(host, items, enter) {
     const f = first.get(it.key);
     if (!f) return;
     const r = el.getBoundingClientRect(), dx = f.left - r.left, dy = f.top - r.top;
-    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }], { duration: 560, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }], _cgaSlowMove ? { duration: 1050, easing: 'cubic-bezier(.45,.05,.2,1)' } : { duration: 560, easing: 'cubic-bezier(.2,.8,.2,1)' });   // 배정 물결 뒤 앞자리로는 천천히(10-27)
     if (el._from) {   // 도착 모습은 CSS transition 을 잠깐 끄고 읽음(켜 둔 채 읽으면 아직 바뀌기 전 값이라 끝에 팍 바뀜)
       el.style.transition = 'none'; const cs = getComputedStyle(el), to = { opacity: cs.opacity, filter: cs.filter, backgroundColor: cs.backgroundColor }; el.style.transition = '';
       el.animate([el._from, to], { duration: 750, easing: 'ease' }); el._from = null;
@@ -744,6 +838,7 @@ function _cgaPaint() {
   const can = _cgaCanEdit(), pop = _cgaPopOn();
   const sub = `CG제작 가능 인원 ${work.length + idle.length}명` + (can ? '' : ' · 배정·사람 넣고 빼기는 오늘 데스크만') + (_cgaDemoOn() ? ' · 시험 중(가짜 의뢰 — NDS엔 안 가요)' : '');   // 10-20 사용자: 날짜·기준 시각 등은 빼고 이것만
   const addBtn = document.querySelector('#cga-root .cga-addp'); if (addBtn) addBtn.style.display = can ? '' : 'none';
+  const pushSw = document.querySelector('#cga-root .cga-pushsw'); if (pushSw) { pushSw.style.display = can ? '' : 'none'; const i = pushSw.querySelector('input'); if (i.checked !== _cgaPushOn()) i.checked = _cgaPushOn(); }   // 배정 알림 토글(10-27) — 배정할 수 있는 사람만
   const subEl = document.getElementById('cga-sub'); if (subEl.textContent !== sub) subEl.textContent = sub;
   const stat = loaded ? `<span class="cga-pill on"><i></i>작업 중 ${work.length}</span><span class="cga-pill">대기 ${idle.length}</span>` : '';
   const statEl = document.getElementById('cga-stat'); if (statEl._h !== stat) { statEl.innerHTML = stat; statEl._h = stat; }
@@ -776,6 +871,7 @@ function _cgaPaint() {
       <div class="cga-cbody">${body}</div>` };
   };
   const cards = [...work, ...idle].map(card);
+  if (_cgaFreeze) { const ord = new Map([...grid.children].map((e, i) => [e.dataset.k, i])), at = c => (ord.has(c.key) ? ord.get(c.key) : 1e9); cards.sort((a, b) => at(a) - at(b)); }   // 배정 물결 동안엔 자리 그대로(_cgaAssignFx)
   if (!cards.length) cards.push({ key: 'empty', cls: 'cga-empty', html: '오늘 근무표에 CG 근무자가 없어요.' });
   const djCards = dj.length ? [{ key: 'sep:danjik', cls: 'cga-sep', attrs: { role: 'separator' }, html: '<span>당직</span>' }, ...dj.map(card)] : [];   // 선 하나 + 당직자 카드(배정도 똑같이) — 오른쪽 맨 아래(#cga-dj)
   const firstPaint = _cgaFirstPaint && loaded; if (loaded) _cgaFirstPaint = false;
@@ -952,6 +1048,9 @@ function _cgaCtx(e) {
   e.preventDefault();
   if (!_cgaCanEdit()) return _cgaNoEdit();
   document.getElementById('cga-ctx')?.remove();
+  // 카드 속 NDS 의뢰 칸(·옆 [업로드됨])에서 누르면 그 의뢰 메뉴(10-27 사용자): 배정 취소, 결과물이 올라왔으면 제작 완료도. 그 밖(이름·빈 곳)은 원래 직접 배정 메뉴
+  const jb = e.target.closest('.cga-job[data-rid], .cga-play[data-play]'), rid = jb ? Number(jb.dataset.rid || jb.dataset.play) || 0 : 0;
+  if (rid) return _cgaJobCtx(e, rid, c.dataset.name);
   const name = c.dataset.name, sid = c.dataset.sid || '', act = _cgmActive(name);
   const el = document.createElement('div'); el.id = 'cga-ctx'; el.className = 'cga-ctx'; el.setAttribute('role', 'menu'); el.setAttribute('aria-label', name + ' 직접 배정');
   el.innerHTML = `<div class="cga-ctx-h">${_cgaEsc(name)}</div>`
@@ -964,6 +1063,10 @@ function _cgaCtx(e) {
     else if (b.dataset.act === 'done') _cgmDone(b.dataset.id);
     else if (b.dataset.act === 'del') { el.remove(); _cgaDel(sid); }
   });
+  _cgaCtxShow(el, e);
+}
+// 오른쪽 클릭 메뉴 띄우기(누른 자리, 화면 안으로) — 바깥 누르기·Esc·스크롤이면 닫힘
+function _cgaCtxShow(el, e) {
   document.body.appendChild(el);
   const x = Math.min(e.clientX, innerWidth - el.offsetWidth - 8), y = Math.min(e.clientY, innerHeight - el.offsetHeight - 8);
   el.style.left = Math.max(8, x) + 'px'; el.style.top = Math.max(8, y) + 'px';
@@ -1085,7 +1188,8 @@ function _cgaPullEnd(cancel) {
     const an = g.animate([{ transform: g.style.transform, opacity: 1 }, { transform: `translate(${cx}px,${cy}px) scale(.35)`, opacity: 0 }], { duration: 300, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
     an.onfinish = () => g.remove();
     try { card.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.035)' }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(.34,1.56,.64,1)' }); } catch (x) {}
-    _cgaAssignAsk(p.id, card.dataset.name, it);   // 확인 창이 떠 있는 동안 칸은 접힌 채, 취소하면 다시 벌어짐
+    _cgaDropAssign(p.id, card.dataset.name, it);   // 확인 창 없이 바로(10-27) — 배정되는 동안 칸은 접힌 채, 안 되면 다시 벌어짐
+    if (typeof html2canvas === 'undefined') ndLoadLib('h2c').catch(() => {});   // 배정 물결(_cgaAssignFx)에 쓸 그림 도구를 미리
     return;
   }
   // 아무 데도 아님 → 물방울이 제자리로 돌아가 합쳐짐
@@ -1112,64 +1216,101 @@ function _cgaSlotOpen(it) {
   it._slot = an; it._slotFull = null;
   an.onfinish = () => { if (it._slot === an) it._slot = null; it.style.overflow = ''; it.style.boxSizing = ''; };
 }
-async function _cgaAssignAsk(id, name, slot) {
+// 카드 속 의뢰 오른쪽 클릭 메뉴(10-27 사용자): [배정 취소] — 결과물(업로드 폴더·NDS 콘텐츠)이 올라왔으면 [제작 완료]만
+const CGA_UNDO_IC = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>';
+function _cgaJobCtx(e, rid, name) {
+  const ds = _cgaToday(), r = ((_cgaData && _cgaData.day === ds && _cgaData.rows) || []).find(x => x.id === rid); if (!r) return;
+  const el = document.createElement('div'); el.id = 'cga-ctx'; el.className = 'cga-ctx'; el.setAttribute('role', 'menu'); el.setAttribute('aria-label', name + ' 의뢰');
+  el.innerHTML = `<div class="cga-ctx-h">${_cgaEsc(r.requester || '요청자 없음')}${r.title ? ' · ' + _cgaEsc(r.title.length > 18 ? r.title.slice(0, 18) + '…' : r.title) : ''}</div>`
+    + (_cgaUpN(rid) ? `<button type="button" role="menuitem" data-act="complete"><i class="cga-ctx-ic up">✓</i>제작 완료</button>`   // 이미 작업이 올라온 건 배정 취소 없음(10-27 사용자)
+      : `<button type="button" role="menuitem" data-act="unassign"><i class="cga-ctx-ic un">${CGA_UNDO_IC}</i>배정 취소 <small>${_cgaEsc(name)} · ${_cgaHM(r.assignAt)}~</small></button>`);
+  el.addEventListener('click', ev => { const b = ev.target.closest('button[data-act]'); if (!b) return; el.remove(); _cgaStatusAsk(rid, b.dataset.act, name); });
+  _cgaCtxShow(el, e);
+}
+// 배정 취소·제작 완료 확인 창 → 내 NDS 로그인으로(ndApp.ndsCgStatus, 앱 1.3.7~). 배정 취소는 NDS 에서 '의뢰'로 돌아가 왼쪽 목록에 다시 보임.
+// 제작 완료는 NDS 처럼 알림 보낼지 고름(배정 때 고른 '메시지 보내기'와 같은 기억 nd_cga_push). 시험 의뢰(id<0)는 화면에서만
+async function _cgaStatusAsk(id, act, name) {
   const ds = _cgaToday(), rows = (_cgaData && _cgaData.day === ds && _cgaData.rows) || [];
-  const reopen = () => { if (slot) _cgaSlotOpen(slot); };   // 배정 안 하고 닫으면 접어 둔 목록 칸을 다시 펼침
-  if (!_cgaCanEdit()) { reopen(); return _cgaNoEdit(); }
-  const r = rows.find(x => x.id === id); if (!r) { reopen(); toast('그 의뢰를 찾지 못했어요. 새로고침 뒤 다시 해 주세요.', 'error'); return; }
+  if (!_cgaCanEdit()) return _cgaNoEdit();
+  const r = rows.find(x => x.id === id); if (!r || r.status !== '0002') { toast('그 의뢰를 찾지 못했어요. 새로고침 뒤 다시 해 주세요.', 'error'); return; }
   document.getElementById('cga-ask')?.remove();
-  const can = !!(window.ndApp && window.ndApp.ndsAssign);
-  // NDS 가 배정 때 묻는 '알림(메시지)을 전송하시겠습니까?'를 여기 토글로 — 지난번 고른 대로 기억(이 PC, 처음엔 켜짐)
+  const done = act === 'complete', label = done ? '제작 완료' : '배정 취소';
+  const can = id < 0 || !!(window.ndApp && window.ndApp.ndsCgStatus);
   let pushOn = true; try { const v = localStorage.getItem('nd_cga_push'); if (v !== null) pushOn = v === '1'; } catch (e) { /* 기본 켜짐 */ }
   const el = document.createElement('div'); el.id = 'cga-ask'; el.className = 'wt-pop';
   el.innerHTML = `<div class="wt-card cga-ask-card" role="dialog" aria-modal="true" aria-labelledby="cga-ask-t">
-    <div class="wt-head cga-ask-head" id="cga-ask-t">CG 배정</div>
+    <div class="wt-head ${done ? 'cga-ok-head' : 'cga-del-head'}" id="cga-ask-t">${label}</div>
     <div class="wt-body">
-      <p class="cga-ask-q"><b>${_cgaEsc(name)}</b>님에게 배정할까요?</p>
-      <div class="cga-ask-req"><div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>${r.title ? `<div class="cga-ttl">${_cgaEsc(r.title)}</div>` : ''}<div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span></div></div>
-      <label class="cga-ask-push"><span><b>메시지 보내기</b><small>NDS 알림으로 ${_cgaEsc(name)}님에게 배정됐다고 알려요</small></span><input type="checkbox" role="switch" id="cga-ask-push" ${pushOn ? 'checked' : ''}><i class="cga-sw" aria-hidden="true"></i></label>
-      <p class="cga-ask-who" id="cga-ask-who">${can ? '내 NDS 로그인 확인 중…' : '근무표 앱을 업데이트(1.2.6)하면 여기서 바로 배정할 수 있어요.'}</p>
+      <p class="cga-ask-q">${done ? `<b>${_cgaEsc(name)}</b>님 작업을 제작완료로 바꿀까요?` : `<b>${_cgaEsc(name)}</b>님 배정을 취소할까요?`}</p>
+      ${done ? '' : '<p class="cga-ask-note">의뢰는 NDS에서 [의뢰]로 돌아가고, 왼쪽 기다리는 의뢰에 다시 보여요.</p>'}
+      <div class="cga-ask-req"><div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>${r.title ? `<div class="cga-ttl">${_cgaEsc(r.title)}</div>` : ''}<div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span></div></div>
+      ${done ? `<label class="cga-ask-push"><span><b>알림 보내기</b><small>NDS 알림으로 제작완료됐다고 알려요</small></span><input type="checkbox" role="switch" id="cga-ask-push" ${pushOn ? 'checked' : ''}><i class="cga-sw" aria-hidden="true"></i></label>` : ''}
+      <p class="cga-ask-who" id="cga-ask-who">${can ? (id < 0 ? '시험 의뢰라 화면에서만 바뀌어요(NDS엔 안 가요).' : '내 NDS 로그인 확인 중…') : '근무표 앱을 업데이트(1.3.7)하면 여기서 바로 할 수 있어요.'}</p>
       <p class="wt-status" id="cga-ask-st" role="status"></p>
     </div>
-    <div class="wt-foot"><button type="button" class="wt-cancel">취소</button><button type="button" class="wt-go" ${can ? '' : 'disabled'}>배정</button></div>
+    <div class="wt-foot"><button type="button" class="wt-cancel">닫기</button><button type="button" class="wt-go ${done ? 'cga-ok-go' : 'cga-del-go'}" ${can ? '' : 'disabled'}>${label}</button></div>
   </div>`;
   document.body.appendChild(el);
-  const close = ok => { el.remove(); document.removeEventListener('keydown', onKey, true); if (ok !== true) reopen(); };
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); };
   const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
-  el.querySelector('.wt-cancel').onclick = () => close();
+  el.querySelector('.wt-cancel').onclick = close;
   el.addEventListener('click', e => { if (e.target === el) close(); });
-  const go = el.querySelector('.wt-go'), st = el.querySelector('#cga-ask-st'), who = el.querySelector('#cga-ask-who');
-  el.querySelector('#cga-ask-push').addEventListener('change', e => { try { localStorage.setItem('nd_cga_push', e.target.checked ? '1' : '0'); } catch (x) {} });
+  const go = el.querySelector('.wt-go'), st = el.querySelector('#cga-ask-st'), who = el.querySelector('#cga-ask-who'), pu = el.querySelector('#cga-ask-push');
+  if (pu) pu.addEventListener('change', e => { try { localStorage.setItem('nd_cga_push', e.target.checked ? '1' : '0'); } catch (x) {} });
   go.focus();
-  if (can && window.ndApp.ndsUserInfo) window.ndApp.ndsUserInfo(false).then(n => {
+  if (can && id > 0 && window.ndApp.ndsUserInfo) window.ndApp.ndsUserInfo(false).then(n => {
     if (!who.isConnected) return;
-    if (n && n.loggedIn) who.textContent = `내 NDS 로그인(${n.name || n.id})으로 배정돼요.`;
+    if (n && n.loggedIn) who.textContent = `내 NDS 로그인(${n.name || n.id})으로 바꿔요.`;
     else { who.textContent = 'NDS에 로그인돼 있지 않아요. 위쪽 [WISE × NDS]에서 NDS를 연결해 주세요.'; who.classList.add('warn'); }
   }).catch(() => {});
+  const after = done ? { status: '0004' } : { status: '0001', designer: '', designerId: 0, assignAt: '' };
   go.onclick = async () => {
-    go.disabled = true; go.textContent = '배정하는 중…'; st.textContent = '';
-    let hint = Number((rows.find(x => x.designer === name && Number(x.designerId) > 0) || {}).designerId) || Number(_cgaDsgGet()[name]) || 0;   // 오늘 목록 → 이 PC가 기억한 번호(10-26)
-    const ask = (h) => window.ndApp.ndsAssign({ id, name, hintId: h, push: el.querySelector('#cga-ask-push').checked }).catch(e => ({ ok: false, error: e.message }));
-    let res = id < 0 ? (() => { const f = (window._cgaFakeRows || []).find(x => x.id === id); if (f) Object.assign(f, { status: '0002', designer: name, assignAt: _cgmNow() }); return { ok: true, designerId: 0 }; })()   // 가짜 의뢰는 화면에서만
-      : await ask(hint);
-    if (id > 0 && res && !res.ok && !hint && /명이에요/.test(res.error || '')) {   // 같은 이름 계정이 여럿 → 지난 의뢰에서 이 사람이 받은 번호를 찾아 한 번 더(10-26)
-      st.textContent = '같은 이름 계정이 여럿이라 지난 의뢰에서 찾는 중…';
-      hint = await _cgaDsgLookBack(name);
-      if (hint && el.isConnected) res = await ask(hint);
-    }
+    go.disabled = true; go.textContent = done ? '바꾸는 중…' : '취소하는 중…'; st.textContent = '';
+    const res = id < 0 ? (() => { const f = (window._cgaFakeRows || []).find(x => x.id === id); if (f) Object.assign(f, after); return { ok: true }; })()   // 가짜 의뢰는 화면에서만
+      : await window.ndApp.ndsCgStatus({ id, action: act, push: !!(pu && pu.checked) }).catch(e => ({ ok: false, error: e.message }));
     if (res && res.ok) {
-      close(true);
-      // 화면 먼저(낙관적) → NDS 다시 읽어 맞춤
-      if (_cgaData && _cgaData.rows) { const x = _cgaData.rows.find(y => y.id === id); if (x) Object.assign(x, { status: '0002', designer: name, designerId: res.designerId || hint, assignAt: _cgmNow() }); }
-      _cgaPaint(); toast(`${name}님에게 배정했어요.`, 'success');
-      setTimeout(() => _cgaFetch(false), 1200);
+      close();
+      if (_cgaData && _cgaData.rows) { const x = _cgaData.rows.find(y => y.id === id); if (x) Object.assign(x, after); }   // 화면 먼저 → NDS 다시 읽어 맞춤
+      _cgaPaint(); toast(done ? `${name}님 작업을 제작완료로 바꿨어요.` : `${name}님 배정을 취소했어요. 의뢰로 돌아갔어요.`, 'success');
+      if (id > 0) setTimeout(() => _cgaFetch(false), 1200);
     } else {
-      go.disabled = false; go.textContent = '다시 배정';
-      st.textContent = (res && res.error) || '배정하지 못했어요.';
-      if (res && res.reason === 'state') setTimeout(() => _cgaFetch(false), 300);
+      go.disabled = false; go.textContent = '다시 ' + label;
+      st.textContent = (res && res.error) || '바꾸지 못했어요.';
+      if (res && (res.reason === 'state' || res.reason === 'half')) setTimeout(() => _cgaFetch(false), 300);
     }
   };
+}
+// 끌어다 놓아 배정(10-27 사용자: 확인 창 없이 바로) — 알림(메시지)은 위쪽 [배정 알림] 토글대로(nd_cga_push, 처음엔 보냄).
+// 내 NDS 로그인으로(ndApp.ndsAssign, 앱 1.2.6~). 화면은 결과를 기다리며 물결을 준비(_cgaAssignFx) — 안 되면 되돌리고 의뢰 칸을 다시 펼침
+function _cgaPushOn() { try { const v = localStorage.getItem('nd_cga_push'); return v === null ? true : v === '1'; } catch (e) { return true; } }
+function _cgaPushSet(on) { try { localStorage.setItem('nd_cga_push', on ? '1' : '0'); } catch (e) { /* 이번만 */ } const i = document.getElementById('cga-push'); if (i) i.checked = _cgaPushOn(); }
+async function _cgaDropAssign(id, name, slot) {
+  const ds = _cgaToday(), rows = (_cgaData && _cgaData.day === ds && _cgaData.rows) || [];
+  const reopen = () => { if (slot) _cgaSlotOpen(slot); };   // 배정 안 되면 접어 둔 목록 칸을 다시 펼침
+  if (!_cgaCanEdit()) { reopen(); return _cgaNoEdit(); }
+  const r = rows.find(x => x.id === id); if (!r || r.status !== '0001') { reopen(); toast('그 의뢰를 찾지 못했어요. 새로고침 뒤 다시 해 주세요.', 'error'); return; }
+  if (id > 0 && !(window.ndApp && window.ndApp.ndsAssign)) { reopen(); toast('근무표 앱을 업데이트하면 끌어다 놓아 배정할 수 있어요.', 'error'); return; }
+  let hint = Number((rows.find(x => x.designer === name && Number(x.designerId) > 0) || {}).designerId) || Number(_cgaDsgGet()[name]) || 0;   // 오늘 목록 → 이 PC가 기억한 번호(10-26)
+  const push = _cgaPushOn(), at = _cgmNow(), prev = { status: r.status, designer: r.designer, designerId: r.designerId, assignAt: r.assignAt };
+  const ask = (h) => window.ndApp.ndsAssign({ id, name, hintId: h, push }).catch(e => ({ ok: false, error: e.message }));
+  const req = id < 0 ? Promise.resolve({ ok: true }) : (async () => {   // 시험 의뢰(id<0)는 화면에서만
+    let res = await ask(hint);
+    if (res && !res.ok && !hint && /명이에요/.test(res.error || '')) { hint = await _cgaDsgLookBack(name); if (hint) res = await ask(hint); }   // 같은 이름 계정이 여럿 → 지난 의뢰에서 찾아 한 번 더(10-26)
+    return res || { ok: false };
+  })();
+  const pick = () => ((_cgaData && _cgaData.rows) || []).find(y => y.id === id);
+  const res = await _cgaAssignFx(name, () => { const x = pick(); if (x) Object.assign(x, { status: '0002', designer: name, designerId: hint, assignAt: at }); }, req, () => { const x = pick(); if (x) Object.assign(x, prev); });
+  if (res && res.ok) {
+    const x = pick(); if (x && res.designerId) x.designerId = res.designerId;
+    toast(`${name}님에게 배정했어요.${push ? '' : ' (알림은 안 보냄)'}`, 'success');
+    if (id > 0) setTimeout(() => _cgaFetch(false), 1200);   // NDS 다시 읽어 맞춤
+  } else {
+    reopen();
+    const e = (res && res.error) || '배정하지 못했어요.';
+    toast(res && res.reason === 'login' ? e + ' 위쪽 [WISE × NDS]에서 NDS를 연결해 주세요.' : e, 'error');
+    if (res && res.reason === 'state') setTimeout(() => _cgaFetch(false), 300);
+  }
 }
 
 // 디자이너 NDS 번호 기억(10-26 사용자 — NDS 에 같은 이름 계정이 둘(인사에서 자동으로 들어온 '용역' 계정)이라 배정이 '…2명이에요'로 멈추던 것: 이가진·방민주 등).

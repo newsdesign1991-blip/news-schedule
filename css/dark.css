@@ -506,10 +506,12 @@ html.nd-app #nd-titlebar .ndt-tool.upd::after { content:''; position:absolute; t
 /* CG배정 현황(js/cg-assign.js) — 작업 중 = 파란 빛·깜빡이는 점, 대기 = 회색(색 빠짐) */
 #view-cgassign.active { display:block; }
 #cga-root { padding:8px 4px 40px; }
-.cga-head { display:flex; align-items:flex-end; gap:14px; margin:6px 0 18px; }
+.cga-head { display:grid; grid-template-columns:340px minmax(0,1fr); gap:20px; align-items:end; margin:6px 0 18px; }   /* 아래 본문(.cga-body)과 같은 칸 — 작업 중·대기가 사람 카드 왼쪽 끝에 맞음(10-27) */
+.cga-head-r { display:flex; align-items:center; gap:14px; min-width:0; }
+@media (max-width:1100px) { .cga-head { grid-template-columns:1fr; gap:12px; } }
 .cga-title { margin:0; font-size:26px; font-weight:800; letter-spacing:-.02em; color:var(--text); }
 .cga-sub { margin-top:5px; font-size:13px; color:var(--muted); font-weight:600; }
-.cga-stat { margin-left:auto; display:flex; gap:6px; }
+.cga-stat { margin-right:auto; display:flex; gap:6px; }
 .cga-pill { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 13px; border-radius:999px; background:var(--surface2); border:1px solid var(--border); font-size:13px; font-weight:800; color:var(--muted); }
 .cga-pill.on { background:rgba(49,130,246,.1); border-color:rgba(49,130,246,.3); color:#2f77f6; }
 .cga-pill.on i { width:8px; height:8px; border-radius:50%; background:#3182f6; animation:cgaPing 1.4s ease-out infinite; }
@@ -580,6 +582,10 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 /* 네임드랍 물결 덮개(10-26) — 카드 그림 위에 WebGL 캔버스, 테두리까지 덮고 같은 둥글기 */
 .cga-card > .cga-drop { position:absolute; inset:-1.5px; z-index:8; border-radius:21.5px; overflow:hidden; pointer-events:none; }   /* 테두리(1.5px) 바깥까지 → 둥글기 20+1.5 */
 .cga-drop canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+/* 끌어다 놓아 배정한 카드 물결 덮개(10-27, _cgaAssignFx) — body 에 카드 자리 그대로, 그동안 그 카드는 전환·깜빡임 끔 */
+.cga-fx { position:absolute; z-index:60; border-radius:20px; overflow:hidden; pointer-events:none; }
+.cga-fx canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.cga-card.cga-nofx, .cga-card.cga-nofx::before, .cga-card.cga-nofx * { transition:none !important; animation:none !important; }
 .cga-who { display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; }
 .cga-who b { font-size:15px; font-weight:800; color:var(--text); }
 .cga-who small { font-size:12px; color:var(--muted); font-weight:600; }
@@ -722,6 +728,8 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cga-ctx-ic.k-k3d { background:rgba(124,58,237,.13); color:#7c3aed; }
 .cga-ctx-ic.k-xr { background:rgba(124,58,237,.13); color:#7c3aed; }   /* 3D 와 같은 보라(10-26) */
 .cga-ctx-ic.ok { background:rgba(49,130,246,.12); color:#2f77f6; }
+.cga-ctx-ic.up { background:rgba(22,163,74,.13); color:#16a34a; font-size:14px; }   /* 의뢰 메뉴(10-27): 제작 완료 = 업로드 초록 */
+.cga-ctx-ic.un { background:rgba(220,38,38,.1); color:#d14343; }   /* 배정 취소 = 빼기와 같은 빨강 */
 .cga-ctx-div { height:1px; margin:4px 6px; background:var(--border); }
 /* CG배정 현황 끌어다 놓아 배정(10-21, js/cg-assign.js _cgaWireDnd) */
 /* 8뉴스 1~10번째 의뢰(10-21) — 맨 위, 카드 말고 줄 전체 바탕을 강조색으로(목록 칸 양끝까지), 오른쪽 끝 칸에 빨간 번호·(마우스 올리면 ×)·'~분째 대기'를 오른쪽 맞춤 */
@@ -765,6 +773,12 @@ body.cga-dragging .cga-card { outline:2px dashed rgba(49,130,246,.35); outline-o
 [data-theme="dark"] .cga-del-head { background:rgba(220,38,38,.2); color:#ff8a8a; }
 .cga-del-head + .wt-body .cga-ask-q b { color:#d14343; }
 .wt-go.cga-del-go { background:linear-gradient(135deg,#f06b6b,#dc3f3f); box-shadow:0 8px 18px -10px rgba(220,63,63,.9); }
+/* 제작 완료 확인 창(10-27) — 업로드 카드와 같은 초록 */
+.cga-ok-head { background:rgba(22,163,74,.1); color:#15803d; }
+[data-theme="dark"] .cga-ok-head { background:rgba(22,163,74,.2); color:#6ee7a0; }
+.cga-ok-head + .wt-body .cga-ask-q b { color:#16a34a; }
+.wt-go.cga-ok-go { background:linear-gradient(135deg,#34c26b,#16a34a); box-shadow:0 8px 18px -10px rgba(22,163,74,.9); }
+.cga-ask-note { margin:0 0 10px; font-size:12.5px; color:var(--muted); }
 .cga-ask-q { margin:4px 0 2px; font-size:17px; }
 .cga-ask-q b { color:#2f77f6; }
 .cga-ask-req { padding:12px 14px; border-radius:14px; background:var(--surface2); border:1px solid var(--border); }
@@ -773,6 +787,13 @@ body.cga-dragging .cga-card { outline:2px dashed rgba(49,130,246,.35); outline-o
 .cga-ask-push b { font-size:14px; font-weight:800; }
 .cga-ask-push small { font-size:12px; color:var(--muted); font-weight:600; }
 .cga-ask-push input { position:absolute; opacity:0; width:1px; height:1px; }
+/* 위쪽 줄 [배정 알림] 토글(10-27) — 끌어다 놓아 배정할 때 NDS 알림 보낼지 */
+.cga-pushsw { display:inline-flex; align-items:center; gap:8px; height:36px; padding:0 6px 0 13px; border-radius:999px; border:1px solid var(--border); background:var(--surface); font-size:13px; font-weight:800; color:var(--muted); cursor:pointer; user-select:none; }
+.cga-pushsw input { position:absolute; opacity:0; width:1px; height:1px; }
+.cga-pushsw:has(input:checked) { color:var(--text); }
+.cga-pushsw input:checked + .cga-sw { background:#2f77f6; }
+.cga-pushsw input:checked + .cga-sw::after { transform:translateX(18px); }
+.cga-pushsw input:focus-visible + .cga-sw { outline:2px solid #2f77f6; outline-offset:2px; }
 .cga-sw { flex:none; position:relative; width:44px; height:26px; border-radius:999px; background:#cbd5e1; transition:background .2s; }
 .cga-sw::after { content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .2s; }
 .cga-ask-push input:checked + .cga-sw { background:#2f77f6; }
