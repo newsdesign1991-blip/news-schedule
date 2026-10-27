@@ -181,6 +181,16 @@ function parseExcelSchedule() {
       if(!/VW|CG|XR|P\.?J|PROJECT|SPORTS|조근|스포츠/i.test(header)) return;
       for(let c=Math.max(0,start);c<=Math.min(end,nameRow.length-1);c++){ staffColumns.add(c); if(!(c in colGroup) || headerRow>colGroup[c].r) colGroup[c]={r:headerRow,h:header}; }   // 겹치면 이름 줄에 가까운 헤더
     });
+    // 병합 안 된 부서 헤더(실제 일정표: C3 'VW 11명 / 조근 2명', S3 'CG/3D/XR 22명', AO3 'PJ/XR', AQ3 '스포츠') — 그 칸부터 다음 헤더 칸 앞까지가 그 부서(부서 이동 감지용만)
+    for(let hr=Math.max(0,nameRowIdx-2); hr<nameRowIdx; hr++){
+      const hrow=rows[hr]||[], heads=[];
+      hrow.forEach((v,c)=>{ if(String(v||'').trim()) heads.push(c); });
+      heads.forEach((c,i)=>{
+        const h=String(hrow[c]); if(!/VW|CG|XR|P\.?J|PROJECT|SPORTS|조근|스포츠/i.test(h)) return;
+        const end=i+1<heads.length ? heads[i+1]-1 : nameRow.length-1;
+        for(let k=c;k<=end;k++) if(!(k in colGroup) || hr>colGroup[k].r) colGroup[k]={r:hr,h};
+      });
+    }
     // 병합 헤더가 없는 형식: 등록 직원에서 이어지는 이름 열까지만 허용한다.
     // 빈 열/합계/숫자 메모를 만나면 멈추므로 떨어져 있는 메모 영역은 제외된다.
     candidateNames.forEach((nm,c)=>{
@@ -305,8 +315,8 @@ function parseExcelSchedule() {
     }
 
     if (!schedule.length) { toast('파싱된 근무 데이터가 없습니다. 엑셀 구조를 확인해주세요.','error'); return; }
-    const _first = schedule.map(d=>d.date).sort()[0];
-    const deptMoves = _xlDeptMoves(colMap.map(c=>({name:c.name, header:(colGroup[c.colIdx]||{}).h||''})), _first);
+    const _dsAll = schedule.map(d=>d.date).sort();
+    const deptMoves = _xlDeptMoves(colMap.map(c=>({name:c.name, header:(colGroup[c.colIdx]||{}).h||''})), _dsAll[0], _dsAll[_dsAll.length-1]);
     _imgParsedData = {year,month,unknownNames:[...unknown],schedule,source:'excel',staffNames:colMap.map(c=>c.name),deptMoves};
     _renderImgResult(_imgParsedData);
   } catch(err) {
@@ -318,17 +328,19 @@ function parseExcelSchedule() {
 function _xlHeaderDept(h, hasJogeun) {
   const u = String(h || '').toUpperCase().replace(/\s+/g, '');
   if (!u) return null;
-  if (/조근/.test(u)) return { to: '조근', ok: ['조근'] };
+  const vw = /VW/.test(u), cg = /CG|3D|XR/.test(u), jg = /조근/.test(u);
   if (/SPORTS|스포츠/.test(u)) return { to: 'SPORTS', ok: ['SPORTS'] };
   if (/P\.?J|PROJECT/.test(u)) return { to: 'PROJECT', ok: ['PROJECT', 'XR'] };
-  const vw = /VW/.test(u), cg = /CG|3D|XR/.test(u);
+  if (vw && !cg) return { to: 'VW', ok: (jg || !hasJogeun) ? ['VW', '조근'] : ['VW'] };   // 'VW 11명 / 조근 2명' = VW 묶음 안에 조근원
   if (cg && !vw) return { to: 'CG', ok: ['CG', 'XR', 'PROJECT', 'SPORTS'] };
-  if (vw && !cg) return { to: 'VW', ok: hasJogeun ? ['VW'] : ['VW', '조근'] };
+  if (jg && !vw && !cg) return { to: '조근', ok: ['조근'] };
   return null;
 }
-function _xlDeptMoves(cols, start) {
+function _xlDeptMoves(cols, start, end) {
   if (!start) return [];
-  const hasJ = cols.some(c => /조근/.test(c.header)), out = [];
+  // 지난 시트(이번 기간이 오늘 전에 끝남)는 안 봄 — 옛 엑셀 위치로 지금 부서가 되돌아가지 않게
+  if (end && typeof _todayStr === 'function' && end < _todayStr()) return [];
+  const hasJ = cols.some(c => { const u = String(c.header || '').toUpperCase(); return /조근/.test(u) && !/VW|CG|3D|XR/.test(u); }), out = [];
   cols.forEach(({ name, header }) => {
     const g = _xlHeaderDept(header, hasJ); if (!g) return;
     const s = (data.staff || []).find(x => x.name === name); if (!s || s.active === false || s.dept === '팀장') return;
