@@ -93,7 +93,7 @@ const CgaNameDrop = (function () {
 in vec2 p; out vec2 vUv; void main() { vUv = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
   const FS = `#version 300 es
 precision highp float;
-uniform sampler2D uOld, uNew; uniform float uT; uniform vec2 uSize; uniform float uTexH; uniform float uTaps; uniform float uBgra; uniform float uReveal; uniform vec2 uO;
+uniform sampler2D uOld, uNew; uniform float uT; uniform vec2 uSize; uniform float uTexH; uniform float uTaps; uniform float uBgra; uniform float uReveal; uniform vec2 uO; uniform vec3 uGlow; uniform float uGlowA;
 in vec2 vUv; out vec4 outColor;
 vec4 tx(sampler2D s, vec2 uv, float lod) { vec4 c = textureLod(s, clamp(uv, 0., 1.), lod); return uBgra > .5 ? c.bgra : c; }
 vec4 blurS(sampler2D s, vec2 uv, float r) {   // 반지름 r(화면 높이 비율) 원판 평균 — 원본 그림(LOD 0)에서 두 둘레 16점(10-27: 밉맵은 윈도우 10 PC 일부에서 깨져 안 씀)
@@ -126,12 +126,12 @@ void main() {
     return;
   }
   vec4 col = mix(blurS(uOld, sb, R), blurS(uNew, sb, R), mixNew);
-  col.rgb += g;
+  col.rgb = mix(col.rgb, uGlow, clamp(g, 0., 1.) * uGlowA);   // 밝은 고리 — 빛 색(uGlow, 10-27: 흰 빛이 초록 카드 색을 지워 잘려 보여서 카드 색으로)
   outColor = vec4(col.rgb, 1.);
 }`;
   const END = 0.75;   // 원본 t 0.75 면 고리가 화면 구석까지 다 지나감(위 가운데에서) — 다른 곳에서 퍼지면 play 가 더 길게(endFor)
   // canvas 에 그림. opts: { lite, reveal(고리 안쪽을 뚫어 아래 실제 화면을 보임 — 새 화면 그림 필요 없음), width, height(캔버스 픽셀, 없으면 그림 크기),
-  //   origin:{x,y}(퍼지는 곳, 0~1 · 왼쪽 위가 0 — 없으면 위 가운데) } → { setNew(그림), frame(t), play(속도) → Promise, stop() } · WebGL2 가 안 되면 null
+  //   origin:{x,y}(퍼지는 곳, 0~1 · 왼쪽 위가 0 — 없으면 위 가운데), glow:[r,g,b](고리 빛 색 0~1, 없으면 흰색)·glowA(세기) } → { setNew(그림), frame(t), play(속도) → Promise, stop() } · WebGL2 가 안 되면 null
   // 캔버스는 픽셀(RGBA)로 바꿔 올림 — 캔버스를 GPU 로 바로 복사하면 일부 PC(윈도우 10)에서 조각이 흰 네모로 깨졌음(10-27 사용자)
   const pix = (src) => {
     if (!src || src.data || !src.getContext) return src;
@@ -167,7 +167,9 @@ void main() {
     gl.uniform1i(gl.getUniformLocation(pr, 'uOld'), 0); gl.uniform1i(gl.getUniformLocation(pr, 'uNew'), 1);
     gl.uniform2f(gl.getUniformLocation(pr, 'uSize'), cv.width, cv.height); gl.uniform1f(gl.getUniformLocation(pr, 'uTexH'), sh);
     gl.uniform1f(gl.getUniformLocation(pr, 'uTaps'), opts.lite ? 0 : 1); gl.uniform1f(gl.getUniformLocation(pr, 'uBgra'), oldSrc.data && oldSrc.bgra !== false ? 1 : 0);   // 화면 캡처는 BGRA 순서(캔버스에서 바꾼 픽셀은 RGBA)
-    const uT = gl.getUniformLocation(pr, 'uT');
+    const uT = gl.getUniformLocation(pr, 'uT'), uGl = gl.getUniformLocation(pr, 'uGlow'), uGa = gl.getUniformLocation(pr, 'uGlowA');
+    const glow = (rgb, a) => { gl.uniform3f(uGl, rgb[0], rgb[1], rgb[2]); gl.uniform1f(uGa, a); };
+    glow(opts.glow || [1, 1, 1], opts.glowA == null ? 1 : opts.glowA);   // 고리 빛 색(0~1)·세기 — 없으면 흰 빛(원래)
     gl.viewport(0, 0, cv.width, cv.height);
     const draw = t => { gl.uniform1f(uT, t); gl.drawArrays(gl.TRIANGLES, 0, 3); };
     // 가장 먼 구석까지 거리(화면 높이 단위) → 고리 한가운데(L = t·.16/.06)가 거기를 조금 넘을 때까지
@@ -189,6 +191,7 @@ void main() {
     let raf = 0, stopped = false;
     return {
       setNew(src) { if (!stopped) tex(1, pix(src)); },
+      setGlow(rgb, a) { if (!stopped) glow(rgb, a); },
       frame: draw,   // t(초) 장면 하나만 그림(시험·확인용)
       play(speed) {
         const sp = speed || 0.75, END = endT;
@@ -294,6 +297,7 @@ async function _cgaAssignFx(name, apply, req, revert) {   // req = NDS 배정 Pr
       if (d) { d.setNew(sh.to); document.body.appendChild(ov); } else ov = null;
     }
     _cgaPaint();   // 덮개 아래 카드를 새 모습으로 — 높이는 _cgaKeyed 가 부드럽게 늘림
+    if (d) { const gw = _cgaGlow(_cgaCardOf(name) || card); d.setGlow(gw.glow, gw.glowA); }   // 고리 빛 = 배정된 카드 색
     const kf = [{ transform: 'scale(1)' }, { transform: 'scale(.955)', offset: .3 }, { transform: 'scale(1.016)', offset: .68 }, { transform: 'scale(1)' }], tm = { duration: 640, easing: 'cubic-bezier(.3,.7,.3,1)' };
     const c = _cgaCardOf(name) || card;
     c.animate(kf, tm);
@@ -310,6 +314,13 @@ async function _cgaAssignFx(name, apply, req, revert) {   // req = NDS 배정 Pr
   }
   return res;
 }
+// 물결 고리 빛 = 그 카드 색(--g)을 옅게(10-27 사용자 — 흰 빛이 지나가면 초록 카드 색이 지워져 '잘려' 보였음). 어두운 화면은 카드 색 그대로 약하게
+function _cgaGlow(card) {
+  const v = String(getComputedStyle(card).getPropertyValue('--g') || '').split(',').map(Number);
+  if (v.length < 3 || v.some(isNaN)) return { glow: [1, 1, 1], glowA: .6 };
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return dark ? { glow: v.map(c => c / 255), glowA: .45 } : { glow: v.map(c => (255 - (255 - c) * .45) / 255), glowA: .8 };
+}
 async function _cgaDropCard(card, from) {   // from = 누른 요소(그 가운데서 퍼짐, 10-27 사용자) — 없으면 위 가운데
   if (!card || card._drop || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
   card._drop = true;
@@ -323,7 +334,7 @@ async function _cgaDropCard(card, from) {   // from = 누른 요소(그 가운�
       const cr = card.getBoundingClientRect(), br = from.getBoundingClientRect();
       if (cr.width && cr.height) origin = { x: Math.min(1, Math.max(0, (br.left + br.width / 2 - cr.left) / cr.width)), y: Math.min(1, Math.max(0, (br.top + br.height / 2 - cr.top) / cr.height)) };
     }
-    const d = CgaNameDrop.create(cv, shot, { origin });
+    const d = CgaNameDrop.create(cv, shot, Object.assign({ origin }, _cgaGlow(card)));
     if (!d) { ov.remove(); return; }
     ov.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 90, fill: 'forwards' });
     await d.play(0.75);
