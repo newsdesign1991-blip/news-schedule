@@ -230,9 +230,17 @@ async function _cgaShotNow(card, key) {
 async function _cgaH2C(card, fix) {
   if (typeof html2canvas === 'undefined') await ndLoadLib('h2c');
   card.dataset.fxShot = '1';
+  // 복제본 카드 폭 = 화면 카드 폭(10-27 사용자 '덮는 색이 밀림'): 다른 요소를 빼고 뜨면 복제 화면에선 왼쪽 의뢰 상자가 없어 카드 칸이 340px로 바뀌어,
+  // 그림 속 카드가 늘 340px로 그려지고(화면은 306·349px 등) 덮개에서 줄거나 늘어 색 칸이 어긋났음. 높이는 내용대로(배정 물결은 새 내용 높이)
+  const w = card.offsetWidth;
   try {
     return await html2canvas(card, { backgroundColor: _cgaShotBg(card), scale: Math.min(2, window.devicePixelRatio || 1), logging: false, ignoreElements: _cgaShotOnly(card),
-      onclone: (doc) => { const x = doc.querySelector('[data-fx-shot]'); if (!x) return; if (fix) fix(x); x.classList.add('cga-shot'); } });
+      onclone: (doc) => {
+        const x = doc.querySelector('[data-fx-shot]'); if (!x) return;
+        if (fix) fix(x);
+        x.classList.add('cga-shot');
+        if (w) Object.assign(x.style, { boxSizing: 'border-box', width: w + 'px', minWidth: w + 'px', maxWidth: w + 'px' });
+      } });
   } finally { delete card.dataset.fxShot; }
 }
 function _cgaShotWarm() {
