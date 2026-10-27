@@ -63,12 +63,16 @@ function handleXlDrop(e) {
 function parseExcelSchedule() {
   if (!_xlArrayBuffer) { toast('엑셀 파일을 먼저 올려주세요','error'); return; }
   if (typeof XLSX==='undefined') { ndLoadLib('xlsx').then(()=>{ if(typeof XLSX==='undefined'){ toast('엑셀 라이브러리를 불러오지 못했습니다','error'); return; } if(!document.getElementById('xl-sheet-select')?.options?.length) _xlFillSheets(); parseExcelSchedule(); }, err=>toast(err.message,'error')); return; }   // 라이브러리를 아직 못 받았으면 받은 뒤(시트 목록부터) 다시
+  // 칸 위 동그라미 숫자 그림(①②)을 먼저 읽고 다시(파일마다 한 번, 그림을 못 읽는 환경이면 건너뜀)
+  if (typeof createImageBitmap === 'function' && _xlPicsBuf !== _xlArrayBuffer) { _xlScanPics(_xlArrayBuffer).then(()=>parseExcelSchedule()); return; }
   try {
     const wb = XLSX.read(_xlArrayBuffer, {type:'array', cellStyles:true});   // cellStyles: 칸 바탕색(회색 = 특별 작업, 총인원 제외)을 읽기 위해
     const sheetIdx = parseInt(document.getElementById('xl-sheet-select')?.value||'0');
     const sheetName = wb.SheetNames[sheetIdx] || wb.SheetNames[0];
     const ws = wb.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    const _pics = (_xlPicsBuf === _xlArrayBuffer && _xlPics && _xlPics[sheetName]) || {};   // 칸 위 동그라미 숫자 그림 { '행,열': '①'|'②' }
+    const _withPic = (txt, r, c) => { const n = _pics[r + ',' + c]; if (!n || !txt || /[①-⑨]$/.test(txt)) return txt; const t = txt + n; return WORK_TYPE_MAP[_normalizeImportedWorkType(t)] !== undefined || /^[가-힣]{1,5}\s*[:：]?\s*\S+$/.test(t) ? t : txt; };
 
     // 연도/월 추출: 시트명 또는 상단 행에서 "YYYY년 M월" 검색
     let year = new Date().getFullYear(), month = new Date().getMonth()+1;
@@ -292,7 +296,7 @@ function parseExcelSchedule() {
       const entries=[], _nNotes=[];
       colMap.forEach(({name,colIdx})=>{
         // 셀 안의 공백·줄바꿈을 제거해 표기 변형 흡수 ('오전 데'→'오전데', '뉴.오 2'→'뉴.오2' 등)
-        let val=String(row[colIdx]||'').replace(/\s+/g,'').trim();
+        let val=_withPic(String(row[colIdx]||'').replace(/\s+/g,'').trim(), r+sheetStart.r, colIdx+sheetStart.c);   // 'VW'+그림② → 'VW②'
         const _nv=_xlSplitN(val); if(_nv){ val=_nv; _nNotes.push(name+' N'); }   // 'N/8진' 등 → 칸엔 8진, N은 비고
         if(val&&val!=='-'&&val!=='0'){
           const _cell = (XLSX.utils.encode_cell && ws) ? ws[XLSX.utils.encode_cell({r:r+sheetStart.r, c:colIdx+sheetStart.c})] : null;   // 칸 주소로 바탕색 읽기
@@ -312,6 +316,15 @@ function parseExcelSchedule() {
         });
         _note=_parts.join(' · ');
       }
+      // 표 오른쪽 바깥 메모 '이름 근무'(실제 일정표 11월: AV7 '양기태 8진' — 표 칸은 N) → 그 사람 칸은 메모 근무로, 원래 칸 글자는 비고에(10-27 사용자 'N보다 8진이 중요')
+      for (let c=Number.isFinite(tableRight)?tableRight+1:row.length; c<row.length; c++) {
+        const m=_withPic(String(row[c]||'').trim(), r+sheetStart.r, c+sheetStart.c).match(/^([가-힣]{1,5})\s*[:：]?\s*(\S+)$/); if(!m) continue;   // '양기태 8진'+그림② → 8진②
+        const k=WORK_TYPE_MAP[_normalizeImportedWorkType(m[2])]; if(!k||k==='skip'||!colMap.some(x=>x.name===m[1])) continue;
+        const i=entries.findIndex(e=>e.name===m[1]), was=i>=0?entries[i].workType:'';
+        if (was===m[2]) continue;
+        if (i>=0) entries[i]={name:m[1],workType:m[2]}; else entries.push({name:m[1],workType:m[2]});
+        if (was) _nNotes.push(m[1]+' '+was);
+      }
       if (_nNotes.length) _note=[_note, ..._nNotes].filter(Boolean).join(' · ');
       schedule.push({date:dateStr,entries,note:_note});
     }
@@ -324,6 +337,57 @@ function parseExcelSchedule() {
   } catch(err) {
     toast('엑셀 파싱 오류: '+err.message, 'error');
   }
+}
+// 칸 위에 올린 동그라미 숫자 그림(10-27 사용자 '문자가 아니라 다른 걸로 붙어 있어') — 실제 일정표는 8진①②(빨강)·뉴.오①②·VW②(검정)를 그림으로 붙임.
+// SheetJS 는 그림을 안 읽어서 xlsx 안의 drawing·그림 파일을 직접 읽어 시트별 { '행,열'(0부터, 시트 기준): '①'|'②' } 를 만듦(그림 글자는 1·2만 가려냄)
+let _xlPics = null, _xlPicsBuf = null;
+async function _xlScanPics(buf) {
+  const out = {};
+  try {
+    const wb = XLSX.read(buf, { type: 'array', bookFiles: true, sheetRows: 1 }), files = wb.files || {};
+    const bin = p => { const f = files[p] || files['/' + p]; return f && f.content ? (f.content instanceof Uint8Array ? f.content : new Uint8Array(f.content)) : null; };
+    const txt = p => { const b = bin(p); return b ? new TextDecoder().decode(b) : ''; };
+    const rels = p => { const m = {}; (txt(p).match(/<Relationship\b[^>]*>/g) || []).forEach(t => { const id = (t.match(/\bId="([^"]+)"/) || [])[1], tg = (t.match(/\bTarget="([^"]+)"/) || [])[1]; if (id && tg) m[id] = tg; }); return m; };
+    const join = (base, tg) => { if (tg[0] === '/') return tg.slice(1); const p = base.split('/').slice(0, -1); tg.split('/').forEach(s => { if (s === '..') p.pop(); else if (s !== '.') p.push(s); }); return p.join('/'); };
+    const wrel = rels('xl/_rels/workbook.xml.rels'), digit = {};
+    for (const t of (txt('xl/workbook.xml').match(/<sheet\b[^>]*>/g) || [])) {
+      const name = ((t.match(/\bname="([^"]*)"/) || [])[1] || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+      const sp = wrel[(t.match(/\br:id="([^"]+)"/) || [])[1]]; if (!sp) continue;
+      const sheet = join('xl/workbook.xml', sp), srel = rels(sheet.replace(/[^/]+$/, m => '_rels/' + m + '.rels'));
+      for (const dp of Object.values(srel).filter(v => /drawings\/[^/]+\.xml$/.test(v))) {
+        const dpath = join(sheet, dp), drel = rels(dpath.replace(/[^/]+$/, m => '_rels/' + m + '.rels'));
+        for (const a of (txt(dpath).match(/<xdr:(twoCellAnchor|oneCellAnchor)\b[\s\S]*?<\/xdr:\1>/g) || [])) {
+          const fr = (a.match(/<xdr:from>([\s\S]*?)<\/xdr:from>/) || [])[1] || '', emb = (a.match(/r:embed="([^"]+)"/) || [])[1];
+          const col = +((fr.match(/<xdr:col>(\d+)<\/xdr:col>/) || [])[1]), row = +((fr.match(/<xdr:row>(\d+)<\/xdr:row>/) || [])[1]);
+          if (!emb || !drel[emb] || isNaN(col) || isNaN(row)) continue;
+          const ip = join(dpath, drel[emb]);
+          if (!(ip in digit)) digit[ip] = await _xlPicDigit(bin(ip));
+          if (digit[ip]) (out[name] ||= {})[row + ',' + col] = digit[ip];
+        }
+      }
+    }
+  } catch (e) { /* 그림을 못 읽으면 숫자 없이 */ }
+  _xlPics = out; _xlPicsBuf = buf;
+  return out;
+}
+// 작은 정사각 그림 속 동그라미 숫자가 1인지 2인지: 고리 안쪽 잉크의 맨 아래 줄 폭(2는 밑변이 넓고 1은 좁음). 아니면 ''
+async function _xlPicDigit(bytes) {
+  try {
+    if (!bytes) return '';
+    const bmp = await createImageBitmap(new Blob([bytes])), W = bmp.width, H = bmp.height;
+    if (!W || !H || W > 120 || H > 120 || W / H < .75 || W / H > 1.33) return '';
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(bmp, 0, 0);
+    const d = g.getImageData(0, 0, W, H).data, ink = [];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = (y * W + x) * 4, r = d[i], gg = d[i + 1], b = d[i + 2]; if ((r + gg + b) / 3 < 170 || (r > 150 && gg < 130 && b < 130)) ink.push([x, y]); }
+    if (ink.length < 10) return '';
+    const xs = ink.map(p => p[0]), ys = ink.map(p => p[1]);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2, R = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 2;
+    const inner = ink.filter(p => Math.hypot(p[0] - cx, p[1] - cy) < .62 * R); if (inner.length < 5) return '';
+    const iy = inner.map(p => p[1]), y0 = Math.min(...iy), y1 = Math.max(...iy), h = y1 - y0 + 1;
+    const bot = inner.filter(p => p[1] >= y1 - h * .2).map(p => p[0]), bw = Math.max(...bot) - Math.min(...bot) + 1;
+    return bw / h < .25 ? '①' : bw / h > .35 ? '②' : '';
+  } catch (e) { return ''; }
 }
 // N(적응 중)과 다른 근무가 한 칸에 같이 적힘(예: 'N/8진'·'8진(N)'·줄바꿈 'N 8진') → 칸엔 그 근무, N은 그날 비고에(10-27 사용자 'N보다 8진이 더 중요').
 // 그 자체로 아는 글자(N·NDS 등)는 그대로. 남은 글자가 아는 근무일 때만 나눔(반환 = 칸에 쓸 글자, 아니면 null)
