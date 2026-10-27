@@ -172,14 +172,14 @@ function parseExcelSchedule() {
       return nm;
     });
     const sheetStart=XLSX.utils.decode_range(ws['!ref']||'A1').s;
-    const staffColumns=new Set();
+    const staffColumns=new Set(), colGroup={};   // colGroup: 열 → 그 위 부서 병합 헤더 글자(부서 이동 감지용)
     (ws['!merges']||[]).forEach(range=>{
       const headerRow=range.s.r-sheetStart.r;
       if(headerRow<0 || headerRow>=nameRowIdx || range.e.r>=nameRowIdx+sheetStart.r) return;
       const start=range.s.c-sheetStart.c, end=range.e.c-sheetStart.c;
       const header=String((rows[headerRow]||[])[start]||'');
       if(!/VW|CG|XR|P\.?J|PROJECT|SPORTS|조근|스포츠/i.test(header)) return;
-      for(let c=Math.max(0,start);c<=Math.min(end,nameRow.length-1);c++) staffColumns.add(c);
+      for(let c=Math.max(0,start);c<=Math.min(end,nameRow.length-1);c++){ staffColumns.add(c); if(!(c in colGroup) || headerRow>colGroup[c].r) colGroup[c]={r:headerRow,h:header}; }   // 겹치면 이름 줄에 가까운 헤더
     });
     // 병합 헤더가 없는 형식: 등록 직원에서 이어지는 이름 열까지만 허용한다.
     // 빈 열/합계/숫자 메모를 만나면 멈추므로 떨어져 있는 메모 영역은 제외된다.
@@ -228,6 +228,16 @@ function parseExcelSchedule() {
       if (/^[0-9A-F]{6}$/i.test(hex)) { const r=parseInt(hex.slice(0,2),16), g=parseInt(hex.slice(2,4),16), b=parseInt(hex.slice(4,6),16); if (r===g && g===b && r>=0x80 && r<=0xE6) return true; }
       return false;
     };
+    // 분홍 바탕 칸 = 출장·교육·기타(10-27 사용자) → 글자는 엑셀 그대로, 인원 집계 제외. 특수 근무 '출장 · 교육 · 기타'(#ffc1df)와 같은 계열(빨강 많고 초록이 파랑보다 낮은 밝은 색)
+    const _isPinkCell = cell => {
+      const st = cell && cell.s; if (!st || st.patternType !== 'solid') return false;
+      const f = st.fgColor || {};
+      let hex = String(f.rgb || '').replace(/^FF(?=[0-9A-F]{6}$)/i, '');
+      if (!hex && f.index === 45) hex = 'FF99CC';   // 옛 색표의 '장미색'
+      if (!/^[0-9A-F]{6}$/i.test(hex)) return false;
+      const r=parseInt(hex.slice(0,2),16), g=parseInt(hex.slice(2,4),16), b=parseInt(hex.slice(4,6),16);
+      return r>=0xE6 && b>=0x99 && b-g>=12 && r-g>=30;
+    };
     const schedule = [];
     let _prevDay = 0, _curMon = month, _curYear = year;
     for (let r=bodyStart; r<bodyEnd; r++) {
@@ -275,7 +285,7 @@ function parseExcelSchedule() {
         const val=String(row[colIdx]||'').replace(/\s+/g,'').trim();
         if(val&&val!=='-'&&val!=='0'){
           const _cell = (XLSX.utils.encode_cell && ws) ? ws[XLSX.utils.encode_cell({r:r+sheetStart.r, c:colIdx+sheetStart.c})] : null;   // 칸 주소로 바탕색 읽기
-          entries.push(_isGrayCell(_cell) ? {name,workType:val,gray:true} : {name,workType:val});
+          entries.push(_isGrayCell(_cell) ? {name,workType:val,gray:true} : _isPinkCell(_cell) ? {name,workType:val,pink:true} : {name,workType:val});
         }
       });
       // 비고 열 값 수집(8뉴스 진입 시간·편성 길이 등) → 날짜별 note
@@ -295,11 +305,52 @@ function parseExcelSchedule() {
     }
 
     if (!schedule.length) { toast('파싱된 근무 데이터가 없습니다. 엑셀 구조를 확인해주세요.','error'); return; }
-    _imgParsedData = {year,month,unknownNames:[...unknown],schedule,source:'excel',staffNames:colMap.map(c=>c.name)};
+    const _first = schedule.map(d=>d.date).sort()[0];
+    const deptMoves = _xlDeptMoves(colMap.map(c=>({name:c.name, header:(colGroup[c.colIdx]||{}).h||''})), _first);
+    _imgParsedData = {year,month,unknownNames:[...unknown],schedule,source:'excel',staffNames:colMap.map(c=>c.name),deptMoves};
     _renderImgResult(_imgParsedData);
   } catch(err) {
     toast('엑셀 파싱 오류: '+err.message, 'error');
   }
+}
+// 엑셀 부서 칸 위치로 부서 이동 찾기(10-27 사용자 '엑셀에서 양기태가 VW 쪽에 있으면 이 기간부터 그 부서로'). 이름 위 부서 병합 헤더(VW·CG/3D/XR·PJ·SPORTS·조근)가 그 사람 부서.
+// CG/3D/XR 묶음은 CG·XR·PJ·SPORTS 누구든 그대로(열만으론 구분 불가), 조근 헤더가 따로 없으면 VW 묶음 속 조근원도 그대로. 적용 전 미리보기에서 빼고 고를 수 있음
+function _xlHeaderDept(h, hasJogeun) {
+  const u = String(h || '').toUpperCase().replace(/\s+/g, '');
+  if (!u) return null;
+  if (/조근/.test(u)) return { to: '조근', ok: ['조근'] };
+  if (/SPORTS|스포츠/.test(u)) return { to: 'SPORTS', ok: ['SPORTS'] };
+  if (/P\.?J|PROJECT/.test(u)) return { to: 'PROJECT', ok: ['PROJECT', 'XR'] };
+  const vw = /VW/.test(u), cg = /CG|3D|XR/.test(u);
+  if (cg && !vw) return { to: 'CG', ok: ['CG', 'XR', 'PROJECT', 'SPORTS'] };
+  if (vw && !cg) return { to: 'VW', ok: hasJogeun ? ['VW'] : ['VW', '조근'] };
+  return null;
+}
+function _xlDeptMoves(cols, start) {
+  if (!start) return [];
+  const hasJ = cols.some(c => /조근/.test(c.header)), out = [];
+  cols.forEach(({ name, header }) => {
+    const g = _xlHeaderDept(header, hasJ); if (!g) return;
+    const s = (data.staff || []).find(x => x.name === name); if (!s || s.active === false || s.dept === '팀장') return;
+    const cur = (typeof deptOn === 'function') ? deptOn(s, start) : s.dept; if (!cur || g.ok.includes(cur) || out.some(m => m.id === s.id)) return;
+    out.push({ id: s.id, name, from: cur, to: g.to, start });
+  });
+  return out;
+}
+// 고른 부서 이동을 그 기간 첫날부터 예약(직원 관리의 부서 이동 예약과 같은 deptSchedule) — 오늘이 지났으면 지금 부서도 바로, 오늘 이후 근무 목록도 새 부서로(_deptMoveLists)
+function _xlApplyDeptMoves(moves) {
+  let n = 0;
+  (moves || []).forEach(m => {
+    const p = staffById(m.id); if (!p || deptOn(p, m.start) === m.to) return;
+    const old = { dept: p.dept, deptSchedule: Array.isArray(p.deptSchedule) ? p.deptSchedule.map(h => ({ start: h.start, dept: h.dept })) : undefined };
+    const h = (p.deptSchedule || []).filter(x => x && x.start !== m.start);
+    h.push({ start: m.start, dept: m.to });
+    p.deptSchedule = h.sort((a, b) => a.start < b.start ? -1 : 1);
+    _deptApplyDue(data);
+    if (typeof _deptMoveLists === 'function') _deptMoveLists(p, old);
+    n++;
+  });
+  return n;
 }
 // ---- 이미지(AI) 처리 ----
 function handleImgFile(input) {
@@ -394,6 +445,13 @@ function _renderImgResult(parsed) {
     html += `<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#92400e;">
       <b>⚠️ 미등록 인원 ${parsed.unknownNames.length}명:</b> ${parsed.unknownNames.join(', ')}<br>
       <span style="font-size:11px;">적용 시 등록 팝업이 표시됩니다.</span>
+    </div>`;
+  }
+  if (parsed.deptMoves?.length) {   // 엑셀 부서 칸 위치가 지금 부서와 다른 사람 → 그 기간 첫날부터 부서 이동(뺄 사람은 체크 해제)
+    const _md = ds => { const p = parseDateStr(ds); return `${p.m}/${p.d}`; };
+    html += `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;">
+      <b>부서 이동 ${parsed.deptMoves.length}명</b> <span style="color:var(--muted);font-size:11px;">엑셀 부서 칸 기준 · 적용하면 ${_md(parsed.deptMoves[0].start)}부터 옮겨요</span>
+      ${parsed.deptMoves.map((m, i) => `<label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer;"><input type="checkbox" id="xl-dm-${i}" checked> <b>${m.name}</b> ${m.from} → ${m.to}</label>`).join('')}
     </div>`;
   }
   // 샘플 미리보기 (최대 5일)
@@ -510,7 +568,8 @@ function _importCellDisplay(entry,id,leaves) {
   if(type==='ojende')color='#436bb5';
   if(/^(퇴근|당직퇴근)$/.test(text)){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';}
   if(cell.gray){bg='#d9d9d9';color='#333333';}   // 회색 바탕 = 특별 작업(총인원 제외)
-  if(text && type!=='work')fw='700';
+  if(cell.pink){bg='#ffc1df';color='#000000';}   // 분홍 바탕 = 출장·교육·기타(총인원 제외, 글자는 엑셀 그대로)
+  if(text && (type!=='work'||cell.pink))fw='700';
   const count=!!text && text!=='-' && text!=='0' && type!=='leave' && !/^(비번|당직비번)$/.test(text);
   return {text,bg,color,fw,count};
 }
@@ -525,6 +584,8 @@ function _doApplyImageSchedule(skipNames) {
   // 엑셀에 열(데이터)이 있는 사람 이름 집합 — 조근 휴무 판정에 사용(열 자체가 없는 사람은 건드리지 않음)
   const _impNames = new Set();
   (_imgParsedData.schedule||[]).forEach(d=>(d.entries||[]).forEach(e=>_impNames.add(e.name)));
+  // 엑셀 부서 칸 기준 부서 이동(미리보기에서 체크한 사람만) — 날짜별 부서(deptOn)를 쓰는 아래 배정보다 먼저
+  const _movedN = (typeof _xlApplyDeptMoves !== 'function') ? 0 : _xlApplyDeptMoves((_imgParsedData.deptMoves||[]).filter((m,i)=>{ const cb=document.getElementById('xl-dm-'+i); return !cb || cb.checked; }));
   (_imgParsedData.schedule||[]).forEach(day => {
     const ds = day.date;
     // 파싱된 날짜는 기존 내용을 비우고 새로 덮어씀 (재파싱 시 누적 방지)
@@ -532,7 +593,7 @@ function _doApplyImageSchedule(skipNames) {
     delete data.draft.newLeaves[ds];
     const entry = data.draft.schedule[ds];
     if (day.note) entry.notes = day.note;   // 엑셀 비고(8뉴스 진입·편성 길이)
-    day.entries.forEach(({name, workType, gray}) => {
+    day.entries.forEach(({name, workType, gray, pink}) => {
       if (skipSet.has(name)) return;
       const s = (data.staff||[]).find(x=>x.name===name);
       if (!s) return;
@@ -540,6 +601,12 @@ function _doApplyImageSchedule(skipNames) {
       workType = _normalizeImportedWorkType(workType);
       const wt = WORK_TYPE_MAP[workType];
       if (wt === 'skip') return;   // 당직퇴근·비번 등 자동 계산 항목은 가져오지 않음
+      if (pink && wt !== 'leave') {
+        // 분홍 바탕(출장·교육·기타, 10-27 사용자): 무슨 글자든 엑셀에 적힌 그대로 분홍 칸으로, 근무 목록엔 안 넣음 = 인원 집계 제외(특수 근무 '출장 · 교육 · 기타'와 같음)
+        if (!entry.customCells) entry.customCells = {};
+        entry.customCells[s.id] = {text:workType, bg:'#ffc1df', color:'#000000'};
+        applied++; return;
+      }
       if (wt === undefined) {      // 매핑 안 된 표기(면접관 등) → 자동 배정 않고 메모에 '수동입력 필요' 기록
         entry.notes = (entry.notes ? entry.notes + ', ' : '') + `${name}:${workType}(수동입력 필요)`;
         applied++; return;
@@ -650,9 +717,10 @@ function _doApplyImageSchedule(skipNames) {
         if(skipSet.has(name))return;
         const person=(data.staff||[]).find(p=>p.name===name);if(!person)return;
         const text=_normalizeImportedWorkType(originals.get(name)||'');
-        const _g=(day.entries||[]).find(e=>e.name===name&&e.gray);
+        const _e=(day.entries||[]).find(e=>e.name===name);
         entry.importedCells[person.id]={text,signature:_importCellSignature(entry,person.id,data.draft.newLeaves[ds])};
-        if(_g) entry.importedCells[person.id].gray=true;   // 회색 바탕(특별 작업) — 표시 색
+        if(_e&&_e.gray) entry.importedCells[person.id].gray=true;   // 회색 바탕(특별 작업) — 표시 색
+        else if(_e&&_e.pink&&WORK_TYPE_MAP[text]!=='leave') entry.importedCells[person.id].pink=true;   // 분홍 바탕(출장·교육·기타)
       });
     }
   });
@@ -668,6 +736,6 @@ function _doApplyImageSchedule(skipNames) {
   saveData(data);
   closeImageImport();
   renderWorkshopTable();
-  toast(`${applied}개 항목이 근무표 초안에 적용되었습니다`, 'success');
+  toast(`${applied}개 항목이 근무표 초안에 적용되었습니다${_movedN?` · 부서 이동 ${_movedN}명`:''}`, 'success');
 }
 

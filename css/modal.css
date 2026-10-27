@@ -201,17 +201,25 @@ body[style*="overflow: hidden"] #floating-nav {
   .lr-pop.lr-cal-mode .lr-cal-head>b{font-size:20px}
 }
 /* Special duty picker: one scroll area, touch-sized choices. */
-.special-duty-overlay{position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.32);display:flex;align-items:center;justify-content:center;padding:16px}
-.special-duty-panel{width:min(520px,100%);max-height:calc(100dvh - 32px);display:flex;flex-direction:column;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:24px;overflow:hidden;box-shadow:0 20px 60px #0003}
-.special-duty-panel .modal-header{flex-shrink:0}.special-duty-panel .modal-close{flex:0 0 36px;width:36px;height:36px}
-.special-duty-body{overflow-y:auto;overscroll-behavior:contain;padding:8px 20px 24px}
-.special-duty-body p{font-size:13px;line-height:1.65;color:var(--muted)}
-.special-duty-body h3{font-size:14px;margin:20px 0 10px}
-.special-duty-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.special-duty-grid button{min-height:48px;padding:6px;border:1px solid var(--border);border-radius:12px;background:var(--surface2);cursor:pointer;font:inherit;font-size:14px;font-weight:700}
-.special-duty-grid span{display:block;padding:8px 4px;border-radius:7px;overflow-wrap:anywhere}
+/* 10-27 토스 모달 모양(위 색 머리 + 아래 내용, 다른 팝업과 같은 둥근 유리 닫기) — 버튼은 칸 색 그대로 한 겹(안쪽 상자 없이) */
+.special-duty-overlay{position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.38);display:flex;align-items:center;justify-content:center;padding:16px;animation:ndModalFade .24s ease both}
+.special-duty-panel{width:min(540px,100%);max-height:calc(100dvh - 32px);display:flex;flex-direction:column;background:var(--surface);color:var(--text);border-radius:22px;overflow:hidden;box-shadow:0 24px 60px -20px rgba(15,23,42,.55);animation:ndModalPop .36s cubic-bezier(.16,1,.3,1) both}
+.special-duty-panel .modal-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;margin:0;padding:20px 22px 15px;background:rgba(236,72,153,.08)}
+[data-theme="dark"] .special-duty-panel .modal-header{background:rgba(244,114,182,.09)}
+.special-duty-panel .mh-title{font-size:17px;font-weight:800;letter-spacing:-.02em;color:var(--text)}
+.special-duty-panel .modal-close{width:34px;height:34px;flex-shrink:0;border-radius:50%;background:rgba(255,255,255,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.65);color:var(--text);font-size:17px;box-shadow:0 2px 8px rgba(15,23,42,.12);cursor:pointer}
+[data-theme="dark"] .special-duty-panel .modal-close{background:rgba(50,50,50,.55);border-color:rgba(255,255,255,.12)}
+.special-duty-panel:focus{outline:none}
+.special-duty-body{overflow-y:auto;overscroll-behavior:contain;padding:14px 22px 22px}
+.special-duty-body p{margin:0;font-size:13px;line-height:1.6;color:var(--muted)}
+.special-duty-body h3{margin:18px 0 8px;font-size:13px;font-weight:800;color:var(--muted);letter-spacing:-.01em}
+.special-duty-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.special-duty-grid button{min-height:46px;padding:8px 6px;border:1px solid rgba(15,23,42,.06);border-radius:14px;background:var(--sd-bg,var(--surface2));color:var(--sd-fg,var(--text));cursor:pointer;font:inherit;font-size:14px;font-weight:800;overflow-wrap:anywhere;transition:transform .16s cubic-bezier(.2,.9,.25,1),box-shadow .16s,filter .16s}
+[data-theme="dark"] .special-duty-grid button{border-color:rgba(255,255,255,.06)}
+.special-duty-grid button:active{transform:scale(.97)}
 .special-duty-grid button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-@media(hover:hover){.special-duty-grid button:hover{border-color:var(--accent);background:rgba(49,130,246,.06)}}
+@media(hover:hover){.special-duty-grid button:hover{transform:translateY(-1px);box-shadow:0 6px 16px -8px rgba(15,23,42,.35);filter:brightness(.98)}}
+@media(max-width:420px){.special-duty-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* 휴가 조정 확인 팝업(js/leave-request.js _lrConfirmPop) — 토스 모달, 주황 머리 */
 .lr-adj { position:fixed; inset:0; z-index:10060; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(15,23,42,.38); animation:ndModalFade .24s ease both; }
 .lra-card { width:min(440px,100%); border-radius:22px; overflow:hidden; background:var(--surface); box-shadow:0 24px 60px -20px rgba(15,23,42,.55); animation:ndModalPop .36s cubic-bezier(.16,1,.3,1) both; }

@@ -56,7 +56,7 @@ function _cgaPeople(ds) {
     const d = dept(s.id); if (d !== 'cg' && d !== 'xr') return;
     const imp = typeof _importCellDisplay === 'function' ? _importCellDisplay(entry, s.id, [...lv]) : null, cus = entry.customCells && entry.customCells[s.id];
     const text = imp ? imp.text : (cus && cus.text); if (!text) return;
-    if (imp ? (entry.importedCells[s.id] || {}).gray : cus.excl) return;
+    if (imp ? ((entry.importedCells[s.id] || {}).gray || (entry.importedCells[s.id] || {}).pink) : (cus.excl || cus.bg === '#ffc1df')) return;   // 분홍(출장·교육·기타)도 뺌(10-27)
     const k = WORK_TYPE_MAP[_normalizeImportedWorkType(text)];
     const t = (k === 'work' || k === 'cg-sub') ? (d === 'xr' ? 'XR' : '') : (k === '8jin' || k === '8jin2') ? '8진' : (k === 'newsoh' || k === 'newsoh2') ? '뉴.오' : k === 'ilgeun' ? '일근' : undefined;
     if (t !== undefined) add(s.id, t, true);

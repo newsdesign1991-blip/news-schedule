@@ -87,12 +87,14 @@ function openSpecialDutyPicker(staffId,ds){
   _specialDutyTarget=staffId?{staffId,ds,draft:!!_draftCellMode}:null;
   const modal=document.createElement('div');
   modal.id='special-duty-modal'; modal.className='special-duty-overlay';
-  modal.innerHTML=`<section class="special-duty-panel" role="dialog" aria-modal="true" aria-labelledby="special-duty-title">
+  modal.innerHTML=`<section class="special-duty-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="special-duty-title">
     <div class="modal-header"><div class="mh-title" id="special-duty-title">특수 근무 선택</div><button class="modal-close" aria-label="닫기" onclick="closeSpecialDutyPicker()">✕</button></div>
-    <div class="special-duty-body"><p>${staffId?'선택한 날짜의 근무를 변경합니다.':'근무를 선택한 뒤 표의 칸을 누르면 적용됩니다.'} 출장·교육은 기존 엑셀과 동일하게 인원 집계에서 제외됩니다.</p>
-    ${[...new Set(SPECIAL_DUTIES.map(d=>d.group))].map(group=>`<h3>${group}</h3><div class="special-duty-grid">${SPECIAL_DUTIES.map((d,i)=>d.group===group?`<button type="button" onclick="chooseSpecialDuty(${i})"><span style="background:${d.bg||'var(--surface2)'};color:${d.color||'var(--text)'}">${d.label||d.text}</span></button>`:'').join('')}</div>`).join('')}</div></section>`;
+    <div class="special-duty-body"><p>${staffId?'선택한 날짜의 근무를 바꿔요.':'근무를 고른 뒤 표의 칸을 누르면 들어가요.'} 출장·교육은 엑셀처럼 인원 집계에서 빠져요.</p>
+    ${[...new Set(SPECIAL_DUTIES.map(d=>d.group))].map(group=>`<h3>${group}</h3><div class="special-duty-grid">${SPECIAL_DUTIES.map((d,i)=>d.group===group?`<button type="button" style="--sd-bg:${d.bg||(d.kind==='leave'?'rgba(199,154,94,.14)':d.kind==='ojende8'?'rgba(67,107,181,.12)':'var(--surface2)')};--sd-fg:${d.color||(d.kind==='leave'?'#b07d3c':d.kind==='ojende8'?'#436bb5':'var(--text)')}" onclick="chooseSpecialDuty(${i})">${d.label||d.text}</button>`:'').join('')}</div>`).join('')}</div></section>`;
+  modal.addEventListener('click',e=>{ if(e.target===modal) closeSpecialDutyPicker(); });   // 바깥 누르면 닫기
+  modal.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSpecialDutyPicker(); });
   document.body.appendChild(modal);
-  modal.querySelector('.modal-close').focus();
+  modal.querySelector('.special-duty-panel').focus();   // 닫기 버튼에 바로 초점 테가 생기지 않게 판 자체에(Esc 는 그대로)
 }
 function chooseSpecialDuty(index){
   if(!isAdmin)return;
