@@ -586,6 +586,8 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cga-fx { position:absolute; z-index:60; border-radius:20px; overflow:hidden; pointer-events:none; }
 .cga-fx canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
 .cga-card.cga-nofx, .cga-card.cga-nofx::before, .cga-card.cga-nofx * { transition:none !important; animation:none !important; }
+/* 물결용 카드 그림의 복제본(_cgaH2C, html2canvas 안에서만) — 그림자·움직임 없이: 화면 배율 100%에서 그림자가 카드 위에 번져 그려졌음(10-27) */
+.cga-card.cga-shot, .cga-card.cga-shot::before, .cga-card.cga-shot * { box-shadow:none !important; animation:none !important; transition:none !important; }
 .cga-who { display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; }
 .cga-who b { font-size:15px; font-weight:800; color:var(--text); }
 .cga-who small { font-size:12px; color:var(--muted); font-weight:600; }
@@ -594,6 +596,10 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cga-ttl { margin-top:2px; font-size:12.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .cga-time { display:flex; align-items:center; gap:10px; margin-top:5px; font-size:12px; color:var(--muted); }
 .cga-time b { color:var(--text); font-weight:800; }
+/* 사람 카드 속 NDS 의뢰 칸(10-27 사용자): 요청자·시간 줄은 줄을 안 넘김(카드 높이 그대로) — 넘치면 오른쪽을 그라디언트로 흐리게(.ovf, js _cgaOvf) */
+.cga-job[data-rid] > .cga-who, .cga-job[data-rid] > .cga-time { flex-wrap:nowrap; white-space:nowrap; overflow:hidden; }
+.cga-job[data-rid] > .cga-who > *, .cga-job[data-rid] > .cga-time > * { flex:none; }
+.cga-job[data-rid] > .ovf { -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent); }
 .cga-ago { margin-left:auto; color:#2f77f6; font-weight:800; transition:color .5s; }
 .cga-more { margin-top:6px; font-size:12px; color:#2f77f6; font-weight:800; }
 .cga-idle { margin-top:12px; font-size:13.5px; font-weight:800; color:var(--muted); }

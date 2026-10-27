@@ -218,10 +218,19 @@ async function _cgaShot(card) {
   try { return await p; } finally { if (card._shotP === p) card._shotP = null; }
 }
 async function _cgaShotNow(card, key) {
-  if (typeof html2canvas === 'undefined') await ndLoadLib('h2c');
-  const shot = await html2canvas(card, { backgroundColor: _cgaShotBg(card), scale: Math.min(2, window.devicePixelRatio || 1), logging: false, ignoreElements: _cgaShotOnly(card) });
+  const shot = await _cgaH2C(card);
   card._shot = shot; card._shotKey = key;
   return shot;
+}
+// 카드 그림(html2canvas) — 카드만(_cgaShotOnly), 복제본은 그림자·움직임 없이(cga-shot). fix(복제 카드)로 복제본만 더 고칠 수 있음.
+// 10-27 사용자(윈도우 10 PC 물결이 흰 네모·초록 안개): 화면 배율 100%(devicePixelRatio 1)에서 html2canvas 가 카드 그림자(빛)를 카드 위에 번지게 그렸음 — 그림자는 덮개 밖이라 빼도 됨
+async function _cgaH2C(card, fix) {
+  if (typeof html2canvas === 'undefined') await ndLoadLib('h2c');
+  card.dataset.fxShot = '1';
+  try {
+    return await html2canvas(card, { backgroundColor: _cgaShotBg(card), scale: Math.min(2, window.devicePixelRatio || 1), logging: false, ignoreElements: _cgaShotOnly(card),
+      onclone: (doc) => { const x = doc.querySelector('[data-fx-shot]'); if (!x) return; if (fix) fix(x); x.classList.add('cga-shot'); } });
+  } finally { delete card.dataset.fxShot; }
 }
 function _cgaShotWarm() {
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -245,13 +254,8 @@ function _cgaShotBg(card) {   // 바탕을 카드 색으로 채워 뜸 — 투�
   let bg = getComputedStyle(card).backgroundColor; if (tr(bg)) bg = getComputedStyle(document.body).backgroundColor; if (tr(bg)) bg = '#ffffff';
   return bg;
 }
-async function _cgaShotAs(card, cls, html) {   // 복제본만 class(·내용)를 바꿔 뜸(캐시 안 함) — 화면 카드는 그대로
-  if (typeof html2canvas === 'undefined') await ndLoadLib('h2c');
-  card.dataset.fxShot = '1';
-  try {
-    return await html2canvas(card, { backgroundColor: _cgaShotBg(card), scale: Math.min(2, window.devicePixelRatio || 1), logging: false, ignoreElements: _cgaShotOnly(card),
-      onclone: (doc) => { const x = doc.querySelector('[data-fx-shot]'); if (!x) return; x.className = cls; if (html != null) x.innerHTML = html; } });
-  } finally { delete card.dataset.fxShot; }
+function _cgaShotAs(card, cls, html) {   // 복제본만 class(·내용)를 바꿔 뜸(캐시 안 함) — 화면 카드는 그대로
+  return _cgaH2C(card, (x) => { x.className = cls; if (html != null) x.innerHTML = html; });
 }
 function _cgaGray(src) {   // 대기 카드는 화면에서 흑백(filter) — html2canvas 가 filter 를 안 그려서 직접(CSS grayscale 과 같은 비율)
   const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; const g = c.getContext('2d'); g.drawImage(src, 0, 0);
@@ -608,7 +612,7 @@ function _cgaFit() {
   side.style.height = h > 240 ? h + 'px' : '';
   fitMain();
 }
-addEventListener('resize', () => { if (typeof currentView !== 'undefined' && currentView === 'cgassign') _cgaFit(); });
+addEventListener('resize', () => { if (typeof currentView !== 'undefined' && currentView === 'cgassign') { _cgaFit(); _cgaOvf(); } });
 // 다른 창을 보다가(또는 창을 내렸다가) 돌아오면 바로 새로 읽음(10-27) — 마지막으로 읽은 지 10초 넘었을 때만, NDS 쉬는 중(_cgaNextAt)이면 기다림
 function _cgaWake() { if (typeof currentView !== 'undefined' && currentView === 'cgassign' && document.visibilityState === 'visible' && Date.now() - _cgaLastAt > 10e3) _cgaFetch(false); }
 addEventListener('focus', _cgaWake);
@@ -826,6 +830,13 @@ function _cgaAgoFill(root) {
     if (e.textContent !== t) e.textContent = t;
     const req = e.closest('.cga-req'); if (req && e.dataset.kind === 'wait') req.classList.toggle('late', m != null && m >= 15);
   }));
+  _cgaOvf();
+}
+// 사람 카드 속 의뢰 칸의 요청자·시간 줄은 한 줄로(10-27 사용자 — [업로드됨] 칸이 생겨 좁아지면 줄이 넘어가 카드가 길어졌음) — 넘치는 줄만 오른쪽을 그라디언트로 흐리게(.ovf).
+// 칸 너비·'N분째' 글자가 바뀌면 다시(그리기·30초·창 크기)
+function _cgaOvf() {
+  document.querySelectorAll('#cga-grid .cga-job[data-rid] > .cga-who, #cga-grid .cga-job[data-rid] > .cga-time, #cga-dj .cga-job[data-rid] > .cga-who, #cga-dj .cga-job[data-rid] > .cga-time')
+    .forEach(el => { const o = el.scrollWidth > el.clientWidth + 1; if (el.classList.contains('ovf') !== o) el.classList.toggle('ovf', o); });
 }
 let _cgaFirstPaint = true;
 function _cgaPaint() {
