@@ -7,7 +7,7 @@ function _renderDeptSched(){
   _modalDeptSched.sort((a,b)=>a.start<b.start?-1:1);
   _smFoldSummary();
   if(!_modalDeptSched.length){ box.innerHTML='<div style="font-size:12px;color:var(--muted);padding:2px;">예약 없음 — 항상 '+_pEsc(base)+' 부서.</div>'; return; }
-  box.innerHTML=_modalDeptSched.map((h,i)=>`<div class="avoid-row" style="margin-bottom:6px;"><span class="avoid-chip">${_pEsc(h.start)} 부터 <b style="color:var(--accent);margin-left:3px;">${_pEsc(h.dept)}</b></span><button class="avoid-del" onclick="_deptSchedRemove(${i})" title="삭제">✕</button></div>`).join('');
+  box.innerHTML=_modalDeptSched.map((h,i)=>h.start==='0000-01-01' ? `<div class="avoid-row" style="margin-bottom:6px;"><span class="avoid-chip" title="이동 전 부서(지난 근무표용) — 지우지 않아요">처음부터 <b style="color:var(--muted);margin-left:3px;">${_pEsc(h.dept)}</b></span></div>` : `<div class="avoid-row" style="margin-bottom:6px;"><span class="avoid-chip">${_pEsc(h.start)} 부터 <b style="color:var(--accent);margin-left:3px;">${_pEsc(h.dept)}</b></span><button class="avoid-del" onclick="_deptSchedRemove(${i})" title="삭제">✕</button></div>`).join('');
 }
 function _deptSchedAdd(){
   const d=(document.getElementById('modal-deptsched-date')||{}).value;
@@ -246,6 +246,6 @@ function _wlStaffModalRefresh(id){
 function _smFoldSummary(){
   const v=id=>(document.getElementById(id)||{}).value||'', rng=(a,b)=>{ const x=v(a), y=v(b); return x||y ? (x||'…')+' ~ '+(y||'…') : '없음'; };
   const sum={ contract:rng('modal-contract-start','modal-contract-end'), dispatch:rng('modal-dispatch-start','modal-dispatch-end'), probation:rng('modal-probation-start','modal-probation-end'),
-    dsched:_modalDeptSched.length ? _modalDeptSched.map(h=>h.start.slice(2).replace(/-/g,'.')+' '+h.dept).join(', ') : '없음' };
+    dsched:_modalDeptSched.some(h=>h.start!=='0000-01-01') ? _modalDeptSched.filter(h=>h.start!=='0000-01-01').map(h=>h.start.slice(2).replace(/-/g,'.')+' '+h.dept).join(', ') : '없음' };   // '처음부터'(이동 전 부서, 10-27)는 요약에서 뺌
   document.querySelectorAll('#staff-edit-modal .sm-fold-sum').forEach(el=>{ const t=sum[el.dataset.sum]||''; el.textContent=t; el.classList.toggle('empty', t==='없음'); });
 }

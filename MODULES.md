@@ -33,7 +33,7 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 
 | # | 파일 | 담당 기능 | 대표 함수 |
 |---|---|---|---|
-| 1 | `js/core.js` | 데이터 로드/저장, 백업, 날짜·직원 헬퍼, 부서 이동(`deptOn`), 초안 되돌리기, 특수일(인원·CG 데스크 2명·**8뉴스 편성** `news:'weekday'|'weekend'`), 평일 틀 판단 `isWeekdayForm`(생성·표·점검·가져오기·브러시 공통 — 공휴일 기본: 설·추석만 주말 틀, 그 밖은 평일 틀. **쉬는 날 판단엔 쓰지 말 것** → `ndIsOffDay`), 백업·파일로 서버 전체 교체 `_ndRestoreDoc(o, okMsg)`(백업의 옛 `_dataRevision`을 서버 지금 번호로 바꿔 저장, 성공한 뒤에만 안내 — `restoreLocalBackup`·`importBackupFile`·admin.js `importData`) | `loadData` `saveData` `deptOn` `getStaff` `toDateStr` `isOnLeave` `isWeekdayForm` `_ndRestoreDoc` |
+| 1 | `js/core.js` | 데이터 로드/저장, 백업, 날짜·직원 헬퍼, 부서 이동(`deptOn`, 날짜가 되면 지금 부서도 `_deptApplyDue`), 초안 되돌리기, 특수일(인원·CG 데스크 2명·**8뉴스 편성** `news:'weekday'|'weekend'`), 평일 틀 판단 `isWeekdayForm`(생성·표·점검·가져오기·브러시 공통 — 공휴일 기본: 설·추석만 주말 틀, 그 밖은 평일 틀. **쉬는 날 판단엔 쓰지 말 것** → `ndIsOffDay`), 백업·파일로 서버 전체 교체 `_ndRestoreDoc(o, okMsg)`(백업의 옛 `_dataRevision`을 서버 지금 번호로 바꿔 저장, 성공한 뒤에만 안내 — `restoreLocalBackup`·`importBackupFile`·admin.js `importData`) | `loadData` `saveData` `deptOn` `getStaff` `toDateStr` `isOnLeave` `isWeekdayForm` `_ndRestoreDoc` |
 | 2 | `js/project-gantt.js` | 프로젝트 간트 탭. 작성자(일반 직원)도 고치므로 저장·홈 표시·삭제는 `_pjCommit` → `_ndCommit(…, ['projects'])`(문서 전체 saveData 아님) | `renderProject` `openProjectModal` `saveProject` |
 | 3 | `js/nav-admin.js` | 탭 전환 `showView`, 관리자/마스터 로그인 | `showView` `toggleAdmin` `openMasterLogin` |
 | 4 | `js/home.js` | 홈 화면(오늘의 근무, 8진/뉴오 깜빡임, masonry 배치, 큰 화면 ≥1560px 3분할 + 경계 블러 전환), 테마 전환 | `renderHome` `layoutHomeMasonry` `_hm3Sync` `_hm3Transition` `toggleTheme` |

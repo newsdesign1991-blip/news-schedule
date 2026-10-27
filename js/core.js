@@ -83,6 +83,7 @@ function loadData() {
           if (entry.cg.desk5 === undefined) entry.cg.desk5 = null;
         }
       });
+      _deptApplyDue(d);
       return d;
     }
   } catch(e) {}
@@ -210,6 +211,20 @@ function deptOn(s, ds) {
     if (best) return best.dept;
   }
   return s.dept;
+}
+// 부서 이동 예약 날짜가 되면 지금 부서(s.dept)도 그 부서로(10-27 사용자 '그 날짜가 되면 이동돼 있어야') — 직원 관리·홈·CG배정 등 대부분이 s.dept(지금 부서)를 씀.
+// 지난 달 표·통계가 안 바뀌게 옮기기 전 부서는 deptSchedule 맨 앞 {start:'0000-01-01'(처음부터), dept:옛 부서}로 남김 → deptOn 은 어느 날이든 그대로 맞음.
+// 화면에 쓰는 data 만 고침(서버엔 관리자가 다음에 저장할 때 같이 감). 불러올 때(loadData·_migrateRemote)와 1분마다(sync-init — 앱을 켜 둔 채 날이 바뀔 때)
+function _deptApplyDue(d) {
+  const n = new Date(), t = toDateStr(n.getFullYear(), n.getMonth() + 1, n.getDate());
+  let moved = 0;
+  ((d && d.staff) || []).forEach(s => {
+    const h = s && s.deptSchedule; if (!Array.isArray(h) || !h.length) return;
+    const cur = deptOn(s, t); if (!cur || cur === s.dept) return;
+    if (!h.some(x => x && x.start === '0000-01-01')) h.unshift({ start: '0000-01-01', dept: s.dept });
+    s.dept = cur; moved++;
+  });
+  return moved;
 }
 function getStaff(dept, ds) {
   const active = data.staff.filter(s => s.active !== false);

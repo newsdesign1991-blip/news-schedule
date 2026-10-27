@@ -96,13 +96,13 @@ precision highp float;
 uniform sampler2D uOld, uNew; uniform float uT; uniform vec2 uSize; uniform float uTexH; uniform float uTaps; uniform float uBgra; uniform float uReveal; uniform vec2 uO;
 in vec2 vUv; out vec4 outColor;
 vec4 tx(sampler2D s, vec2 uv, float lod) { vec4 c = textureLod(s, clamp(uv, 0., 1.), lod); return uBgra > .5 ? c.bgra : c; }
-vec4 blurS(sampler2D s, vec2 uv, float r) {   // 반지름 r(화면 높이 비율) 원판 평균 ≈ 밉맵 한 단계 + 둘레 몇 점
-  float px = r * uTexH, lod = log2(max(1., px * 1.2));
-  vec4 c = tx(s, uv, lod);
-  if (uTaps > .5 && px > 1.5) {
-    vec2 rr = vec2(r * uSize.y / uSize.x, r) * .55;
-    for (int k = 0; k < 6; k++) { float a = float(k) * 1.0471976; c += tx(s, uv + vec2(cos(a), sin(a)) * rr, lod); }
-    c /= 7.;
+vec4 blurS(sampler2D s, vec2 uv, float r) {   // 반지름 r(화면 높이 비율) 원판 평균 — 원본 그림(LOD 0)에서 두 둘레 16점(10-27: 밉맵은 윈도우 10 PC 일부에서 깨져 안 씀)
+  vec4 c = tx(s, uv, 0.);
+  if (r * uTexH > .75) {
+    vec2 rr = vec2(r * uSize.y / uSize.x, r);
+    for (int k = 0; k < 8; k++) { float a = float(k) * .7853982; c += tx(s, uv + vec2(cos(a), sin(a)) * rr * .5, 0.); }
+    if (uTaps > .5) { for (int k = 0; k < 8; k++) { float a = float(k) * .7853982 + .3926991; c += tx(s, uv + vec2(cos(a), sin(a)) * rr, 0.); } c /= 17.; }
+    else c /= 9.;
   }
   return c;
 }
@@ -132,8 +132,13 @@ void main() {
   const END = 0.75;   // 원본 t 0.75 면 고리가 화면 구석까지 다 지나감(위 가운데에서) — 다른 곳에서 퍼지면 play 가 더 길게(endFor)
   // canvas 에 그림. opts: { lite, reveal(고리 안쪽을 뚫어 아래 실제 화면을 보임 — 새 화면 그림 필요 없음), width, height(캔버스 픽셀, 없으면 그림 크기),
   //   origin:{x,y}(퍼지는 곳, 0~1 · 왼쪽 위가 0 — 없으면 위 가운데) } → { setNew(그림), frame(t), play(속도) → Promise, stop() } · WebGL2 가 안 되면 null
+  // 캔버스는 픽셀(RGBA)로 바꿔 올림 — 캔버스를 GPU 로 바로 복사하면 일부 PC(윈도우 10)에서 조각이 흰 네모로 깨졌음(10-27 사용자)
+  const pix = (src) => {
+    if (!src || src.data || !src.getContext) return src;
+    try { const g = src.getContext('2d'); return { width: src.width, height: src.height, data: new Uint8Array(g.getImageData(0, 0, src.width, src.height).data.buffer), bgra: false }; } catch (e) { return src; }
+  };
   function create(cv, oldSrc, opts) {
-    opts = opts || {};
+    opts = opts || {}; oldSrc = pix(oldSrc);
     const sw = oldSrc.width, sh = oldSrc.height;
     cv.width = Math.max(1, Math.round(opts.width || sw)); cv.height = Math.max(1, Math.round(opts.height || sh));
     const gl = cv.getContext('webgl2', { alpha: !!opts.reveal, antialias: false, premultipliedAlpha: !!opts.reveal, preserveDrawingBuffer: false });   // reveal = 화면 전체(뚫린 곳으로 실제 화면)
@@ -150,8 +155,7 @@ void main() {
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       if (src.data) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, src.width, src.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, src.data instanceof Uint8Array ? src.data : new Uint8Array(src.data));
       else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
-      gl.generateMipmap(gl.TEXTURE_2D);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);   // 밉맵 없음(위 blurS)
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       return t;
     };
@@ -162,7 +166,7 @@ void main() {
     const o = opts.origin || { x: .5, y: .04 }; gl.uniform2f(gl.getUniformLocation(pr, 'uO'), o.x, 1 - o.y);   // 텍스처를 뒤집어 올려서 셰이더는 아래가 0
     gl.uniform1i(gl.getUniformLocation(pr, 'uOld'), 0); gl.uniform1i(gl.getUniformLocation(pr, 'uNew'), 1);
     gl.uniform2f(gl.getUniformLocation(pr, 'uSize'), cv.width, cv.height); gl.uniform1f(gl.getUniformLocation(pr, 'uTexH'), sh);
-    gl.uniform1f(gl.getUniformLocation(pr, 'uTaps'), opts.lite ? 0 : 1); gl.uniform1f(gl.getUniformLocation(pr, 'uBgra'), oldSrc.data ? 1 : 0);   // 화면 캡처는 BGRA 순서
+    gl.uniform1f(gl.getUniformLocation(pr, 'uTaps'), opts.lite ? 0 : 1); gl.uniform1f(gl.getUniformLocation(pr, 'uBgra'), oldSrc.data && oldSrc.bgra !== false ? 1 : 0);   // 화면 캡처는 BGRA 순서(캔버스에서 바꾼 픽셀은 RGBA)
     const uT = gl.getUniformLocation(pr, 'uT');
     gl.viewport(0, 0, cv.width, cv.height);
     const draw = t => { gl.uniform1f(uT, t); gl.drawArrays(gl.TRIANGLES, 0, 3); };
@@ -170,9 +174,21 @@ void main() {
     const asp = cv.width / cv.height, far = Math.max(...[[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => Math.hypot((x - o.x) * asp, y - o.y)));
     const endT = Math.max(END, (far + 0.12) * 0.06 / 0.16);
     draw(0);   // 첫 장면 = 지금 화면 그대로(겹쳐도 티 안 남)
+    // 검사(10-27): 첫 장면은 원본과 같아야 함 — 퍼지는 곳에서 먼 몇 점을 읽어 비교, 둘 이상 다르면 이 PC GPU 가 이상한 것 → 효과 없이(null)
+    if (oldSrc.data && !opts.reveal && cv.width === sw && cv.height === sh) {
+      const o = opts.origin || { x: .5, y: .04 }, px = new Uint8Array(4), d = oldSrc.data, bg = oldSrc.bgra !== false;
+      let bad = 0;
+      [[.12, .2], [.88, .2], [.12, .85], [.88, .85], [.5, .15], [.5, .9]].filter(([x, y]) => Math.hypot(x - o.x, y - o.y) > .2).forEach(([fx, fy]) => {
+        const x = Math.min(sw - 1, Math.floor(fx * sw)), y = Math.min(sh - 1, Math.floor(fy * sh)), i = (y * sw + x) * 4;
+        gl.readPixels(x, sh - 1 - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        const r = bg ? d[i + 2] : d[i], b = bg ? d[i] : d[i + 2];
+        if (Math.abs(px[0] - r) + Math.abs(px[1] - d[i + 1]) + Math.abs(px[2] - b) > 48) bad++;
+      });
+      if (bad >= 2) { console.warn('NameDrop: 이 PC GPU 결과가 원본과 달라 효과를 끔'); try { const x = gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* 끝 */ } return null; }
+    }
     let raf = 0, stopped = false;
     return {
-      setNew(src) { if (!stopped) tex(1, src); },
+      setNew(src) { if (!stopped) tex(1, pix(src)); },
       frame: draw,   // t(초) 장면 하나만 그림(시험·확인용)
       play(speed) {
         const sp = speed || 0.75, END = endT;

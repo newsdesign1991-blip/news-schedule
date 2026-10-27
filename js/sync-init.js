@@ -14,6 +14,7 @@ function _migrateRemote(remote) {
   if (!remote.deployLog) remote.deployLog = [];
   if (!remote.notices) remote.notices = {};
   if (!Array.isArray(remote.polls)) remote.polls = [];
+  if (remote.staff) _deptApplyDue(remote);   // 부서 이동 예약 날짜가 된 사람은 지금 부서도(10-27)
   if (remote.staff) remote.staff.forEach(s => {
     s.employmentType = s.employmentType || 'employee';
     if (s.morningDeskPriority === undefined) s.morningDeskPriority = null;
@@ -79,6 +80,7 @@ async function _checkRemoteUpdate() {
 function _startAutoSync() {
   if (_autoSyncTimer) clearInterval(_autoSyncTimer);
   _autoSyncTimer = setInterval(() => { if (!document.hidden) _checkRemoteUpdate(); }, _AUTO_SYNC_MS);
+  if (!window._deptDueTimer) window._deptDueTimer = setInterval(() => { if (_deptApplyDue(data)) _rerenderActiveView(); }, 60000);   // 켜 둔 채 날이 바뀌어 부서 이동 날짜가 되면(10-27)
   document.addEventListener('visibilitychange', () => { if (!document.hidden) _checkRemoteUpdate(); }); // 탭 복귀 즉시 1회
 }
 
