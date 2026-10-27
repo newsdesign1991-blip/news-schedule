@@ -63,7 +63,7 @@ function _genSchedOn(targetSchedule, d){
 //  사람 근무표의 주말 VW 4·CG 6/7엔 일근·XR이 들어 있음 → 생성기 주말 목표도 이 셈으로 맞춤(예전엔 둘을 빼고 따로 채워 주말마다 1~2명을 더 씀)
 function _genVC(e, ds, pe){
   e=e||{};
-  const dep=id=>String(staffById(id)?.dept||'').toLowerCase();
+  const dep=id=>String(deptOn(staffById(id),ds)||'').toLowerCase();
   const dw=new Date(ds+'T00:00:00').getDay(), we=dw===0||dw===6, hol=!!(data.holidays&&data.holidays[ds]);
   const lv=new Set((data.newLeaves&&data.newLeaves[ds])||[]), sp=new Set([e.satMorning,e.morningDesk].filter(Boolean));
   const ex=id=>{ const p=staffById(id); return id===e.danjik||(!!pe&&id===pe.danjik)||dep(id)==='조근'||sp.has(id)||lv.has(id)||String(e.customCells?.[id]?.text||'').replace(/\s/g,'').toUpperCase()==='VW2'||(!!p&&!isContractActive(p,ds)); };
@@ -506,7 +506,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
         const _inSat=!_outR(_satD), _inSun=!_outR(_sunD);   // 생성 범위 밖 주말은 근무조를 정하지 않음(평일만 생성할 때 평일에 괜히 쉬던 것)
         // 인원 = 근무표 칸 셈(엑셀과 같음) - 데스크 1 - 그날 XR(CG 쪽) - 일요 일근(자기 부서 쪽). XR 예약은 주마다 토/일 번갈아(아래 XR 배정과 같은 규칙)
         const _xrN=(_P.xr||[]).length, _wI=Math.floor((Math.round(new Date(_satD+'T00:00:00').getTime()/864e5)+3)/7), _xrSat=(_wI%2===0)?Math.ceil(_xrN/2):Math.floor(_xrN/2);
-        const _ilV=!!_P.ilgeun&&String(staffById(_P.ilgeun)?.dept||'').toUpperCase()==='VW', _ilC=!!_P.ilgeun&&!_ilV;
+        const _ilV=!!_P.ilgeun&&String(deptOn(staffById(_P.ilgeun),_sunD)||'').toUpperCase()==='VW', _ilC=!!_P.ilgeun&&!_ilV;
         _P.crewSunVW=_inSun?_crew(_sunD,_vwP,_tg(_sunD,'vw',s.sunVW||s.weekendVW||4)-1-(_ilV?1:0),new Set(),_wkd(_su.vw?.workers)):[];
         _P.crewSunCG=_inSun?_crew(_sunD,_cgP,_tg(_sunD,'cg',s.sunCG||7)-1-(_xrN-_xrSat)-(_ilC?1:0),new Set(_P.crewSunVW),_wkd(_su.cg?.workers)):[];
         const _sunSet=new Set([..._P.crewSunVW,..._P.crewSunCG]);
@@ -518,7 +518,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       //  (예전엔 모두 '평일 4일 차면 쉼'이라 금요일에 몰려 금요일만 크게 모자랐음). 토요 당직은 이틀, 나머지는 하루. 그 주 휴가·손입력 칸 날은 이미 쉬는 날로 셈
       { const _P=weekendDeskPlan[wk], _e=genDateStrs[genDateStrs.length-1];
         const wkd=[0,1,2,3,4].map(i=>addDays(wk,i)).filter(d=>d>=dateStr&&d<=_e&&isWeekdayForm(d));
-        const _gOf=id=>String(staffById(id)?.dept||'').toUpperCase()==='VW'?'V':'C', _offN=(pl,d)=>pl.filter(p=>isOnLeave(p.id,d)||!!_prevSnap[d]?.customCells?.[p.id]).length;
+        const _gOf=id=>String(deptOn(staffById(id),wk)||'').toUpperCase()==='VW'?'V':'C', _offN=(pl,d)=>pl.filter(p=>isOnLeave(p.id,d)||!!_prevSnap[d]?.customCells?.[p.id]).length;
         const load={V:{},C:{}}; wkd.forEach(d=>{ load.V[d]=_offN(vwPool,d); load.C[d]=_offN([...cgPool,...xrPool],d); });   // 휴가·손입력으로 이미 빠진 사람이 많은 날은 덜 쉬게(부서별)
         const _s0=genDateStrs[0], _s1=genDateStrs[genDateStrs.length-1];
         const offOn=(id,d)=>isOnLeave(id,d)||!!(_prevSnap[d]?.customCells?.[id])||(addDays(d,-2)<dateStr&&(_genSchedOn(targetSchedule,addDays(d,-2))||{}).danjik===id)   // 지난 주말 당직 뒤 비번||(!isWeekdayForm(d)&&(_P.crew?.has(id)||(_P.xr||[]).includes(id)))   // 설·추석 같은 주말 틀 평일은 일반 근무조·XR엔 대부분 쉬는 날(데스크·당직·일근·토조 예약자는 그날도 일할 수 있어 빼고)
@@ -707,7 +707,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       if (sunIl) { blockedIds.push(sunIl); extraBlocked.push(sunIl); _addIv(sunIl,'ilgeun',dateStr); }
     }
     // 주말 틀 목표는 근무표 칸(엑셀 합계)과 같은 셈: 그날 일근은 자기 부서 인원에 들어감(CG 쪽 일근·XR은 아래 CG 목표에서 뺌)
-    const _ilD=tmplWE?(sunIl||holIlgeun):null, _ilVW=!!_ilD&&String(staffById(_ilD)?.dept||'').toUpperCase()==='VW';
+    const _ilD=tmplWE?(sunIl||holIlgeun):null, _ilVW=!!_ilD&&String(deptOn(staffById(_ilD),dateStr)||'').toUpperCase()==='VW';
     if (tmplWE && _ilVW) vwTarget=Math.max(0,vwTarget-1);
     // 조근 대타도 근무자보다 먼저 정함 — 나중에 고르면 표시자(방민주·조수인 등)가 이미 일반 근무자로 들어가 표시 없는 사람(스포츠까지)에게 갔음
     const _jgPre={};

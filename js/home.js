@@ -103,17 +103,17 @@ function renderHome() {
   const s = data.settings;
   const _hDx=getDanjikExitStaff(todayStr);
   const _hCgEx=new Set([entry?.danjik,_hDx].filter(Boolean));
-  const _hJIds=new Set(getStaff('조근').map(x=>x.id));
+  const _hJIds=new Set(getStaff('조근',todayStr).map(x=>x.id));
   const _hSpEx=new Set([entry?.satMorning,entry?.morningDesk].filter(Boolean));
   const _hLv=new Set((data.newLeaves?.[todayStr])||[]);
   const _hEx=id=>_isVw2(entry,id)||_hCgEx.has(id)||_hJIds.has(id)||_hSpEx.has(id)||_hLv.has(id)||isProbation(staffById(id),todayStr);
   const _hCgW=new Set(entry?.cg?.workers||[]);
-  const _hVwS=new Set((entry?.vw?.workers||[]).filter(id=>!_hEx(id)&&!(_hCgW.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
-  const _hIlVw=(entry?.ilgeun?staffById(entry.ilgeun)?.dept?.toUpperCase():'')==='VW';
+  const _hVwS=new Set((entry?.vw?.workers||[]).filter(id=>!_hEx(id)&&!(_hCgW.has(id)&&(deptOn(staffById(id),todayStr)||'').toLowerCase()==='vw')));
+  const _hIlVw=(entry?.ilgeun?(deptOn(staffById(entry.ilgeun),todayStr)||'').toUpperCase():'')==='VW';
   const _hIlOk=entry?.ilgeun&&!_hLv.has(entry.ilgeun)&&!_hSpEx.has(entry.ilgeun);
   const _h8=[entry?.weekend8jin,entry?.weekday8jin,entry?.weekend8jin2,entry?.weekday8jin2].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
-  const _isVwDept=id=>(staffById(id)?.dept||'').toLowerCase()==='vw';
-  const _isCgDept=id=>{const d=(staffById(id)?.dept||'').toLowerCase();return d==='cg'||d==='xr';};
+  const _isVwDept=id=>(deptOn(staffById(id),todayStr)||'').toLowerCase()==='vw';
+  const _isCgDept=id=>{const d=(deptOn(staffById(id),todayStr)||'').toLowerCase();return d==='cg'||d==='xr';};
   const _h8vwIds=_h8.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isVwDept(id));
   const _h8cgIds=_h8.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isCgDept(id));
   const _hNo=[entry?.newsOh,entry?.newsOh2].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
@@ -260,9 +260,9 @@ function renderHome() {
     const _cgAndXr=[
       ...(entry.cg?.workers||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:false,tag:''})),
       ...(entry.xr||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:true,tag:''})),
-      ..._h8cgIds.map(id=>({id,isXr:(staffById(id)?.dept||'').toLowerCase()==='xr',tag:'8진'})),
-      ..._hNoCgIds.map(id=>({id,isXr:(staffById(id)?.dept||'').toLowerCase()==='xr',tag:'뉴.오'})),
-      ...(_ilCgAdd?[{id:entry.ilgeun,isXr:(staffById(entry.ilgeun)?.dept||'').toLowerCase()==='xr',tag:'일근'}]:[])
+      ..._h8cgIds.map(id=>({id,isXr:(deptOn(staffById(id),todayStr)||'').toLowerCase()==='xr',tag:'8진'})),
+      ..._hNoCgIds.map(id=>({id,isXr:(deptOn(staffById(id),todayStr)||'').toLowerCase()==='xr',tag:'뉴.오'})),
+      ...(_ilCgAdd?[{id:entry.ilgeun,isXr:(deptOn(staffById(entry.ilgeun),todayStr)||'').toLowerCase()==='xr',tag:'일근'}]:[])
     ].filter(x=>x.id&&!_cgSeen.has(x.id)&&(_cgSeen.add(x.id),true))
      .sort((a,b)=>{
        // 근무표 실제 컬럼 순서와 동일하게: CG 부서 그룹 전체 먼저 → XR 부서 그룹(각 그룹 내에선 직원 먼저+배열순서)
@@ -382,19 +382,19 @@ function renderHome() {
     if (e2) {
       const _wDxExit=getDanjikExitStaff(ds);
       const _wCgExcl=new Set([e2.danjik,_wDxExit].filter(Boolean));
-      const _wJIds=new Set(getStaff('조근').map(x=>x.id));
+      const _wJIds=new Set(getStaff('조근',ds).map(x=>x.id));
       const _wSpExcl=new Set([e2.satMorning,e2.morningDesk].filter(Boolean));
       const _wLv=new Set((data.newLeaves?.[ds])||[]);
       const _wExcl=id=>_isVw2(e2,id)||_wCgExcl.has(id)||_wJIds.has(id)||_wSpExcl.has(id)||_wLv.has(id);
       const _wCgWorkers=new Set(e2.cg?.workers||[]);
-      const _wVwSet=new Set((e2.vw?.workers||[]).filter(id=>!_wExcl(id)&&!(_wCgWorkers.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw')));
+      const _wVwSet=new Set((e2.vw?.workers||[]).filter(id=>!_wExcl(id)&&!(_wCgWorkers.has(id)&&(deptOn(staffById(id),ds)||'').toLowerCase()==='vw')));
       const _w8Ids=[e2.weekend8jin,e2.weekday8jin,e2.weekend8jin2,e2.weekday8jin2].filter(id=>id&&!_wSpExcl.has(id)&&!_wLv.has(id));
-      const _w8VwAdd=_w8Ids.filter(id=>!_wVwSet.has(id)&&!_wCgWorkers.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
-      const _w8CgAdd=_w8Ids.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(staffById(id)?.dept||'').toLowerCase();return dd==='cg'||dd==='xr';}).length;
+      const _w8VwAdd=_w8Ids.filter(id=>!_wVwSet.has(id)&&!_wCgWorkers.has(id)&&(deptOn(staffById(id),ds)||'').toLowerCase()==='vw').length;
+      const _w8CgAdd=_w8Ids.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(deptOn(staffById(id),ds)||'').toLowerCase();return dd==='cg'||dd==='xr';}).length;
       const _wNoIds=[e2.newsOh,e2.newsOh2].filter(id=>id&&!_wSpExcl.has(id)&&!_wLv.has(id));
-      const _wNoVwAdd=_wNoIds.filter(id=>!_wVwSet.has(id)&&!_wCgWorkers.has(id)&&(staffById(id)?.dept||'').toLowerCase()==='vw').length;
-      const _wNoCgAdd=_wNoIds.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(staffById(id)?.dept||'').toLowerCase();return dd==='cg'||dd==='xr';}).length;
-      const _wIlVw=(e2.ilgeun?staffById(e2.ilgeun)?.dept?.toUpperCase():'')==='VW';
+      const _wNoVwAdd=_wNoIds.filter(id=>!_wVwSet.has(id)&&!_wCgWorkers.has(id)&&(deptOn(staffById(id),ds)||'').toLowerCase()==='vw').length;
+      const _wNoCgAdd=_wNoIds.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(deptOn(staffById(id),ds)||'').toLowerCase();return dd==='cg'||dd==='xr';}).length;
+      const _wIlVw=(e2.ilgeun?(deptOn(staffById(e2.ilgeun),ds)||'').toUpperCase():'')==='VW';
       const _wIlOk=e2.ilgeun&&!_wLv.has(e2.ilgeun)&&!_wSpExcl.has(e2.ilgeun);
       wVw=_wVwSet.size+(_wIlVw&&!_wCgWorkers.has(e2.ilgeun)&&_wIlOk?1:0)+_w8VwAdd+_wNoVwAdd;
       wCg=(e2.cg?.workers||[]).filter(id=>!_wExcl(id)&&!_wVwSet.has(id)).length+(e2.xr||[]).filter(id=>!_wExcl(id)).length+(!_wIlVw&&_wIlOk&&!_wVwSet.has(e2.ilgeun)?1:0)+_w8CgAdd+_wNoCgAdd;
