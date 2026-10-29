@@ -2,6 +2,8 @@
 // ===== 오늘의 공지 =====
 function _todayStr() { const n=new Date(); return toDateStr(n.getFullYear(),n.getMonth()+1,n.getDate()); }
 function _genNoticeId(){ return 'n'+Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4); }
+// 올린 날짜·시각(10-29 사용자 '몇 일 몇 시 몇 분에 올라갔는지 기록이 없네') — '10월 29일 14:19', wd 면 요일까지 '10월 29일 (목) 14:19'
+function _noticePostedAt(it, wd){ const t=it&&it.postedAt?new Date(it.postedAt):null; if(!t||isNaN(t)) return ''; return `${t.getMonth()+1}월 ${t.getDate()}일${wd?` (${DOW_KR[t.getDay()]})`:''} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`; }
 // 공지 컨테이너 정규화: { news8Time, items:[{id,text,postedBy,postedAt,silent}] }. 구형 단일객체도 흡수(읽기 전용).
 // root = 읽을 문서(기본 data, 병합 저장 때는 서버본 payload)
 function _getNoticeBox(ds, root){
@@ -138,7 +140,7 @@ function renderNoticeBar() {
     const bell = it.silent ? `<span title="조용한 공지(알림 미발송)" style="opacity:0.65;margin-left:6px;display:inline-flex;vertical-align:middle;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span>` : '';
     const edit = canWrite ? `<button onclick="event.stopPropagation();openNoticeModal('${it.id}')" style="background:transparent;border:none;color:#b8860b;cursor:pointer;font-size:13px;padding:0 2px;flex-shrink:0;" title="수정"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:-2px;"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>` : '';
     const span = (it.until && it.until > ds) ? (function(){ const p=it.until.split('-'); return `<span title="게시 기간" style="font-size:10px;font-weight:700;color:#c77f0a;background:rgba(255,176,32,0.16);border:none;border-radius:6px;padding:2px 7px;white-space:nowrap;font-weight:800;"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" style="vertical-align:-1px;margin-right:3px;"><path d="M9 2h6a1 1 0 0 1 0 2h-.6l.9 6.2 2.4 2.4a1 1 0 0 1-.7 1.7H13v5.1a1 1 0 0 1-2 0V14.3H5.9a1 1 0 0 1-.7-1.7l2.4-2.4L8.5 4H8a1 1 0 0 1 0-2z"/></svg>~${+p[1]}/${+p[2]}</span>`; })() : '';
-    const by = it.postedBy ? `<span style="font-size:11.5px;color:var(--muted);font-weight:500;">· ${_pEsc(it.postedBy)}</span>` : '';
+    const _when = _noticePostedAt(it), by = (it.postedBy||_when) ? `<span style="font-size:11.5px;color:var(--muted);font-weight:500;white-space:nowrap;">· ${[it.postedBy?_pEsc(it.postedBy):'', _when].filter(Boolean).join(' · ')}</span>` : '';   // 누가 · 언제 올렸는지
     return `<div class="notice-card" data-nid="${it.id}" onclick="openNoticeDetail('${it.id}')" style="background:linear-gradient(135deg,var(--notice-bg1) 0%,var(--notice-bg2) 100%);border:1px solid var(--notice-border);border-radius:12px;padding:11px 13px;cursor:pointer;">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
             <div style="flex:1;min-width:0;">
@@ -441,7 +443,7 @@ function _noticeEditFromDetail(id){
 function _noticeDetailHtml(it){
   const title=(it.title||'').trim() || (it.text||'').split('\n')[0] || '공지';
   const body=(it.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const by=it.postedBy?`<div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:13px;">${_pEsc(it.postedBy)}님이 올림</div>`:'';
+  const _when=_noticePostedAt(it, true), by=(it.postedBy||_when)?`<div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:13px;">${it.postedBy?_pEsc(it.postedBy)+'님이 ':''}${_when?_when+'에 ':''}올림</div>`:'';
   const _edit = _noticeIsMine(it) ? `<button class="modal-close" onclick="_noticeEditFromDetail('${it.id}')" title="수정" style="color:#b8860b;"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>` : '';
   const head=`<div class="modal-header"><div class="mh-title">${_pEsc(title)}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">${_edit}<button class="modal-close" onclick="closePollModal()">✕</button></div></div>`;
   // 넓은 화면: 공감 현황을 따로 띄우지 않고 한 창에 — 왼쪽 공지 본문 + 그 아래 확인·공감 현황(누르기·이름·아직 확인 안 함) / 오른쪽 댓글만(css/popup-wide.css .ntd-*)
@@ -658,7 +660,7 @@ function _noticeHistPaint(){
     if (!its.length) { html += `<div class="nh-card nh-only8"><div class="nh-meta">${dl}${n8}</div></div>`; return; }   // 8뉴스 시간만 있는 날
     its.forEach((it, k) => {
       const t = it.postedAt ? new Date(it.postedAt) : null;
-      const hm = t && !isNaN(t) ? `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}` : '';
+      const hm = t && !isNaN(t) ? _noticePostedAt(it) + ' 올림' : '';   // 날짜까지(공지 날과 올린 날이 다를 수 있음)
       const rx = it.reactions || {}, cnt = {};
       Object.keys(rx).forEach(id => { const e = rx[id]; if (e) cnt[e] = (cnt[e]||0) + 1; });
       const tops = Object.keys(cnt).sort((p,q) => cnt[q]-cnt[p]).slice(0,3);
