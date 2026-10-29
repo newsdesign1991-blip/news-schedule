@@ -65,7 +65,8 @@ function _cueUsual(ds){
   return best&&best[1]>=2?best[0]:'';
 }
 const _cueMin=t=>(+t.slice(0,2))*60+(+t.slice(3));
-// 8뉴스가 평소와 다르면 오늘의 공지에 자동으로(알림 없이). 시간이 또 바뀌면 글을 고치고, 평소로 돌아오면 지움. id 하나(cue8-날짜)
+// 8뉴스가 평소와 다르면 오늘의 공지에 자동으로 + 전 직원 알림(10-29 사용자 '8뉴스 시간 바뀌면 무조건 알람' — 전엔 조용히 올렸음). 시간이 또 바뀌면 글을 고치고 다시 알림, 평소로 돌아오면 지움. id 하나(cue8-날짜)
+// 알림은 저장(낙관적 잠금)에 성공한 기기 한 대만 보냄 — 여러 PC가 동시에 불러도 한 번
 // 공지에 8뉴스 시각을 직접 넣었으면 자동 공지는 안 만듦(있으면 지움 — 시각이 둘로 보이지 않게)
 // 올린 시각·글은 main cue8Auto[날짜] = { t, text }에 기억(7일): 사람이 지웠으면 같은 시각으론 다시 안 올림(시각이 또 바뀌면 새로), 사람이 글을 고쳤으면 덮지도 지우지도 않음
 const CUE_NOTICE_MIN = 30;   // 평소와 이만큼(분) 이상 다르면 자동 공지(10-21: 5 → 30)
@@ -85,18 +86,19 @@ async function _cueNotice(ds){
   const id='cue8-'+ds, c=cueDay(ds), n8=(c&&c.news8)||'';
   const box0=_getNoticeBox(ds), cur=(box0.items||[]).find(i=>i.id===id);
   if(!_cueAct(cur, _cueWant(ds,box0), (data.cue8Auto||{})[ds], n8)) return;   // 이 기기 데이터로 먼저 거름(모두가 5분마다 부름 — main 을 괜히 받지 않게)
-  let memo=null;
+  let memo=null, push='';
   const ok=await _ndCommit(rp=>{
     const raw=rp.notices[ds];
     const box=raw&&Array.isArray(raw.items)?raw:{ news8Time:(raw&&raw.news8Time)||'', items:raw&&raw.text?[{ id:_genNoticeId(), text:raw.text, postedBy:raw.postedBy||'', postedAt:raw.postedAt||'', silent:false }]:[] };
     const m=rp.cue8Auto&&typeof rp.cue8Auto==='object'?rp.cue8Auto:{}, i=box.items.findIndex(x=>x.id===id), it=i>=0?box.items[i]:null;
     const want=_cueWant(ds,box), act=_cueAct(it,want,m[ds],n8);
-    memo=null;
+    memo=null; push='';
     if(!act) return false;
     if(act==='del'){ box.items.splice(i,1); if(m[ds]){ delete m[ds]; rp.cue8Auto=memo=m; } }   // 시스템이 지움 → 기억도 지움(같은 시각이 다시 오면 다시 올림 — 기억이 남으면 '사람이 지움'으로 봄)
     else {
-      if(it){ it.text=want; it.postedAt=new Date().toISOString(); }
-      else box.items.unshift({ id, title:'8뉴스 진입시간', text:want, postedBy:'NDS 큐시트', postedById:'', postedAt:new Date().toISOString(), silent:true, auto:true });
+      if(it){ it.text=want; it.postedAt=new Date().toISOString(); it.silent=false; }
+      else box.items.unshift({ id, title:'8뉴스 진입시간', text:want, postedBy:'NDS 큐시트', postedById:'', postedAt:new Date().toISOString(), silent:false, auto:true });
+      push=want;
       m[ds]={ t:n8, text:want };
       Object.keys(m).forEach(d=>{ if(d<addDays(ds,-7)) delete m[d]; });
       rp.cue8Auto=memo=m;
@@ -106,6 +108,7 @@ async function _cueNotice(ds){
   if(ok===true){
     if(memo){ data.cue8Auto=memo; try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){} }   // _ndCommit 은 notices 만 받아 옴 — 기억도 같이
     try{ renderNoticeBar(); }catch(e){}
+    if(push) _sendNoticePush(push, '⏰ 8뉴스 진입시간 변경');
   }
 }
 function _cueDev(){ return ndPcId(); }   // js/meal.js
