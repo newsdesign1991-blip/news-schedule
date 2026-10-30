@@ -58,6 +58,12 @@ body.ws-coldragging, body.ws-coldragging * { user-select: none !important; -webk
 .tbl-date:focus { border-color: var(--accent); box-shadow: var(--focus-ring); }
 .tbl-range .tbl-date { flex: 1; min-width: 0; }
 .tbl-tilde { color: var(--muted); font-size: 13px; flex-shrink: 0; }
+/* 배포 기간 넘기기(10-30) — 자유 기간 입력 대신 ‹ 기간 › */
+.tbl-period { flex: 1; min-width: 0; text-align: center; font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; }
+.tbl-now { display: inline-block; margin-left: 7px; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+.tbl-range .ws-page-arrow { background: var(--surface); }
+.ws-page-arrow:disabled { opacity: .35; cursor: default; pointer-events: none; }
+@media (max-width: 600px) { .tbl-range .tbl-lbl { display: none; } .tbl-range { padding-left: 6px; } .tbl-period { font-size: 13px; padding: 0; } .tbl-now { margin-left: 4px; padding: 2px 6px; font-size: 10px; } }
 .tbl-actions { display: flex; gap: 8px; }
 .tbl-apply { flex-shrink: 0; background: var(--accent-grad); color: #fff; border: 1px solid transparent; border-radius: var(--tw-radius-btn); padding: 8px 15px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px -4px rgba(49,130,246,.5); transition: filter .12s; }
 .tbl-apply:hover { filter: brightness(1.04); }

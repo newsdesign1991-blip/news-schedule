@@ -41,6 +41,9 @@
   document.addEventListener('touchmove', e => {
     if (!pulling) return;
     if (window.scrollY > 0) { pulling = false; setDist(0); return; }
+    // 근무표 칸 안을 위로 올리는 중이면 칸이 맨 위에 닿은 뒤부터 당김으로 셈(10-30 — 칸 스크롤과 새로고침이 같이 되지 않게)
+    const _sc = e.target && e.target.closest && e.target.closest('.excel-wrap');
+    if (_sc && _sc.scrollTop > 0) { startY = e.touches[0].clientY; setDist(0); return; }
     const dy = e.touches[0].clientY - startY;
     if (dy > 0) setDist(dy * 0.5); // 저항감
   }, { passive: true });

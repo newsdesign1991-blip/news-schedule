@@ -4,7 +4,7 @@
    가져오기 = 서버(notify serverCue — 비밀값 NDS_ID·NDS_PW, 오후 5분·그 외 15분)가 먼저. 서버가 못 읽으면 '담당 PC' 1대만(10-17): 근무표 앱들 중 서버 자리표(leader, 20분)를 잡은 PC만 NDS 에 붙어 오후(14:00~20:30) 5분·그 외 15분마다 확인.
      다른 앱은 자리표가 살아 있으면 NDS 도 서버 함수도 안 부르고 읽기만. 담당 PC가 꺼지면 자리표가 끝나 다른 앱이 이어받음.
    서버가 저장할 때 오늘 진입시간이 바뀌면 그날 8진·뉴오에게 '진입시간 변경' 알림, 크론은 시작 20분 전 알림(시간이 바뀌면 새 시각 기준으로 한 번 더)
-   쓰는 곳: 홈 '오늘의 근무' 8진·뉴오 줄(_cuePaint — 8뉴스는 공지에 직접 넣은 시각이 먼저, cueNews8), 8뉴스가 평소(지난 5주 같은 요일에 가장 많던 시각)와 30분 이상 다르면 오늘의 공지 자동 등록(_cueNotice, 알림 없이) */
+   쓰는 곳: 홈 '오늘의 근무' 8진·뉴오 줄(_cuePaint — 8뉴스는 공지에 직접 넣은 시각이 먼저, cueNews8), 8뉴스가 평소(지난 5주 같은 요일에 가장 많던 시각)와 30분 이상 다르면 오늘의 공지 자동 등록 + 전 직원 알림(_cueNotice, 제목에 시각) */
 // NDS 프로그램 이름(brdcPgmNm) — 10-17 실제: '8시뉴스'(월~목 19:48·금 19:46·토 19:53·일 19:56), '오뉴스'(평일 16:52~16:55, 주말 없음). 재방송 '(R)'은 뺌
 const CUE_PGM={ news8:/8시\s*뉴스|8\s*뉴스/, newsOh:/^(SBS\s*)?오\s*뉴스/, skip:/\(R\)|스포츠|예고|재방|하이라이트/ };
 let _cueDoc=null, _cueLoading=null, _cueNoAcct=false, _cueNext=0, _cueBusy=false;
@@ -75,11 +75,13 @@ function _cueWant(ds, box){
   if(_cueMan8(box)||!(c&&c.news8&&usual)) return '';
   return Math.abs(_cueMin(c.news8)-_cueMin(usual))>=CUE_NOTICE_MIN?`오늘 8뉴스 진입시간은 ${c.news8}이에요. (평소 ${usual})`:'';   // 30분 이상 다를 때만(10-21 사용자 — 몇 분 차이는 그날 큐시트 사정)
 }
-// 할 일: '' 그대로 · 'del' 지움 · 'put' 올리기/고치기 (it = 지금 자동 공지, mm = 기억한 { t, text }, n8 = 지금 큐시트 시각)
+// 공지 제목에도 시각(10-29 사용자 '안 열어보고도 바로 알게') — 알림 제목도 같음
+const _cueTitle=n8=>`8뉴스 진입시간 ${n8}`;
+// 할 일: '' 그대로 · 'del' 지움 · 'put' 올리기/고치기 · 'title' 제목만 고침(알림 없음 — 시각 없던 옛 제목) (it = 지금 자동 공지, mm = 기억한 { t, text }, n8 = 지금 큐시트 시각)
 function _cueAct(it, want, mm, n8){
   if(it&&mm&&mm.text&&it.text!==mm.text) return '';   // 사람이 고친 글
   if(!want) return it?'del':'';
-  if(it) return it.text===want?'':'put';
+  if(it) return it.text!==want?'put':/^8뉴스 진입시간(\s+\d{2}:\d{2})?$/.test(it.title||'')&&it.title!==_cueTitle(n8)?'title':'';   // 사람이 바꾼 제목은 그대로
   return mm&&mm.t===n8?'':'put';   // 이 시각으로 올렸던 걸 사람이 지움
 }
 async function _cueNotice(ds){
@@ -95,9 +97,10 @@ async function _cueNotice(ds){
     memo=null; push='';
     if(!act) return false;
     if(act==='del'){ box.items.splice(i,1); if(m[ds]){ delete m[ds]; rp.cue8Auto=memo=m; } }   // 시스템이 지움 → 기억도 지움(같은 시각이 다시 오면 다시 올림 — 기억이 남으면 '사람이 지움'으로 봄)
+    else if(act==='title') it.title=_cueTitle(n8);
     else {
-      if(it){ it.text=want; it.postedAt=new Date().toISOString(); it.silent=false; }
-      else box.items.unshift({ id, title:'8뉴스 진입시간', text:want, postedBy:'NDS 큐시트', postedById:'', postedAt:new Date().toISOString(), silent:false, auto:true });
+      if(it){ it.text=want; it.title=_cueTitle(n8); it.postedAt=new Date().toISOString(); it.silent=false; }
+      else box.items.unshift({ id, title:_cueTitle(n8), text:want, postedBy:'NDS 큐시트', postedById:'', postedAt:new Date().toISOString(), silent:false, auto:true });
       push=want;
       m[ds]={ t:n8, text:want };
       Object.keys(m).forEach(d=>{ if(d<addDays(ds,-7)) delete m[d]; });
@@ -108,7 +111,7 @@ async function _cueNotice(ds){
   if(ok===true){
     if(memo){ data.cue8Auto=memo; try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){} }   // _ndCommit 은 notices 만 받아 옴 — 기억도 같이
     try{ renderNoticeBar(); }catch(e){}
-    if(push) _sendNoticePush(push, '⏰ 8뉴스 진입시간 변경');
+    if(push) _sendNoticePush(push, '⏰ '+_cueTitle(n8));
   }
 }
 function _cueDev(){ return ndPcId(); }   // js/meal.js

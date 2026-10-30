@@ -32,6 +32,12 @@ function publishSchedule() {
     ? ` (${data.draft.rangeStart} ~ ${data.draft.rangeEnd})`
     : '';
   data.deployLog.unshift({ at: label, range: rangeLabel, ts: now.toISOString() });
+  // 근무표 탭은 배포한 기간 단위로만 봄(js/table-view.js tablePeriods) — 배포 기록은 지울 수 있고 1년 지나면 빠지니 기간은 따로 남김
+  if (data.draft.rangeStart && data.draft.rangeEnd) {
+    if (!Array.isArray(data.pubPeriods)) data.pubPeriods = data.deployLog.slice(1).reverse().map(l => { const m = String(l.range||'').match(/(\d{4}-\d{2}-\d{2})\s*~\s*(\d{4}-\d{2}-\d{2})/); return m ? { s: m[1], e: m[2], ts: l.ts||'', at: l.at||'' } : null; }).filter(Boolean);   // 처음 한 번: 지금까지 배포 기록에서
+    data.pubPeriods.push({ s: data.draft.rangeStart, e: data.draft.rangeEnd, ts: now.toISOString(), at: label });
+    data.pubPeriods = data.pubPeriods.slice(-120);
+  }
   data.deployLog = data.deployLog.filter(l => !l.ts || (Date.now()-new Date(l.ts).getTime()) < 365*24*3600*1000);
   saveData(data);
   renderDeployLog();

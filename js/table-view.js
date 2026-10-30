@@ -31,36 +31,44 @@ function workCellRole(entry, s, ds) {
   const all = [...(entry.vw?.workers||[]), ...(entry.cg?.workers||[]), ...(entry.xr||[]), ...(entry.project||[]), ...(entry.sports||[])];
   return all.includes(s.id) ? '근무' : '';
 }
-function setThisMonth() {
-  const now = new Date();
-  const y=now.getFullYear(), m=now.getMonth()+1;
-  tableRangeStart = toDateStr(y,m,1);
-  tableRangeEnd = toDateStr(y,m,new Date(y,m,0).getDate());
-  _saveTableRange();
-  renderTable();
+// 근무표 탭은 '배포한 기간' 하나씩만 본다(10-30 사용자 — 배포마다 부서 이동 등이 달라 기간을 섞으면 헷갈림). 자유 기간 입력 없음
+// 기간 = 배포 기록(deployLog range '(시작 ~ 끝)') + data.pubPeriods(배포 때 남김 — 배포 기록을 지워도 남음)를 오래된 배포부터 겹쳐 나중 배포가 이김
+//   (겹친 앞 기간은 남는 쪽만), 근무 데이터가 하루도 없는 기간은 뺌(배포 삭제). at = 그 기간을 마지막으로 배포한 때
+function tablePeriods() {
+  const ev = [];
+  (data.deployLog||[]).forEach((l,i) => { const m = String(l&&l.range||'').match(/(\d{4}-\d{2}-\d{2})\s*~\s*(\d{4}-\d{2}-\d{2})/); if (m && m[1]<=m[2]) ev.push({ s:m[1], e:m[2], ts:l.ts||'', at:l.at||'', o:-i }); });   // deployLog 는 최근 것이 앞
+  (data.pubPeriods||[]).forEach((p,i) => { if (p && p.s && p.e && p.s<=p.e) ev.push({ s:p.s, e:p.e, ts:p.ts||'', at:p.at||'', o:i }); });
+  ev.sort((a,b) => a.ts.localeCompare(b.ts) || a.o-b.o);
+  let per = [];
+  ev.forEach(p => {
+    const out = [];
+    per.forEach(q => {
+      if (q.e<p.s || q.s>p.e) { out.push(q); return; }
+      if (q.s<p.s) out.push({ s:q.s, e:addDays(p.s,-1), at:q.at });
+      if (q.e>p.e) out.push({ s:addDays(p.e,1), e:q.e, at:q.at });
+    });
+    out.push({ s:p.s, e:p.e, at:p.at });
+    per = out;
+  });
+  const days = Object.keys(data.schedule||{});
+  return per.filter(p => days.some(d => d>=p.s && d<=p.e)).sort((a,b) => a.s.localeCompare(b.s));
 }
-function applyDateRange() {
-  const s=document.getElementById('range-start').value;
-  const e=document.getElementById('range-end').value;
-  if (!s||!e) { toast('시작일과 종료일을 모두 입력하세요.','error'); return; }
-  if (s>e) { toast('종료일이 시작일보다 빠릅니다.','error'); return; }
-  tableRangeStart=s; tableRangeEnd=e;
-  _saveTableRange();
-  renderTable();
+// 지금 보는 기간의 번호 — 배포 기간과 딱 맞으면 그것, 아니면(옛 자유 기간·다시 배포해 바뀜) ref(없으면 보던 시작일·오늘)가 든 기간, 없으면 바로 다음, 끝을 넘으면 마지막
+function _tblPeriodIdx(P, ref) {
+  if (!ref) { const i = P.findIndex(p => p.s===tableRangeStart && p.e===tableRangeEnd); if (i>=0) return i; }
+  ref = ref || tableRangeStart || _todayStr();
+  const j = P.findIndex(p => p.e>=ref); return j>=0 ? j : P.length-1;
 }
-// 좌우 화살표 페이징: 4주(28일) 단위, 월요일 정렬 (월~금 한세트로 4주 기반 편성용)
+function _tblGoPeriod(p) { tableRangeStart=p.s; tableRangeEnd=p.e; _saveTableRange(); renderTable(); }
+function tableThisPeriod() { const P=tablePeriods(); if (P.length) _tblGoPeriod(P[_tblPeriodIdx(P,_todayStr())]); }
+// 좌우 화살표: 이전·다음 배포 기간
 function tableRangeNav(dir) {
-  let base = tableRangeStart ? new Date(tableRangeStart+'T00:00:00') : new Date();
-  const day = base.getDay();
-  base.setDate(base.getDate() + (day===0 ? -6 : 1-day));   // 그 주 월요일로 정렬
-  base.setDate(base.getDate() + dir*28);                    // 4주 이동
-  const end = new Date(base); end.setDate(end.getDate()+27);
-  tableRangeStart = toDateStr(base.getFullYear(), base.getMonth()+1, base.getDate());
-  tableRangeEnd   = toDateStr(end.getFullYear(),  end.getMonth()+1,  end.getDate());
-  const rs=document.getElementById('range-start'), re=document.getElementById('range-end');
-  if(rs) rs.value=tableRangeStart; if(re) re.value=tableRangeEnd;
-  _saveTableRange();
-  renderTable();
+  const P=tablePeriods(); if (!P.length) return;
+  _tblGoPeriod(P[Math.max(0, Math.min(P.length-1, _tblPeriodIdx(P)+dir))]);
+}
+function _tblPeriodLabel(p) {
+  const f = ds => { const d=new Date(ds+'T00:00:00'); return `${d.getFullYear()!==new Date().getFullYear()?d.getFullYear()+'년 ':''}${d.getMonth()+1}월 ${d.getDate()}일 (${DOW_KR[d.getDay()]})`; };
+  return `${f(p.s)} ~ ${f(p.e)}`;
 }
 function importNewLeaves(input) {
   if (!isAdmin) { toast('관리자만 가능합니다.','error'); input.value=''; return; }
@@ -193,17 +201,18 @@ function renderTable() {
     return;
   }
 
-  // 날짜 범위 초기화 (최초 호출 시 이번 달)
-  if (!tableRangeStart || !tableRangeEnd) {
+  // 기간 = 배포한 기간 하나(tablePeriods). 처음엔 오늘이 든 기간, 저장해 둔 기간이 배포 기간과 다르면 그 날짜가 든 배포 기간으로
+  const _P=tablePeriods(), _pi=_P.length?_tblPeriodIdx(_P):-1, _per=_pi>=0?_P[_pi]:null;
+  if (_per && (_per.s!==tableRangeStart || _per.e!==tableRangeEnd)) { tableRangeStart=_per.s; tableRangeEnd=_per.e; _saveTableRange(); }
+  if (!tableRangeStart || !tableRangeEnd) {   // 배포 기록이 없을 때만(옛 데이터) 이번 달
     const y=now.getFullYear(), m=now.getMonth()+1;
     tableRangeStart=toDateStr(y,m,1);
     tableRangeEnd=toDateStr(y,m,new Date(y,m,0).getDate());
   }
-  // date input 동기화
-  const rsEl=document.getElementById('range-start');
-  const reEl=document.getElementById('range-end');
-  if (rsEl) rsEl.value=tableRangeStart;
-  if (reEl) reEl.value=tableRangeEnd;
+  { const lb=document.getElementById('tbl-period');
+    if (lb) lb.innerHTML = _per ? `${_tblPeriodLabel(_per)}${_per.s<=todayStr&&todayStr<=_per.e?'<span class="tbl-now">지금</span>':''}` : '';
+    const pv=document.getElementById('tbl-prev'), nx=document.getElementById('tbl-next');
+    if (pv) pv.disabled = _pi<=0; if (nx) nx.disabled = _pi<0 || _pi>=_P.length-1; }
 
   // 날짜 배열 생성
   const dates=[];
@@ -222,7 +231,7 @@ function renderTable() {
   const _autoTitle = `${_tmY}년 ${_tmM+1}월 근무표`;
   const _savedTitle = data.settings?.scheduleTitle || null;
   const _titleMain = _savedTitle || _autoTitle;
-  const _lastDeploy = data.deployLog?.[0]?.at || null;
+  const _lastDeploy = (_per && _per.at) || data.deployLog?.[0]?.at || null;   // 이 기간을 마지막으로 배포한 날
   const _deploySpan = _lastDeploy ? ` <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px;">v.${_lastDeploy.split(' ').slice(0,3).join(' ')} 배포</span>` : '';
   document.getElementById('table-title').innerHTML =
     `<span id="table-title-text" data-auto="${_autoTitle}" ondblclick="startEditTableTitle()"${isAdmin?' title="더블클릭하여 제목 수정" style="cursor:pointer;"':''}>${_titleMain}</span>${_deploySpan}`;
@@ -594,3 +603,20 @@ function renderTable() {
   }
 }
 
+// 모바일: 근무표 칸 안 세로 스크롤이 끝에 닿으면 같은 손짓으로 화면 전체가 이어서 내려감, 맨 위에서 더 올리면 화면이 올라감(10-30 사용자)
+//   브라우저는 한 손짓 안에선 안쪽 스크롤만 움직이므로 직접 이어 줌. 표 칸은 overscroll-behavior-y:none(css/gantt-etc.css) — 기본 이어짐과 겹쳐 두 배로 가지 않게
+(function(){
+  let wrap=null, x0=0, y0=0;
+  document.addEventListener('touchstart', e=>{
+    const w=e.touches.length===1&&matchMedia('(max-width:1000px)').matches&&e.target.closest?e.target.closest('.excel-wrap'):null;   // 근무표·작성소 표
+    wrap=w&&w.scrollHeight>w.clientHeight+1?w:null;
+    if(wrap){ x0=e.touches[0].clientX; y0=e.touches[0].clientY; }
+  }, { passive:true });
+  document.addEventListener('touchmove', e=>{
+    if(!wrap||e.touches.length!==1) return;
+    const t=e.touches[0], dx=x0-t.clientX, dy=y0-t.clientY; x0=t.clientX; y0=t.clientY;   // dy>0 = 내려 보기
+    if(Math.abs(dy)<=Math.abs(dx)) return;   // 가로로 넘기는 중
+    if(dy>0?wrap.scrollTop+wrap.clientHeight>=wrap.scrollHeight-1:wrap.scrollTop<=0) window.scrollBy(0,dy);
+  }, { passive:true });
+  document.addEventListener('touchend', ()=>{ wrap=null; }, { passive:true });
+})();

@@ -46,10 +46,10 @@ window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.hre
 <link rel="stylesheet" href="css/notice-poll.css?v=01718f6c">
 <link rel="stylesheet" href="css/toss-common.css?v=f6f7ca81">
 <link rel="stylesheet" href="css/calendar.css?v=fb8bf996">
-<link rel="stylesheet" href="css/table.css?v=b98a1388">
+<link rel="stylesheet" href="css/table.css?v=8b3be5ac">
 <link rel="stylesheet" href="css/modal.css?v=8f88bef9">
 <link rel="stylesheet" href="css/admin.css?v=8a56f85e">
-<link rel="stylesheet" href="css/gantt-etc.css?v=27b00342">
+<link rel="stylesheet" href="css/gantt-etc.css?v=d111ed61">
 <link rel="stylesheet" href="css/sheet-login.css?v=a15e1dc2">
 <link rel="stylesheet" href="css/nd-select.css?v=23fbc7fd">
 <link rel="stylesheet" href="css/nd-cal.css?v=cdcf9f62">
@@ -609,16 +609,13 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
     <h2 id="table-title">근무표</h2>
     <div class="tbl-ctrl">
       <div class="tbl-range">
-        <span class="tbl-lbl">기간</span>
-        <input type="date" id="range-start" class="tbl-date">
-        <span class="tbl-tilde">~</span>
-        <input type="date" id="range-end" class="tbl-date">
-        <button class="tbl-apply" onclick="applyDateRange()">적용</button>
+        <span class="tbl-lbl">배포 기간</span>
+        <button class="ws-page-arrow" id="tbl-prev" onclick="tableRangeNav(-1)" title="이전 배포 기간" aria-label="이전 배포 기간">&#8249;</button>
+        <span class="tbl-period" id="tbl-period"></span>
+        <button class="ws-page-arrow" id="tbl-next" onclick="tableRangeNav(1)" title="다음 배포 기간" aria-label="다음 배포 기간">&#8250;</button>
       </div>
       <div class="tbl-actions">
-        <button class="tbl-btn" onclick="setThisMonth()">이번 달</button>
-        <button class="ws-page-arrow" onclick="tableRangeNav(-1)" title="이전 4주">&#8249;</button>
-        <button class="ws-page-arrow" onclick="tableRangeNav(1)" title="다음 4주">&#8250;</button>
+        <button class="tbl-btn" onclick="tableThisPeriod()">이번 기간</button>
         <button class="tbl-btn" onclick="captureSchedule()" title="현재 근무표를 PNG 이미지로 저장"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px;"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-4.5-4.5L5 21"/></svg>이미지로 저장</button>
         <button class="tbl-btn" id="tbl-del-pub" style="display:none;background:#fdecea;color:#d65a52;border:1px solid #f3c2bd;" onclick="openDeletePublished()">🗑 배포 삭제</button>
       </div>
@@ -1213,7 +1210,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.10.29 15:13';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.10.30 09:52';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1474,13 +1471,13 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/project-gantt.js?v=64b2c52b"></script>
 <script src="js/nav-admin.js?v=d3fe8bd0"></script>
 <script src="js/home.js?v=2076cee0"></script>
-<script src="js/table-view.js?v=eaac7d5c"></script>
+<script src="js/table-view.js?v=57e87d16"></script>
 <script src="js/calendar.js?v=4e6b00eb"></script>
 <script src="js/generation.js?v=c2239cca"></script>
 <script src="js/workshop.js?v=9442eb62"></script>
 <script src="js/excel-import.js?v=3279504a"></script>
 <script src="js/events.js?v=291f1d5a"></script>
-<script src="js/publish.js?v=0f538f2b"></script>
+<script src="js/publish.js?v=1b372795"></script>
 <script src="js/leave-request.js?v=4bd108a2"></script>
 <script src="js/staff.js?v=f01496d9"></script>
 <script src="js/admin.js?v=557a3dae"></script>
@@ -1492,14 +1489,14 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/sync-init.js?v=4298d2aa"></script>
 <script src="js/a2hs.js?v=d9550407"></script>
 <script src="js/staff-modal.js?v=9119107a"></script>
-<script src="js/pull-refresh.js?v=8849e397"></script>
+<script src="js/pull-refresh.js?v=a1b4c3d8"></script>
 <script src="js/nd-select.js?v=07611e9c"></script>
 <script src="js/nd-people.js?v=7bba13fe"></script>
 <script src="js/nd-cal.js?v=e3d3ed58"></script>
 <script src="js/nd-comments.js?v=1008c431"></script>
 <script src="js/meal.js?v=97ff29e2"></script>
 <script src="js/alarms.js?v=7345bb10"></script>
-<script src="js/news-cue.js?v=51d7e1db"></script>
+<script src="js/news-cue.js?v=63ea6e57"></script>
 <script src="js/holiday-work.js?v=332135fe"></script>
 <script src="js/onboard.js?v=b07ca88f"></script>
 <script src="js/home-tiles.js?v=68cfb2c2"></script>
