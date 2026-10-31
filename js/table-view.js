@@ -608,40 +608,21 @@ function renderTable() {
   if(!allCols.length){
     document.getElementById('excel-tbody').innerHTML=`<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--muted);">직원을 먼저 등록해 주세요.</td></tr>`;
   }
+  if (typeof _tblFitHeight === 'function') _tblFitHeight();   // 모바일: 표 칸을 하단 메뉴 위까지 딱 맞춤(테스트는 renderTable 만 잘라 씀)
 }
 
-// 터치: 근무표·작성소 표 칸(가로·세로 둘 다 스크롤) — 스크롤 자체는 브라우저 기본(부드러움. 10-31 손가락을 직접 따라가게 했더니 버벅임 → 되돌림)
-//   ① 방향 고정(10-31 사용자 '위로 올리는데 자꾸 셀이 좌우로 움직임'): 처음 LOCK px 움직인 방향이 세로면 overflow-x:hidden, 가로면 overflow-y:hidden 을
-//      그 손짓·관성 동안만 걸어 비스듬히 밀어도 한 방향으로만. 브라우저가 스크롤을 시작하는 거리보다 먼저 정함. 관성이 끝나면(스크롤 멈춘 뒤 UNLOCK ms) 풀어 둠
-//   ② 세로로 표 끝에 닿으면 같은 손짓으로 화면 전체가 이어서 움직임(10-30 — 위로도 같음). 표 칸은 overscroll-behavior-y:none(css/gantt-etc.css)
-//   당겨서 새로고침은 js/pull-refresh.js(표가 맨 위일 때만). 표 칸이 세로로 스크롤되지 않는 크기(태블릿 세로)는 아무것도 안 함
-(function(){
-  const LOCK=4, UNLOCK=160;
-  function bind(el){
-    let on=false, axis='', x0=0, y0=0, ly=0, relT=0;
-    const unlock=()=>{ clearTimeout(relT); axis=''; el.style.overflowX=''; el.style.overflowY=''; };
-    const later=()=>{ clearTimeout(relT); relT=setTimeout(unlock, UNLOCK); };
-    el.addEventListener('scroll', ()=>{ if(!on&&axis) later(); }, { passive:true });   // 관성으로 움직이는 동안은 고정 유지
-    el.addEventListener('touchstart', e=>{
-      unlock(); on=false;
-      if(e.touches.length!==1||el.scrollHeight<=el.clientHeight+1) return;
-      const t=e.touches[0]; on=true; x0=t.clientX; y0=ly=t.clientY;
-    }, { passive:true });
-    el.addEventListener('touchmove', e=>{
-      if(!on) return;
-      if(e.touches.length!==1){ on=false; unlock(); return; }
-      const t=e.touches[0];
-      if(!axis){
-        const dx=t.clientX-x0, dy=t.clientY-y0; if(Math.max(Math.abs(dx),Math.abs(dy))<LOCK) return;
-        axis=Math.abs(dx)>Math.abs(dy)?'x':'y';
-        if(axis==='y') el.style.overflowX='hidden'; else el.style.overflowY='hidden';
-      }
-      if(axis==='y'){ const d=ly-t.clientY; if(d&&(d>0?el.scrollTop+el.clientHeight>=el.scrollHeight-1:el.scrollTop<=0)) window.scrollBy(0,d); }   // d>0 = 내려 보기
-      ly=t.clientY;
-    }, { passive:true });
-    const end=()=>{ if(!on) return; on=false; if(axis) later(); };
-    el.addEventListener('touchend', end, { passive:true });
-    el.addEventListener('touchcancel', end, { passive:true });
-  }
-  document.querySelectorAll('.excel-wrap').forEach(bind);
-})();
+// 모바일: 근무표 표 칸 높이를 화면에 딱 맞춤(위 = 표 칸 시작, 아래 = 하단 메뉴 바로 위) → 화면 전체는 안 움직이고 표 칸만 스크롤
+//   10-30~31엔 표 끝에서 화면 전체를 손짓으로 이어 움직이고(window.scrollBy) 방향 고정(overflow 바꾸기)을 했는데, 아이폰에서 '끝까지 내린 뒤 툭 바뀜'·버벅임 → 둘 다 버림.
+//   그때 화면을 움직이고 싶었던 이유 = 표 끝이 하단 메뉴에 가려짐(아이폰 앱은 위 안전영역만큼 표가 내려가는데 높이는 100dvh-270px 고정이었음) → 높이를 재서 맞춤
+//   조건은 css/gantt-etc.css 의 표 칸 높이 제한(.excel-wrap max-height)과 같음. 그 밖(넓은 화면·태블릿)은 CSS 그대로
+const _TBL_FIT_MQ='(max-width: 600px), (orientation: landscape) and (max-height: 500px)';
+function _tblFitHeight() {
+  const v=document.getElementById('view-table'), w=v&&v.querySelector('.excel-wrap'); if (!w) return;
+  if (!v.classList.contains('active') || !matchMedia(_TBL_FIT_MQ).matches) { w.style.maxHeight=''; return; }
+  const nav=document.getElementById('floating-nav'), cs=nav&&getComputedStyle(nav);
+  const navTop = cs&&cs.display!=='none'&&nav.offsetHeight ? innerHeight-(parseFloat(cs.bottom)||0)-nav.offsetHeight : innerHeight;   // 팝업 때 메뉴가 아래로 숨어도(transform) 원래 자리 기준
+  const top=w.getBoundingClientRect().top+scrollY;   // 화면 맨 위로 올렸을 때 표 칸 시작
+  w.style.maxHeight=Math.max(220, Math.floor(navTop-8-top))+'px';
+}
+addEventListener('resize', ()=>_tblFitHeight(), { passive:true });
+try { document.fonts && document.fonts.ready.then(()=>_tblFitHeight()); } catch(e) {}

@@ -17,8 +17,8 @@
 .excel-table th.check-sticky, .excel-table td.check-sticky { position: sticky; right: 0; z-index: 6; box-shadow: -2px 0 4px rgba(0,0,0,0.06); }
 .excel-table tbody tr.sum-row td { background: #fafafa; border-top: 2px solid #c5cce8; font-weight: 700; }
 .excel-table tbody tr.sum-row td.date-td { font-size: 10px; line-height: 1.4; }
-/* 맨 아래 이름 줄(10-31) — 머리줄 이름 칸(thead th.name-th)과 같은 모양, 색은 칸마다 inline */
-.excel-table tbody tr.name-foot-row td { background: var(--surface2); color: var(--text); font-weight: 600; font-size: 10px; padding: 5px 3px; height: auto; white-space: nowrap; text-align: center; border-top: 1px solid var(--border); }
+/* 맨 아래 이름 줄(10-31) — 머리줄 이름 칸(thead th.name-th)과 같은 모양, 색은 칸마다 inline. 높이는 다른 줄처럼 고정(auto면 PC에서 표가 칸을 채울 때 남는 높이를 이 줄이 다 먹어 늘어짐) */
+.excel-table tbody tr.name-foot-row td { background: var(--surface2); color: var(--text); font-weight: 600; font-size: 10px; padding: 5px 3px; height: 28px; white-space: nowrap; text-align: center; border-top: 1px solid var(--border); }
 .excel-table tbody tr.name-foot-row td.date-td { color: var(--muted); font-weight: 700; }
 @media (max-width: 600px) { .excel-table tbody tr.name-foot-row td { font-size: 12px; padding: 5px 5px; } }
 .excel-wrap { overflow-x: auto; border: 1px solid transparent; border-radius: 16px; width: 100%; background: linear-gradient(var(--surface),var(--surface)) padding-box, linear-gradient(155deg, rgba(255,255,255,.9), rgba(255,255,255,.25) 32%, rgba(15,23,42,.05)) border-box; box-shadow: 0 1px 3px rgba(20,24,40,.05), 0 14px 30px -20px rgba(20,24,40,.18); }

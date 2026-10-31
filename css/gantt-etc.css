@@ -116,7 +116,8 @@ tr.staff-row-clickable:hover td { background:var(--surface2); cursor:pointer; }
   .date-badge { display: none; }
   .admin-link { padding: 4px 8px; font-size: 11px; }
   /* 모바일 테이블 - 가로 스크롤 */
-  .excel-wrap { border-radius: 14px; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: none; width: 100%; max-height: calc(100vh - 270px); max-height: calc(100dvh - 270px); padding-bottom: 20px; }   /* 끝에 닿으면 화면 스크롤로 이어짐 = js/table-view.js 끝 */
+  .excel-wrap { border-radius: 14px; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; width: 100%; max-height: calc(100vh - 270px); max-height: calc(100dvh - 270px); padding-bottom: 20px; }   /* 근무표 탭은 js/table-view.js _tblFitHeight 가 하단 메뉴 위까지 딱 맞춤 */
+  body:has(#view-table.active) main { padding-bottom: 0 !important; }   /* 근무표 탭: 화면 전체는 안 움직이게(표 칸만 스크롤, 10-31) — css/nav.css 의 하단 메뉴 여백 대신 표 칸 높이로 맞춤 */
   .excel-table { width: max-content; min-width: max-content; table-layout: auto; }
   .excel-table thead th.name-th { font-size: 12px; padding: 5px 5px; min-width: 28px; }
   .excel-table tbody td { font-size: 12px; height: 28px; }
