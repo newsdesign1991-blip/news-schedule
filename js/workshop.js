@@ -184,9 +184,11 @@ function renderWorkshopTable() {
   thead+=`<th rowspan="2" class="sum-col check-sticky" style="font-size:10px;background:#fff0f0;color:#c06b66;min-width:80px;">확인</th>`;
   thead+=`<th rowspan="2" style="font-size:10px;background:#f8f4ff;color:#7c3aed;min-width:160px;white-space:nowrap;">비고</th></tr><tr>`;
   const _grpMap={cg:'CG',xr:'XR',project:'PROJECT',sports:'SPORTS'};
-  vwCols.forEach(s=>{thead+=`<th class="name-th" data-sid="${s.id}" data-grp="VW" style="color:${deptColors.vw};">${s.name}</th>`;});
-  jogeunCols.forEach(s=>{thead+=`<th class="name-th" data-sid="${s.id}" data-grp="조근" style="background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);">${s.name}</th>`;});
-  cgCols.forEach((s,_ci)=>{const bg=s._dept==='xr'?'background:var(--th-xr-namebg);':'';const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;let _gb='';if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:1px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:1px solid ${_gc}55;`;}thead+=`<th class="name-th" data-sid="${s.id}" data-grp="${_grpMap[s._dept]||'CG'}" style="${bg}color:${deptColors[s._dept]||'var(--text)'};${_gb}">${s.name}</th>`;});
+  let nameFoot='';   // 표 맨 아래 이름 줄(근무표 renderTable 과 같음) — 열 순서는 합계 줄과 같음
+  vwCols.forEach(s=>{thead+=`<th class="name-th" data-sid="${s.id}" data-grp="VW" style="color:${deptColors.vw};">${s.name}</th>`;nameFoot+=`<td style="color:${deptColors.vw};">${s.name}</td>`;});
+  jogeunCols.forEach(s=>{thead+=`<th class="name-th" data-sid="${s.id}" data-grp="조근" style="background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);">${s.name}</th>`;nameFoot+=`<td style="background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);">${s.name}</td>`;});
+  nameFoot+='<td></td>';   // VW합
+  cgCols.forEach((s,_ci)=>{const bg=s._dept==='xr'?'background:var(--th-xr-namebg);':'';const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;let _gb='';if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:1px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:1px solid ${_gc}55;`;}thead+=`<th class="name-th" data-sid="${s.id}" data-grp="${_grpMap[s._dept]||'CG'}" style="${bg}color:${deptColors[s._dept]||'var(--text)'};${_gb}">${s.name}</th>`;nameFoot+=`<td style="${bg}color:${deptColors[s._dept]||'var(--text)'};${_gb}">${s.name}</td>`;});
   thead+='</tr>';
   document.getElementById('ws-thead').innerHTML=thead;
   try{ _wsColDragSetup(); }catch(e){}   // 관리자: 이름열 롱프레스 드래그 재정렬
@@ -498,6 +500,7 @@ function renderWorkshopTable() {
   tbody+=`<td></td>`;
   cgCols.forEach(s=>{const cnt=workCount[s.id]||0;tbody+=`<td style="text-align:center;font-size:11px;font-weight:700;color:${cnt>weekdaysInMonth?'#d65a52':cnt?'var(--text)':'var(--muted)'};">${cnt||'-'}</td>`;});
   tbody+=`<td></td><td></td><td></td><td></td></tr>`;
+  tbody+=`<tr class="name-foot-row"><td class="date-td">이름</td><td class="dow-td"></td>${nameFoot}<td></td><td></td><td></td><td></td></tr>`;   // 맨 아래 이름 줄(10-31)
   document.getElementById('ws-tbody').innerHTML=tbody;
   _wsPaintSelection();
   // 비고 열 폭을 가장 긴 비고 내용에 맞춰 동적 조정(내용 없으면 기본, 길면 늘림)

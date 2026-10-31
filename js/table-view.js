@@ -299,18 +299,23 @@ function renderTable() {
   // thead row 2 — names (조근/VW합/CG합/당일 은 rowspan=2이므로 생략)
   thead+='<tr>';
   const deptColors={vw:'var(--vw-light)',cg:'var(--cg-light)',project:'var(--project-light)',sports:'var(--sports-light)',xr:'var(--xr-light)'};
+  let nameFoot='';   // 표 맨 아래 이름 줄(머리줄 이름과 같은 색) — 열 순서는 합계 줄과 같음
   vwCols.forEach(s=>{
     thead+=`<th class="name-th" data-sid="${s.id}" style="cursor:pointer;color:${deptColors.vw};">${s.name}</th>`;
+    nameFoot+=`<td style="color:${deptColors.vw};">${s.name}</td>`;
   });
   jogeunCols.forEach(s=>{
     thead+=`<th class="name-th" data-sid="${s.id}" style="cursor:pointer;background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);">${s.name}</th>`;
+    nameFoot+=`<td style="background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);">${s.name}</td>`;
   });
+  nameFoot+='<td></td>';   // VW합
   cgCols.forEach((s,_ci)=>{
     const bg=s._dept==='xr'?'background:var(--th-xr-namebg);':'';
     const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;
     let _gb='';
     if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:1px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:1px solid ${_gc}55;`;}
     thead+=`<th class="name-th" data-sid="${s.id}" style="cursor:pointer;${bg}color:${deptColors[s._dept]||'var(--text)'};${_gb}">${s.name}</th>`;
+    nameFoot+=`<td style="${bg}color:${deptColors[s._dept]||'var(--text)'};${_gb}">${s.name}</td>`;
   });
   thead+='</tr>';
   document.getElementById('excel-thead').innerHTML=thead;
@@ -586,6 +591,8 @@ function renderTable() {
   });
   tbody+=`<td></td><td></td><td></td>`; // CG합, 당일, 비고
   tbody+='</tr>';
+  // 맨 아래 이름 줄(10-31 사용자 — 아래쪽 근무를 볼 때 맨 위 이름이 멀어 보기 힘듦). 작성소 표(js/workshop.js)도 같음
+  tbody+=`<tr class="name-foot-row"><td class="date-td">이름</td><td class="dow-td"></td>${nameFoot}<td></td><td></td><td></td></tr>`;
 
   document.getElementById('excel-tbody').innerHTML=tbody;
   (function(){ var dr=document.querySelector('.excel-table thead tr.dept-row'); if(dr){ var h=dr.getBoundingClientRect().height; document.querySelectorAll('.excel-table thead th.name-th').forEach(function(el){ el.style.top=h+'px'; }); } })();
