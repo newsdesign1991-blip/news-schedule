@@ -610,45 +610,38 @@ function renderTable() {
   }
 }
 
-// 터치: 근무표·작성소 표 칸 안 손가락 스크롤을 직접 처리(10-31 사용자 '위로 올리는데 자꾸 셀이 좌우로 움직임')
-//   표 칸이 가로·세로 둘 다 스크롤되면 브라우저는 비스듬히 밀 때 두 방향을 같이 움직임 → 처음 LOCK px 움직인 방향 하나로만(가로 또는 세로) 고정, 관성도 직접.
-//   세로는 표가 끝에 닿으면 남은 만큼 화면 전체가 이어서 움직임(10-30 — 위로도 같음), 당겨서 새로고침은 js/pull-refresh.js(표가 맨 위일 때만)
-//   방향을 정하기 전(LOCK 미만)은 막지 않음 = 탭(칸 누르기)은 브라우저 그대로. 표 칸이 세로로 스크롤되지 않는 크기(태블릿 세로)는 브라우저 기본 그대로
+// 터치: 근무표·작성소 표 칸(가로·세로 둘 다 스크롤) — 스크롤 자체는 브라우저 기본(부드러움. 10-31 손가락을 직접 따라가게 했더니 버벅임 → 되돌림)
+//   ① 방향 고정(10-31 사용자 '위로 올리는데 자꾸 셀이 좌우로 움직임'): 처음 LOCK px 움직인 방향이 세로면 overflow-x:hidden, 가로면 overflow-y:hidden 을
+//      그 손짓·관성 동안만 걸어 비스듬히 밀어도 한 방향으로만. 브라우저가 스크롤을 시작하는 거리보다 먼저 정함. 관성이 끝나면(스크롤 멈춘 뒤 UNLOCK ms) 풀어 둠
+//   ② 세로로 표 끝에 닿으면 같은 손짓으로 화면 전체가 이어서 움직임(10-30 — 위로도 같음). 표 칸은 overscroll-behavior-y:none(css/gantt-etc.css)
+//   당겨서 새로고침은 js/pull-refresh.js(표가 맨 위일 때만). 표 칸이 세로로 스크롤되지 않는 크기(태블릿 세로)는 아무것도 안 함
 (function(){
-  const LOCK=5, FRICTION=.998;   // 방향 정하는 거리(px — 브라우저가 스크롤을 시작하는 거리보다 작게), 관성 감속(1ms당, iOS 비슷)
-  let w=null, x0=0, y0=0, lx=0, ly=0, axis='', hist=[], raf=0, stopAt=0;
-  const moveY=(el,d)=>{ const b=el.scrollTop, p=scrollY; el.scrollTop=b+d; const r=d-(el.scrollTop-b); if(Math.abs(r)>=.5) window.scrollBy(0,r); return el.scrollTop!==b||scrollY!==p; };
-  const moveX=(el,d)=>{ const b=el.scrollLeft; el.scrollLeft=b+d; return el.scrollLeft!==b; };
-  function fling(el, ax, v){   // v = px/ms(스크롤 방향)
-    let t=performance.now();
-    const step=now=>{ const dt=Math.min(32,now-t); t=now; const moved=(ax==='y'?moveY:moveX)(el, v*dt); v*=Math.pow(FRICTION,dt);
-      raf=moved&&Math.abs(v)>.02?requestAnimationFrame(step):0; };
-    raf=requestAnimationFrame(step);
-  }
+  const LOCK=4, UNLOCK=160;
   function bind(el){
+    let on=false, axis='', x0=0, y0=0, ly=0, relT=0;
+    const unlock=()=>{ clearTimeout(relT); axis=''; el.style.overflowX=''; el.style.overflowY=''; };
+    const later=()=>{ clearTimeout(relT); relT=setTimeout(unlock, UNLOCK); };
+    el.addEventListener('scroll', ()=>{ if(!on&&axis) later(); }, { passive:true });   // 관성으로 움직이는 동안은 고정 유지
     el.addEventListener('touchstart', e=>{
-      if(raf){ cancelAnimationFrame(raf); raf=0; stopAt=Date.now(); }   // 관성 중에 손대면 멈춤(그 손짓은 칸 누르기 아님)
-      w=null; if(e.touches.length!==1||el.scrollHeight<=el.clientHeight+1) return;
-      const t=e.touches[0]; w=el; axis=''; x0=lx=t.clientX; y0=ly=t.clientY; hist=[{ t:e.timeStamp, x:lx, y:ly }];
+      unlock(); on=false;
+      if(e.touches.length!==1||el.scrollHeight<=el.clientHeight+1) return;
+      const t=e.touches[0]; on=true; x0=t.clientX; y0=ly=t.clientY;
     }, { passive:true });
     el.addEventListener('touchmove', e=>{
-      if(!w) return;
-      if(e.touches.length!==1){ w=null; return; }
+      if(!on) return;
+      if(e.touches.length!==1){ on=false; unlock(); return; }
       const t=e.touches[0];
-      if(!axis){ const dx=t.clientX-x0, dy=t.clientY-y0; if(Math.max(Math.abs(dx),Math.abs(dy))<LOCK) return; axis=Math.abs(dx)>Math.abs(dy)?'x':'y'; }
-      if(e.cancelable) e.preventDefault();
-      if(axis==='y') moveY(w, ly-t.clientY); else moveX(w, lx-t.clientX);
-      lx=t.clientX; ly=t.clientY; hist.push({ t:e.timeStamp, x:lx, y:ly }); while(hist.length>2&&e.timeStamp-hist[0].t>100) hist.shift();
-    }, { passive:false });
-    const end=e=>{
-      const el2=w, ax=axis; w=null; axis='';
-      if(!el2||!ax||e.type!=='touchend') return;
-      const a=hist[0], b=hist[hist.length-1], dt=b.t-a.t;
-      if(dt>0&&e.timeStamp-b.t<60){ const v=ax==='y'?(a.y-b.y)/dt:(a.x-b.x)/dt; if(Math.abs(v)>.15) fling(el2, ax, v); }   // 멈췄다 뗀 건 관성 없음
-    };
+      if(!axis){
+        const dx=t.clientX-x0, dy=t.clientY-y0; if(Math.max(Math.abs(dx),Math.abs(dy))<LOCK) return;
+        axis=Math.abs(dx)>Math.abs(dy)?'x':'y';
+        if(axis==='y') el.style.overflowX='hidden'; else el.style.overflowY='hidden';
+      }
+      if(axis==='y'){ const d=ly-t.clientY; if(d&&(d>0?el.scrollTop+el.clientHeight>=el.scrollHeight-1:el.scrollTop<=0)) window.scrollBy(0,d); }   // d>0 = 내려 보기
+      ly=t.clientY;
+    }, { passive:true });
+    const end=()=>{ if(!on) return; on=false; if(axis) later(); };
     el.addEventListener('touchend', end, { passive:true });
     el.addEventListener('touchcancel', end, { passive:true });
-    el.addEventListener('click', e=>{ if(Date.now()-stopAt<350){ e.preventDefault(); e.stopPropagation(); } }, true);
   }
   document.querySelectorAll('.excel-wrap').forEach(bind);
 })();
