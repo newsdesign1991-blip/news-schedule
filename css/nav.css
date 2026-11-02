@@ -17,6 +17,7 @@
   #hdr-fade.on { opacity: 1; }
   #statusbar-scrim { display: none; }
   body main { padding-bottom: calc(124px + env(safe-area-inset-bottom)) !important; }  /* 바+페이드에 안 가리게(기본 padding 덮어쓰기) */
+  main { overflow-x: clip; }   /* 탭 전환 슬라이드(translateX 44px)가 잠깐 페이지 폭을 넘기면 삼성 인터넷이 화면 기준을 넓혀 하단 바가 팍 내려갔다 옴 — 옆으로 넘친 건 잘라냄(clip은 스크롤 상자가 아니라 sticky 그대로) */
   /* 바 뒤 콘텐츠가 배경색으로 자연스럽게 사라지는 그라디언트 페이드 */
   #fnav-fade {
     display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 2400;
