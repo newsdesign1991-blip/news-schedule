@@ -60,6 +60,17 @@ button, input, select, textarea { font-family: inherit; }
 /* 스트립(가로스크롤 overflow로 세로가 클립됨)에 맞춰 그림자를 여백 안에 들어오는 크기로 — 싹둑 잘림 방지 */
 .mw-strip .mw-day:not(.today) { box-shadow: 0 4px 13px -5px rgba(20,24,40,.20), 0 1px 2px rgba(20,24,40,.05) !important; }
 [data-theme="dark"] .mw-strip .mw-day:not(.today) { box-shadow: 0 4px 13px -5px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.3) !important; }
+/* 요일 칩을 누르면 홈이 그날로(js/home.js homeSelectDay) — 고른 칩은 파란 테 */
+.mw-day.mw-pick { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.mw-strip .mw-day.sel:not(.today) { box-shadow: inset 0 0 0 2px #3182f6, 0 6px 14px -6px rgba(49,130,246,.5) !important; }
+.mw-day.sel .mw-num { color: #3182f6; }
+[data-theme="dark"] .mw-strip .mw-day.sel:not(.today) { box-shadow: inset 0 0 0 2px #6aa8ff, 0 6px 14px -6px rgba(0,0,0,.6) !important; }
+[data-theme="dark"] .mw-day.sel .mw-num { color: #6aa8ff; }
+.mysched-today { background: #3182f6; border: 0; color: #fff; padding: 6px 13px; border-radius: 999px; cursor: pointer; font-size: 12.5px; font-weight: 700; white-space: nowrap; flex-shrink: 0; font-family: inherit; box-shadow: 0 3px 9px -3px rgba(49,130,246,.55); }
+.hm-day-tag { display: inline-block; margin-left: 7px; padding: 2px 8px; border-radius: 999px; background: rgba(49,130,246,.12); color: #2f77f6; font-size: 12px; font-weight: 700; letter-spacing: -.01em; vertical-align: 2px; }
+.panel-count .hm-day-tag { margin: 0 5px 0 0; padding: 0; background: none; vertical-align: 0; }
+[data-theme="dark"] .hm-day-tag { background: rgba(106,168,255,.16); color: #6aa8ff; }
+[data-theme="dark"] .panel-count .hm-day-tag { background: none; }
 /* 헤더: 로고 제거 → 로그인 이름 */
 .logo#hdr-user { font-size: 21px; font-weight: 800; letter-spacing: -.03em; padding-left: 3px; }
 #hdr-user b { color: #3182f6; font-weight: 800; }

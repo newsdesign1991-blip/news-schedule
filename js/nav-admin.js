@@ -19,7 +19,7 @@ function showView(v) {
   document.querySelectorAll('.snav-btn').forEach(el => el.classList.toggle('active', el.getAttribute('data-view')===v));
   currentView = v;
   if (ND_APP && typeof _ndTitlebarSync === 'function') _ndTitlebarSync();
-  if (v==='home'){ renderHome(); const _lov=document.getElementById('login-overlay'); const _login=(_lov && getComputedStyle(_lov).display!=='none') || _tv.classList.contains('home-enter'); if(!_login){ _tv.classList.remove('home-anim'); void _tv.offsetWidth; _tv.classList.add('home-anim'); setTimeout(function(){_tv.classList.remove('home-anim');},1200); } }
+  if (v==='home'){ if (_prevView!=='home' && typeof homeDay!=='undefined') homeDay=null; renderHome(); const _lov=document.getElementById('login-overlay'); const _login=(_lov && getComputedStyle(_lov).display!=='none') || _tv.classList.contains('home-enter'); if(!_login){ _tv.classList.remove('home-anim'); void _tv.offsetWidth; _tv.classList.add('home-anim'); setTimeout(function(){_tv.classList.remove('home-anim');},1200); } }
   else if (v==='table') renderTable();
   else if (v==='month') setCalMode('mine');
   else if (v==='project') renderProject();

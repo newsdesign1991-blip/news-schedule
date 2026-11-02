@@ -42,11 +42,11 @@ function cueLoad(){
 }
 // 홈 '오늘의 근무': 8진 줄 = (주말·공휴일이면 오후뉴스 진입 +) 8뉴스 진입, 뉴오 줄 = 오뉴스 진입 / 없음
 function _cuePaint(){
-  const ds=_todayStr(), c=cueDay(ds), n8=cueNews8(ds);
+  const ds=typeof _homeDayStr==='function'?_homeDayStr():_todayStr(), c=cueDay(ds), n8=cueNews8(ds);   // 홈에서 고른 요일(js/home.js homeSelectDay)
   document.querySelectorAll('[data-cue="news8"]').forEach(el=>{ el.textContent=n8?`${n8} 진입`:''; el.hidden=!n8; });
   const n15=cueNews15(ds);   // 주말·공휴일 오후 뉴스(8진 진행)
   document.querySelectorAll('[data-cue="news15"]').forEach(el=>{ el.textContent=n15?`오후뉴스 ${n15} 진입`:''; el.hidden=!n15; });
-  document.querySelectorAll('[data-cue="newsOh"]').forEach(el=>{ const no=cueNoNewsOh(ds); el.textContent=c&&c.newsOh?`${c.newsOh} 진입`:no?'오늘 오뉴스 없음':''; el.hidden=!(c&&c.newsOh)&&!no; el.classList.toggle('none',!(c&&c.newsOh)&&no); });
+  document.querySelectorAll('[data-cue="newsOh"]').forEach(el=>{ const no=cueNoNewsOh(ds); el.textContent=c&&c.newsOh?`${c.newsOh} 진입`:no?(ds===_todayStr()?'오늘 오뉴스 없음':'오뉴스 없음'):''; el.hidden=!(c&&c.newsOh)&&!no; el.classList.toggle('none',!(c&&c.newsOh)&&no); });
   try{ _updateDuty8Glow(); _updateNewsOhGlow(); }catch(e){}
 }
 // 그날 큐시트 목록 → { news8, newsOh, progs }

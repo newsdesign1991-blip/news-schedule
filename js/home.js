@@ -30,6 +30,7 @@ function toggleTheme(){
 function _updateDuty8Glow(){
   const el = document.getElementById('duty8-card');
   if (!el) return;
+  if (_homeDayStr() !== _todayStr()) { el.classList.remove('duty8-glow'); return; }   // 다른 요일을 보는 중이면 강조 끔
   const h = new Date().getHours();
   // 임시(미리보기용): 앱 최초 로드 시각 + 1시간 동안 8진 강조 강제 ON, 이후 자동 해제
   let _fu = +(localStorage.getItem('_duty8ForcePreview')||0);
@@ -44,6 +45,7 @@ function _updateDuty8Glow(){
 function _updateNewsOhGlow(){
   const els = document.querySelectorAll('.noh-card');
   if (!els.length) return;
+  if (_homeDayStr() !== _todayStr()) { els.forEach(el => el.classList.remove('newsoh-glow')); return; }
   const now = new Date();
   const mins = now.getHours()*60 + now.getMinutes();
   // 큐시트 오뉴스 시각을 알면 진입 1시간 전부터 30분 뒤까지, 오늘 오뉴스가 없으면 끔(js/news-cue.js)
@@ -89,6 +91,28 @@ function _news8WeekCard(note) {
   if (!info) return '';
   return `<div class="wm-news-card"><div class="wm-news-title">8뉴스</div>${info.times.length ? `<div class="wm-news-field"><span>진입</span><strong>${info.times.map(t=>'<span class="wm-news-value">'+t+'</span>').join('')}</strong></div>` : ''}${info.minutes.length ? `<div class="wm-news-field"><span>편성</span><strong>${info.minutes.map(n=>'<span class="wm-news-value">'+n+'분</span>').join('')}</strong></div>` : ''}</div>`;
 }
+// 홈에서 볼 날(11-02): '이번 주 내 근무' 요일 칩을 누르면 홈의 부서 인원·당직·8진·뉴오·근무자 목록이 그날로 바뀜. null = 오늘
+// 같은 칩·오늘 칩을 다시 누르거나 [오늘로], 다른 탭에 갔다 오면(showView) 오늘로. 이번 주를 벗어나면(자정 넘어 주가 바뀜) 저절로 오늘
+let homeDay = null;
+function _homeDayStr() {
+  const t = _todayStr();
+  if (!homeDay || homeDay === t) return t;
+  const mon = addDays(t, -((new Date(t+'T00:00:00').getDay()+6)%7));
+  if (homeDay < mon || homeDay > addDays(mon, 6)) { homeDay = null; return t; }
+  return homeDay;
+}
+function homeSelectDay(ds) {
+  homeDay = (!ds || ds === _todayStr() || ds === homeDay) ? null : ds;
+  homeSelectDay._keep = true;   // renderMySchedule: 칩 줄을 오늘로 되돌려 굴리지 않음
+  renderHome();
+  homeSelectDay._keep = false;
+  // 바뀐 카드만 살짝 블러로 바뀜
+  ['home-summary','home-duty-row','vw-today-chips','cg-today-chips','project-today-chips','sports-today-chips'].forEach(id => {
+    let el = document.getElementById(id); if (!el) return;
+    if (/-chips$/.test(id)) el = el.closest('.panel') || el;
+    try { el.animate([{ opacity:.35, filter:'blur(6px)' }, { opacity:1, filter:'blur(0)' }], { duration:380, easing:'cubic-bezier(.22,1,.36,1)' }); } catch(e) {}
+  });
+}
 function renderHome() {
   _checkLeaveReqDeadline();
   updateLeaveReqBadge();
@@ -99,21 +123,25 @@ function renderHome() {
   const now = new Date();
   const todayStr = toDateStr(now.getFullYear(), now.getMonth()+1, now.getDate());
   document.getElementById('header-date').textContent = `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 ${DOW_FULL[now.getDay()]}`;
-  const entry = data.schedule[todayStr];
+  // 홈에서 볼 날(요일 칩, homeSelectDay) — 부서 인원·당직·8진·뉴오·근무자 목록만 그날로. 주간 일정·일별 인원은 그대로
+  const hDs = _homeDayStr(), _hOther = hDs !== todayStr, _hD = new Date(hDs+'T00:00:00');
+  const _hWord = !_hOther ? '오늘' : hDs===addDays(todayStr,1) ? '내일' : hDs===addDays(todayStr,-1) ? '어제' : DOW_FULL[_hD.getDay()];
+  const _hTag = _hOther ? `<span class="hm-day-tag">${_hD.getMonth()+1}/${_hD.getDate()} (${DOW_KR[_hD.getDay()]})</span>` : '';
+  const entry = data.schedule[hDs];
   const s = data.settings;
-  const _hDx=getDanjikExitStaff(todayStr);
+  const _hDx=getDanjikExitStaff(hDs);
   const _hCgEx=new Set([entry?.danjik,_hDx].filter(Boolean));
-  const _hJIds=new Set(getStaff('조근',todayStr).map(x=>x.id));
+  const _hJIds=new Set(getStaff('조근',hDs).map(x=>x.id));
   const _hSpEx=new Set([entry?.satMorning,entry?.morningDesk].filter(Boolean));
-  const _hLv=new Set((data.newLeaves?.[todayStr])||[]);
-  const _hEx=id=>_isVw2(entry,id)||_hCgEx.has(id)||_hJIds.has(id)||_hSpEx.has(id)||_hLv.has(id)||isProbation(staffById(id),todayStr);
+  const _hLv=new Set((data.newLeaves?.[hDs])||[]);
+  const _hEx=id=>_isVw2(entry,id)||_hCgEx.has(id)||_hJIds.has(id)||_hSpEx.has(id)||_hLv.has(id)||isProbation(staffById(id),hDs);
   const _hCgW=new Set(entry?.cg?.workers||[]);
-  const _hVwS=new Set((entry?.vw?.workers||[]).filter(id=>!_hEx(id)&&!(_hCgW.has(id)&&(deptOn(staffById(id),todayStr)||'').toLowerCase()==='vw')));
-  const _hIlVw=(entry?.ilgeun?(deptOn(staffById(entry.ilgeun),todayStr)||'').toUpperCase():'')==='VW';
+  const _hVwS=new Set((entry?.vw?.workers||[]).filter(id=>!_hEx(id)&&!(_hCgW.has(id)&&(deptOn(staffById(id),hDs)||'').toLowerCase()==='vw')));
+  const _hIlVw=(entry?.ilgeun?(deptOn(staffById(entry.ilgeun),hDs)||'').toUpperCase():'')==='VW';
   const _hIlOk=entry?.ilgeun&&!_hLv.has(entry.ilgeun)&&!_hSpEx.has(entry.ilgeun);
   const _h8=[entry?.weekend8jin,entry?.weekday8jin,entry?.weekend8jin2,entry?.weekday8jin2].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
-  const _isVwDept=id=>(deptOn(staffById(id),todayStr)||'').toLowerCase()==='vw';
-  const _isCgDept=id=>{const d=(deptOn(staffById(id),todayStr)||'').toLowerCase();return d==='cg'||d==='xr';};
+  const _isVwDept=id=>(deptOn(staffById(id),hDs)||'').toLowerCase()==='vw';
+  const _isCgDept=id=>{const d=(deptOn(staffById(id),hDs)||'').toLowerCase();return d==='cg'||d==='xr';};
   const _h8vwIds=_h8.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isVwDept(id));
   const _h8cgIds=_h8.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isCgDept(id));
   const _hNo=[entry?.newsOh,entry?.newsOh2].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
@@ -126,16 +154,16 @@ function renderHome() {
   const prjCnt = (entry?.project||[]).length;
   const sptCnt = (entry?.sports||[]).length;
   // 오늘 요일/공휴일에 맞는 목표 인원 (작성소 설정 반영)
-  const _hDow = now.getDay();
-  const _hHoliWE = !isWeekdayForm(todayStr);   // 생성과 같은 기준(평일 편성 공휴일은 평일 목표)
-  const _spToday = (s.specialDays||{})[todayStr];
+  const _hDow = _hD.getDay();
+  const _hHoliWE = !isWeekdayForm(hDs);   // 생성과 같은 기준(평일 편성 공휴일은 평일 목표)
+  const _spToday = (s.specialDays||{})[hDs];
   const goalVW = _spToday?.vw ?? (_hHoliWE ? (_hDow===6 ? (s.satVW||s.weekendVW||4) : (s.sunVW||s.weekendVW||4)) : (s.weekdayVW||7));
   const goalCG = _spToday?.cg ?? (_hHoliWE ? (_hDow===6 ? (s.satCG||6) : (s.sunCG||7)) : (s.weekdayCG||19));
   const vwOk = vwCnt >= goalVW;
   const cgOk = cgCnt >= goalCG;
   document.getElementById('home-summary').innerHTML = `
     <div class="dept-list">
-      <div class="card-hd">부서 근무 현황</div>
+      <div class="card-hd">부서 근무 현황${_hTag}</div>
       <div class="dept-row" onclick="_scrollToWorkers('vw-today-chips')">
         <div class="dept-ic vw"><svg viewBox="0 0 24 24" fill="#fff"><path d="M3 5h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-7v2h3v2H7v-2h3v-2H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></svg></div>
         <div class="dept-nm"><b>VW</b></div>
@@ -260,9 +288,9 @@ function renderHome() {
     const _cgAndXr=[
       ...(entry.cg?.workers||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:false,tag:''})),
       ...(entry.xr||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:true,tag:''})),
-      ..._h8cgIds.map(id=>({id,isXr:(deptOn(staffById(id),todayStr)||'').toLowerCase()==='xr',tag:'8진'})),
-      ..._hNoCgIds.map(id=>({id,isXr:(deptOn(staffById(id),todayStr)||'').toLowerCase()==='xr',tag:'뉴.오'})),
-      ...(_ilCgAdd?[{id:entry.ilgeun,isXr:(deptOn(staffById(entry.ilgeun),todayStr)||'').toLowerCase()==='xr',tag:'일근'}]:[])
+      ..._h8cgIds.map(id=>({id,isXr:(deptOn(staffById(id),hDs)||'').toLowerCase()==='xr',tag:'8진'})),
+      ..._hNoCgIds.map(id=>({id,isXr:(deptOn(staffById(id),hDs)||'').toLowerCase()==='xr',tag:'뉴.오'})),
+      ...(_ilCgAdd?[{id:entry.ilgeun,isXr:(deptOn(staffById(entry.ilgeun),hDs)||'').toLowerCase()==='xr',tag:'일근'}]:[])
     ].filter(x=>x.id&&!_cgSeen.has(x.id)&&(_cgSeen.add(x.id),true))
      .sort((a,b)=>{
        // 근무표 실제 컬럼 순서와 동일하게: CG 부서 그룹 전체 먼저 → XR 부서 그룹(각 그룹 내에선 직원 먼저+배열순서)
@@ -304,21 +332,21 @@ function renderHome() {
   const _nohIds = [entry?.newsOh, entry?.newsOh2].filter(Boolean);
   let _nohRowsHtml;
   if (_nohIds.length >= 2) {
-    _nohRowsHtml = _nohRow('오늘의 뉴오 ①', staffById(_nohIds[0])?.name || _miss) + _nohRow('오늘의 뉴오 ②', staffById(_nohIds[1])?.name || _miss);
+    _nohRowsHtml = _nohRow(_hWord+'의 뉴오 ①', staffById(_nohIds[0])?.name || _miss) + _nohRow(_hWord+'의 뉴오 ②', staffById(_nohIds[1])?.name || _miss);
   } else {
-    _nohRowsHtml = _nohRow('오늘의 뉴오', _nohIds.length ? (staffById(_nohIds[0])?.name || _miss) : _miss);
+    _nohRowsHtml = _nohRow(_hWord+'의 뉴오', _nohIds.length ? (staffById(_nohIds[0])?.name || _miss) : _miss);
   }
   const _dutyRowHtml = `
     <div class="today-work">
-      <div class="card-hd">오늘의 근무</div>
+      <div class="card-hd">${_hWord}의 근무${_hTag}</div>
       <div class="tw-row">
         <div class="dept-ic duty"><svg viewBox="0 0 24 24" fill="#fff"><path d="M20.5 14.6A8.5 8.5 0 1 1 9.4 3.5a7 7 0 0 0 11.1 11.1z"/></svg></div>
-        <div class="dept-nm"><span>오늘의 당직</span><b>${_dutyName||_miss}</b></div>
+        <div class="dept-nm"><span>${_hWord}의 당직</span><b>${_dutyName||_miss}</b></div>
         <span class="dept-tag" style="color:#e8890c;background:rgba(255,159,28,.16);">당직</span>
       </div>
       <div class="tw-row" id="duty8-card">
         <div class="dept-ic jin8"><svg viewBox="0 0 240 240" fill="#fff"><path d="M163.7,105.9c7.4-9.4,10.6-19.6,10.6-30.6,0-28.5-24.4-52.1-54-52.1s-53.7,22.7-53.7,52.1,3.6,22.2,10.2,31.1c-16,13.3-24.8,31.3-24.8,51,0,37.9,30.6,66.1,68.3,66.1s67.8-29.6,67.8-66-9.4-39-24.4-51.6ZM120.2,41.1c19.4,0,34.7,15.6,34.7,34.2s-3.8,16.4-8.4,21.1c-7.2-3.2-15.7-5.3-26.5-5.2v18.2c-19.4-.2-34.4-15.4-34.4-34.1s15.2-34.2,34.6-34.2ZM120.2,205.2c-27.2,0-48.8-21.4-48.8-47.7s8.9-30.2,19.2-37.9c8.6,5.6,18.7,8.5,29.8,8.5v-18.2c27.2.2,48.6,21.5,48.6,47.7s-21.6,47.7-48.8,47.7Z"/></svg></div>
-        <div class="dept-nm"><span>오늘의 8진</span><b>${_duty8Name||_miss}</b></div>
+        <div class="dept-nm"><span>${_hWord}의 8진</span><b>${_duty8Name||_miss}</b></div>
         <span class="cue-in n15" data-cue="news15" hidden></span><span class="cue-in n8" data-cue="news8" hidden></span>
         <span class="dept-tag" style="color:#e23744;background:rgba(240,68,82,.14);">8진</span>
       </div>
@@ -364,9 +392,9 @@ function renderHome() {
     }).join('');
     _pjBody.innerHTML='<div class="pj-gauge-grid">'+_items+'</div>';
   })();
-  document.getElementById('vw-panel-count').textContent=`${vwCnt}명`;
-  document.getElementById('cg-panel-count').textContent=`${cgCnt}명`;
-  document.getElementById('project-panel-count').textContent=`${prjCnt}명`;
+  document.getElementById('vw-panel-count').innerHTML=`${_hTag}${vwCnt}명`;
+  document.getElementById('cg-panel-count').innerHTML=`${_hTag}${cgCnt}명`;
+  document.getElementById('project-panel-count').textContent=`${prjCnt}명`;   // 반 칸이라 날짜는 빼고(바로 위 VW·CG에 있음)
   document.getElementById('sports-panel-count').textContent=`${sptCnt}명`;
   let wsHtml='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:separate;border-spacing:0 2px;font-size:13px;font-variant-numeric:tabular-nums;">';
   wsHtml+='<tr><th style="padding:2px 10px 10px;text-align:left;font-size:12px;font-weight:700;color:var(--muted);">날짜</th>';

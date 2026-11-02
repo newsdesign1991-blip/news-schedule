@@ -312,6 +312,7 @@ function renderMySchedule() {
   const _mwShort=t=>/교육$/.test(String(t).replace(/\s/g,''))?'교육':t;   // 'AI 교육'·'신입 교육' 등 ○○ 교육은 칩에선 '교육'(마우스를 올리면 원래 이름)
   const _mwChip=(full,bg,color,second)=>{ const label=_mwShort(full); return `<span class="mw-role${String(label).length>=7?' mw-xs':String(label).length>=5?' mw-s':''}" title="${_mwEsc(full)}" style="${second?'margin-top:4px;':''}background:${bg};color:${color};">${_mwEsc(label)}</span>`; };
   const DOW_S=['월','화','수','목','금','토','일'];
+  const selDs=typeof _homeDayStr==='function'?_homeDayStr():todayStr;   // 홈에서 고른 요일(js/home.js homeSelectDay) — 칩을 누르면 홈이 그날로
   let weekHtml = weekDays.map((d,i)=>{
     const ds=toDateStr(d.getFullYear(),d.getMonth()+1,d.getDate());
     const isToday=ds===todayStr;
@@ -326,7 +327,8 @@ function renderMySchedule() {
     else if(_ccTxt&&!/^(-|0)$/.test(_ccTxt)) tag=_mwChip(_ccTxt, isToday?'rgba(255,255,255,0.22)':(_cc.bg||'#eef1f5'), isToday?'#fff':(_cc.color&&_cc.color!=='#000000'?_cc.color:'#4b5563'));   // 출장·교육·Jr.캠프 같은 손입력 근무도 보이게
     else tag=`<span class="mw-role mw-none">-</span>`;
     const _wt=typeof ND_APP!=='undefined'&&ND_APP&&window.ndApp?.wiseWorkTime&&typeof _wtAllowed==='function'&&_wtAllowed()&&(isToday||(typeof _wtTester==='function'&&_wtTester()));   // 근무표 앱: 오늘 칩 → WISE 근무시간 입력(js/app-mode.js), 최재영은 다른 날도. 직원B는 WISE 를 안 써서 칩 그대로
-    return `<div class="mw-day ${isToday?'today':''}${_wt?' mw-wt':''}"${_wt?` role="button" tabindex="0" title="WISE 근무시간 입력" onclick="ndWorkTimeOpen('${ds}')" onkeydown="if(event.key==='Enter')ndWorkTimeOpen('${ds}')"`:''}>
+    const _pick=_wt?'ndWorkTimeOpen':'homeSelectDay', _sel=!isToday&&ds===selDs;
+    return `<div class="mw-day ${isToday?'today':''}${_wt?' mw-wt':' mw-pick'}${_sel?' sel':''}" role="button" tabindex="0"${_wt?' title="WISE 근무시간 입력"':_sel?' aria-pressed="true"':''} onclick="${_pick}('${ds}')" onkeydown="if(event.key==='Enter')${_pick}('${ds}')">
       <div class="mw-dow">${DOW_S[i]}</div>
       <div class="mw-num">${d.getDate()}</div>
       ${tag}
@@ -337,10 +339,12 @@ function renderMySchedule() {
   const todayLabel = `${_tdDate.getMonth()+1}월 ${_tdDate.getDate()}일 · ${_dowFull[_tdDate.getDay()]}요일`;
 
   card.style.display='block';
+  const _mwOld=card.querySelector('.mw-strip'), _mwKeep=(typeof homeSelectDay==='function'&&homeSelectDay._keep&&_mwOld)?_mwOld.scrollLeft:null;
   card.innerHTML=`<div class="mysched-head">
-    <div class="mysched-title">이번 주 내 근무</div>
+    <div class="mysched-title">이번 주 내 근무</div>${selDs!==todayStr?'<button class="mysched-today" onclick="homeSelectDay(null)">오늘로</button>':''}
   </div>
   <div class="mw-strip">${weekHtml}</div>`;
+    if(_mwKeep!=null){ const _st=card.querySelector('.mw-strip'); if(_st) _st.scrollLeft=_mwKeep; return _refreshPushBtn(); }   // 요일 칩을 누른 때는 줄을 그대로
     _refreshPushBtn();
     // 오늘 카드가 화면에 바로 보이도록 스트립을 중앙 정렬 (레이아웃 전이면 재시도)
     requestAnimationFrame(function(){
