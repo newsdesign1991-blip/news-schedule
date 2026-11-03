@@ -469,6 +469,29 @@ async function _ndAutoUpdate(){
   try{ const r=await window.ndApp.updateInstall(); if(r&&r.ok) _ndAutoNext=Date.now()+5*60e3; }catch(e){ /* 30분 뒤 다시 */ }
 }
 if(ND_APP) setInterval(_ndAutoUpdate,60e3);
+// 사이트 새 판이 올라오면 손 안 댈 때 화면을 저절로 새로고침(11-03 — 며칠 켜 둔 PC 앱이 10-29 전 화면 그대로 8뉴스 공지를 알림 없이 올렸음).
+// 10분마다 배포 페이지를 받아 js·css 의 ?v= 묶음이 지금 화면과 다르면 → _ndAutoUpdOk(작성소·창 열림·알림 시간대 아님, 10분 손 안 댐) + 저장 대기 없을 때 reload.
+// 같은 판으로 30분 안엔 다시 안 함(배포 직후 CDN이 옛 페이지를 섞어 줄 때 되풀이 방지)
+let _ndSiteNext=0, _ndSiteNew='';
+function _ndSiteSig(s){ return [...new Set(String(s).match(/(?:js|css)\/[\w.-]+\?v=[0-9a-f]+/g)||[])].sort().join('|'); }
+async function _ndSiteFresh(){
+  if(!ND_APP) return;
+  if(!_ndSiteNew){
+    if(Date.now()<_ndSiteNext) return;
+    _ndSiteNext=Date.now()+10*60e3;
+    const cur=_ndSiteSig([...document.querySelectorAll('script[src],link[href]')].map(e=>e.getAttribute('src')||e.getAttribute('href')).join(' '));
+    let sig='';
+    try{ const r=await fetch(location.pathname+'?nc='+Date.now(),{ cache:'no-store' }); if(r.ok) sig=_ndSiteSig(await r.text()); }catch(e){ return; }
+    if(!cur||!sig||sig===cur) return;
+    let last=null; try{ last=JSON.parse(localStorage.getItem('nd_site_rl')||'null'); }catch(e){}
+    if(last&&last.sig===sig&&Date.now()-last.at<30*60e3) return;
+    _ndSiteNew=sig;
+  }
+  if(!_ndAutoUpdOk()||ndSaving||ndSaveQueue.length||(typeof _lrHasPending==='function'&&_lrHasPending())) return;
+  try{ localStorage.setItem('nd_site_rl',JSON.stringify({ sig:_ndSiteNew, at:Date.now() })); }catch(e){}
+  location.reload();
+}
+if(ND_APP) setInterval(_ndSiteFresh,60e3);
 // 창 버튼(최소화·최대화·닫기) 바탕·글자색을 제목줄과 같게
 function _ndTitlebarColors(){
   const bar=document.getElementById('nd-titlebar'); if(!bar||!window.ndApp?.setTitleBar) return;

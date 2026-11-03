@@ -78,22 +78,26 @@ function _cueWant(ds, box){
 // 공지 제목에도 시각(10-29 사용자 '안 열어보고도 바로 알게') — 알림 제목도 같음
 const _cueTitle=n8=>`8뉴스 진입시간 ${n8}`;
 // 할 일: '' 그대로 · 'del' 지움 · 'put' 올리기/고치기 · 'title' 제목만 고침(알림 없음 — 시각 없던 옛 제목) (it = 지금 자동 공지, mm = 기억한 { t, text }, n8 = 지금 큐시트 시각)
-function _cueAct(it, want, mm, n8){
+function _cueNowMin(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
+function _cueAct(it, want, mm, n8, ds){
   if(it&&mm&&mm.text&&it.text!==mm.text) return '';   // 사람이 고친 글
   if(!want) return it?'del':'';
+  // 알림 없이 올라간 자동 공지(11-03 — 며칠 켜 둔 PC 앱이 10-29 전 화면 그대로 silent 로 올림) → 오늘 진입 전이면 알림 공지로 다시 1번
+  if(it&&it.auto&&it.silent&&it.text===want) return ds===_todayStr()&&n8&&_cueMin(n8)>_cueNowMin()?'put':'';
   if(it) return it.text!==want?'put':/^8뉴스 진입시간(\s+\d{2}:\d{2})?$/.test(it.title||'')&&it.title!==_cueTitle(n8)?'title':'';   // 사람이 바꾼 제목은 그대로
   return mm&&mm.t===n8?'':'put';   // 이 시각으로 올렸던 걸 사람이 지움
 }
 async function _cueNotice(ds){
   const id='cue8-'+ds, c=cueDay(ds), n8=(c&&c.news8)||'';
+  if(!c) return;   // 큐시트를 아직 못 받은 기기(연결 끊김 등)는 건드리지 않음 — 모르는데 '평소'로 보고 지우지 않게
   const box0=_getNoticeBox(ds), cur=(box0.items||[]).find(i=>i.id===id);
-  if(!_cueAct(cur, _cueWant(ds,box0), (data.cue8Auto||{})[ds], n8)) return;   // 이 기기 데이터로 먼저 거름(모두가 5분마다 부름 — main 을 괜히 받지 않게)
+  if(!_cueAct(cur, _cueWant(ds,box0), (data.cue8Auto||{})[ds], n8, ds)) return;   // 이 기기 데이터로 먼저 거름(모두가 5분마다 부름 — main 을 괜히 받지 않게)
   let memo=null, push='';
   const ok=await _ndCommit(rp=>{
     const raw=rp.notices[ds];
     const box=raw&&Array.isArray(raw.items)?raw:{ news8Time:(raw&&raw.news8Time)||'', items:raw&&raw.text?[{ id:_genNoticeId(), text:raw.text, postedBy:raw.postedBy||'', postedAt:raw.postedAt||'', silent:false }]:[] };
     const m=rp.cue8Auto&&typeof rp.cue8Auto==='object'?rp.cue8Auto:{}, i=box.items.findIndex(x=>x.id===id), it=i>=0?box.items[i]:null;
-    const want=_cueWant(ds,box), act=_cueAct(it,want,m[ds],n8);
+    const want=_cueWant(ds,box), act=_cueAct(it,want,m[ds],n8,ds);
     memo=null; push='';
     if(!act) return false;
     if(act==='del'){ box.items.splice(i,1); if(m[ds]){ delete m[ds]; rp.cue8Auto=memo=m; } }   // 시스템이 지움 → 기억도 지움(같은 시각이 다시 오면 다시 올림 — 기억이 남으면 '사람이 지움'으로 봄)
@@ -125,9 +129,12 @@ async function _cuePost(body){
 // NDS 를 못 읽는 PC(사내망 밖·계정 문제)는 저장을 못 하니 자리표를 잡지 않음 — 다른 PC가 담당
 async function _cueTick(){
   await cueLoad();
-  // 서버가 담당(NDS 를 서버가 직접 읽음 — notify serverCue)이면 PC는 안 읽고, 8뉴스가 평소와 다를 때 공지만(누가 먼저 하든 한 번 — id 하나)
+  // 8뉴스 자동 공지는 로그인한 모든 기기가 봄(누가 먼저 하든 한 번 — id 하나, 이 기기 데이터로 먼저 거름)
+  //   11-03: 전엔 담당 PC만 봐서, 담당 PC가 옛 화면이면 알림 없이 올라간 공지를 아무도 못 고쳤음
+  if(typeof currentUser!=='undefined'&&currentUser&&currentUser.staffId) _cueNotice(_todayStr());
+  // 서버가 담당(NDS 를 서버가 직접 읽음 — notify serverCue)이면 PC는 안 읽음
   const L0=_cueDoc&&_cueDoc.leader;
-  if(L0&&L0.dev==='server'&&Date.parse(L0.until||'')>Date.now()){ if(typeof currentUser!=='undefined'&&currentUser&&currentUser.staffId) _cueNotice(_todayStr()); return; }
+  if(L0&&L0.dev==='server'&&Date.parse(L0.until||'')>Date.now()) return;
   if(_cueBusy||_cueNoAcct||typeof ND_APP==='undefined'||!ND_APP||!window.ndApp?.ndsCue) return;
   const now=new Date(), mins=now.getHours()*60+now.getMinutes();
   if(mins<6*60||mins>21*60+30||Date.now()<_cueNext) return;
