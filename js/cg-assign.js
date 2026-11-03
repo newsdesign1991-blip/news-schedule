@@ -43,7 +43,7 @@ function _cgaPeople(ds) {
     if (desk.has(id) || ex.has(id) || lv.has(id) || jo.has(id) || (typeof isProbation === 'function' && isProbation(s, ds))) return;
     seen.add(id); out.push({ id, name: s.name, tag });
   };
-  ((entry.cg && entry.cg.workers) || []).forEach(id => add(id, dept(id) === 'xr' ? 'XR' : '', false));
+  ((entry.cg && entry.cg.workers) || []).forEach(id => add(id, dept(id) === 'xr' ? 'XR' : dept(id) === 'cg' ? '' : 'CG대체', false));   // 다른 부서 사람은 'CG대체'(11-03 사용자)
   (entry.xr || []).forEach(id => add(id, 'XR', false));   // XR 근무(10-20)
   // 프로젝트 인원은 부서와 상관없이 늘 넣음(10-20) — 휴가·수습만 뺌
   (entry.project || []).forEach(id => { const s = staffById(id); if (!s || seen.has(id) || lv.has(id) || (typeof isProbation === 'function' && isProbation(s, ds))) return; seen.add(id); out.push({ id, name: s.name, tag: 'PROJECT' }); });
@@ -686,7 +686,21 @@ function _cgaRoleTag(name, ds) {
   if (e.morningDesk === id) return '오전데';
   if (e.vw && e.vw.desk === id) return 'VW데';
   if (e.danjik === id) return '당직';
-  return String(deptOn(s, ds) || '근무').toUpperCase();
+  // 그날 표 칸 그대로(11-03 사용자 — CG 부서 최재영을 [사람 추가]로 넣었는데 오늘 표엔 'VW'인데 부서대로 'CG'로 보였음)
+  const dp = String(deptOn(s, ds) || '근무').toUpperCase();
+  const r = typeof workCellRole === 'function' ? workCellRole(e, s, ds) : '';
+  const k = r && typeof WORK_TYPE_MAP !== 'undefined' ? WORK_TYPE_MAP[_normalizeImportedWorkType(r)] : null;
+  const sub = t => t === dp ? t : t + '대체';   // 다른 부서 일을 하면 'VW대체'·'CG대체'(11-03 사용자)
+  if (k === 'vw2') return r;   // VW②(배우는 중)는 칸 글자 그대로
+  if (k === 'vw-sub') return sub('VW');
+  if (k === 'cg-sub') return sub('CG');
+  if (r === 'XR') return 'XR';
+  if (r && r !== '근무' && k !== 'work') return r;   // 8진·뉴.오·일근·조근·휴가 등은 칸 글자 그대로
+  if (r === '근무') {   // 목록에서 정해진 칸 — 제 부서 목록 먼저, 아니면 들어 있는 목록(VW 대체 등)
+    const ls = [['VW', e.vw && e.vw.workers], ['CG', e.cg && e.cg.workers], ['XR', e.xr], ['PROJECT', e.project], ['SPORTS', e.sports]].filter(([, a]) => (a || []).includes(id));
+    if (ls.length) { const t = (ls.find(([t]) => t === dp) || ls[0])[0]; return t === 'VW' || t === 'CG' ? sub(t) : t; }
+  }
+  return dp;   // 엑셀 '정근'은 표의 부서 줄 그대로
 }
 // 새 의뢰(0001)가 생기면 한 번 알림 — 처음 읽을 때는 기억만
 // 의뢰 제목으로 일 종류 짐작(10-21 사용자): '앵커터치'·'앵터'·'8터치' → 앵커터치, 'PT'·그냥 '터치' → PT (둘 다 주황 — 10-21 통일), 아니면 ''(CG 파랑)
