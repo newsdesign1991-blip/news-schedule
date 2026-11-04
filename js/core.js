@@ -231,13 +231,23 @@ function getStaff(dept, ds) {
   return dept ? active.filter(s => deptOn(s, ds) === dept) : active;
 }
 function staffById(id) { return data.staff.find(s => s.id === id); }
-// 표의 CG 묶음(11-04 사용자): XR을 따로 빼지 않고 CG 원래 자리(data.staff 순서)에 섞음 — 직원 먼저, XR은 _dept 'xr'(칸 계산·이름 색)
+// 표의 CG 묶음(11-04 사용자): XR을 따로 빼지 않고 CG 줄 안에 섞음 — XR은 _dept 'xr'(칸 계산·이름 색)
+//   CG 사람은 원래 순서(직원 먼저, data.staff 순서) 그대로. XR 사람은 건제 순서(js/staff.js STAFF_ORG_ORDER)에서 바로 앞 사람 중 표에 있는 사람 뒤에
+//   (예: 김한길 = 박천웅 뒤, 전유근 = 김민영 뒤 — data.staff 순서로 넣으면 전유근이 한흥수 뒤로 가서 '이상함', 사용자). 건제에 없으면 data.staff 순서 자리
 //   근무표(renderTable)·작성소(renderWorkshopTable)·휴가 신청 표가 같이 씀
 function cgXrCols(cgStaff, xrStaff) {
-  const xr = new Set(xrStaff.map(s => s.id)), ix = new Map(data.staff.map((s, i) => [s.id, i]));
-  return [...cgStaff, ...xrStaff]
-    .sort((a, b) => ((a.employmentType === 'freelancer') - (b.employmentType === 'freelancer')) || (ix.get(a.id) - ix.get(b.id)))
-    .map(s => ({ ...s, _dept: xr.has(s.id) ? 'xr' : 'cg' }));
+  const ix = new Map(data.staff.map((s, i) => [s.id, i])), fl = s => s.employmentType === 'freelancer' ? 1 : 0;
+  const org = typeof STAFF_ORG_ORDER !== 'undefined' ? STAFF_ORG_ORDER : [], ok = s => org.indexOf(String(s.name || '').trim());
+  const out = [...cgStaff].sort((a, b) => (fl(a) - fl(b)) || (ix.get(a.id) - ix.get(b.id))).map(s => ({ ...s, _dept: 'cg' }));
+  [...xrStaff].sort((a, b) => ((ok(a) < 0) - (ok(b) < 0)) || (ok(a) - ok(b)) || (ix.get(a.id) - ix.get(b.id))).forEach(x => {
+    const X = { ...x, _dept: 'xr' }, k = ok(x);
+    let at = -1;
+    for (let j = k - 1; j >= 0 && at < 0; j--) at = out.findIndex(p => String(p.name || '').trim() === org[j]);
+    if (at >= 0) { out.splice(at + 1, 0, X); return; }
+    at = out.findIndex(p => fl(p) > fl(x) || (fl(p) === fl(x) && ix.get(p.id) > ix.get(x.id)));
+    out.splice(at < 0 ? out.length : at, 0, X);
+  });
+  return out;
 }
 function toDateStr(y,m,d) { return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
 function parseDateStr(s) { const [y,m,d] = s.split('-').map(Number); return { y, m, d, date: new Date(y,m-1,d) }; }
