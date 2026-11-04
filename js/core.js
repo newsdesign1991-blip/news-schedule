@@ -231,6 +231,14 @@ function getStaff(dept, ds) {
   return dept ? active.filter(s => deptOn(s, ds) === dept) : active;
 }
 function staffById(id) { return data.staff.find(s => s.id === id); }
+// 표의 CG 묶음(11-04 사용자): XR을 따로 빼지 않고 CG 원래 자리(data.staff 순서)에 섞음 — 직원 먼저, XR은 _dept 'xr'(칸 계산·이름 색)
+//   근무표(renderTable)·작성소(renderWorkshopTable)·휴가 신청 표가 같이 씀
+function cgXrCols(cgStaff, xrStaff) {
+  const xr = new Set(xrStaff.map(s => s.id)), ix = new Map(data.staff.map((s, i) => [s.id, i]));
+  return [...cgStaff, ...xrStaff]
+    .sort((a, b) => ((a.employmentType === 'freelancer') - (b.employmentType === 'freelancer')) || (ix.get(a.id) - ix.get(b.id)))
+    .map(s => ({ ...s, _dept: xr.has(s.id) ? 'xr' : 'cg' }));
+}
 function toDateStr(y,m,d) { return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
 function parseDateStr(s) { const [y,m,d] = s.split('-').map(Number); return { y, m, d, date: new Date(y,m-1,d) }; }
 function addDays(dateStr, n) {

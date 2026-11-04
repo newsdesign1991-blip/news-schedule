@@ -1,7 +1,8 @@
 /* [모듈] js/onboard.js — 처음 로그인했을 때 '알림 켜기' 안내 + '휴대폰·앱으로 쓰기' 안내 화면 | 로드 순서 = dashboard.html의 <script> 순서(바꾸지 말 것)
    알림 켜기(10-20 요청): 이름으로 로그인한 뒤, 이 기기에서 알림이 꺼져 있으면 한 번(나중에 = 7일 뒤 다시). 켜기는 js/admin.js togglePush(웹 푸시·PC 앱 우편함 공통).
      아이폰 사파리(홈 화면 앱 아님)처럼 알림을 못 받는 곳이면 켜기 대신 [방법 보기] → ndAppGuide. 안드로이드(삼성 인터넷·크롬)는 브라우저에서도 켜지고, 앱 설치 안내 링크만 덧붙임. 근무표 PC 앱은 처음 사용법(ndAppTour)이 끝난 뒤.
-   휴대폰·앱으로 쓰기(ndAppGuide): QR·주소 복사 / 갤럭시(삼성 인터넷 주소창 설치 아이콘) / 아이폰(사파리 주소창 안 왼쪽 ≡ → 공유 → 위로 쓸어올려 홈 화면에 추가) / 다른 안드로이드(크롬) / PC — 지금 기기 칸이 먼저 펼쳐짐.
+   휴대폰·앱으로 쓰기(ndAppGuide): QR·주소 복사 / 갤럭시(삼성 인터넷 주소창 설치 아이콘 — 반드시 '설치', 홈 화면 바로가기 X) / 아이폰(사파리 주소창 안 왼쪽 ≡ → 공유 → 위로 쓸어올려 홈 화면에 추가) / PC — 지금 기기 칸이 먼저 펼쳐짐.
+   11-04 사용자: '다른 안드로이드(크롬)' 칸은 뺌(안드로이드는 갤럭시 칸), PC 앱 처음 켜면 이 안내가 무조건 먼저(js/app-mode.js ndAppTour).
    PC 앱은 시트 대신 ndPhonePop(제목줄 휴대폰 버튼·렌치 메뉴): 왼쪽 QR·이유 / 오른쪽 기기 탭별 순서. 들어가는 곳 = 상단 이름 메뉴, PC 앱 렌치 메뉴, 알림 안내의 [방법 보기] */
 const ND_SITE_URL='https://newsdesign1991-blip.github.io/news-schedule/';
 function _nbSiteUrl(){ return /github\.io$/.test(location.hostname)?location.origin+location.pathname.replace(/index\.html$|dashboard\.html$/,''):ND_SITE_URL; }
@@ -110,9 +111,7 @@ function _gdMock(kind){
     iosAdd:`<div class="gd-dlg"><div class="gd-dlg-h"><span>취소</span><b>홈 화면에 추가</b><span class="gd-txt gd-hit">추가</span></div>${app}<div class="gd-mrow"><span>웹 앱으로 열기</span><span class="gd-tg"></span></div></div><i class="gd-cap"><b>웹 앱으로 열기</b>가 켜져(초록) 있어야 해요 → 오른쪽 위 <b>추가</b></i>`,
     sgBar:`<div class="gd-bar"><span class="gd-addr">${_gdI('lock','gd-ic-s')}${h}</span>${b('reload')}${b('install','gd-hit')}</div><i class="gd-cap">주소창 오른쪽, 새로고침 옆 <b>설치</b> 아이콘 (근무표처럼 설치되는 사이트에서만)</i>`,
     sgDlg:`<div class="gd-dlg">${app}<div class="gd-dlg-btns"><span>취소</span><span class="gd-txt gd-hit">설치</span></div></div><i class="gd-cap">아래에 뜨는 설치 창에서 <b>설치</b></i>`,
-    sgTool:`<div class="gd-bar gd-tool">${b('back')}${b('fwd')}${b('home')}${b('star')}${b('tabs')}${b('menu','gd-no')}</div><i class="gd-cap">맨 아래 <b>≡ → 현재 페이지 추가 → 홈 화면</b> = 바로가기</i>`,
-    crBar:`<div class="gd-bar">${b('home')}<span class="gd-addr">${_gdI('lock','gd-ic-s')}${h}</span>${b('tabs')}${b('kebab','gd-hit')}</div><i class="gd-cap">주소창 오른쪽 끝 <b>⋮</b></i>`,
-    crMenu:`<div class="gd-menu">${row('','새 탭','gd-dim')}${row('','…','gd-dim')}${row('install','앱 설치 (또는 홈 화면에 추가)','gd-hit')}</div><i class="gd-cap">메뉴를 조금 내리면 있어요</i>`
+    sgTool:`<div class="gd-bar gd-tool">${b('back')}${b('fwd')}${b('home')}${b('star')}${b('tabs')}${b('menu','gd-no')}</div><i class="gd-cap">맨 아래 <b>≡ → 현재 페이지 추가 → 홈 화면</b> = 바로가기</i>`
   };
   return `<div class="gd-mock" aria-hidden="true">${M[kind]||''}</div>`;
 }
@@ -136,18 +135,13 @@ function _gdSteps(k,qr){
       '<b>웹 앱으로 열기</b>가 켜져 있는지 보고 오른쪽 위 <b>추가</b>'+_gdMock('iosAdd'),
       bell
     ])+`<p class="gd-note"><b>맨 아래에 버튼 줄이 따로 있는 아이폰</b>(iOS 18 이하)은 줄 세 개 대신 아래 가운데 ${_gdK('share','공유')}를 바로 누르고 ④부터 하면 돼요.</p>${_gdMock('iosOld')}<p class="gd-note">아이패드는 주소창 오른쪽 위에 공유 버튼이 있어요. 목록에 홈 화면에 추가가 없으면 맨 아래 <b>작업 편집</b>에서 켜요.</p><p class="gd-note">아이폰은 <b>홈 화면에 추가한 근무표</b>에서만 알림을 받을 수 있어요(iOS 16.4 이상).</p>`;
-  if(k==='galaxy') return '<div class="gd-quick" data-gd-quick></div>'+steps([
-      qr?'카메라로 QR을 찍고 뜨는 주소를 눌러 <b>삼성 인터넷</b>으로 열어요 (크롬으로 열리면 <b>다른 안드로이드</b> 순서대로 해도 돼요)':'<b>삼성 인터넷</b>으로 위 주소를 열어요',
-      '주소창 오른쪽, 새로고침 옆에 생기는 '+_gdK('install','설치')+' 아이콘을 눌러요 (아래 화살표 모양, 버전에 따라 <b>＋</b>)'+_gdMock('sgBar')+'<p class="gd-note">이 아이콘은 <b>앱으로 설치할 수 있는 사이트에서만</b> 생겨요. 구글 같은 보통 사이트에선 안 보이는 게 맞아요. 근무표 주소를 열고 잠깐 기다리면 나타나요.</p>',
+  // 갤럭시는 반드시 '설치'(11-04 사용자 강조) — 메뉴의 '홈 화면에 추가'는 바로가기
+  if(k==='galaxy') return `<div class="gd-must" role="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg><div><b class="gd-must-t">갤럭시는 반드시 [설치]로 깔아요</b><p>주소창의 ${_gdK('install','설치')} 아이콘 → <b>설치</b>로 깔아야 앱이 돼요. 메뉴의 <b class="gd-red">'홈 화면에 추가'(현재 페이지 추가 → 홈 화면)는 쓰지 마세요</b> — 앱이 아니라 바로가기라 삼성 인터넷 안에서 열리고 주소창이 그대로 보여요.</p></div></div>`+'<div class="gd-quick" data-gd-quick></div>'+steps([
+      qr?'카메라로 QR을 찍고 뜨는 주소를 눌러 <b>삼성 인터넷</b>으로 열어요 (크롬으로 열리면 주소를 복사해 삼성 인터넷에 붙여 넣어요)':'<b>삼성 인터넷</b>으로 위 주소를 열어요',
+      '주소창 오른쪽, 새로고침 옆에 생기는 '+_gdK('install','설치')+' 아이콘을 눌러요 (아래 화살표 모양, 버전에 따라 <b>＋</b>) — <b class="gd-red">메뉴의 홈 화면 말고 이 아이콘</b>'+_gdMock('sgBar')+'<p class="gd-note">이 아이콘은 <b>앱으로 설치할 수 있는 사이트에서만</b> 생겨요. 구글 같은 보통 사이트에선 안 보이는 게 맞아요. 근무표 주소를 열고 잠깐 기다리면 나타나요.</p>',
       '아래에 뜨는 설치 창(<b>앱스 화면에 설치</b>)에서 <b>설치</b> — 설치 진행은 알림창에 보여요'+_gdMock('sgDlg'),
       bell
-    ])+`<div class="gd-warn"><b>≡ 메뉴 → 현재 페이지 추가 → 홈 화면은 쓰지 마세요.</b> 앱이 아니라 <b>바로가기</b>라서 삼성 인터넷 안에서 열리고 주소창이 그대로 보여요.${_gdMock('sgTool')}이미 그렇게 만들었다면 그 아이콘은 지우고 위 순서로 다시 설치해 주세요.</div><p class="gd-note"><b>제대로 설치됐는지 보는 법</b> — 근무표를 열었을 때 맨 위에 <b>주소창이 없으면</b> 앱으로 설치된 거예요.</p><p class="gd-note"><b>설치 아이콘이 안 보이면</b> — 페이지를 한 번 새로고침해요. 그래도 없으면 갤럭시 스토어에서 삼성 인터넷을 업데이트해요. 쉬운 사용 모드에서는 안 될 수 있어요. 그래도 안 되면 크롬 순서대로 해 주세요.</p>`;
-  if(k==='chrome') return '<div class="gd-quick" data-gd-quick></div>'+steps([
-      qr?'카메라로 QR을 찍고 뜨는 주소를 눌러 <b>크롬(Chrome)</b>으로 열어요':'<b>크롬(Chrome)</b>으로 위 주소를 열어요',
-      '주소창 오른쪽 끝 '+_gdK('kebab','')+' 메뉴를 눌러요'+_gdMock('crBar'),
-      _gdK('install','앱 설치')+' 또는 <b>홈 화면에 추가</b> → <b>설치</b> (<b>바로가기 만들기</b> 말고 <b>설치</b>)'+_gdMock('crMenu'),
-      bell
-    ]);
+    ])+`<div class="gd-warn"><b>≡ 메뉴 → 현재 페이지 추가 → 홈 화면은 쓰지 마세요.</b> 앱이 아니라 <b>바로가기</b>라서 삼성 인터넷 안에서 열리고 주소창이 그대로 보여요.${_gdMock('sgTool')}이미 그렇게 만들었다면 그 아이콘은 지우고 위 순서로 다시 설치해 주세요.</div><p class="gd-note"><b>제대로 설치됐는지 보는 법</b> — 근무표를 열었을 때 맨 위에 <b>주소창이 없으면</b> 앱으로 설치된 거예요.</p><p class="gd-note"><b>설치 아이콘이 안 보이면</b> — 페이지를 한 번 새로고침해요. 그래도 없으면 갤럭시 스토어에서 삼성 인터넷을 업데이트해요. 쉬운 사용 모드에서는 안 될 수 있어요.</p>`;
   return '';
 }
 function ndAppGuide(){
@@ -157,7 +151,7 @@ function ndAppGuide(){
   if(dev==='app') return ndPhonePop();   // PC 앱: 시트 대신 큰 팝업(QR + 기기별 순서)
   const url=_nbSiteUrl(), esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   const standalone=typeof _isStandalone==='function'&&_isStandalone();
-  const openK=dev==='samsung'?'galaxy':dev==='android'?'chrome':dev;
+  const openK=dev==='samsung'||dev==='android'?'galaxy':dev;   // 안드로이드는 갤럭시 칸(다른 안드로이드 칸은 뺌, 11-04)
   const sec=(k,title,sub,body)=>`<details class="gd-sec" ${k===openK?'open':''}><summary><b>${title}</b><small>${sub}</small></summary><div class="gd-body">${k===openK&&standalone?'<p class="gd-ok">지금 앱으로 열려 있어요. 알림만 켜면 끝이에요.</p>':''}${body}</div></details>`;
   const html=`<div class="gd">
     <div class="gd-qr-row">
@@ -166,7 +160,6 @@ function ndAppGuide(){
     </div>
     ${sec('galaxy','갤럭시','삼성 인터넷 → 앱으로 설치',_gdSteps('galaxy'))}
     ${sec('ios','아이폰 · 아이패드','사파리 → 홈 화면에 추가',_gdSteps('ios'))}
-    ${sec('chrome','다른 안드로이드','크롬 → 앱 설치',_gdSteps('chrome'))}
     ${sec('pc','회사 PC','근무표 앱으로','<ol class="gd-steps"><li>PC에서는 웹 대신 <b>근무표 PC 앱</b>을 써요</li><li>PC 브라우저로 위 주소를 열면 나오는 <b>설치 도우미 받기</b>를 눌러요</li><li>받은 파일을 실행 → 바탕화면의 <b>근무표</b>로 열어요</li></ol>')}
   </div>`;
   openSheet('휴대폰·앱으로 쓰기', html);
@@ -176,8 +169,8 @@ function ndAppGuide(){
   _gdQuick();
   _gdQr(url);
 }
-// ── PC 앱 제목줄 휴대폰 버튼(js/app-mode.js) → 큰 팝업: 왼쪽 QR·주소·왜 깔면 좋은지 / 오른쪽 갤럭시·아이폰·다른 안드로이드 탭별 설치 순서(그림) ──
-const _PH_TABS=[['galaxy','갤럭시','삼성 인터넷'],['ios','아이폰','사파리'],['chrome','다른 안드로이드','크롬']];
+// ── PC 앱 제목줄 휴대폰 버튼(js/app-mode.js) → 큰 팝업: 왼쪽 QR·주소·왜 깔면 좋은지 / 오른쪽 갤럭시·아이폰 탭별 설치 순서(그림) ──
+const _PH_TABS=[['galaxy','갤럭시','삼성 인터넷'],['ios','아이폰','사파리']];
 function ndPhonePop(onClose){
   if(typeof closeHdrMenu==='function') closeHdrMenu();
   document.getElementById('ndt-pop')?.remove();
@@ -216,7 +209,7 @@ function ndPhonePop(onClose){
     panel.querySelectorAll('[data-gd-quick]').forEach(q=>q.remove());   // PC에선 '이 폰에 설치' 버튼 없음
   };
   el.querySelector('.ph-tabs').onclick=e=>{ const b=e.target.closest('button[data-k]'); if(b) show(b.dataset.k); };
-  const close=()=>{ el.remove(); document.removeEventListener('keydown',onKey,true); if(typeof onClose==='function') onClose(); };   // onClose = 처음 사용법 끝(js/app-mode.js _ndPhoneOnce) → 알림 켜기 안내
+  const close=()=>{ el.remove(); document.removeEventListener('keydown',onKey,true); if(typeof onClose==='function') onClose(); };   // onClose = 처음 켰을 때 다음 안내(js/app-mode.js ndAppTour — 사용법 → 알림 켜기)
   const onKey=e=>{ if(e.key==='Escape'){ e.stopPropagation(); close(); } };
   document.addEventListener('keydown',onKey,true);
   el.querySelector('.ph-x').onclick=close;

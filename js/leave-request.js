@@ -98,27 +98,29 @@ function renderLeaveReqView() {
     let cur=new Date(rs+'T00:00:00'), end=new Date(re+'T00:00:00');
     while(cur<=end){dates.push(new Date(cur));cur.setDate(cur.getDate()+1);}
 
-    const DEPT_ORDER=['VW','조근','CG','XR','PROJECT','SPORTS'];
+    const DEPT_ORDER=['VW','조근','CG','PROJECT','SPORTS'];   // XR은 CG 원래 자리에(이름만 XR 색, 11-04 — js/core.js cgXrCols)
     const DEPT_COLOR={VW:'var(--vw)',CG:'var(--cg)',PROJECT:'var(--project)',SPORTS:'var(--sports)',XR:'var(--xr)','조근':'var(--vw)'};
     const DEPT_BG={XR:'var(--xr-bg)','조근':'var(--vw-bg)'};
     const cols=[];
+    const _mem=dept=>data.staff.filter(s=>deptOn(s,rs)===dept&&s.active!==false&&_freelancerActiveInRange(s,dates));
     DEPT_ORDER.forEach(dept=>{
-      const members=data.staff.filter(s=>deptOn(s,rs)===dept&&s.active!==false&&_freelancerActiveInRange(s,dates))
-        .sort((a,b)=>(a.employmentType==='freelancer'?1:0)-(b.employmentType==='freelancer'?1:0));
-      members.forEach(s=>cols.push({...s,_dept:dept}));
+      if(dept==='CG'){ cgXrCols(_mem('CG'),_mem('XR')).forEach(s=>cols.push({...s,_dept:s._dept==='xr'?'XR':'CG',_grp:'CG'})); return; }
+      _mem(dept).sort((a,b)=>(a.employmentType==='freelancer'?1:0)-(b.employmentType==='freelancer'?1:0)).forEach(s=>cols.push({...s,_dept:dept,_grp:dept}));
     });
+    const notes=lr.notes||{};
 
     let cg='<col style="width:46px"><col style="width:36px">';
     cols.forEach(()=>{ cg+='<col>'; });
-    cg+='<col style="width:60px">';
+    cg+='<col style="width:60px"><col style="width:150px">';   // 확인·비고
 
     // thead row1 — dept groups
     let th1='<tr class="dept-row"><th class="date-th" rowspan="2">날짜</th><th class="dow-th" rowspan="2">요일</th>';
     DEPT_ORDER.forEach(dept=>{
-      const cnt=cols.filter(c=>c._dept===dept).length;
+      const cnt=cols.filter(c=>c._grp===dept).length;
       if(cnt) th1+=`<th class="dept-group" colspan="${cnt}" style="background:${DEPT_BG[dept]||''};color:${DEPT_COLOR[dept]||'var(--text)'};">${dept} (${cnt}명)</th>`;
     });
-    th1+=`<th rowspan="2" style="background:#fef2f2;color:#d06b64;font-size:10px;font-weight:800;white-space:nowrap;">확인</th></tr>`;
+    th1+=`<th rowspan="2" style="background:#fef2f2;color:#d06b64;font-size:10px;font-weight:800;white-space:nowrap;">확인</th>`;
+    th1+=`<th rowspan="2" style="font-size:10px;font-weight:800;background:var(--th-remark-bg);color:var(--th-remark-fg);white-space:nowrap;">비고</th></tr>`;
 
     // thead row2 — names (클릭하면 팝업)
     let th2='<tr>';
@@ -136,12 +138,13 @@ function renderLeaveReqView() {
       const isWE=dow===0||dow===6;
       const isHoli=!!(data.holidays&&data.holidays[dateStr]);
       const dowCls=dow===0?'sun':dow===6?'sat':'';
-      tb+=`<tr class="${isWE||isHoli?'weekend':''} ${dateStr===todayStr?'today-row':''}">`;
+      const dayCount=_lrCountList(dateStr).length, flags=_lrFlags(dateStr), full=dayCount>LR_OVER;   // 근무 인원(PROJECT·SPORTS 뺌) 휴가가 5명 넘으면 줄 빨강(11-04)
+      tb+=`<tr class="${isWE||isHoli?'weekend':''} ${dateStr===todayStr?'today-row':''}${full?' lr-full':''}"${full?` title="휴가 ${dayCount}명 — ${LR_OVER}명 넘음"`:''}>`;
       tb+=`<td class="date-td">${dt.getMonth()+1}/${dt.getDate()}</td>`;
       tb+=`<td class="dow-td ${dowCls}">${DOW_KR[dow]}</td>`;
-      const dayCount=(entries[dateStr]||[]).length, flags=_lrFlags(dateStr);
       cols.forEach(s=>{
         const hasLeave=(entries[dateStr]||[]).includes(s.id), fl=hasLeave&&flags[s.id];   // 6번째 이후·데스크 공백 = 주황
+        if(hasLeave&&_lrNoCount(s.id,dateStr)){ tb+=`<td data-sid="${s.id}" class="lr-nc" style="cursor:pointer;" title="근무 인원에 안 드는 부서 — 휴가 인원에 안 셈">신휴가</td>`; return; }   // PROJECT·SPORTS = 연한 초록
         const bg=fl?'#FCA08A':hasLeave?'#FFE0B2':'';   // 몰린 날 신청 = 붉은 주황(10-17 '약간 더 빨갛게')
         const color=fl?'#9f1d10':hasLeave?'#c79a5e':'';
         const fw=hasLeave?'700':'500';
@@ -154,6 +157,9 @@ function renderLeaveReqView() {
       } else {
         tb+=`<td style="color:var(--muted);font-size:10px;text-align:center;">${dayCount||''}</td>`;
       }
+      // 비고: 관리자만 직접 씀(11-04), 나머지는 보기만
+      const nt=notes[dateStr]||'';
+      tb+=isAdmin?`<td class="lr-note"><input class="lr-note-in" value="${_pEsc(nt)}" aria-label="${dt.getMonth()+1}/${dt.getDate()} 비고" onchange="lrNoteSet('${dateStr}',this)" onkeydown="if(event.key==='Enter')this.blur()"></td>`:`<td class="lr-note">${_pEsc(nt)}</td>`;
       tb+='</tr>';
     });
 
@@ -200,13 +206,14 @@ function _lrRowsHtml(staffId){
     const dateStr=toDateStr(dt.getFullYear(),dt.getMonth()+1,dt.getDate());
     const isWE=dow===0||dow===6;
     const isHoli=!!(data.holidays && data.holidays[dateStr]);
-    const base=isWE||isHoli?TD_WE:TD;
+    let base=isWE||isHoli?TD_WE:TD;
     const dowColor=dow===0?'color:var(--pop-dow-sun);':dow===6?'color:var(--pop-dow-sat);':'';
     const todayExtra=dateStr===todayStr?'color:#5d6fb0;font-weight:800;':'font-weight:700;';
     const _todayTr=dateStr===todayStr?' style="background:var(--pop-today-bg);"':'';
     const hasLeave=(entries[dateStr]||[]).includes(staffId);
-    const dayCount=(entries[dateStr]||[]).length;
+    const dayCount=_lrCountList(dateStr).length;   // PROJECT·SPORTS 뺌(11-04)
     const over=dayCount>=4;
+    if(dayCount>LR_OVER) base+='background:var(--lr-full-bg);';   // 5명 넘은 날 = 빨강
     const leaveBg=hasLeave?'background:#FFE0B2;color:#c79a5e;font-weight:700;':'';
     const clickAttr=canEdit?`onclick="lrPopupCellClick('${staffId}','${dateStr}')" style="cursor:pointer;${base}${leaveBg}"`:`style="${base}${leaveBg}"`;
     const warnCell=over?`<td style="${base}color:#dc2626;font-weight:800;background:#fef2f2;padding:0 8px;">⚠ ${dayCount}명</td>`:`<td style="${base}color:var(--muted);padding:0 8px;">${dayCount||''}</td>`;
@@ -266,10 +273,10 @@ function _lrCalHtml(staffId){
   let cells='<span></span>'.repeat(lead), mine=0;
   for(let d=1; d<=days; d++){
     const ds=toDateStr(y,m,d), inR=ds>=rs&&ds<=re, dow=(lead+d-1)%7;
-    const list=entries[ds]||[], on=list.includes(staffId), cnt=list.length;
+    const list=entries[ds]||[], on=list.includes(staffId), cnt=_lrCountList(ds).length;   // 숫자 = 근무 인원 휴가(PROJECT·SPORTS 뺌)
     if(on && inR) mine++;
     const holi=!!(data.holidays&&data.holidays[ds]);
-    const cls='lr-day'+(on?' on':'')+(ds===todayStr?' today':'')+(dow===0||holi?' sun':dow===6?' sat':'')+(cnt>=4?' over':'');
+    const cls='lr-day'+(on?' on':'')+(ds===todayStr?' today':'')+(dow===0||holi?' sun':dow===6?' sat':'')+(cnt>=4?' over':'')+(cnt>LR_OVER?' full':'');   // 5명 넘은 날 = 빨간 상자(11-04)
     const lbl=`${m}월 ${d}일${on?' 신휴가 신청됨':''}${cnt?' · 신청 '+cnt+'명':''}`;
     cells += inR
       ? `<button type="button" data-f="d:${ds}" class="${cls}"${canEdit?` onclick="lrPopupCellClick('${staffId}','${ds}')"`:' disabled'} aria-pressed="${on}" aria-label="${lbl}"><b>${d}</b><i>${cnt||''}</i></button>`
@@ -278,9 +285,9 @@ function _lrCalHtml(staffId){
   const DOW=['일','월','화','수','목','금','토'], DEPT_C={VW:'var(--vw)',CG:'var(--cg)',PROJECT:'var(--project)',SPORTS:'var(--sports)',XR:'var(--xr)'};
   const myDays=Object.keys(entries).filter(ds=>ds>=rs&&ds<=re&&(entries[ds]||[]).includes(staffId)).sort();
   const sideRows=myDays.map(ds=>{
-    const dt=new Date(ds+'T00:00:00'), others=(entries[ds]||[]).filter(id=>id!==staffId), cnt=(entries[ds]||[]).length;
-    const chips=others.map(id=>{ const st=staffById(id); return st?`<span class="lr-side-chip" style="--c:${DEPT_C[st.dept]||'var(--muted)'}">${st.name}<small>${st.dept||''}</small></span>`:''; }).join('');
-    return `<div class="lr-side-row${ds===_lrFocusDs?' focus':''}${cnt>=4?' over':''}"><div class="lr-side-date"><b>${dt.getMonth()+1}/${dt.getDate()}</b><small>(${DOW[dt.getDay()]})</small></div><div class="lr-side-names">${chips||'<span class="lr-side-none">나 혼자 신청</span>'}</div><span class="lr-side-cnt">${cnt>=4?'⚠ ':''}총 ${cnt}명</span></div>`;
+    const dt=new Date(ds+'T00:00:00'), others=(entries[ds]||[]).filter(id=>id!==staffId), cnt=_lrCountList(ds).length;
+    const chips=others.map(id=>{ const st=staffById(id), nc=_lrNoCount(id,ds); return st?`<span class="lr-side-chip${nc?' nc':''}" style="--c:${DEPT_C[st.dept]||'var(--muted)'}"${nc?' title="휴가 인원에 안 셈"':''}>${st.name}<small>${st.dept||''}</small></span>`:''; }).join('');
+    return `<div class="lr-side-row${ds===_lrFocusDs?' focus':''}${cnt>=4?' over':''}${cnt>LR_OVER?' full':''}"><div class="lr-side-date"><b>${dt.getMonth()+1}/${dt.getDate()}</b><small>(${DOW[dt.getDay()]})</small></div><div class="lr-side-names">${chips||'<span class="lr-side-none">나 혼자 신청</span>'}</div><span class="lr-side-cnt">${cnt>=4?'⚠ ':''}총 ${cnt}명</span></div>`;
   }).join('');
   const side=`<aside class="lr-cal-side" aria-label="내 신휴가와 같은 날 신청한 사람">
     <div class="lr-side-hd">내 신휴가 <b>${myDays.length}일</b><span>같은 날 신청한 사람</span></div>
@@ -386,9 +393,13 @@ function dismissLrPopup() {
 // ② 데스크 가능한 사람(같은 부서 deskPriority)이 모두 휴가가 되면 → 확인 팝업 → 그날 휴가인 다른 데스크에게 '데스크 조정 요청' 알림
 // 신청 순서 = entries[날짜] 배열 순서(뒤에 붙음). 알림은 서버 notify mode 'direct'(알림함 nd_data 'alarms' + 휴대폰·PC 알림, js/alarms.js)
 const LR_OVER = 5;
+// 근무 인원에 안 드는 부서(PROJECT·SPORTS, 11-04 사용자): 몰리는 날 팝업·인원 셈·주황 칸에서 빼고, 표에선 연한 초록
+function _lrNoCount(id, ds){ const s=staffById(id), d=s?String(deptOn(s,ds)||''):''; return d==='PROJECT'||d==='SPORTS'; }
+function _lrCountList(ds){ return (data.leaveReq?.entries?.[ds]||[]).filter(id=>!_lrNoCount(id,ds)); }
 function _lrDeskSet(dept, ds){ return data.staff.filter(s=>s.active!==false && s.employmentType!=='freelancer' && s.deskPriority && String(deptOn(s,ds)||'')===dept); }
 function _lrConflicts(staffId, ds){
-  const list=(data.leaveReq?.entries?.[ds]||[]).filter(id=>id!==staffId), out={ over:null, desk:null };
+  const list=_lrCountList(ds).filter(id=>id!==staffId), out={ over:null, desk:null };
+  if(_lrNoCount(staffId, ds)) return out;   // PROJECT·SPORTS 는 팝업 없음
   if(list.length>=LR_OVER) out.over=list.slice();
   const me=staffById(staffId);
   if(me && me.deskPriority){
@@ -399,7 +410,7 @@ function _lrConflicts(staffId, ds){
 }
 // 표 주황 칸: 그 날 6번째 이후 신청자, 데스크를 비게 만든(데스크 중 마지막으로 신청한) 사람
 function _lrFlags(ds){
-  const list=data.leaveReq?.entries?.[ds]||[], f={};
+  const list=_lrCountList(ds), f={};
   list.forEach((id,i)=>{ if(i>=LR_OVER) f[id]='over'; });
   const byDept={};
   list.forEach(id=>{ const s=staffById(id); if(s&&s.deskPriority&&s.employmentType!=='freelancer'){ const d=String(deptOn(s,ds)||''); (byDept[d]=byDept[d]||[]).push(id); } });
@@ -412,10 +423,11 @@ function _lrConfirmPop(c, ds, onOk){
   document.getElementById('lr-adj')?.remove();
   const md=_lrMdLabel(ds), parts=[];
   // 누가 신청했는지는 보여 주지 않음(10-17 요청) — 몇 명인지·알림이 간다는 것만
-  if(c.over) parts.push(`<div class="lra-sec"><b>${md}에는 이미 ${c.over.length}명이 신휴가를 신청했어요.</b><p>신청하면 앞서 신청한 사람들에게 '휴가 조정 요청' 알림이 가요.</p></div>`);
-  if(c.desk) parts.push(`<div class="lra-sec desk"><b>이 날 ${_pEsc(c.desk.dept)} 데스크를 설 사람이 없어요.</b><p>신청하면 앞서 신청한 데스크들에게 '데스크 조정 요청' 알림이 가요.</p></div>`);
+  // 알림이 간다는 말·'막히지 않아요'는 뺌(11-04 사용자) — 알림은 그대로 감
+  if(c.over) parts.push(`<div class="lra-sec"><b>${md}에는 이미 ${c.over.length}명이 신휴가를 신청했어요.</b></div>`);
+  if(c.desk) parts.push(`<div class="lra-sec desk"><b>이 날 ${_pEsc(c.desk.dept)} 데스크를 설 사람이 없어요.</b></div>`);
   const el=document.createElement('div'); el.id='lr-adj'; el.className='lr-adj';
-  el.innerHTML=`<div class="lra-card" role="alertdialog" aria-modal="true" aria-labelledby="lra-t"><div class="lra-head" id="lra-t">휴가가 몰리는 날이에요</div><div class="lra-body">${parts.join('')}<p class="lra-note">휴가 신청이 막히지는 않아요. 다른 날로 바꿀 수 있으면 조정해 주세요.</p></div><div class="lra-foot"><button type="button" class="lra-cancel">취소</button><button type="button" class="lra-ok">확인하고 신청</button></div></div>`;
+  el.innerHTML=`<div class="lra-card" role="alertdialog" aria-modal="true" aria-labelledby="lra-t"><div class="lra-head" id="lra-t">휴가가 몰리는 날이에요</div><div class="lra-body">${parts.join('')}<p class="lra-note">다른 날로 바꿀 수 있으면 조정해 주세요.</p></div><div class="lra-foot"><button type="button" class="lra-cancel">취소</button><button type="button" class="lra-ok">무시하고 신청</button></div></div>`;
   document.body.appendChild(el);
   const close=()=>el.remove();
   el.querySelector('.lra-cancel').onclick=close;
@@ -483,7 +495,7 @@ function toggleLeaveReq() {
     const dl=document.getElementById('lr-deadline')?.value||'';
     if(!s||!e){toast('날짜 범위를 입력하세요.','error');return;}
     if(new Date(s+'T00:00:00')>new Date(e+'T00:00:00')){toast('종료일이 시작일보다 앞섭니다.','error');return;}
-    data.leaveReq={isOpen:true,rangeStart:s,rangeEnd:e,deadline:dl,entries:lr.entries||{}};
+    data.leaveReq={isOpen:true,rangeStart:s,rangeEnd:e,deadline:dl,entries:lr.entries||{},notes:lr.notes||{}};
   } else {
     data.leaveReq={...lr,isOpen:false};
   }
@@ -601,6 +613,14 @@ function lrCellClick(staffId,dateStr){
 window.addEventListener('online',()=>{if(_lrHasPending())_lrSyncMyColumn(_lrMyId());});
 window.addEventListener('beforeunload',event=>{if(_lrHasPending()){_lrPersistPending();event.preventDefault();event.returnValue='';}});
 
+// 휴가 신청 표 비고(관리자, 11-04): 서버 최신본에 그 날 비고만 병합 저장(_ndCommit) — 사용자 신청과 겹쳐도 안 덮음. 다시 그리지 않음(다음 칸 입력 중일 수 있어서)
+async function lrNoteSet(ds, el){
+  if(!isAdmin) return;
+  const v=String(el.value||'').trim().slice(0,200);
+  const ok=await _ndCommit(rp=>{ const lr=rp.leaveReq; if(!lr||typeof lr!=='object') return false; const n=lr.notes&&typeof lr.notes==='object'?lr.notes:{}; if((n[ds]||'')===v) return false; if(v) n[ds]=v; else delete n[ds]; lr.notes=n; }, ['leaveReq']);
+  _lrOverlayPending();
+  if(ok===false) toast('비고를 저장하지 못했어요. 연결 확인 후 다시 입력해 주세요.','error');
+}
 function importLeaveReq() {
   if (!isAdmin) return;
   // 작성소 탭으로 이동하여 가져오기

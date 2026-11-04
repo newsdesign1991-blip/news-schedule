@@ -602,19 +602,15 @@ function _tourSteps(){
   st.push({ sel:'#nd-titlebar .ndt-user button', title:'PC 알림도 켜 두세요', body:'<b>알림 설정</b>에서 PC 알림을 켜면 8진·오뉴스 진행이 화면 테두리 알림으로 와요. 앱은 창을 닫아도 오른쪽 아래 트레이에서 계속 알림을 받아요.' });
   return st;
 }
-// 휴대폰 설치 안내 팝업을 이 PC에서 한 번만(사용법 끝 또는 사용법을 예전에 본 사람은 로그인 뒤). 다른 안내(알림 켜기·사용법)가 떠 있으면 닫힐 때까지 기다림
-function _ndPhoneOnce(next){
-  let seen=false; try{ seen=!!localStorage.getItem('nd_phone_pop_v1'); }catch(e){}
-  if(seen||typeof ndPhonePop!=='function'){ if(next) next(); return; }
-  let n=0; const t=setInterval(()=>{
-    if(document.getElementById('nb-pop')||document.getElementById('tour-ov')||document.getElementById('apx-pop')){ if(++n>80) clearInterval(t); return; }
-    clearInterval(t); try{ localStorage.setItem('nd_phone_pop_v1','1'); }catch(e){} ndPhonePop(next);
-  },1500);
-}
 function _ndTourFromMenu(){ document.getElementById('ndt-pop')?.remove(); ndAppTour(true); }   // 렌치 메뉴 [사용법 다시 보기]
 function ndAppTour(force){
   if(!ND_APP||document.getElementById('tour-ov')) return;
-  if(!force){ try{ if(localStorage.getItem('nd_app_tour_v1')){ _ndPhoneOnce(()=>{ if(typeof ndNotifyPrompt==='function') setTimeout(()=>ndNotifyPrompt(false),500); }); return; } }catch(e){} }   // 사용법을 예전에 본 사람도 휴대폰 안내는 한 번
+  if(!force){
+    // 처음 켠 사람은 '휴대폰에서 근무표 쓰기'가 무조건 먼저(11-04 사용자, 이 PC에서 한 번 nd_phone_pop_v1) → 닫으면 사용법 → 알림 켜기. 사용법을 예전에 본 사람도 휴대폰 안내는 한 번
+    let seen=false; try{ seen=!!localStorage.getItem('nd_phone_pop_v1'); }catch(e){}
+    if(!seen&&typeof ndPhonePop==='function'&&!document.getElementById('ph-pop')){ try{ localStorage.setItem('nd_phone_pop_v1','1'); }catch(e){} ndPhonePop(()=>setTimeout(()=>ndAppTour(false),400)); return; }
+    try{ if(localStorage.getItem('nd_app_tour_v1')){ if(typeof ndNotifyPrompt==='function') setTimeout(()=>ndNotifyPrompt(false),500); return; } }catch(e){}
+  }
   const steps=_tourSteps(); if(!steps.length) return;
   try{ localStorage.setItem('nd_app_tour_v1','1'); }catch(e){}
   const ov=document.createElement('div'); ov.id='tour-ov'; ov.className='tour-ov';
@@ -637,8 +633,8 @@ function ndAppTour(force){
     card.style.left=Math.min(innerWidth-cw-12,Math.max(12,r.left+r.width/2-cw/2))+'px'; card.style.top=top+'px';
   };
   const go=()=>{ const s=steps[i]; if(s.home&&typeof showView==='function'&&currentView!=='home'){ showView('home'); setTimeout(place,450); } else place(); };
-  // 사용법 다음 = 휴대폰 설치 안내(처음 한 번, js/onboard.js ndPhonePop) → 닫으면 알림 켜기 안내(ndNotifyPrompt)
-  const end=()=>{ ov.remove(); removeEventListener('resize',place); setTimeout(()=>_ndPhoneOnce(()=>{ if(typeof ndNotifyPrompt==='function') setTimeout(()=>ndNotifyPrompt(false),500); }),500); };
+  // 사용법 다음 = 알림 켜기 안내(ndNotifyPrompt — 휴대폰 안내는 사용법 앞에 이미 나옴)
+  const end=()=>{ ov.remove(); removeEventListener('resize',place); if(typeof ndNotifyPrompt==='function') setTimeout(()=>ndNotifyPrompt(false),500); };
   ov.querySelector('.tour-skip').onclick=end;
   ov.querySelector('.tour-next').onclick=()=>{ if(++i>=steps.length) end(); else go(); };
   addEventListener('resize',place);

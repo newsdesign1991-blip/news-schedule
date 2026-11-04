@@ -248,8 +248,7 @@ function renderTable() {
   const vwCols=vwStaff.map(s=>({...s,_dept:'vw'}));
   const jogeunCols=jogeunStaff.map(s=>({...s,_dept:'jogeun'}));
   const cgCols=[
-    ...cgStaff.map(s=>({...s,_dept:'cg'})),
-    ...xrStaff.map(s=>({...s,_dept:'xr'})),
+    ...cgXrCols(cgStaff,xrStaff),   // XR은 CG 원래 자리에(이름만 XR 색, 11-04)
     ...projectStaff.map(s=>({...s,_dept:'project'})),
     ...sportsStaff.map(s=>({...s,_dept:'sports'}))
   ];
@@ -288,8 +287,8 @@ function renderTable() {
   if(vwCols.length) thead+=`<th class="dept-group vw" colspan="${vwCols.length}">VW (${vwCols.length}명)</th>`;
   if(jogeunCols.length) thead+=`<th class="dept-group" colspan="${jogeunCols.length}" style="background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);border-color:var(--th-jogeun-bd);">조근 (${jogeunCols.length}명)</th>`;
   thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;">VW</th>`;
-  if(cgStaff.length) thead+=`<th class="dept-group cg" colspan="${cgStaff.length}">CG (${cgStaff.length}명)</th>`;
-  if(xrStaff.length) thead+=`<th class="dept-group" colspan="${xrStaff.length}" style="background:var(--th-xr-bg);color:var(--th-xr-fg);border-color:var(--th-xr-bd);">XR</th>`;
+  const cgxrN=cgStaff.length+xrStaff.length;
+  if(cgxrN) thead+=`<th class="dept-group cg" colspan="${cgxrN}">CG (${cgxrN}명)</th>`;
   if(projectStaff.length) thead+=`<th class="dept-group project" colspan="${projectStaff.length}">PROJECT</th>`;
   if(sportsStaff.length) thead+=`<th class="dept-group sports" colspan="${sportsStaff.length}">SPORTS</th>`;
   thead+=`<th rowspan="2" class="sum-col" style="font-size:10px;background:var(--th-cgsum-bg);color:var(--th-cgsum-fg);">CG</th>`;
@@ -311,7 +310,7 @@ function renderTable() {
   nameFoot+='<td></td>';   // VW합
   cgCols.forEach((s,_ci)=>{
     const bg=s._dept==='xr'?'background:var(--th-xr-namebg);':'';
-    const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;
+    const _gc=s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;
     let _gb='';
     if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:1px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:1px solid ${_gc}55;`;}
     thead+=`<th class="name-th" data-sid="${s.id}" style="cursor:pointer;${bg}color:${deptColors[s._dept]||'var(--text)'};${_gb}">${s.name}</th>`;
@@ -461,7 +460,7 @@ function renderTable() {
 
     // CG+ staff cells
     cgCols.forEach((s,_ci)=>{
-      const _gc=s._dept==='xr'?'#4faa9c':s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;
+      const _gc=s._dept==='project'?'#686dc8':s._dept==='sports'?'#8a6ecf':null;
       let _gb='';
       if(_gc){if(_ci===0||cgCols[_ci-1]._dept!==s._dept)_gb+=`border-left:1px solid ${_gc}55;`;if(_ci===cgCols.length-1||cgCols[_ci+1]._dept!==s._dept)_gb+=`border-right:1px solid ${_gc}55;`;}
       let bg='',color='',fw='500',text='',extraStyle='';

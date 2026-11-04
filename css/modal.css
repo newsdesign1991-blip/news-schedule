@@ -182,6 +182,31 @@ body[style*="overflow: hidden"] #floating-nav {
 .lr-side-cnt{font-size:11.5px;font-weight:700;color:var(--muted);white-space:nowrap}
 .lr-side-row.over .lr-side-cnt{color:#dc2626}
 .lr-side-empty{padding:18px 8px;text-align:center;font-size:12.5px;line-height:1.7;color:var(--muted)}
+/* 11-04 휴가가 5명 넘은 날(근무 인원만 셈 — PROJECT·SPORTS 뺌, js/leave-request.js LR_OVER) = 빨강: 달력 날짜는 빨간 상자, 표·목록은 줄 빨강 */
+:root{--lr-full-bg:#fdeceb}
+[data-theme="dark"]{--lr-full-bg:#3a2426}
+.lr-day.full{padding:3px 0;margin:-3px 0;border-radius:14px;background:linear-gradient(160deg,#ff6b6b,#e5484d);box-shadow:0 6px 14px -6px rgba(229,72,77,.65)}
+.lr-day.full b,.lr-day.full.sun b,.lr-day.full.sat b{color:#fff;font-weight:800}
+.lr-day.full i{color:#fff}
+.lr-day.full.today b{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.9)}
+.lr-day.full.on b{background:#fff;color:#e5484d;box-shadow:none}
+@media(hover:hover){.lr-day.full:not(:disabled):not(.on):hover b{background:rgba(255,255,255,.2)}}
+.lr-side-row.full{background:rgba(240,68,82,.08);border-color:rgba(240,68,82,.32)}
+.lr-side-row.full .lr-side-cnt{color:#e5484d}
+.lr-side-chip.nc{opacity:.55}   /* PROJECT·SPORTS — 휴가 인원에 안 셈 */
+.excel-table.lreq-table tbody tr.lr-full td{background:var(--lr-full-bg);border-color:#f5c2bf}
+.excel-table.lreq-table tbody tr.lr-full td.date-td,.excel-table.lreq-table tbody tr.lr-full td.dow-td{background:#fbd5d3;color:#d0343a;font-weight:800}
+.excel-table.lreq-table tbody tr.lr-full td.date-td{box-shadow:inset 4px 0 0 #e5484d}
+[data-theme="dark"] .excel-table.lreq-table tbody tr.lr-full td{background:var(--lr-full-bg);border-color:#5a3134}
+[data-theme="dark"] .excel-table.lreq-table tbody tr.lr-full td.date-td,[data-theme="dark"] .excel-table.lreq-table tbody tr.lr-full td.dow-td{background:#4a2326;color:#ff9a9a}
+/* PROJECT·SPORTS 신휴가 칸 = 연한 초록(휴가 인원에 안 든다는 느낌) */
+.excel-table.lreq-table tbody tr td.lr-nc{background:#e3f4e8;color:#3f8f5c;font-weight:700}
+[data-theme="dark"] .excel-table.lreq-table tbody tr td.lr-nc{background:#23392b;color:#86d39f}
+/* 비고(관리자는 바로 입력) */
+.excel-table.lreq-table td.lr-note{padding:0 4px;font-size:11px;text-align:left;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lreq-table .lr-note-in{width:100%;box-sizing:border-box;height:24px;padding:0 6px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text);font:inherit;font-size:11px;box-shadow:none}
+.lreq-table .lr-note-in:hover{border-color:var(--border)}
+.lreq-table .lr-note-in:focus{outline:none;border-color:#3182f6;background:var(--surface);box-shadow:0 0 0 3px rgba(49,130,246,.15)}
 /* 넓은 화면: 달력 보기는 크게(데스크톱 느낌) + 왼쪽 달력 / 오른쪽 목록 */
 @media (min-width:1001px){
   .lr-pop.lr-cal-mode{width:min(1060px,calc(100vw - 48px))!important;height:min(860px,92vh);max-height:92vh!important}
@@ -197,6 +222,7 @@ body[style*="overflow: hidden"] #floating-nav {
   .lr-pop.lr-cal-mode .lr-cal-side{margin:0;padding:6px 0 0 24px;border-top:0;border-left:1px solid var(--border);min-height:100%;box-sizing:border-box}
   .lr-pop.lr-cal-mode .lr-day{width:62px}.lr-pop.lr-cal-mode .lr-day b{width:46px;height:46px;font-size:17px}
   .lr-pop.lr-cal-mode .lr-cal-grid{row-gap:8px}
+  .lr-pop.lr-cal-mode .lr-day.full{align-self:stretch;justify-content:center;width:68px;margin:0;padding:0;border-radius:18px}   /* 5명 넘은 날: 그 줄 높이를 꽉 채운 상자(11-04 사용자 '너무 작음') */
   .lr-pop.lr-cal-mode .lr-side-row{padding:12px 14px}.lr-pop.lr-cal-mode .lr-side-chip{font-size:13px;padding:4px 10px}
   .lr-pop.lr-cal-mode .lr-cal-head>b{font-size:20px}
 }
@@ -223,10 +249,10 @@ body[style*="overflow: hidden"] #floating-nav {
 /* 휴가 조정 확인 팝업(js/leave-request.js _lrConfirmPop) — 토스 모달, 주황 머리 */
 .lr-adj { position:fixed; inset:0; z-index:10060; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(15,23,42,.38); animation:ndModalFade .24s ease both; }
 .lra-card { width:min(440px,100%); border-radius:22px; overflow:hidden; background:var(--surface); box-shadow:0 24px 60px -20px rgba(15,23,42,.55); animation:ndModalPop .36s cubic-bezier(.16,1,.3,1) both; }
-.lra-head { padding:16px 20px; background:rgba(251,146,60,.16); color:#c2410c; font-size:16px; font-weight:800; }
-[data-theme="dark"] .lra-head { background:rgba(251,146,60,.2); color:#fdba74; }
+.lra-head { padding:16px 20px; background:rgba(240,68,82,.13); color:#d0343a; font-size:16px; font-weight:800; }
+[data-theme="dark"] .lra-head { background:rgba(255,107,107,.18); color:#ff9a9a; }
 .lra-body { padding:16px 20px 6px; }
-.lra-sec { padding:12px 14px; border-radius:14px; background:rgba(251,146,60,.08); margin-bottom:10px; }
+.lra-sec { padding:12px 14px; border-radius:14px; background:rgba(240,68,82,.07); margin-bottom:10px; }
 .lra-sec.desk { background:rgba(49,130,246,.08); }
 .lra-sec b { display:block; font-size:14px; font-weight:800; color:var(--text); }
 .lra-sec p { margin:6px 0 0; font-size:13px; line-height:1.6; color:var(--muted); }
@@ -235,7 +261,7 @@ body[style*="overflow: hidden"] #floating-nav {
 .lra-foot { display:flex; gap:8px; padding:8px 20px 18px; }
 .lra-foot button { flex:1; min-height:46px; border-radius:14px; font:inherit; font-size:14.5px; font-weight:800; cursor:pointer; }
 .lra-cancel { border:1px solid var(--border); background:var(--surface2); color:var(--text); }
-.lra-ok { border:0; background:linear-gradient(135deg,#fb923c,#ea580c); color:#fff; }
+.lra-ok { border:0; background:linear-gradient(135deg,#ff6b6b,#e5484d); color:#fff; box-shadow:0 6px 14px -6px rgba(229,72,77,.6); }   /* 11-04 몰리는 날 팝업 = 빨강(달력 빨간 상자와 같은 색) */
 /* 알림함 종 버튼(js/alarms.js) — 위쪽 이름 바 오른쪽(앱은 제목줄) */
 .nd-alarm-btn { position:relative; display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border:0; border-radius:50%; background:var(--surface2); color:var(--muted); cursor:pointer; flex:none; }
 .nd-alarm-btn:hover { color:var(--text); }
