@@ -1,4 +1,7 @@
 // Work-swap requests are stored independently of the schedule and committed by the server.
+// 11-04 사용자 '근무 교환은 안 쓸 것 같아' → 숨김: 메뉴·관리자 탭(.nd-swap-entry, work-swap.css)과 서버 확인(15초)·알림 링크 열기를 멈춤.
+// 다시 쓰려면 이 값을 true 로 + work-swap.css 맨 위 .nd-swap-entry 줄 지우기
+const WORK_SWAP_ON=false;
 let swapRows=[],swapSelected=null,swapAdminPassword='',swapAdminView=false,swapBusy=false,swapLoaded=false;
 let swapDeepLink=new URL(location.href).searchParams.get('swap'),swapReturnFocus=null;
 const swapStatus={pending:'상대방 확인 대기',accepted:'관리자 승인 대기',approved:'승인 · 반영 완료',rejected:'상대방 거절',declined:'관리자 반려',cancelled:'신청 취소'};
@@ -56,6 +59,7 @@ function swapShell(title,body,after){
 }
 function swapError(e){const el=document.getElementById('swap-error');if(el)el.textContent=e.message||e;else toast(e.message||String(e),'error')}
 async function openWorkSwap(admin=false){
+ if(!WORK_SWAP_ON)return;
  if(!currentUser?.staffId){toast('로그인 후 이용해 주세요.','error');return}
  swapReturnFocus=document.activeElement;swapAdminView=(!!admin||!!currentUser?.adminRole)&&isAdmin;swapSelected=null;
  if(swapAdminView&&!swapAdminPassword&&!currentUser?.adminRole){swapShell('근무 교환 관리',`<form onsubmit="event.preventDefault();swapUnlock()"><p>승인 처리를 위해 관리자 비밀번호를 확인합니다.</p><input id="swap-admin-password" type="password" autocomplete="current-password" placeholder="관리자 비밀번호" required><button class="swap-primary" type="submit">확인</button></form>`,()=>document.getElementById('swap-admin-password')?.focus());return}
@@ -122,6 +126,7 @@ function swapChatHtml(r){return (r.messages||[]).map(m=>`<div class="swap-messag
 async function swapAct(action){if(swapBusy)return;const r=swapRows.find(x=>x.id===swapSelected);if(!r)return;if(['approve','decline','reject','cancel'].includes(action)&&!confirm(action==='approve'?'두 날짜의 근무 부서와 뉴오·8진 배정까지 교환하고 근무표에 반영할까요?':'이 신청을 '+({decline:'반려',reject:'거절',cancel:'취소'}[action])+'할까요?'))return;swapBusy=true;try{await swapApi(action,{id:r.id,revision:r.revision});await swapLoad();swapDetail(r.id);if(action==='approve'){await _reloadRemoteData();}toast('처리되었습니다.','success')}catch(e){swapError(e);await swapLoad().catch(()=>{})}finally{swapBusy=false}}
 async function swapChat(){if(swapBusy)return;const r=swapRows.find(x=>x.id===swapSelected),input=document.getElementById('swap-message'),text=input.value.trim();if(!r||!text)return;swapBusy=true;try{await swapApi('chat',{id:r.id,revision:r.revision,text});input.value='';await swapLoad();swapDetail(r.id)}catch(e){swapError(e);await swapLoad().catch(()=>{})}finally{swapBusy=false}}
 async function swapPoll(){
+ if(!WORK_SWAP_ON)return;
  if(document.hidden||!currentUser?.staffId||swapBusy)return;
  if(!isAdmin){swapAdminPassword='';swapAdminView=false}
  try{const old=swapRows,loaded=swapLoaded;await swapLoad();if(loaded&&swapRows.some(r=>r.updatedAt!==old.find(x=>x.id===r.id)?.updatedAt))toast('근무 교환에 새로운 소식이 있습니다.');

@@ -1,0 +1,127 @@
+/* [모듈] css/look.css — 근무표 앱 테마(js/look.js · js/look-chara.js): 제목줄 [도구] 메뉴 · 테마 창 · 캐릭터 테마(배경 그림·캐릭터·꽃잎/반딧불이)
+   웹하드 VW Source renderer/css/menubar.css · look.css · chara.css 를 근무표 색 변수(--surface·--text·--muted·--card-fill)로 옮김. 앱(html.nd-app)에서만 보임 */
+
+/* ── 제목줄 [도구] — 글자만, 올리면 둥근 옅은 바탕(웹하드 .mb-top) ── */
+html.nd-app #nd-titlebar .ndt-menubar { display:flex; align-items:center; flex:none; margin-left:-6px; }
+html.nd-app #nd-titlebar .ndt-mb { -webkit-app-region:no-drag; height:28px; padding:0 10px; border:0; border-radius:7px; background:transparent; color:var(--text); font:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:background .12s, color .12s; }
+html.nd-app #nd-titlebar .ndt-mb:hover, html.nd-app #nd-titlebar .ndt-mb.on { background:var(--surface2); }
+html.nd-app #nd-titlebar .ndt-mb:focus-visible { outline:2px solid var(--nd-accent, #3182f6); outline-offset:1px; }
+/* 펼친 목록 — 줄 = 아이콘 · 이름 · 오른쪽 흐린 단축키 · (켜고 끄는 것) 맨 오른쪽 체크 */
+#nd-menu-pop { position:fixed; z-index:10004; min-width:236px; padding:5px; border-radius:13px; background:var(--surface); border:1px solid var(--border); box-shadow:0 18px 40px -14px rgba(15,23,42,.30), 0 2px 6px rgba(15,23,42,.08); -webkit-app-region:no-drag; font-family:inherit; }
+#nd-menu-pop[hidden] { display:none; }
+#nd-menu-pop.in { animation:ndMbIn .14s cubic-bezier(.22,1,.36,1); }
+@keyframes ndMbIn { from { opacity:0; transform:translateY(-4px); } }
+[data-theme="dark"] #nd-menu-pop { border-color:rgba(255,255,255,.09); box-shadow:0 18px 40px -12px rgba(0,0,0,.65), 0 2px 6px rgba(0,0,0,.35); }
+#nd-menu-pop .mp-item { display:flex; align-items:center; width:100%; padding:7px 12px 7px 10px; border:0; border-radius:8px; background:none; color:var(--text); font:inherit; font-size:13px; font-weight:600; text-align:left; white-space:nowrap; cursor:pointer; }
+#nd-menu-pop .mp-item.hl { background:color-mix(in srgb, var(--nd-accent, #3182f6) 9%, transparent); }
+[data-theme="dark"] #nd-menu-pop .mp-item.hl { background:color-mix(in srgb, var(--nd-accent, #6aa8ff) 14%, transparent); }
+#nd-menu-pop .mp-item:disabled { opacity:.4; cursor:default; }
+#nd-menu-pop .mp-ic { width:18px; height:18px; margin-right:11px; flex:none; display:inline-flex; align-items:center; justify-content:center; color:var(--muted); transition:color .12s; }
+#nd-menu-pop .mp-item.hl .mp-ic, #nd-menu-pop .mp-item.checked .mp-ic { color:var(--nd-accent, #3182f6); }
+#nd-menu-pop .mp-check { display:none; width:14px; margin-left:12px; flex:none; justify-content:center; color:var(--nd-accent, #3182f6); }
+#nd-menu-pop .mp-item.checkable .mp-check { display:inline-flex; }
+#nd-menu-pop .mp-label { flex:1; }
+#nd-menu-pop .mp-key { margin-left:28px; font-size:12px; font-weight:600; color:var(--muted); }
+#nd-menu-pop .mp-key:empty { display:none; }
+#nd-menu-pop .mp-sep { height:1px; margin:4px 8px; background:var(--border); }
+
+/* ── 테마 창 = 화면 가운데 카드(왼쪽 종류 | 오른쪽 고르기). 뒤 바탕은 살짝만 어둡게 — 바꾸는 즉시 앱 색이 바뀌는 게 보이게. 바깥 누르면 닫힘 ── */
+#look-pop { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; background:rgba(15,20,30,.16); -webkit-app-region:no-drag; animation:lkFade .18s ease both; }
+#look-pop[hidden] { display:none; }
+@keyframes lkFade { from { opacity:0; } }
+.lk-card { width:800px; max-width:calc(100% - 40px); padding:26px 30px 30px; box-sizing:border-box; border:1px solid transparent; border-radius:26px;
+  background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box, linear-gradient(135deg,#fff,rgba(255,255,255,.5) 58%,rgba(15,23,42,.13)) border-box;
+  box-shadow:0 40px 90px -24px rgba(15,23,42,.5), 0 2px 8px rgba(15,23,42,.08); animation:lkIn .26s cubic-bezier(.2,.9,.3,1.15) both; }
+[data-theme="dark"] .lk-card { background:linear-gradient(var(--card-fill),var(--card-fill)) padding-box, linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 40%,rgba(0,0,0,.32)) border-box; box-shadow:0 40px 90px -20px rgba(0,0,0,.75), 0 2px 8px rgba(0,0,0,.4); }
+@keyframes lkIn { from { opacity:0; transform:translateY(10px) scale(.96); } }
+.lk-head { display:flex; align-items:flex-start; justify-content:space-between; }
+.lk-head b { display:block; font-size:20px; font-weight:800; color:var(--text); letter-spacing:-.02em; }
+.lk-head small { display:block; margin-top:4px; font-size:13px; font-weight:600; color:var(--muted); }
+.lk-x { width:32px; height:32px; margin:-4px -8px 0 0; display:inline-flex; align-items:center; justify-content:center; border:0; border-radius:50%; background:none; color:var(--muted); cursor:pointer; }
+.lk-x:hover { background:var(--surface2); color:var(--text); }
+.lk-body { display:flex; gap:24px; margin-top:22px; min-height:300px; }
+.lk-nav { flex:none; width:160px; display:flex; flex-direction:column; gap:4px; padding-right:20px; border-right:1px solid var(--border); }
+.lk-nav button { display:flex; align-items:center; gap:10px; height:44px; padding:0 14px; border:0; border-radius:12px; background:none; color:var(--text); font:inherit; font-size:14px; font-weight:700; text-align:left; cursor:pointer; transition:background .12s, color .12s; }
+.lk-nav button svg { color:var(--muted); transition:color .12s; }
+.lk-nav button:hover { background:var(--surface2); }
+.lk-nav button.on { background:var(--nd-accent-bg, rgba(49,130,246,.12)); color:var(--nd-accent, #3182f6); font-weight:800; }
+.lk-nav button.on svg { color:var(--nd-accent, #3182f6); }
+.lk-pane { flex:1; min-width:0; }
+.lk-pane[hidden] { display:none; }
+.lk-ptitle { font-size:15px; font-weight:800; color:var(--text); }
+.lk-ptitle small { margin-left:8px; font-size:12.5px; font-weight:600; color:var(--muted); }
+/* 일반 — 색 톤 동그라미, 고른 것은 바깥 고리 + 체크 */
+.lk-tones { display:grid; grid-template-columns:repeat(5,1fr); row-gap:22px; margin-top:22px; }
+.lk-tone { display:flex; flex-direction:column; align-items:center; gap:10px; font-size:13px; font-weight:700; color:var(--muted); }
+.lk-dot { position:relative; width:50px; height:50px; padding:0; border:0; border-radius:50%; background:var(--c); color:#fff; display:inline-flex; align-items:center; justify-content:center; flex:none; cursor:pointer; box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); transition:transform .12s, box-shadow .15s; }
+.lk-dot:hover { transform:scale(1.08); }
+.lk-dot svg { opacity:0; transform:scale(.5); transition:opacity .15s, transform .2s cubic-bezier(.34,1.56,.64,1); filter:drop-shadow(0 1px 1px rgba(0,0,0,.3)); }
+.lk-dot.on svg { opacity:1; transform:none; }
+.lk-dot.on { box-shadow:0 0 0 3px var(--card-fill), 0 0 0 5px var(--c); }
+.lk-tone:has(.on) span { color:var(--text); }
+/* 캐릭터 — 테마 카드(그림 + 이름, 고른 것은 그 테마 색 테두리 + 체크) */
+.lk-charas { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:22px; }
+.lk-chara { position:relative; display:flex; flex-direction:column; align-items:stretch; gap:10px; padding:10px 10px 12px; border:2px solid var(--border); border-radius:18px; background:var(--surface); color:var(--text); font:inherit; font-size:14px; font-weight:800; transition:border-color .15s, transform .15s, box-shadow .15s; }
+button.lk-chara { cursor:pointer; }
+button.lk-chara:hover { transform:translateY(-2px); box-shadow:0 12px 24px -16px rgba(15,23,42,.45); }
+.lk-chara.on { border-color:var(--c); box-shadow:0 0 0 4px color-mix(in srgb, var(--c) 18%, transparent); }
+.lk-chara-pic { height:132px; border-radius:12px; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; background:linear-gradient(160deg,#fde4ee,#e3ecfb); }
+.lk-chara-pic img { height:118%; margin-bottom:-18%; object-fit:contain; pointer-events:none; transition:transform .25s cubic-bezier(.34,1.56,.64,1); }
+button.lk-chara:hover .lk-chara-pic img { transform:translateY(-6px); }
+.lk-chara-nm { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.lk-chara-nm small { font-size:11.5px; font-weight:600; color:var(--muted); }
+.lk-chara-check { position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:var(--c); color:#fff; display:flex; align-items:center; justify-content:center; opacity:0; transform:scale(.5); transition:opacity .15s, transform .2s cubic-bezier(.34,1.56,.64,1); }
+.lk-chara-check svg { width:16px; height:16px; }
+.lk-chara.on .lk-chara-check { opacity:1; transform:none; }
+.lk-chara.soon { border-style:dashed; background:none; color:var(--muted); }
+.lk-chara.soon .lk-chara-pic { align-items:center; background:var(--surface2); font-size:30px; font-weight:400; }
+[data-theme="dark"] .lk-chara-pic { background:linear-gradient(160deg,#3a2a33,#26303f); }
+
+/* ── 색 톤·캐릭터 강조색(--nd-accent): 사이드바 고른 메뉴·제목줄 켜진 탭 ── */
+html.nd-look-on #side-nav .snav-btn.active { color:var(--nd-accent); background:var(--nd-accent-bg); }
+html.nd-look-on #side-nav .snav-btn.active svg { color:var(--nd-accent); }
+html.nd-look-on.nd-app #nd-titlebar.on-ws .ndt-ws, html.nd-look-on.nd-app #nd-titlebar.on-admin .admin-tab.active { color:var(--nd-accent); }
+
+/* ── 캐릭터 테마 ── */
+/* 맨 뒤 배경 그림 — 정한 자리·크기 그대로(진하기만). 네 가장자리는 마스크로 바탕색에 부드럽게 녹아듦. z-index -1 = 화면 내용 뒤, body 바탕 위
+   아래 끝: 평소엔 살리고, 창이 그림보다 길어지는 만큼만(늘어난 높이의 2배, 최대 260px) 부드럽게 날림 */
+html.chara-on body::before, html.chara-on body::after, #chara-hole .chw, html.nd-app.chara-on #nd-titlebar::before, html.nd-app.chara-on #nd-titlebar::after {
+  --wall-fbx:max(var(--wall-fb), clamp(0px, calc((100vh - var(--wall-y) - var(--wall-h)) * 2), 260px));
+  content:''; position:fixed; z-index:-1; pointer-events:none;
+  left:var(--wall-x); top:var(--wall-y); width:var(--wall-w, 0px); height:var(--wall-h);
+  background:var(--wall) 0 0 / 100% 100% no-repeat; opacity:var(--wall-op);
+  mask-image:linear-gradient(to right, transparent, #000 var(--wall-fl), #000 calc(100% - var(--wall-fr)), transparent),
+             linear-gradient(to bottom, transparent, #000 var(--wall-ft), #000 calc(100% - var(--wall-fbx)), transparent),
+             linear-gradient(to right, #000 calc(var(--wb-s) - var(--wall-x)), transparent calc(var(--wb-e) - var(--wall-x)));
+  mask-composite:intersect; }
+/* 오른쪽 흐림 — 같은 그림을 흐려 겹치고, 창 가로 --wb-s 에서 --wb-e 까지 서서히 나타나게(또렷한 그림은 그만큼 사라짐) */
+html.chara-on body::after, #chara-hole .chw-b, html.nd-app.chara-on #nd-titlebar::after { filter:blur(var(--wb-px));
+  mask-image:linear-gradient(to right, transparent, #000 var(--wall-fl), #000 calc(100% - var(--wall-fr)), transparent),
+             linear-gradient(to bottom, transparent, #000 var(--wall-ft), #000 calc(100% - var(--wall-fbx)), transparent),
+             linear-gradient(to right, transparent calc(var(--wb-s) - var(--wall-x)), #000 calc(var(--wb-e) - var(--wall-x))); }
+/* 꽃잎·반딧불이 = 배경 그림 바로 위, 화면 내용 아래 */
+#chara-petals, #chara-fireflies { position:fixed; inset:0; z-index:-1; pointer-events:none; }
+html:not(.chara-on) :is(#chara-petals, #chara-fireflies, #chara-hole, #chara-pal) { display:none; }
+
+/* 오른쪽 아래 캐릭터 + 그 모양대로 깎은 구멍(바탕색 + 같은 배경 그림 — 내용이 깎인 것처럼). 구멍은 누르기도 막음(가려진 칸이 눌리지 않게) */
+@property --ch-rise { syntax:'<length>'; inherits:true; initial-value:0px; }   /* 나타날 때 아래에서 쑥 — 캐릭터·구멍이 같이 */
+#chara-pal { position:fixed; z-index:91; width:var(--ch-w); right:var(--ch-r); bottom:calc(var(--ch-b) + var(--ch-rise)); pointer-events:none; user-select:none; -webkit-user-drag:none; }
+#chara-pal[hidden] { display:none; }
+#chara-hole { position:fixed; z-index:90; display:none; right:calc(var(--ch-r) - var(--ch-gap)); bottom:calc(var(--ch-b) + var(--ch-rise) - var(--ch-gap)); width:var(--ch-cut-w); height:var(--ch-cut-h);
+  background:var(--bg); mask:var(--ch-cut) 0 0 / 100% 100% no-repeat; overflow:hidden; }
+html.chara-on.chara-ready #chara-hole { display:block; }
+#chara-hole .chw { z-index:0; }
+.chara-in { animation:chRise .9s cubic-bezier(.3,1.35,.5,1) both; }
+@keyframes chRise { from { --ch-rise:calc(var(--ch-w) * -1.4); } }
+/* 맨 아래 내용을 캐릭터 위로 올려 볼 수 있게 */
+html.chara-on main { padding-bottom:calc(var(--ch-w) * .75); }
+
+/* 배경 그림이 비치게 — 제목줄·사이드바는 유리판(뒤가 흐리게 비침 + 가는 빛 테두리 + 위쪽 반사) */
+/* 제목줄까지 배경 그림이 꽉 차게(11-04 사용자 'VW Source 처럼') — 화면이 제목줄 밑으로 스크롤돼서 투명으로 두지 않고, 바탕색 + 같은 배경 그림을 제목줄 안에 깔아 맨 뒤 그림과 이어지게
+   (제목줄은 창 왼쪽 위 0,0 고정이라 absolute 자리 = 창 기준 자리). 윈도 창 버튼 자리는 js/app-mode.js _ndTitlebarColors 가 투명으로(설치판 1.3.9~, 그 전 판은 바탕색) */
+html.nd-app.chara-on #nd-titlebar { background:var(--bg); overflow:hidden; }
+html.nd-app.chara-on #nd-titlebar::before, html.nd-app.chara-on #nd-titlebar::after { position:absolute; }
+html.chara-on #side-nav { background:linear-gradient(180deg, rgba(255,255,255,.34), rgba(255,255,255,.12) 40%, rgba(255,255,255,.06)), color-mix(in srgb, var(--surface) 55%, transparent);
+  -webkit-backdrop-filter:blur(18px) saturate(1.5); backdrop-filter:blur(18px) saturate(1.5); border-color:rgba(255,255,255,.55); box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 10px 26px -14px rgba(15,23,42,.35); }
+[data-theme="dark"].chara-on #side-nav { background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03) 40%, rgba(255,255,255,0)), color-mix(in srgb, var(--surface) 55%, transparent);
+  border-color:rgba(255,255,255,.14); box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 10px 26px -12px rgba(0,0,0,.6); }

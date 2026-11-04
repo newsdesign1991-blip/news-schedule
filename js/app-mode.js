@@ -496,8 +496,10 @@ if(ND_APP) setInterval(_ndSiteFresh,60e3);
 function _ndTitlebarColors(){
   const bar=document.getElementById('nd-titlebar'); if(!bar||!window.ndApp?.setTitleBar) return;
   const hex=c=>{ const m=String(c).match(/\d+(\.\d+)?/g)||[]; return '#'+m.slice(0,3).map(n=>Math.round(+n).toString(16).padStart(2,'0')).join(''); };
-  const cs=getComputedStyle(bar);
-  window.ndApp.setTitleBar({ color:hex(cs.backgroundColor), symbolColor:hex(cs.color) });
+  const cs=getComputedStyle(bar), o={ color:hex(cs.backgroundColor), symbolColor:hex(cs.color) };
+  // 캐릭터 테마(js/look.js): 창 버튼 자리도 투명 — 배경 그림이 맨 위 오른쪽 끝까지(VW Source 처럼). 설치판 1.3.9~ 의 main.js 만 '#rrggbbaa'를 받고, 그 전 판은 거절(false) → 바탕색
+  if(document.documentElement.classList.contains('chara-on')) Promise.resolve(window.ndApp.setTitleBar({ color:'#00000000', symbolColor:o.symbolColor, bg:o.color })).then(ok=>{ if(ok===false) window.ndApp.setTitleBar(o); },()=>window.ndApp.setTitleBar(o));
+  else window.ndApp.setTitleBar(o);
 }
 _ndTitlebarInit();
 

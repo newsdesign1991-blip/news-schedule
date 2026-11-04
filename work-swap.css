@@ -1,3 +1,4 @@
+.nd-swap-entry{display:none!important}   /* 11-04 근무 교환 숨김(사이드바·이름 메뉴·관리자 탭) — 다시 쓰려면 이 줄 지우고 work-swap.js WORK_SWAP_ON=true */
 #swap-modal{position:fixed;inset:0;z-index:9700;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.28)}
 #swap-modal .swap-dialog{width:620px;max-width:100%;max-height:88dvh;padding:0;display:flex;flex-direction:column;overflow:hidden}
 .swap-head{padding:20px 22px;background:rgba(49,130,246,.09);border-bottom:1px solid rgba(49,130,246,.2);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
