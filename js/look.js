@@ -196,7 +196,7 @@ function _ndToolItems() {
     { icon: 'tour', label: '사용법 다시 보기', off: typeof ndAppTour !== 'function', run: () => setTimeout(() => ndAppTour(true)) },   // 메뉴가 닫힌 뒤에
     '-',
     { icon: 'reload', label: '화면 새로고침', key: 'F5', run: () => location.reload() },
-    ...(tool ? [{ icon: 'wrench', label: '앱 정보·업데이트', run: () => setTimeout(() => _ndToolToggle(tool)) }] : []),
+    ...(tool ? [{ icon: 'wrench', label: '앱 정보', run: () => setTimeout(() => _ndToolToggle(tool)) }] : []),
   ];
 }
 function _ndMenuOpen(btn) {

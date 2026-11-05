@@ -34,12 +34,24 @@ function _lkEls() {
   return { hole, pal: document.getElementById('chara-pal') };
 }
 let _lkCutKey = '';
+// 제목줄 오른쪽 흐린 배경(css/look.css #nd-titlebar::after) — 미리 흐려 둔 그림. 제목줄 조각은 제목줄 크기라(창 끌기 자리 — 크면 화면이 안 눌림)
+//   filter:blur 를 걸면 위아래 끝이 옅어짐. 맨 뒤 body::after 의 blur 와 같은 결과(그림 크기 W×H 에 px 흐림)
+let _lkBlurUrl = '';
+function _lkWallBlur(t, pic, W, H, px) {
+  const st = document.documentElement.style;
+  if (_lkBlurUrl) { URL.revokeObjectURL(_lkBlurUrl); _lkBlurUrl = ''; }
+  if (!t || !px) { st.removeProperty('--wall-blur'); return; }
+  const k = Math.min(1, 1600 / W), cv = document.createElement('canvas');   // 흐린 그림이라 줄여도 티 안 남
+  cv.width = Math.max(1, Math.round(W * k)); cv.height = Math.max(1, Math.round(H * k));
+  const g = cv.getContext('2d'); g.filter = `blur(${px * k}px)`; g.drawImage(pic, 0, 0, cv.width, cv.height);
+  cv.toBlob(b => { if (!b || _lkChara !== t) return; _lkBlurUrl = URL.createObjectURL(b); st.setProperty('--wall-blur', `url("${_lkBlurUrl}")`); }, 'image/webp', 0.9);
+}
 function applyLookChara(t) {
   const h = document.documentElement, st = h.style, was = _lkChara?.id;
   _lkChara = t;
   h.classList.toggle('chara-on', !!t);
   if (!t) {   // 끔 — 그림·캐릭터 변수(실루엣 data URL 포함)도 지움
-    _lkPetals(null); _lkFlies(null); _lkCutKey = ''; h.classList.remove('chara-ready');
+    _lkPetals(null); _lkFlies(null); _lkCutKey = ''; h.classList.remove('chara-ready'); _lkWallBlur(null);
     [...st].filter(n => /^--(wall|wb-|ch-)/.test(n)).forEach(n => st.removeProperty(n));
     return;
   }
@@ -57,7 +69,7 @@ function applyLookChara(t) {
   st.setProperty('--wb-s', br ? br.start * 100 + 'vw' : '99999px');
   st.setProperty('--wb-e', br ? br.end * 100 + 'vw' : '99999px');
   st.setProperty('--wb-px', (br?.px ?? 0) + 'px');
-  if (wallSrc) { const pic = new Image(); pic.onload = () => { if (_lkChara === t) st.setProperty('--wall-w', ((wl.height ?? innerHeight) * pic.naturalWidth) / pic.naturalHeight + 'px'); }; pic.src = wallSrc; }
+  if (wallSrc) { const pic = new Image(); pic.onload = () => { if (_lkChara !== t) return; const H = wl.height ?? innerHeight, W = (H * pic.naturalWidth) / pic.naturalHeight; st.setProperty('--wall-w', W + 'px'); _lkWallBlur(t, pic, W, H, br?.px || 0); }; pic.src = wallSrc; }
   _lkPetals(t.petals);
   _lkFlies(t.fireflies);
   const c = t.character;

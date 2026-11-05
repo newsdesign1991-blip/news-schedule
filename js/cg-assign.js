@@ -650,7 +650,7 @@ async function _cgaFetch(manual) {
   if (_cgaBusy || (!manual && Date.now() < _cgaNextAt)) return;
   await _cgmLoad();   // 직접 배정(앵커·PT) — 여러 PC 공용
   if (!(typeof ND_APP !== 'undefined' && ND_APP && window.ndApp && window.ndApp.ndsCg)) {
-    _cgaErr = (typeof ND_APP !== 'undefined' && ND_APP) ? '근무표 앱을 업데이트하면 볼 수 있어요. 오른쪽 위 렌치에서 업데이트해 주세요.' : 'CG배정 현황은 근무표 PC 앱에서 볼 수 있어요.';
+    _cgaErr = (typeof ND_APP !== 'undefined' && ND_APP) ? '근무표 앱을 업데이트하면 볼 수 있어요. NDT 런처에서 업데이트해 주세요.' : 'CG배정 현황은 근무표 PC 앱에서 볼 수 있어요.';
     _cgaPaint(); return;
   }
   _cgaBusy = true; _cgaLastAt = Date.now();
