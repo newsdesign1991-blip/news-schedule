@@ -85,7 +85,7 @@ html.nd-look-on.nd-app #nd-titlebar.on-ws .ndt-ws, html.nd-look-on.nd-app #nd-ti
 /* ── 캐릭터 테마 ── */
 /* 맨 뒤 배경 그림 — 정한 자리·크기 그대로(진하기만). 네 가장자리는 마스크로 바탕색에 부드럽게 녹아듦. z-index -1 = 화면 내용 뒤, body 바탕 위
    아래 끝: 평소엔 살리고, 창이 그림보다 길어지는 만큼만(늘어난 높이의 2배, 최대 260px) 부드럽게 날림 */
-html.chara-on body::before, html.chara-on body::after, #chara-hole .chw, html.nd-app.chara-on #nd-titlebar::before, html.nd-app.chara-on #nd-titlebar::after {
+html.chara-on body::before, html.chara-on body::after, #chara-hole .chw, html.nd-app.chara-on #nd-titlebar::before, html.nd-app.chara-on #nd-titlebar > .ndt-wallb {
   --wall-fbx:max(var(--wall-fb), clamp(0px, calc((100vh - var(--wall-y) - var(--wall-h)) * 2), 260px));
   content:''; position:fixed; z-index:-1; pointer-events:none;
   left:var(--wall-x); top:var(--wall-y); width:var(--wall-w, 0px); height:var(--wall-h);
@@ -95,7 +95,7 @@ html.chara-on body::before, html.chara-on body::after, #chara-hole .chw, html.nd
              linear-gradient(to right, #000 calc(var(--wb-s) - var(--wall-x)), transparent calc(var(--wb-e) - var(--wall-x)));
   mask-composite:intersect; }
 /* 오른쪽 흐림 — 같은 그림을 흐려 겹치고, 창 가로 --wb-s 에서 --wb-e 까지 서서히 나타나게(또렷한 그림은 그만큼 사라짐) */
-html.chara-on body::after, #chara-hole .chw-b, html.nd-app.chara-on #nd-titlebar::after { filter:blur(var(--wb-px));
+html.chara-on body::after, #chara-hole .chw-b, html.nd-app.chara-on #nd-titlebar > .ndt-wallb { filter:blur(var(--wb-px));
   mask-image:linear-gradient(to right, transparent, #000 var(--wall-fl), #000 calc(100% - var(--wall-fr)), transparent),
              linear-gradient(to bottom, transparent, #000 var(--wall-ft), #000 calc(100% - var(--wall-fbx)), transparent),
              linear-gradient(to right, transparent calc(var(--wb-s) - var(--wall-x)), #000 calc(var(--wb-e) - var(--wall-x))); }
@@ -122,11 +122,12 @@ html.chara-on main { padding-bottom:calc(var(--ch-w) * .75); }
 html.nd-app.chara-on #nd-titlebar { background:var(--bg); overflow:hidden; }
 /* 조각 상자는 반드시 제목줄 크기 그대로(11-05): 제목줄은 창 끌기(-webkit-app-region:drag) 자리라, 안의 조각이 창 크기면 앱(Electron)이 창 전체를 끌기 자리로 봐서
    화면이 하나도 안 눌림(overflow:hidden 으로 가려도 소용없음). 그림은 상자 안에서 background/mask 자리·크기로 맨 뒤 그림과 같은 곳에 놓음
-   흐린 쪽(::after)은 filter:blur 를 걸면 44px 상자 위아래 끝이 옅어져서 js/look-chara.js 가 미리 흐려 둔 그림(--wall-blur)을 씀 */
-html.nd-app.chara-on #nd-titlebar::before, html.nd-app.chara-on #nd-titlebar::after { position:absolute; left:0; top:0; width:100%; height:100%;
+   흐린 쪽은 filter:blur 를 걸면 44px 상자 위아래 끝이 옅어져서 js/look-chara.js 가 미리 흐려 둔 그림(--wall-blur)을 씀
+   흐린 쪽은 ::after 가 아니라 제목줄 맨 앞 요소 .ndt-wallb(js/look-chara.js _lkTitleWall) — ::after 는 버튼들 뒤 순서라 앱이 버튼 자리까지 끌기로 덮어써 안 눌림 */
+html.nd-app.chara-on #nd-titlebar::before, html.nd-app.chara-on #nd-titlebar > .ndt-wallb { position:absolute; left:0; top:0; width:100%; height:100%;
   background-position:var(--wall-x) var(--wall-y); background-size:var(--wall-w, 0px) var(--wall-h);
   mask-position:var(--wall-x) var(--wall-y); mask-size:var(--wall-w, 0px) var(--wall-h); mask-repeat:no-repeat; }
-html.nd-app.chara-on #nd-titlebar::after { background-image:var(--wall-blur, none); filter:none; }
+html.nd-app.chara-on #nd-titlebar > .ndt-wallb { background-image:var(--wall-blur, none); filter:none; }
 html.chara-on #side-nav { background:linear-gradient(180deg, rgba(255,255,255,.34), rgba(255,255,255,.12) 40%, rgba(255,255,255,.06)), color-mix(in srgb, var(--surface) 55%, transparent);
   -webkit-backdrop-filter:blur(18px) saturate(1.5); backdrop-filter:blur(18px) saturate(1.5); border-color:rgba(255,255,255,.55); box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 10px 26px -14px rgba(15,23,42,.35); }
 [data-theme="dark"].chara-on #side-nav { background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03) 40%, rgba(255,255,255,0)), color-mix(in srgb, var(--surface) 55%, transparent);

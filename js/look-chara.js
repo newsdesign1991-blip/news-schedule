@@ -34,7 +34,7 @@ function _lkEls() {
   return { hole, pal: document.getElementById('chara-pal') };
 }
 let _lkCutKey = '';
-// 제목줄 오른쪽 흐린 배경(css/look.css #nd-titlebar::after) — 미리 흐려 둔 그림. 제목줄 조각은 제목줄 크기라(창 끌기 자리 — 크면 화면이 안 눌림)
+// 제목줄 오른쪽 흐린 배경(css/look.css #nd-titlebar > .ndt-wallb — 제목줄 맨 앞 요소) — 미리 흐려 둔 그림. 제목줄 조각은 제목줄 크기라(창 끌기 자리 — 크면 화면이 안 눌림)
 //   filter:blur 를 걸면 위아래 끝이 옅어짐. 맨 뒤 body::after 의 blur 와 같은 결과(그림 크기 W×H 에 px 흐림)
 let _lkBlurUrl = '';
 function _lkWallBlur(t, pic, W, H, px) {
@@ -46,10 +46,20 @@ function _lkWallBlur(t, pic, W, H, px) {
   const g = cv.getContext('2d'); g.filter = `blur(${px * k}px)`; g.drawImage(pic, 0, 0, cv.width, cv.height);
   cv.toBlob(b => { if (!b || _lkChara !== t) return; _lkBlurUrl = URL.createObjectURL(b); st.setProperty('--wall-blur', `url("${_lkBlurUrl}")`); }, 'image/webp', 0.9);
 }
+// 제목줄 흐린 배경 조각 = 제목줄 '맨 앞' 요소. ::after 로 하면 버튼들보다 뒤 순서라 앱(Electron)이 그 자리를 다시 끌기 자리로 덮어써서
+//   제목줄 버튼(도구·관리자 탭 등)이 안 눌림(11-05). 제목줄 안에 끌기 자리를 덮는 것은 늘 버튼들보다 앞에 둘 것
+function _lkTitleWall(on) {
+  const bar = document.getElementById('nd-titlebar'); if (!bar) return;
+  let el = bar.querySelector(':scope > .ndt-wallb');
+  if (!on) { el?.remove(); return; }
+  if (!el) { el = document.createElement('i'); el.className = 'ndt-wallb'; el.setAttribute('aria-hidden', 'true'); }
+  if (bar.firstElementChild !== el) bar.prepend(el);
+}
 function applyLookChara(t) {
   const h = document.documentElement, st = h.style, was = _lkChara?.id;
   _lkChara = t;
   h.classList.toggle('chara-on', !!t);
+  _lkTitleWall(!!t);
   if (!t) {   // 끔 — 그림·캐릭터 변수(실루엣 data URL 포함)도 지움
     _lkPetals(null); _lkFlies(null); _lkCutKey = ''; h.classList.remove('chara-ready'); _lkWallBlur(null);
     [...st].filter(n => /^--(wall|wb-|ch-)/.test(n)).forEach(n => st.removeProperty(n));
