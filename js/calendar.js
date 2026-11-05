@@ -514,7 +514,7 @@ function showDayModal(dateStr) {
   let workHtml='', bands='';
   const ppl=new Set();
   if (entry) {
-    if (entry.notes) workHtml+=`<div class="day-sect"><div class="day-note">📝 ${_esc(entry.notes)}</div></div>`;
+    const _nt = _notesShown(entry.notes); if (_nt) workHtml+=`<div class="day-sect"><div class="day-note">📝 ${_esc(_nt)}</div></div>`;
     if (entry.danjik) { const s=staffById(entry.danjik); if(s) ppl.add(entry.danjik); bands+=`<div class="day-dept-band" style="background:#fee2e2;color:#d65a52;"><div class="dd-band-title">당직</div><div class="dd-band-names"><span class="nm">${s?.name||'?'}</span></div></div>`; }
     const depts=[
       {key:'xr',label:'XR',bg:'var(--xr-bg)',fg:'var(--xr-light)',workers:(entry.xr||[]),desk:null},

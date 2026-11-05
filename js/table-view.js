@@ -562,7 +562,7 @@ function renderTable() {
     });
     const bigoHtml=bigoItems.map(b=>`<span style="display:inline-block;font-size:10px;padding:1px 5px;border-radius:4px;background:${b.bg};color:${b.color};font-weight:700;white-space:nowrap;margin:1px;">${b.name}: ${b.note}</span>`).join('');
     const _nesc2=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-    const _ntHtml2 = entry?.notes ? `<span style="display:block;font-size:10px;color:#7c3aed;font-weight:600;margin-top:2px;white-space:nowrap;">${_nesc2(entry.notes)}</span>` : '';
+    const _nt2 = _notesShown(entry?.notes), _ntHtml2 = _nt2 ? `<span style="display:block;font-size:10px;color:#7c3aed;font-weight:600;margin-top:2px;white-space:nowrap;">${_nesc2(_nt2)}</span>` : '';
     tbody+=`<td style="padding:3px 6px;white-space:nowrap;text-align:left;">${(bigoHtml||_ntHtml2)?(bigoHtml+_ntHtml2):'<span style="color:var(--muted);font-size:10px;">-</span>'}</td>`;
 
     tbody+='</tr>';

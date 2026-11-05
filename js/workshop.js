@@ -485,7 +485,7 @@ function renderWorkshopTable() {
         else if(_isCgSub(_id)) _addBigo(_id,'CG');
       }
       const _nesc=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-      const _ntHtml = entry?.notes ? `<span style="color:#7c3aed;font-weight:600;">${_nesc(entry.notes)}</span>` : '';
+      const _nt = _notesShown(entry?.notes), _ntHtml = _nt ? `<span style="color:#7c3aed;font-weight:600;">${_nesc(_nt)}</span>` : '';
       const _bg = [..._bigo, _ntHtml].filter(Boolean);
       tbody+=_bg.length?`<td style="font-size:10px;padding:2px 5px;line-height:1.8;vertical-align:middle;text-align:left;white-space:nowrap;">${_bg.join('<br>')}</td>`:`<td></td>`;
     }

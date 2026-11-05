@@ -280,7 +280,7 @@ function renderHome() {
   }
   if (entry) {
     const _vwSeen=new Set();
-    const _vwAll=[...(entry.vw?.workers||[]).map(id=>({id,tag:''})),..._h8vwIds.map(id=>({id,tag:'8진'})),..._hNoVwIds.map(id=>({id,tag:'뉴.오'})),...(_ilVwAdd?[{id:entry.ilgeun,tag:'일근'}]:[])].filter(x=>x.id&&!_vwSeen.has(x.id)&&(_vwSeen.add(x.id),true)).sort((a,b)=>_byStaffOrder(a.id,b.id));
+    const _vwAll=[..._vwLearnerIds(entry,hDs).map(id=>({id,tag:'배우는 중'})),...(entry.vw?.workers||[]).map(id=>({id,tag:''})),..._h8vwIds.map(id=>({id,tag:'8진'})),..._hNoVwIds.map(id=>({id,tag:'뉴.오'})),...(_ilVwAdd?[{id:entry.ilgeun,tag:'일근'}]:[])].filter(x=>x.id&&!_vwSeen.has(x.id)&&(_vwSeen.add(x.id),true)).sort((a,b)=>_byStaffOrder(a.id,b.id));
     document.getElementById('vw-today-chips').innerHTML=_vwAll.length
       ? _vwAll.map(({id,tag})=>{const s=staffById(id);if(!s)return '';const isDesk=id===entry.vw?.desk;const _t=tag?` <span style="opacity:.55;font-size:9px;font-weight:700;">${tag}</span>`:'';return `<span class="wchip vw">${isDesk?'<span class="desk-star">★</span>':''}${s.name}${_t}</span>`}).join('')
       : '<div class="no-data">근무자 없음</div>';

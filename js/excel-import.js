@@ -557,7 +557,9 @@ function _renderImgResult(parsed) {
   document.getElementById('img-apply-btn').style.display = 'block';
 }
 
-function _isVw2(entry,id) { return _normalizeImportedWorkType(entry?.customCells?.[id]?.text).toUpperCase() === 'VW2'; }   // VW2·VW② = 배우는 중(인원 X)
+function _isVw2(entry,id) { return _isLearnText(entry?.customCells?.[id]?.text); }
+// VW2·VW②·정근② = 배우는 중(인원 X). 정근② = 부서 옮기고 배우는 기간의 엑셀 표기(11-05 사용자, 양기태 11/2~13)
+function _isLearnText(t) { const k = _normalizeImportedWorkType(t).toUpperCase(); return k === 'VW2' || k === '정근2'; }
 function _normalizeImportedWorkType(value,keepNum){return String(value||'').replace(/\s+/g,'').replace(/[①-⑨]/g,c=>keepNum?c:String(c.charCodeAt(0)-0x245F)).replace(/^jr[.．]?/i,'Jr.').replace(/^ai교육$/i,'AI 교육');}   // 동그라미 숫자(VW②·뉴.오①·8진②)는 보통 숫자로 읽음(10-27) — keepNum 이면 칸에 보일 글자라 그대로 둠(사용자: 작성소에도 그 번호를 붙여서)
 const WORK_TYPE_MAP = {
   '정근': 'work', '신휴가': 'leave', 'Jr.휴가': 'leave', '출장': 'offsite', 'Jr.캠프': 'offsite', 'AI 교육': 'offsite', '당직': 'danjik',
@@ -576,10 +578,13 @@ const WORK_TYPE_MAP = {
   '교육': 'offsite', '면접관': 'offsite', '대의원': 'offsite', '주.캠': 'offsite', 'NDS': 'offsite',
   '오전8데': 'ojende8', '오전8데스': 'ojende8',
   // 부서명 라벨 = "그 부서에서 근무". 같은 부서면 정근, 타부서 사람이면 대체로 자동 표시(cg.workers/vw.workers).
-  'CG': 'cg-sub', 'VW': 'vw-sub', 'VW1': 'vw-sub', 'VW2': 'vw2', 'vw2': 'vw2',   // VW2(VW②) = 배우는 중(깍두기) — 칸에만 보이고 인원 수엔 안 셈
+  'CG': 'cg-sub', 'VW': 'vw-sub', 'VW1': 'vw-sub', 'VW2': 'vw2', 'vw2': 'vw2', '정근2': 'vw2',   // VW2(VW②) = 배우는 중(깍두기) — 칸에만 보이고 인원 수엔 안 셈
   // 당직 지정 시 자동 계산되는 항목 → 가져오기에서 무시
   '퇴근': 'skip', '당직퇴근': 'skip', '비번': 'skip', '당직비번': 'skip'
 };
+
+// 예전 가져오기가 남긴 '이름:글자(수동입력 필요)' 중 지금은 아는 글자는 안 보이게(저장 값은 그대로)
+function _notesShown(n){ return String(n||'').replace(/(?:^|,\s*)[^,:]+:([^,()]+)\(수동입력 필요\)/g,(m,t)=>WORK_TYPE_MAP[t]?'':m).replace(/^,\s*/,''); }
 
 function applyImageSchedule() {
   if (!_imgParsedData) return;
@@ -659,6 +664,13 @@ function _importCellDisplay(entry,id,leaves) {
   if(text && (type!=='work'||cell.pink))fw='700';
   const count=!!text && text!=='-' && text!=='0' && type!=='leave' && !/^(비번|당직비번)$/.test(text);
   return {text,bg,color,fw,count};
+}
+// 그날 VW에서 배우는 사람 — 인원엔 안 세고 홈 VW 목록에만 나옴. 엑셀 칸(손댄 칸 제외)과 손입력 칸 둘 다 봄(이미 가져온 11/2~13은 엑셀 칸에만 있음)
+function _vwLearnerIds(entry,ds){
+  const lv=data.newLeaves?.[ds]||[], ids=new Set();
+  Object.keys(entry?.customCells||{}).forEach(id=>{ if(_isVw2(entry,id)) ids.add(id); });
+  Object.keys(entry?.importedCells||{}).forEach(id=>{ const c=_importCellDisplay(entry,id,lv); if(c&&_isLearnText(c.text)) ids.add(id); });
+  return [...ids].filter(id=>!lv.includes(id));
 }
 function _importCellHTML(text){return String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
