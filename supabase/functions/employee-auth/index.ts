@@ -3,6 +3,9 @@ const sb=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVI
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info,prefer','Access-Control-Allow-Methods':'POST,OPTIONS'};
 const reply=(x:unknown,status=200)=>new Response(JSON.stringify(x),{status,headers:{...cors,'Content-Type':'application/json','Cache-Control':'no-store'}});
 async function hash(s:string){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('')}
+// 알림 켠 기기 수(11-07, 계정 관리 카드): push_subs 는 service role 만 읽음. 사람별 PC·모바일 수만 내보냄(구독 주소·키는 안 나감)
+// PC = 근무표 앱(ndapp:)·PC 브라우저(sub.device 'pc', 엣지 알림 주소), 나머지 = 모바일. 크롬 알림 주소는 휴대폰·PC 구분이 안 돼서 device 없는 옛 구독은 모바일로 봄
+function pushCounts(rows:any[]){const by:Record<string,{pc:number,mobile:number}>={};for(const r of rows){if(!r.staff_id)continue;const ep=String(r.endpoint||''),pc=ep.startsWith('ndapp:')||r.sub?.device==='pc'||/\.notify\.windows\.com/.test(ep);const n=by[r.staff_id]||(by[r.staff_id]={pc:0,mobile:0});n[pc?'pc':'mobile']++}return by}
 async function account(id:string){
  const {error}=await sb.from('nd_employee_accounts').upsert({staff_id:id},{onConflict:'staff_id',ignoreDuplicates:true});if(error)throw error;
  const q=await sb.from('nd_employee_accounts').select('*').eq('staff_id',id).single();if(q.error)throw q.error;return q.data;
@@ -57,7 +60,9 @@ Deno.serve(async req=>{
   }
   if(b.action==='accounts'){
    const {data:accounts,error}=await sb.from('nd_employee_accounts').select('staff_id,pin,must_change');if(error)throw error;
-   return reply({master,accounts:people.map((s:any)=>{const c=accounts?.find(x=>x.staff_id===s.id);return {staffId:s.id,name:s.name,dept:s.dept,mustChange:c?.must_change??true,...(master?{pin:c?.pin||'000000'}:{})}})});
+   const {data:subs,error:subsErr}=await sb.from('push_subs').select('staff_id,endpoint,sub');   // 못 읽어도 계정 화면은 그대로(notify 만 빠짐)
+   const pushBy=subsErr?null:pushCounts(subs||[]);
+   return reply({master,accounts:people.map((s:any)=>{const c=accounts?.find(x=>x.staff_id===s.id);return {staffId:s.id,name:s.name,dept:s.dept,mustChange:c?.must_change??true,...(pushBy?{notify:pushBy[s.id]||{pc:0,mobile:0}}:{}),...(master?{pin:c?.pin||'000000'}:{})}})});
   }
   if(b.action==='reset'){
    if(!people.some((s:any)=>s.id===b.staffId))throw Error('직원을 찾을 수 없습니다.');

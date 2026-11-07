@@ -674,7 +674,7 @@ async function enablePush() {
     const res = await fetch(`${SB_URL}/rest/v1/push_subs`, {
       method:'POST',
       headers:{...SB_HEADERS, 'Prefer':'return=minimal'},
-      body: JSON.stringify({ staff_id:currentUser.staffId, name:currentUser.name, endpoint:j.endpoint, sub:{ ...j, prefs:getUserNotify() } })   // prefs = 개인 알림 설정(서버가 보고 거름)
+      body: JSON.stringify({ staff_id:currentUser.staffId, name:currentUser.name, endpoint:j.endpoint, sub:{ ...j, prefs:getUserNotify(), device:(_ndPhone(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1))?'mobile':'pc' } })   // prefs = 개인 알림 설정(서버가 보고 거름), device = 계정 관리의 PC·모바일 구분(크롬 알림 주소만으론 구분 안 됨, 맥 글자인 터치 기기 = 아이패드)
     });
     if (!res.ok) {
       const errTxt = await res.text().catch(()=>'');
