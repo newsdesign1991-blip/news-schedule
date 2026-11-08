@@ -614,6 +614,8 @@ function renderCgAssign() {
     if (currentView !== 'cgassign') { clearInterval(_cgmTimer); _cgmTimer = null; return; }
     if (_cgaPull && Date.now() - (_cgaPull.t || 0) > 60e3) _cgaPullStale();
     if (document.visibilityState !== 'visible' || _cgaPull) return;
+    if (!_cgmShare() && Date.now() - _cgmPolledAt < _cgmGap() - 1000) return;   // 서버로 읽을 때는 손 안 대면 덜 자주(11-08)
+    _cgmPolledAt = Date.now();
     const before = JSON.stringify(_cgmData || null); await _cgmLoad();
     if (JSON.stringify(_cgmData || null) !== before) _cgaPaint();
   }, 5000);
@@ -646,6 +648,8 @@ function _cgaPollGap() {
   if (!document.hasFocus() || idle > 3 * 60e3) return 60e3;
   return CGA_POLL;
 }
+// 직접 배정 공용 기록을 서버(옛 앱·웹)로 읽을 때 간격(11-08): 손대고 있으면 5초, 다른 창·3분 넘게 손 안 대면 20초, 30분 넘게·새벽이면 1분. 공유 폴더(새 앱)는 늘 5초
+function _cgmGap() { const g = _cgaPollGap(); return g >= 120e3 ? 60e3 : g >= 60e3 ? 20e3 : 5000; }
 async function _cgaFetch(manual) {
   if (_cgaBusy || (!manual && Date.now() < _cgaNextAt)) return;
   await _cgmLoad();   // 직접 배정(앵커·PT) — 여러 PC 공용
@@ -1041,20 +1045,61 @@ const CGM_KIND = {
 };
 const _cgmKey = k => (CGM_KIND[k] && CGM_KIND[k].key) || 'cg';
 const _cgmIc = k => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${(CGM_KIND[k] || CGM_KIND.CG).ic}</svg>`;
-let _cgmData = null;
+let _cgmData = null, _cgmUa = null, _cgmSeeded = false, _cgmPolledAt = 0;
+// 공용 기록 자리(11-08 — Supabase 무료 전송량 초과로 막힌 뒤 사용자 'PC 에서만 쓰는 건 회사 네트워크 드라이브로'):
+// 새 근무표 앱(1.4.0~, 공유 폴더 다리 ndApp.shareRead·shareWrite)이면 회사 공유 폴더 — 5초마다 읽어도 서버를 안 씀(desktop/share-store.js).
+// 옛 앱·웹은 Supabase nd_data 'cgman' 그대로, 단 바뀌었을 때만 내용을 받고(sbRowChanged) 손 안 댈 때는 덜 자주(_cgmGap). 옛 앱과 새 앱은 서로 안 보임 → 모두 새 앱으로
+const _cgmShare = () => !!(window.ndApp && typeof window.ndApp.shareRead === 'function' && typeof window.ndApp.shareWrite === 'function');
+const _cgmPrune = pay => {
+  const keep = new Date(Date.now() + 9 * 3600e3 - 7 * 864e5).toISOString().slice(0, 10);
+  Object.keys(pay.days).forEach(k => { if (k < keep) delete pay.days[k]; });
+  if (pay.adj && typeof pay.adj === 'object') Object.keys(pay.adj).forEach(k => { if (k < keep) delete pay.adj[k]; });
+};
 const _cgmNow = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 19).replace('T', ' ');
 function _cgmToday() { return ((_cgmData && _cgmData.days && _cgmData.days[_cgaToday()]) || []); }
 function _cgmActive(name) { return _cgmToday().filter(j => j.name === name && !j.done).sort((a, b) => String(b.at).localeCompare(String(a.at))); }
 async function _cgmLoad() {
   try {
-    const r = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.cgman&select=payload`, { headers: SB_HEADERS, cache: 'no-store' });
-    if (!r.ok) return;
-    const a = await r.json();
-    _cgmData = (a && a[0] && a[0].payload) || { days: {} };
+    if (_cgmShare()) {
+      const r = await window.ndApp.shareRead('cgman');
+      if (!r || !r.ok) return;   // 공유 폴더가 잠깐 안 보임 — 화면은 그대로
+      if (!r.data && !r.ver && !_cgmSeeded) { _cgmSeeded = true; await _cgmSeedShare(); return; }
+      _cgmData = (r.data && typeof r.data === 'object') ? r.data : { days: {} };
+      return;
+    }
+    const x = await sbRowChanged('cgman', _cgmData ? _cgmUa : null);
+    if (!x || !x.changed) return;
+    _cgmData = (x.payload && typeof x.payload === 'object') ? x.payload : { days: {} }; _cgmUa = x.ua;
   } catch (e) { /* 다음에 */ }
+}
+// 공유 폴더에 아직 기록이 없으면(처음 한 번) 서버에 있던 걸 옮겨 시작 — 서버를 못 읽으면 빈 채로. 다른 PC가 먼저 만들었으면 그걸 씀
+async function _cgmSeedShare() {
+  let pay = null;
+  try { const r = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.cgman&select=payload`, { headers: SB_HEADERS, cache: 'no-store' }); if (r.ok) { const a = await r.json(); pay = a && a[0] && a[0].payload; } } catch (e) { /* 서버 막힘 등 */ }
+  if (!pay || typeof pay !== 'object') pay = {};
+  if (!pay.days || typeof pay.days !== 'object') pay.days = {};
+  _cgmPrune(pay);
+  const w = await window.ndApp.shareWrite('cgman', pay, 0);
+  if (w && w.ok) { _cgmData = pay; return; }
+  const r = await window.ndApp.shareRead('cgman');
+  _cgmData = (r && r.ok && r.data && typeof r.data === 'object') ? r.data : (_cgmData || { days: {} });
 }
 async function _cgmCommit(mutate) {
   if (typeof isAdminTest !== 'undefined' && isAdminTest) { _cgmData = _cgmData || { days: {} }; mutate(_cgmData); toast('관리자 테스트 모드라 저장되지 않아요(화면에만).', 'error'); return true; }
+  if (_cgmShare()) {   // 공유 폴더: 읽은 판(ver)이 그대로일 때만 씀(desktop/share-store.js 잠금) — 그사이 다른 PC가 바꿨으면 다시 읽고 고침
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const r = await window.ndApp.shareRead('cgman');
+      if (!r || !r.ok) return false;
+      const pay = (r.data && typeof r.data === 'object') ? r.data : {};
+      if (!pay.days || typeof pay.days !== 'object') pay.days = {};
+      mutate(pay); _cgmPrune(pay);
+      const w = await window.ndApp.shareWrite('cgman', pay, r.ver || 0);
+      if (w && w.ok) { _cgmData = pay; return true; }
+      if (!w || !w.conflict) return false;
+      await new Promise(res => setTimeout(res, 70 + attempt * 110 + Math.floor(Math.random() * 140)));
+    }
+    return false;
+  }
   const url = `${SB_URL}/rest/v1/nd_data?id=eq.cgman`;
   for (let attempt = 0; attempt < 6; attempt++) {
     let remote = null;
@@ -1062,21 +1107,18 @@ async function _cgmCommit(mutate) {
     catch (e) { return false; }
     const pay = (remote && remote.payload && typeof remote.payload === 'object') ? remote.payload : {};
     if (!pay.days || typeof pay.days !== 'object') pay.days = {};
-    mutate(pay);
-    const keep = new Date(Date.now() + 9 * 3600e3 - 7 * 864e5).toISOString().slice(0, 10);
-    Object.keys(pay.days).forEach(k => { if (k < keep) delete pay.days[k]; });
-    if (pay.adj && typeof pay.adj === 'object') Object.keys(pay.adj).forEach(k => { if (k < keep) delete pay.adj[k]; });
+    mutate(pay); _cgmPrune(pay);
     const nowIso = new Date().toISOString(), H = Object.assign({}, SB_HEADERS, { 'Prefer': 'return=representation' });
     try {
       if (!remote) {
         const pr = await fetch(`${SB_URL}/rest/v1/nd_data`, { method: 'POST', headers: H, body: JSON.stringify({ id: 'cgman', payload: pay, updated_at: nowIso }) });
-        if (pr.ok) { _cgmData = pay; return true; }
+        if (pr.ok) { _cgmData = pay; _cgmUa = null; return true; }
         if (pr.status !== 409) return false;   // 그사이 누가 만들었으면 다시 읽고 고침
       } else {
-        const pr = await fetch(`${url}&updated_at=eq.${encodeURIComponent(remote.updated_at)}`, { method: 'PATCH', headers: H, body: JSON.stringify({ payload: pay, updated_at: nowIso }) });
+        const pr = await fetch(`${url}&updated_at=eq.${encodeURIComponent(remote.updated_at)}&select=id,updated_at`, { method: 'PATCH', headers: H, body: JSON.stringify({ payload: pay, updated_at: nowIso }) });   // 돌려받는 건 id·시각만(11-08)
         if (!pr.ok) return false;
         const rows = await pr.json();
-        if (Array.isArray(rows) && rows.length) { _cgmData = pay; return true; }
+        if (Array.isArray(rows) && rows.length) { _cgmData = pay; _cgmUa = rows[0].updated_at || nowIso; return true; }
       }
     } catch (e) { return false; }
     await new Promise(res => setTimeout(res, 70 + attempt * 110 + Math.floor(Math.random() * 140)));

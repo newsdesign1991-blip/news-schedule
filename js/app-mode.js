@@ -397,6 +397,37 @@ async function _ndSiteFresh(){
   location.reload();
 }
 if(ND_APP) setInterval(_ndSiteFresh,60e3);
+// ── 옛 판 근무표 앱은 못 쓰게 막기(11-08 사용자 '전 버전 쓰고 있는 사람들은 사용 못하게' — 1.4.1 부터 근무표를 서버 대신 회사 공유 폴더 사본에서 읽고 PC 알림함도 덜 물어 서버 사용량이 크게 줆) ──
+// 판 = UA 끝 NDScheduleApp/x.y.z(_ndAppVer·_ndCmpVer, js/admin.js). ND_APP_MIN 보다 낮으면 켜자마자 화면 전체를 업데이트 안내로 덮음(닫기 없음 — ndPcBlock 과 같은 방식).
+// 앱 업데이트는 NDT 런처가 함. 휴대폰 웹은 그대로. 창 버튼(최소화·닫기)은 앱이 그리니 그대로 됨
+const ND_APP_MIN='1.4.1';
+function _ndAppOldVer(){ if(!ND_APP) return ''; const v=_ndAppVer(navigator.userAgent); return v&&_ndCmpVer(v,ND_APP_MIN)<0?v:''; }
+function ndAppOldBlock(){
+  const v=_ndAppOldVer(); if(!v||document.getElementById('upd-pop')) return;
+  const css=document.createElement('style'); css.id='nd-old-block-css';
+  css.textContent='html.nd-old-blocked body>*:not(#upd-pop):not(#nd-modfail){visibility:hidden!important;pointer-events:none!important}';
+  document.head.appendChild(css);
+  document.documentElement.classList.add('nd-old-blocked');
+  const el=document.createElement('div'); el.id='upd-pop'; el.className='wt-pop apx-pop upd-pop';
+  el.innerHTML=`<div class="wt-card apx-card upd-card" role="alertdialog" aria-modal="true" aria-labelledby="upd-t" aria-describedby="upd-d" tabindex="-1">
+    <div class="wt-head apx-head upd-head" id="upd-t"><img src="icon-192.png" alt="">근무표 앱을 업데이트해야 쓸 수 있어요</div>
+    <div class="wt-body" style="padding-bottom:20px">
+      <div class="upd-ver"><span>지금 버전 <b>${v}</b></span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg><span>새 버전 <b>${ND_APP_MIN} 이상</b></span></div>
+      <p class="apx-lead" id="upd-d">지금 버전은 서버를 많이 써서 근무표가 <b>모두 안 열리는 일</b>이 생겨요. 그래서 이 버전은 더 이상 쓸 수 없어요.</p>
+      <div class="apx-steps">
+        <div class="apx-step"><i>1</i><div><b>NDT 런처</b>를 열어요</div></div>
+        <div class="apx-step"><i>2</i><div><b>근무표</b>를 업데이트해요 — 끝나면 근무표를 다시 켜요</div></div>
+      </div>
+      <p class="wt-note">급하면 휴대폰 근무표는 지금처럼 쓸 수 있어요.</p>
+    </div>
+  </div>`;
+  document.body.appendChild(el);
+  const card=el.querySelector('.upd-card');
+  // 포커스는 이 카드 안에만(숨긴 앱 쪽으로 가면 되돌림)
+  document.addEventListener('focusin',e=>{ if(!el.contains(e.target)) try{ card.focus({ preventScroll:true }); }catch(err){} });
+  try{ card.focus({ preventScroll:true }); }catch(e){}
+}
+if(_ndAppOldVer()) ndAppOldBlock();
 // 창 버튼(최소화·최대화·닫기) 바탕·글자색을 제목줄과 같게
 function _ndTitlebarColors(){
   const bar=document.getElementById('nd-titlebar'); if(!bar||!window.ndApp?.setTitleBar) return;
@@ -512,6 +543,7 @@ function _tourSteps(){
 function _ndTourFromMenu(){ document.getElementById('ndt-pop')?.remove(); ndAppTour(true); }   // 렌치 메뉴 [사용법 다시 보기]
 function ndAppTour(force){
   if(!ND_APP||document.getElementById('tour-ov')) return;
+  if(document.getElementById('upd-pop')) return;   // 옛 판이라 막힌 앱(ndAppOldBlock)
   if(!force){
     // 처음 켠 사람은 '휴대폰에서 근무표 쓰기'가 무조건 먼저(11-04 사용자, 이 PC에서 한 번 nd_phone_pop_v1) → 닫으면 사용법 → 알림 켜기. 사용법을 예전에 본 사람도 휴대폰 안내는 한 번
     let seen=false; try{ seen=!!localStorage.getItem('nd_phone_pop_v1'); }catch(e){}

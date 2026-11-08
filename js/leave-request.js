@@ -556,7 +556,7 @@ async function _lrSyncMyColumn(myId){
     // 병합 저장 뒤 서버 리비전 따라가기(공지·투표와 같게) — 저장 중 표시(_lrInFlight)가 풀린 뒤라야 ndAdoptMergedSave가 '대기 중'으로 보지 않음.
     // 이번 저장 사이에 남이 저장했으면(사슬 끊김) 내 기기는 뒤처진 것 → 리비전은 그대로 두고 전체 다시 불러오기
     const mc=_lrMergeChain;_lrMergeChain=null;
-    if(mc){if(mc.broken)setTimeout(()=>{_reloadRemoteData();},0);else{ndAdoptMergedSave(mc.base,mc.saved);try{localStorage.setItem(STORE_KEY,JSON.stringify(data));}catch{}}}
+    if(mc){if(mc.broken)setTimeout(()=>{_reloadRemoteData(_ndSrv.ua);},0);else{ndAdoptMergedSave(mc.base,mc.saved);_ndSaveLocal();}}
     if(_lrScope===scope){_lrSaveError=ok?'':'unsaved';renderLeaveReqView();if(!ok)toast('휴가 변경을 저장하지 못했습니다. 연결 확인 후 다시 저장해 주세요.','error');}
   }
 }
@@ -566,28 +566,26 @@ async function _lrRequest(url,options){
 }
 async function _lrDrainChanges(scope,admin){
   if(isAdminTest){_lrPending={};_lrPersistPending();return true;}
-  const url=SB_URL+'/rest/v1/nd_data?id=eq.main';
   let failures=0;
   while(Object.keys(_lrPending).length && failures<80){
     if(scope!==_lrPendingKey()||scope!==_lrScope)return false;
     const batch=Object.entries(_lrPending).map(([key,op])=>[key,{...op}]);
     try{
-      const g=await _lrRequest(url+'&select=payload,updated_at',{headers:SB_HEADERS});
-      if(!g.ok)throw Error('read');const remote=(await g.json())?.[0];
+      const remote=await ndGetMainFresh(_lrRequest);   // 수정시각만 물어 이 기기 서버 사본과 같으면 다시 받지 않음(data-save.js)
       if(!remote?.payload||!remote.updated_at)throw Error('missing version');
       const rp=remote.payload,lr=rp.leaveReq,base=rp._dataRevision||0;
       if(!lr || (!admin&&(!lr.isOpen||(lr.deadline&&Date.now()>=new Date(lr.deadline).getTime()))))return false;
       if(batch.some(([,op])=>op.rs!==lr.rangeStart||op.re!==lr.rangeEnd||op.ds<lr.rangeStart||op.ds>lr.rangeEnd))return false;
       if(!lr.entries)lr.entries={};
       for(const [,op]of batch){const list=(lr.entries[op.ds]||[]).filter(id=>id!==op.id);if(op.selected)list.push(op.id);lr.entries[op.ds]=list;}
-      const p=await _lrRequest(url+'&updated_at=eq.'+encodeURIComponent(remote.updated_at),{method:'PATCH',headers:{...SB_HEADERS,Prefer:'return=representation'},body:JSON.stringify({payload:rp})});
+      const p=await ndPatchMain('&updated_at=eq.'+encodeURIComponent(remote.updated_at),{payload:rp},_lrRequest);   // 응답은 수정시각·저장 번호만
       if(!p.ok){if(p.status===409){failures++;}else throw Error('write');}
       else{
-        const saved=(await p.json())?.[0];
+        const saved=p.saved;
         if(saved?.payload){
           if(scope!==_lrPendingKey()||scope!==_lrScope)return false;
           for(const [key,op]of batch)if(_lrPending[key]?.version===op.version)delete _lrPending[key];
-          data.leaveReq=saved.payload.leaveReq;_lrOverlayPending();_lrPersistPending();
+          if((data._dataRevision||0)<(saved.payload._dataRevision||0))data.leaveReq=saved.payload.leaveReq;_lrOverlayPending();   /* 이미 더 새 판을 받았으면 덮지 않음(11-08 점검) */_lrPersistPending();
           // 문서 리비전은 여기서 올리지 않고 드레인이 끝난 뒤 _lrSyncMyColumn에서 따라감(병합 전 리비전 base부터 이어진 저장인지 기록)
           if(!_lrMergeChain)_lrMergeChain={base,saved};else{if(base!==(_lrMergeChain.saved.payload._dataRevision||0))_lrMergeChain.broken=true;_lrMergeChain.saved=saved;}
           try{localStorage.setItem(STORE_KEY,JSON.stringify(data));}catch{}

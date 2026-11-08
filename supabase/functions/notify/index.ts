@@ -18,6 +18,25 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+// 크론 이번 분에 보낼 알림이 있을 수 있나(아래 '크론 알림 모드'의 due 규칙을 넉넉하게 — 아니라고 할 때만 확실). lite = { settings, notices }, cueT = 큐시트 오늘 칸
+// 크론 첫 읽기: JSON 경로 읽기(payload->a->b)가 이 서버에서 안 되면 true — 이 인스턴스는 예전 읽기로(11-08)
+let liteOld = false
+function cronMaybeDue(lite: any, cueT: any, todayStr: string, curMin: number): boolean {
+  const hm = (v: any) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : -1 }
+  const types: any[] = Array.isArray(lite?.settings?.notify?.types) ? lite.settings.notify.types : []
+  if (types.some((t: any) => t && hm(t.time) === curMin)) return true                                 // 정한 시각 알림(근무 종류별·오뉴스 진행 newsohGo)
+  if (!types.some((t: any) => t?.key === 'newsohGo') && curMin === hm('16:30')) return true            // newsohGo 설정이 없을 때 기본 16:30
+  const sent: any = cueT?.sent || {}
+  const man8 = lite?.notices?.[todayStr]?.news8Time
+  const n8Use = man8 && /^\d{1,2}:\d{2}$/.test(man8) ? String(man8) : (hm(cueT?.news8) >= 0 ? String(cueT.news8) : '')
+  const win = (t: number) => t >= 0 && curMin >= t - 20 && curMin < t                                // 진입 20분 전 ~ 진입 전(8데스크 10분 전도 이 안)
+  if (win(hm(n8Use)) && (sent.news8 !== n8Use || sent.desk8 !== n8Use)) return true
+  if (win(hm(cueT?.newsOh)) && sent.newsOh !== String(cueT.newsOh)) return true
+  const n15 = (Array.isArray(cueT?.progs) ? cueT.progs : []).filter((g: any) => /SBS\s*뉴스\s*\(\s*15\s*시\s*\)|^15시\s*뉴스/.test(String(g?.n || '')) && !/\(R\)|재방/.test(String(g?.n || ''))).map((g: any) => String(g?.s || '')).filter((v: string) => /^\d{2}:\d{2}$/.test(v)).sort()[0] || ''
+  if (win(hm(n15)) && (sent.news15 !== n15 || sent.desk15 !== n15)) return true                        // 15시 뉴스(주말·공휴일 판단은 안 함 — 넉넉히)
+  return false
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
@@ -28,6 +47,21 @@ Deno.serve(async (req) => {
   if (!VAPID_PRIVATE) return new Response('VAPID_PRIVATE not set', { status: 500, headers: CORS })
 
   const sb = createClient(SB_URL, SB_SVC)
+  // 근무표(main)에서 필요한 칸만 읽기(11-08 — Supabase 무료 전송량 초과로 막힌 뒤. 전엔 부를 때마다 문서 전체 약 640KB).
+  // mainPart(['staff']) → { data: { payload: { staff } }, error } — 예전 코드(mr.payload.…)를 그대로 쓰게 같은 모양으로
+  async function mainPart(keys: string[]) {
+    const { data, error } = await sb.from('nd_data').select(keys.map(k => `${k}:payload->${k}`).join(',')).eq('id', 'main').single()
+    return { data: data ? { payload: data as any } : null, error }
+  }
+  // 오늘 알림에 쓰는 것만: 설정·직원·공지·공휴일 + 근무표·휴가는 오늘 칸만. 못 읽거나 오늘 칸이 비면(정말 없는지 모르니) 예전처럼 전체를 읽음 — '근무 없음' 알림이 잘못 가지 않게
+  async function mainToday(day: string): Promise<any> {
+    const { data, error } = await sb.from('nd_data').select(`settings:payload->settings,staff:payload->staff,notices:payload->notices,holidays:payload->holidays,today:payload->schedule->${day},todayLeaves:payload->newLeaves->${day}`).eq('id', 'main').single()
+    const d: any = data
+    if (!error && d && d.settings && Array.isArray(d.staff) && d.today && typeof d.today === 'object')
+      return { settings: d.settings, staff: d.staff, notices: d.notices || {}, holidays: d.holidays || {}, schedule: { [day]: d.today }, newLeaves: { [day]: Array.isArray(d.todayLeaves) ? d.todayLeaves : [] } }
+    const { data: mr } = await sb.from('nd_data').select('payload').eq('id', 'main').single()
+    return mr?.payload || null
+  }
 
   let body: any = {}
   try { body = await req.json() } catch { /* no body */ }
@@ -49,7 +83,7 @@ Deno.serve(async (req) => {
     if (de) return json({ error: de.message }, 500)
     if (!on) return json({ ok: true, mode: 'appsub', on: false })
     const sid = String(body?.staff_id || '').slice(0, 40), name = String(body?.name || '').slice(0, 20), pr = body?.prefs
-    const { data: mr, error: me } = await sb.from('nd_data').select('payload').eq('id', 'main').single()
+    const { data: mr, error: me } = await mainPart(['staff'])
     if (me) return json({ error: me.message }, 500)
     if (!sid || !((mr?.payload?.staff || []) as any[]).some((s: any) => String(s?.id || '') === sid)) return json({ error: 'unknown staff' }, 400)
     const prefs = pr && typeof pr === 'object' ? { work: pr.work !== false, news: pr.news !== false, notice: pr.notice !== false, poll: pr.poll !== false } : undefined
@@ -342,6 +376,39 @@ Deno.serve(async (req) => {
   const todayStr = kst.toISOString().slice(0, 10)
   const curMin = kst.getUTCHours() * 60 + kst.getUTCMinutes()
 
+  // 전송량 줄이기(11-08 — Supabase 무료 전송량 초과로 막힘): 크론은 1분마다 오는데 예전엔 매번 근무표 전체(약 640KB)·push_subs 전체를 읽었음.
+  // 이번 분에 보낼 게 있을 수 있는지 작은 것(알림 설정·공지 = 수 KB, 큐시트)만 먼저 보고, 없으면 바로 끝냄. 못 읽거나 애매하면 예전처럼 전부 읽음(놓치지 않게 넉넉히 봄)
+  let cronIdle = false   // true = 이번 분엔 보낼 근무·진행 알림이 확실히 없음 → 아래 '크론 알림 모드'(근무표 전체 읽기) 건너뜀
+  if (mode === 'cron') {
+    const cueMinute = curMin >= 360 && curMin <= 1290 && curMin % ((curMin >= 840 && curMin <= 1230) ? 5 : 15) === 0   // 아래 serverCue 차례(그대로 둠)
+    if (curMin % 30 === 7) await pruneAppInboxes()
+    // 알림 설정(settings.notify)·오늘 공지의 8뉴스 시각·오늘 큐시트만(전부 합쳐 1~2KB). 경로 읽기가 안 되면(오류) 예전 읽기(설정 전체·공지 전체·큐시트 전체)로
+    let lite: any = null, le: any = null, todayCue: any = null, ce: any = null
+    if (!liteOld) {
+      const r = await sb.from('nd_data').select(`notify:payload->settings->notify,n8:payload->notices->${todayStr}->news8Time`).eq('id', 'main').single()
+      const c = r.error ? null : await sb.from('nd_data').select(`day:payload->days->${todayStr}`).eq('id', 'cue').maybeSingle()
+      if (r.error || !c || c.error) liteOld = true
+      else {
+        const d: any = r.data
+        lite = d ? { settings: { notify: d.notify || undefined }, notices: { [todayStr]: { news8Time: d.n8 || undefined } } } : null
+        todayCue = (c.data as any)?.day || null
+      }
+    }
+    if (liteOld) {
+      const r = await sb.from('nd_data').select('settings:payload->settings,notices:payload->notices').eq('id', 'main').single()
+      const c = await sb.from('nd_data').select('payload').eq('id', 'cue').maybeSingle()
+      lite = r.data; le = r.error; ce = c.error; todayCue = (c.data as any)?.payload?.days?.[todayStr] || null
+    }
+    if (!le && !ce && lite && typeof lite === 'object' && (lite as any).settings) {
+      cronIdle = !(lite as any).settings.notify?.enabled || !cronMaybeDue(lite, todayCue, todayStr, curMin)
+      if (cronIdle && !cueMinute) return json({ sent: 0, idle: true })
+    }
+  }
+  // PC 앱 우편함 정리: 6시간 넘게 새 알림이 없던 우편함은 비움(옛 PC 앱은 10초마다 우편함 전체를 받음 — 앱도 6시간 지난 건 안 띄움)
+  async function pruneAppInboxes() {
+    try { await sb.from('nd_data').update({ payload: { items: [] } }).like('id', 'appinbox_%').lt('updated_at', new Date(Date.now() - 6 * 3600e3).toISOString()) } catch { /* 다음 차례에 */ }
+  }
+
   // push_subs 로드
   const { data: rawSubs, error: subsErr } = await sb.from('push_subs').select('*')
   if (subsErr) return new Response('push_subs read error: ' + subsErr.message, { status: 500, headers: CORS })
@@ -358,7 +425,7 @@ Deno.serve(async (req) => {
   const subs = (rawSubs || []).filter((s: any) => { const k = isApp(s) ? String(s.endpoint) : (s.staff_id || s.endpoint); if (_seenKey.has(k)) return false; _seenKey.add(k); return true; })
 
   // PC 앱 우편함: nd_data id='appinbox_<PC 고유값>' payload.items 에 쌓아 두면 앱(desktop/app-notify.js)이 30초마다 읽어 윈도 알림으로 띄움.
-  // 최근 30건·3일만 보관. 저장 번호 검사 트리거는 main 에만 걸려 있음. updated_at 낙관적 잠금 + 재시도.
+  // 최근 10건·6시간만 보관(11-08 전송량 줄이기, 전엔 30건·3일). 저장 번호 검사 트리거는 main 에만 걸려 있음. updated_at 낙관적 잠금 + 재시도.
   async function appInbox(sub: any, payload: string) {
     const dev = String(sub.endpoint).slice(6).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64)
     if (!dev) throw new Error('bad app endpoint')
@@ -368,8 +435,8 @@ Deno.serve(async (req) => {
     for (let attempt = 0; attempt < 6; attempt++) {
       const { data: row, error } = await sb.from('nd_data').select('payload, updated_at').eq('id', id).maybeSingle()
       if (error) throw new Error(error.message)
-      const cut = Date.now() - 3 * 864e5
-      const items = ((row?.payload?.items || []) as any[]).filter((x: any) => Date.parse(x?.at || '') > cut).concat([item]).slice(-30)
+      const cut = Date.now() - 6 * 3600e3   // 11-08: 3일·30건 → 6시간·10건(옛 PC 앱은 10초마다 우편함 전체를 받음 — 앱도 6시간 지난 건 안 띄움)
+      const items = ((row?.payload?.items || []) as any[]).filter((x: any) => Date.parse(x?.at || '') > cut).concat([item]).slice(-10)
       const nowIso = new Date().toISOString()
       if (!row) {
         const { error: ie } = await sb.from('nd_data').insert({ id, payload: { items }, updated_at: nowIso })
@@ -394,8 +461,7 @@ Deno.serve(async (req) => {
   // 안 보냄: 알림 제어 '전체 알림' 끔(크론과 같게), 8뉴스를 공지에 직접 넣은 날(8진 알림은 그 시각 기준), 바뀐 시각이 이미 지남(다시 갈 알림 없음), 1시간 6번 넘음
   async function sendCueChanged(list: { k: string, from: string, to: string }[]) {
     if (!list.length) return
-    const { data: mr } = await sb.from('nd_data').select('payload').eq('id', 'main').single()
-    const nd0: any = mr?.payload || {}
+    const nd0: any = (await mainToday(todayStr)) || {}
     if (!nd0?.settings?.notify?.enabled) return
     const e: any = nd0.schedule?.[todayStr] || {}
     const off = new Set<string>((nd0.newLeaves?.[todayStr]) || [])
@@ -447,7 +513,7 @@ Deno.serve(async (req) => {
     const text = String(body?.text || '').trim().slice(0, 300)
     if (!kind || !toIn.length || !text || !from || !date) return json({ error: 'kind, to, text, from, date required' }, 400)
     // 보낸 사람 = 직원 명단에 있는 사람, 받는 사람 = 그날 휴가 신청자(leave·desk 둘 다 '먼저 신청한 사람'에게만 감 — js/leave-request.js _lrConflicts)
-    const { data: mr, error: me } = await sb.from('nd_data').select('payload').eq('id', 'main').single()
+    const { data: mr, error: me } = await mainPart(['staff', 'leaveReq'])
     if (me) return json({ error: me.message }, 500)
     const staffIds = new Set<string>(((mr?.payload?.staff || []) as any[]).map((s: any) => String(s?.id || '')))
     if (!staffIds.has(from)) return json({ error: 'unknown from' }, 400)
@@ -557,8 +623,8 @@ Deno.serve(async (req) => {
   }
 
   // ── 크론 알림 모드 ──────────────────────────────────────────────
-  const { data: ndRow } = await sb.from('nd_data').select('payload').eq('id', 'main').single()
-  const nd = ndRow?.payload
+  if (cronIdle) return json({ sent, errors, idle: true })   // 큐시트 차례(serverCue)만 하고 끝 — 보낼 근무 알림 없음(위 cronMaybeDue)
+  const nd = await mainToday(todayStr)
   if (!nd?.settings?.notify?.enabled) {
     return new Response(JSON.stringify({ sent: 0, reason: 'notify disabled in settings' }), { headers: { ...CORS, 'Content-Type': 'application/json' } })
   }

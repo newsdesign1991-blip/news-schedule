@@ -121,6 +121,17 @@ function ndLoadLib(k){
 }
 const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
 
+// 바뀌었을 때만 받기(11-08 — Supabase 무료 전송량 초과로 막힌 뒤): nd_data 한 줄을 updated_at 이 ua 와 다를 때만 내용까지 받음(같으면 빈 목록 = 머리글만).
+// → { changed:false } | { changed:true, payload, ua } | null(못 읽음). ua 가 없으면 그냥 받음. 행이 없으면 payload null
+async function sbRowChanged(id, ua) {
+  const since = ua ? `&updated_at=neq.${encodeURIComponent(ua)}` : '';
+  const r = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.${encodeURIComponent(id)}&select=payload,updated_at${since}`, { headers: SB_HEADERS, cache: 'no-store' });
+  if (!r.ok) return null;
+  const a = await r.json(), row = a && a[0];
+  if (!row) return ua ? { changed: false } : { changed: true, payload: null, ua: null };
+  return { changed: true, payload: row.payload, ua: row.updated_at || null };
+}
+
 let _ndUpdatedAt = null;   // 마지막으로 확인한 서버 수정시각 (자동 동기화 기준)
 function saveData(d) {
   if (isAdminTest) {   // 관리자 테스트 모드: 저장(영구 반영) 차단 — 토스트는 3초에 한 번만

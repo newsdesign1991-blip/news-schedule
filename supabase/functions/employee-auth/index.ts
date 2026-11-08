@@ -16,8 +16,11 @@ Deno.serve(async req=>{
  if(req.method!=='POST')return reply({error:'지원하지 않는 요청입니다.'},405);
  try{
   const b=await req.json();
-  const {data:row,error}=await sb.from('nd_data').select('payload').eq('id','main').single();if(error)throw error;
-  const p=row.payload,people=(p.staff||[]).filter((s:any)=>s.active!==false);
+  // 전송량 줄이기(11-08): 앱을 켤 때마다 불려서 근무표 전체(약 640KB)를 읽었음 → 쓰는 것(직원 명단·관리자 비번)만
+  const {data:row,error}=await sb.from('nd_data').select('staff:payload->staff,adminPass:payload->adminPass,masterPass:payload->masterPass').eq('id','main').single();if(error)throw error;
+  const p:any=row;
+  if(!p||!Array.isArray(p.staff))throw Error('직원 명단을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  const people=(p.staff||[]).filter((s:any)=>s.active!==false);
   if(b.action==='adminLogin'){
    const mode=b.mode==='master'?'master':'admin',expected=mode==='master'?(p.masterPass||p.adminPass):p.adminPass;
    if(!b.password||btoa(String(b.password))!==expected)return reply({error:'비밀번호가 일치하지 않습니다.'},401);

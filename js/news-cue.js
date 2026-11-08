@@ -7,7 +7,7 @@
    쓰는 곳: 홈 '오늘의 근무' 8진·뉴오 줄(_cuePaint — 8뉴스는 공지에 직접 넣은 시각이 먼저, cueNews8), 8뉴스가 평소(지난 5주 같은 요일에 가장 많던 시각)와 30분 이상 다르면 오늘의 공지 자동 등록 + 전 직원 알림(_cueNotice, 제목에 시각) */
 // NDS 프로그램 이름(brdcPgmNm) — 10-17 실제: '8시뉴스'(월~목 19:48·금 19:46·토 19:53·일 19:56), '오뉴스'(평일 16:52~16:55, 주말 없음). 재방송 '(R)'은 뺌
 const CUE_PGM={ news8:/8시\s*뉴스|8\s*뉴스/, newsOh:/^(SBS\s*)?오\s*뉴스/, skip:/\(R\)|스포츠|예고|재방|하이라이트/ };
-let _cueDoc=null, _cueLoading=null, _cueNoAcct=false, _cueNext=0, _cueBusy=false;
+let _cueDoc=null, _cueUa=null, _cueLoading=null, _cueNoAcct=false, _cueNext=0, _cueBusy=false;
 function cueDay(ds){ return (_cueDoc&&_cueDoc.days&&_cueDoc.days[ds])||null; }
 // 그날 8뉴스 진입시간 — 오늘의 공지에 직접 넣은 시각(notices[날짜].news8Time)이 먼저, 없으면 큐시트. 서버 notify n8Use(8진 알림)와 같은 규칙
 //   홈 8진 줄 칩(_cuePaint)·8진 강조(js/home.js _updateDuty8Glow)가 씀
@@ -30,10 +30,9 @@ function cueLoad(){
   if(_cueLoading) return _cueLoading;
   _cueLoading=(async()=>{
     try{
-      const r=await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.cue&select=payload`,{ headers:SB_HEADERS, cache:'no-store' });
-      if(!r.ok) return;
-      const a=await r.json(), p=a&&a[0]&&a[0].payload;
-      _cueDoc=p&&p.days?p:{ days:{} };
+      const x=await sbRowChanged('cue', _cueDoc?_cueUa:null);   // 11-08: 안 바뀌었으면 내용 안 받음
+      if(!x) return;
+      if(x.changed){ const p=x.payload; _cueDoc=p&&p.days?p:{ days:{} }; _cueUa=x.ua; }
       _cuePaint();
     }catch(e){ /* 다음에 */ }
     finally{ _cueLoading=null; }

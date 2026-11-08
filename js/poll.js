@@ -158,10 +158,9 @@ function _pollCardHtml(p){
 // mutate가 false를 돌려주면(대상 없음) 쓰지 않고 'gone'. 성공하면 true(그 뒤 ndAdoptMergedSave로 리비전 맞춤)
 async function _pollCommit(mutate){
   if (isAdminTest){ if(!Array.isArray(data.polls)) data.polls=[]; mutate(data.polls); return true; }
-  const url=`${SB_URL}/rest/v1/nd_data?id=eq.main`;
   for(let attempt=0;attempt<6;attempt++){
     let remote;
-    try{ const g=await fetch(`${url}&select=payload,updated_at`,{headers:SB_HEADERS}); if(!g.ok) throw new Error('GET'); const a=await g.json(); remote=a&&a[0]; }
+    try{ remote=await ndGetMainFresh(); }   // 수정시각만 물어 이 기기 서버 사본과 같으면 다시 받지 않음(data-save.js)
     catch(e){ console.warn('투표 동기화 읽기 실패',e); return false; }
     if(!remote||!remote.payload) return false;
     const rp=remote.payload, base=rp._dataRevision||0;
@@ -171,12 +170,11 @@ async function _pollCommit(mutate){
     const nowIso=new Date().toISOString();
     try{
       const cond=remote.updated_at?`&updated_at=eq.${encodeURIComponent(remote.updated_at)}`:'';
-      const pr=await fetch(`${url}${cond}`,{method:'PATCH',headers:Object.assign({},SB_HEADERS,{'Prefer':'return=representation'}),body:JSON.stringify({payload:rp,updated_at:nowIso})});
+      const pr=await ndPatchMain(cond,{payload:rp,updated_at:nowIso});   // 응답은 수정시각·저장 번호만
       if(!pr.ok) throw new Error('PATCH');
-      const rows=await pr.json();
-      if(Array.isArray(rows)&&rows.length>0){
-        const saved=rows[0]; data.polls=(saved.payload&&saved.payload.polls)||rp.polls; ndAdoptMergedSave(base, saved);   // 서버 리비전 따라가기(data-save.js)
-        try{ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }catch(e){}
+      if(pr.saved){
+        const saved=pr.saved; ndAdoptMergedSave(base, saved, ()=>{ data.polls=(saved.payload&&saved.payload.polls)||rp.polls; });   // 섹션은 따라갈 때만(아니면 서버 사본으로 다시 불러옴)   // 서버 리비전 따라가기(data-save.js)
+        _ndSaveLocal();
         _localBackup(data);
         return true;
       }

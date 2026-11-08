@@ -36,24 +36,30 @@ function _rerenderActiveView() {
   else if (v==='view-workshop') renderWorkshopTable();
   else if (v==='view-cgassign' && typeof _cgaPaint==='function') _cgaPaint();   // CG배정 현황: 근무표가 바뀌면 인원 다시 셈
 }
-async function _reloadRemoteData() {
+// targetUa(서버 수정시각)를 알면 이 기기 서버 사본(_ndSrv) → PC 앱은 회사 공유 폴더 사본에서 먼저 찾음(같은 판이면 서버에서 안 받음, data-save.js)
+async function _reloadRemoteData(targetUa) {
   if(ndSaving || ndSaveQueue.length || _lrHasPending())return false;
   if (typeof _ndGenBusy!=='undefined' && _ndGenBusy) return false;   // 근무 자동 생성 중(js/generation.js)엔 data를 바꾸지 않음 — 바꾸면 남은 생성 결과가 떨어져 나간 옛 객체에 들어가 저장에서 빠짐
   try {
-    const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload,updated_at`, {
-      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
-    });
-    if (!res.ok) throw new Error('Refresh failed');
-    const rows = await res.json();
-    let remote = rows?.[0]?.payload;
+    let remote = null, ua = null, fromShare = false;
+    if (typeof targetUa === 'string' && targetUa && targetUa === _ndSrv.ua && _ndSrv.json) { remote = JSON.parse(_ndSrv.json); ua = targetUa; fromShare = true; }   // 이 기기 서버 사본(병합 저장 직후 등)
+    else if (typeof targetUa === 'string' && targetUa) { remote = await _ndShareCopy(targetUa); if (remote) { ua = targetUa; fromShare = true; } }
+    if (!remote) {
+      const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload,updated_at`, {
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
+      });
+      if (!res.ok) throw new Error('Refresh failed');
+      const rows = await res.json();
+      remote = rows?.[0]?.payload; ua = rows?.[0]?.updated_at || null;
+    }
     if (!remote || typeof remote!=='object' || !Object.keys(remote).length) return false;
     if(ndSaving || ndSaveQueue.length || _lrHasPending())return false;
     if (typeof _ndGenBusy!=='undefined' && _ndGenBusy) return false;
     const _prevDraft = data.draft;
     data = _migrateRemote(remote);
-    if (rows[0].updated_at) _ndUpdatedAt = rows[0].updated_at;   // 받은 판의 수정시각 — 받기에 성공했을 때만 맞춤(_checkRemoteUpdate가 미리 넣지 않음)
+    if (ua) _ndUpdatedAt = ua;   // 받은 판의 수정시각 — 받기에 성공했을 때만 맞춤(_checkRemoteUpdate가 미리 넣지 않음)
     if (typeof _wsHistoryOnRemote==='function') _wsHistoryOnRemote(_prevDraft);
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}   // 기기 저장 공간이 차도 받은 데이터는 씀
+    _ndStoreServerCopy(ua, fromShare);   // 기기에 저장(공간이 차도 받은 데이터는 씀) + '서버본 그대로' 표시 + PC는 공유 폴더 사본도
     const ae = document.activeElement;
     if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return true; // 입력 중이면 화면 갱신만 보류(데이터는 갱신됨)
     _rerenderActiveView();
@@ -74,12 +80,23 @@ async function _checkRemoteUpdate() {
     if (!ua) return;
     // 수정시각은 전체 받기에 성공했을 때 _reloadRemoteData가 맞춤 — 먼저 넣으면 받기 실패 뒤 서버가 또 바뀔 때까지 옛 판에 머묾
     if (_ndUpdatedAt === null) { if (_bootRemoteOk) _ndUpdatedAt = ua; else await _reloadRemoteData(); return; }
-    if (ua !== _ndUpdatedAt) await _reloadRemoteData();
+    if (ua !== _ndUpdatedAt) await _reloadRemoteData(ua);
   } catch(e) {}
 }
+// 11-08(Supabase 무료 전송량 초과로 막힌 뒤): 누가 저장할 때마다 켜져 있는 모든 화면이 근무표 전체(약 640KB)를 다시 받았음 —
+// PC 앱처럼 하루 종일 켜 둔 화면이 많아서. 10분 넘게 마우스·키보드·터치가 없으면 15분마다만 확인하고, 다시 손대면(마우스만 움직여도) 바로 확인
+let _syncTouched = Date.now(), _syncCheckedAt = 0;
+const _syncIdle = () => Date.now() - _syncTouched > 10 * 60e3;
+['pointerdown', 'keydown', 'wheel', 'touchstart', 'mousemove'].forEach(t => addEventListener(t, () => {
+  const wake = _syncIdle(); _syncTouched = Date.now();
+  if (wake && !document.hidden && _autoSyncTimer && Date.now() - _syncCheckedAt > 20e3) { _syncCheckedAt = Date.now(); _checkRemoteUpdate(); }
+}, { capture: true, passive: true }));
 function _startAutoSync() {
   if (_autoSyncTimer) clearInterval(_autoSyncTimer);
-  _autoSyncTimer = setInterval(() => { if (!document.hidden) _checkRemoteUpdate(); }, _AUTO_SYNC_MS);
+  _autoSyncTimer = setInterval(() => {
+    if (document.hidden || (_syncIdle() && Date.now() - _syncCheckedAt < 15 * 60e3)) return;
+    _syncCheckedAt = Date.now(); _checkRemoteUpdate();
+  }, _AUTO_SYNC_MS);
   if (!window._deptDueTimer) window._deptDueTimer = setInterval(() => { if (_deptApplyDue(data)) _rerenderActiveView(); }, 60000);   // 켜 둔 채 날이 바뀌어 부서 이동 날짜가 되면(10-27)
   document.addEventListener('visibilitychange', () => { if (!document.hidden) _checkRemoteUpdate(); }); // 탭 복귀 즉시 1회
 }
@@ -95,23 +112,47 @@ function _looksEmptyData(d){
   let _remoteLoadOk = false;   // 원격 fetch가 성공적으로 끝났는지(빈 응답 포함). 실패 시엔 절대 저장하지 않음.
   try {
     const _bm = window.__ndBootMain; window.__ndBootMain = null;   // dashboard.html <head>에서 미리 시작한 요청(없으면 지금 요청)
+    // head 가 고른 받기 방식(11-08 전송량 절약): 'full' 전체 | 'since' 기기 저장본(nd_v3)이 서버본 그대로면 바뀌었을 때만 | 'ua' PC 앱 — 수정시각만(내용은 기기 저장본·공유 폴더 사본)
+    const _bk = (_bm && window.__ndBoot) || {}; window.__ndBoot = null;
     const _get = () => fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=payload,updated_at`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
     });
-    let res;
-    try { res = await (_bm || _get()); } catch(e) { if (!_bm) throw e; res = await _get(); }   // 미리 요청이 연결 오류면 한 번 더
+    let kind = _bk.kind || 'full', res;
+    try { res = await (_bm || _get()); } catch(e) { if (!_bm) throw e; kind = 'full'; res = await _get(); }   // 미리 요청이 연결 오류면 한 번 더
     if (!res.ok) throw new Error('HTTP '+res.status);
-    const rows = await res.json();
+    let rows = await res.json();
+    const _full = async () => { const r = await _get(); if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); };
+    // 기기 저장본이 수정시각 ua 의 서버본 그대로인지(head 뒤에 바뀌었으면 안 씀) → 그 글
+    const _same = (ua) => { const c = _bk.clean; if (!c || !ua || c.ua !== ua) return null; try { const t = localStorage.getItem(STORE_KEY); return t && ndTextHash(t) === c.h ? t : null; } catch(e) { return null; } };
+    let local = null, fromShare = false;
+    if (kind === 'since' && Array.isArray(rows) && !rows.length) {   // 서버가 그대로라 내용이 안 옴(빈 목록 ≠ 서버가 빔 — 아래 '서버가 비면 올림'으로 가지 않게)
+      local = _same(_bk.clean && _bk.clean.ua);
+      if (!local) rows = await _full();
+    } else if (kind === 'ua' && Array.isArray(rows) && rows.length) {   // PC 앱: 기기 저장본 → 공유 폴더 사본 → 서버 전체
+      const ua = rows[0].updated_at;
+      local = _same(ua);
+      if (!local) {
+        const sp = ua ? await _ndShareCopy(ua) : null;
+        if (sp) { rows = [{ payload: sp, updated_at: ua }]; fromShare = true; } else rows = await _full();
+      }
+    }
     _remoteLoadOk = true; _bootRemoteOk = true;
+    if (local) {   // 서버본 그대로 → 받지 않고 기기 저장본
+      data = _migrateRemote(JSON.parse(local));
+      _ndUpdatedAt = _bk.clean.ua;
+      _ndSrvSet(_bk.clean.ua, local, true);
+      _localBackup(data);
+    } else {
     _ndUpdatedAt = rows?.[0]?.updated_at || null;
     const remote = rows?.[0]?.payload;
     if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
       data = _migrateRemote(remote);
-      try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}   // 저장 공간이 차도 로드 성공으로 봄
+      _ndStoreServerCopy(_ndUpdatedAt, fromShare);   // 기기에 저장(공간이 차도 로드 성공으로 봄) + '서버본 그대로' 표시 + PC는 공유 폴더 사본도
       _localBackup(data);   // 정상 로드 시 당일 백업 확보
     } else if (Object.keys(data).length > 0 && !_looksEmptyData(data)) {
       // Supabase가 비어있고 + 로컬에 실제 데이터가 있을 때만 올림 (빈/기본 데이터로 원격을 덮어쓰지 않음)
       saveData(data);
+    }
     }
   } catch(e) {
     _remoteLoadOk = false;

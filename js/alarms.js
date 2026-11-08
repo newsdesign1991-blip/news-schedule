@@ -2,7 +2,7 @@
 // 서버 notify 함수 mode 'direct'(js/leave-request.js _lrSendAlarms가 부름)가 받는 사람마다 nd_data id='alarms' payload[직원 id]에 쌓음(60일·100건).
 // 여기선 내 것만 읽어 보여 줌: 웹·휴대폰 = 위쪽 이름 떠 있는 바(header)의 종 버튼, 근무표 앱 = 제목줄(js/app-mode.js가 같은 버튼을 옮김).
 // 안 읽은 수 = 마지막으로 연 뒤 온 것(이 기기 localStorage nd_alarm_seen_<직원 id>). 2분마다·로그인 때 새로 읽음.
-let _alData=null, _alAt=0;
+let _alData=null, _alAt=0, _alUa=null;   // _alUa = 마지막으로 받은 알림함 판(11-08 — 바뀌었을 때만 받음)
 const _alEsc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function _alSid(){ return (typeof currentUser!=='undefined'&&currentUser&&currentUser.staffId)||''; }
 function _alMine(){ const sid=_alSid(); return sid&&_alData&&Array.isArray(_alData[sid])?_alData[sid].slice().sort((a,b)=>b.id-a.id):[]; }
@@ -12,8 +12,8 @@ async function alarmLoad(force){
   if(!_alSid()){ _alBadge(); return; }
   if(!force && _alData && Date.now()-_alAt<60e3){ _alBadge(); return; }
   try{
-    const r=await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.alarms&select=payload`,{ headers:SB_HEADERS, cache:'no-store' });
-    if(r.ok){ const a=await r.json(); _alData=(a&&a[0]&&a[0].payload&&typeof a[0].payload==='object')?a[0].payload:{}; _alAt=Date.now(); }
+    const x=await sbRowChanged('alarms', _alData?_alUa:null);   // 전 직원 알림함이 한 줄이라 클 수 있음 — 안 바뀌었으면 내용 안 받음
+    if(x){ if(x.changed){ _alData=(x.payload&&typeof x.payload==='object')?x.payload:{}; _alUa=x.ua; } _alAt=Date.now(); }
   }catch(e){}
   _alBadge();
 }
@@ -48,4 +48,5 @@ function alarmOpen(kind){
   if(typeof closeSheet==='function') closeSheet();
   if(kind==='leave'||kind==='desk') setTimeout(()=>showView('leavereq'), 200);
 }
-setInterval(()=>{ if(_alSid()) alarmLoad(true); }, 2*60e3);
+setInterval(()=>{ if(_alSid()&&!document.hidden) alarmLoad(true); }, 2*60e3);   // 11-08: 창을 내려 두면 안 읽음(다시 보이면 아래 visibilitychange)
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&_alSid()) alarmLoad(); });   // 다시 보이면 바로(1분 안에 읽었으면 그대로)

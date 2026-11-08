@@ -32,7 +32,13 @@
 //  (예전엔 스크립트 → 데이터 → 로그인 확인 순서로 기다려 '불러오는 중'이 길었음). 주소·키는 js/core.js의 SB_URL·SB_KEY와 같게 유지(공개 anon 키)
 (function(){ try {
   var U='https://ntpoaqnhnwrpenstqhwb.supabase.co', K='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50cG9hcW5obndycGVuc3RxaHdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNzEyMzQsImV4cCI6MjA5Nzg0NzIzNH0.MyX2v56Q8SFqcU56tQfmZZVVr1R-X6BF4iBJautOANs', H={apikey:K,Authorization:'Bearer '+K};
-  window.__ndBootMain=fetch(U+'/rest/v1/nd_data?id=eq.main&select=payload,updated_at',{headers:H}); window.__ndBootMain.catch(function(){});
+  // 받기 방식(11-08 Supabase 전송량 절약 — js/sync-init.js 가 이어 받음): 기기 저장본(nd_v3)이 서버본 그대로면(nd_v3_srv 수정시각·글 해시) 바뀌었을 때만 받고,
+  // 근무표 PC 앱(공유 폴더 사본을 쓰는 판)은 수정시각만 받음(내용은 기기 저장본·회사 공유 폴더 사본). h53 = data-save.js ndTextHash 와 같은 계산
+  var h53=function(s){var a=0xdeadbeef,b=0x41c6ce57;for(var i=0;i<s.length;i++){var c=s.charCodeAt(i);a=Math.imul(a^c,2654435761);b=Math.imul(b^c,1597334677);}a=Math.imul(a^(a>>>16),2246822507)^Math.imul(b^(b>>>13),3266489909);b=Math.imul(b^(b>>>16),2246822507)^Math.imul(a^(a>>>13),3266489909);return (b>>>0).toString(36)+'.'+(a>>>0).toString(36)+'.'+s.length;};
+  var cl=null; try { var mk=JSON.parse(localStorage.getItem('nd_v3_srv')||'null'), t=mk&&mk.ua&&mk.h&&localStorage.getItem('nd_v3'); if (t && h53(t)===mk.h) cl={ua:mk.ua,h:mk.h}; } catch(e){}
+  var A=window.ndApp, pc=false; try { pc=!!(A&&A.shareNames&&A.shareNames.indexOf('main')>=0); } catch(e){}
+  var kind=pc?'ua':(cl?'since':'full'); window.__ndBoot={kind:kind,clean:cl};
+  window.__ndBootMain=fetch(U+'/rest/v1/nd_data?id=eq.main&select='+(pc?'updated_at':'payload,updated_at')+(kind==='since'?'&updated_at=neq.'+encodeURIComponent(cl.ua):''),{headers:H}); window.__ndBootMain.catch(function(){});
   var u=null; try { u=JSON.parse(localStorage.getItem('nd_user')||'null'); } catch(e){}
   if (u && u.authToken) { window.__ndBootSession={token:u.authToken, res:fetch(U+'/functions/v1/employee-auth',{method:'POST',headers:{apikey:K,Authorization:'Bearer '+K,'Content-Type':'application/json'},body:JSON.stringify({action:'session',token:u.authToken})})}; window.__ndBootSession.res.catch(function(){}); }
 } catch(e){} })();
@@ -40,7 +46,7 @@
 window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.href)||''; if(u.indexOf(location.origin)===0 && /\/(js|css)\/[\w.-]+\.(js|css)(\?|$)/.test(u)) (window.__ndModFail=window.__ndModFail||[]).push(u); }, true);
 </script>
 <link rel="stylesheet" href="css/base.css?v=49d694c3">
-<link rel="stylesheet" href="css/dark.css?v=b3ad7752">
+<link rel="stylesheet" href="css/dark.css?v=26e49a61">
 <link rel="stylesheet" href="css/nav.css?v=6188edb9">
 <link rel="stylesheet" href="css/home.css?v=b6e61659">
 <link rel="stylesheet" href="css/notice-poll.css?v=01718f6c">
@@ -510,7 +516,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div class="modal" id="deploy-log-card" style="max-width:460px;max-height:82vh;display:flex;flex-direction:column;"></div>
 </div>
 
-<script src="data-save.js?v=1cf33bfb"></script>
+<script src="data-save.js?v=86c2c36c"></script>
 <!-- 로그인 모달 -->
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;overflow:hidden;">
   <div class="li-orbs"><span></span><span></span><span></span></div>
@@ -1211,7 +1217,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.11.07 19:46';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.11.08 19:16';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1468,7 +1474,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div id="cell-pop-opts" style="display:flex;flex-direction:column;gap:4px;"></div>
 </div>
 
-<script src="js/core.js?v=1e7d226b"></script>
+<script src="js/core.js?v=19ef9c83"></script>
 <script src="js/project-gantt.js?v=64b2c52b"></script>
 <script src="js/nav-admin.js?v=4d18ca03"></script>
 <script src="js/home.js?v=92869146"></script>
@@ -1479,15 +1485,15 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/excel-import.js?v=b1591181"></script>
 <script src="js/events.js?v=291f1d5a"></script>
 <script src="js/publish.js?v=1b372795"></script>
-<script src="js/leave-request.js?v=199c3494"></script>
+<script src="js/leave-request.js?v=1ad41abc"></script>
 <script src="js/staff.js?v=f01496d9"></script>
 <script src="js/admin.js?v=87a8bb9f"></script>
 <script src="js/cell-edit.js?v=828de8e4"></script>
 <script src="js/login-ui.js?v=fe172700"></script>
-<script src="js/notice.js?v=6aa2b7a5"></script>
-<script src="js/poll.js?v=0cd98cbc"></script>
+<script src="js/notice.js?v=126f20c7"></script>
+<script src="js/poll.js?v=d5d86108"></script>
 <script src="js/schedule-finder.js?v=3ae01430"></script>
-<script src="js/sync-init.js?v=4298d2aa"></script>
+<script src="js/sync-init.js?v=20180b3a"></script>
 <script src="js/a2hs.js?v=d9550407"></script>
 <script src="js/staff-modal.js?v=9119107a"></script>
 <script src="js/pull-refresh.js?v=a1b4c3d8"></script>
@@ -1496,13 +1502,13 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/nd-cal.js?v=e3d3ed58"></script>
 <script src="js/nd-comments.js?v=1008c431"></script>
 <script src="js/meal.js?v=97ff29e2"></script>
-<script src="js/alarms.js?v=7345bb10"></script>
-<script src="js/news-cue.js?v=6ec5039c"></script>
+<script src="js/alarms.js?v=be8d8230"></script>
+<script src="js/news-cue.js?v=5c8e3d22"></script>
 <script src="js/holiday-work.js?v=332135fe"></script>
 <script src="js/onboard.js?v=340381f5"></script>
 <script src="js/home-tiles.js?v=68cfb2c2"></script>
-<script src="js/cg-assign.js?v=d769b565"></script>
-<script src="js/app-mode.js?v=f96c6bc6"></script>
+<script src="js/cg-assign.js?v=2ba35acf"></script>
+<script src="js/app-mode.js?v=6a8d910b"></script>
 <script src="js/look-chara.js?v=444bac87"></script>
 <script src="js/look.js?v=32e796ab"></script>
 <script>

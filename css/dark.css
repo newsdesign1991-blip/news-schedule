@@ -342,6 +342,17 @@ html.nd-app #nd-titlebar .ndt-sep { width:1px; height:16px; margin:0 6px; flex:n
 [data-theme="dark"] :is(.tour-step, #ndt-pop .ndp-tour) { color:#97c3ff; }
 .apx-dl { display:flex; align-items:center; justify-content:center; gap:8px; min-height:52px; border-radius:16px; background:linear-gradient(135deg,#4a94ff,#2f77f6); color:#fff !important; font-size:16px; font-weight:800; text-decoration:none; box-shadow:0 10px 24px -10px rgba(47,119,246,.7); }
 .apx-dl:hover { filter:brightness(1.06); }
+/* 옛 판 근무표 앱 막기(#upd-pop — js/app-mode.js ndAppOldBlock): 불투명 전체 화면(아래 앱은 html.nd-old-blocked 로 숨김), 주황 머리, 판 비교 줄 */
+.upd-pop { z-index:2147483600; background:var(--bg,#f1f4f8); animation:none; }
+html.nd-old-blocked body > *:not(#upd-pop):not(#nd-modfail) { display:none !important; }
+.upd-card { width:min(520px,100%); }
+.upd-head { background:rgba(245,124,0,.14); color:#c2410c; }
+[data-theme="dark"] .upd-head { background:rgba(245,124,0,.22); color:#ffb26b; }
+.upd-ver { display:flex; align-items:center; justify-content:center; gap:12px; padding:12px 14px; border-radius:14px; background:var(--surface2); font-size:14px; }
+.upd-ver b { font-weight:800; }
+.upd-ver span:last-child b { color:#2f6fd6; }
+[data-theme="dark"] .upd-ver span:last-child b { color:#8ab8ff; }
+.upd-ver svg { color:var(--muted); flex:0 0 auto; }
 /* PC 웹 막기(html.nd-pc-blocked — js/app-mode.js): 설치 안내(#apx-pop)·모듈 실패 안내(#nd-modfail)만 남기고 나머지 화면은 숨김, 안내는 불투명 전체 화면 */
 html.nd-pc-blocked body > *:not(#apx-pop):not(#nd-modfail) { display:none !important; }
 html.nd-pc-blocked #apx-pop { background:var(--bg); }
