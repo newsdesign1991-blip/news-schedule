@@ -17,6 +17,7 @@ async function ndDrainSaves(){
    if((data._dataRevision||0)===base)data._dataRevision=revision;
    _ndUpdatedAt=r.saved.updated_at;_ndSaveLocal();item.resolve(true);   // 기기 저장 공간이 차도 서버 저장은 성공으로
   }catch(e){
+   try{_ndSrvHash=null;}catch{}   // 못 올렸으니 다음 저장은 꼭 보냄
    // 못 올린 변경은 키 하나에 덮어씀(예전엔 실패마다 문서 전체를 새 키로 쌓아 저장 공간이 찼음)
    try{localStorage.setItem('nd_unsaved_last',JSON.stringify(ndSaveQueue.at(-1)?.snapshot||item.snapshot))}catch{}
    item.resolve(false);for(const queued of ndSaveQueue)queued.resolve(false);ndSaveQueue=[];
@@ -79,12 +80,13 @@ function _ndSrvSet(ua,json,fromShare){
 }
 // data 를 기기에 저장 — 서버 사본과 글자까지 같으면(내 편집이 안 섞임) '서버본 그대로' 표시도
 function _ndSaveLocal(){
- let s=null;try{s=JSON.stringify(data);localStorage.setItem(STORE_KEY,s);}catch{return;}
+ let s=null;try{s=JSON.stringify(typeof _ndServerView==='function'?_ndServerView(data):data);localStorage.setItem(STORE_KEY,s);}catch{return;}   // 작성소 초안은 빼고(공용 드라이브, 11-09)
  if(s===_ndSrv.json&&_ndSrv.ua&&_ndSrv.ua===_ndUpdatedAt)_ndMarkClean(_ndSrv.ua,s);
 }
 // 서버에서(또는 공유 폴더에서) 받은 그대로인 data(=_migrateRemote 결과)를 기기에 저장 + 표시 + 서버 사본
 function _ndStoreServerCopy(ua,fromShare){
- let s=null;try{s=JSON.stringify(data);}catch{return;}
+ let s=null;try{s=JSON.stringify(typeof _ndServerView==='function'?_ndServerView(data):data);}catch{return;}   // 서버 몫(작성소 초안 뺀 것)
+ try{_ndSrvHash=ndTextHash(s);}catch{}   // 받은 그대로면 다음 saveData 는 안 보냄
  try{localStorage.setItem(STORE_KEY,s);_ndMarkClean(ua,s);}catch{}   // 저장 공간이 차면 옛 저장본·옛 표시 그대로(둘은 여전히 짝이 맞음)
  _ndSrvSet(ua,s,fromShare);
 }

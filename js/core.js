@@ -133,6 +133,12 @@ async function sbRowChanged(id, ua) {
 }
 
 let _ndUpdatedAt = null;   // 마지막으로 확인한 서버 수정시각 (자동 동기화 기준)
+// 서버(Supabase)에 올리는 몫 — 작성소 초안을 공용 네트워크 드라이브로 옮긴 뒤(settings.draftOnShare, js/workshop.js _wsSeed)엔 draft·draftTabs 를 뺌(11-09)
+function _ndServerView(d) {
+  if (!d || !d.settings || !d.settings.draftOnShare) return d;
+  const o = { ...d }; delete o.draft; delete o.draftTabs; return o;
+}
+let _ndSrvHash = null;   // 마지막으로 서버에 보냈거나 받은 몫의 해시 — 같으면 저장을 건너뜀(작성소 칸만 바꿔도 근무표 전체를 올리고 모든 화면이 다시 받던 것)
 function saveData(d) {
   if (isAdminTest) {   // 관리자 테스트 모드: 저장(영구 반영) 차단 — 토스트는 3초에 한 번만
     const now = Date.now();
@@ -140,9 +146,12 @@ function saveData(d) {
     return;
   }
   data = d;
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch(e) {}   // 기기 저장 공간이 차도 서버 저장은 계속(예전엔 여기서 예외 → 그 뒤 편집이 서버로 안 감)
-  _localBackup(d);
-  return ndQueueSave(d);
+  const sv = _ndServerView(d); let s = null;
+  try { s = JSON.stringify(sv); localStorage.setItem(STORE_KEY, s); } catch(e) {}   // 기기 저장 공간이 차도 서버 저장은 계속(예전엔 여기서 예외 → 그 뒤 편집이 서버로 안 감)
+  _localBackup(d);   // 기기 백업은 초안까지 통째로
+  try { if (typeof _wsAfterSave === 'function') _wsAfterSave(); } catch(e) {}   // 작성소 초안 → 공용 네트워크 드라이브
+  if (s) { const h = ndTextHash(s); if (h === _ndSrvHash) return Promise.resolve(true); _ndSrvHash = h; }   // 서버 몫이 그대로면 안 보냄
+  return ndQueueSave(sv);
 }
 
 // ===== 로컬 자동 백업 (서버 미사용 · 데이터 유실 대비) =====

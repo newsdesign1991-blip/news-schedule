@@ -297,7 +297,7 @@ function renderTable() {
   thead+='</tr>';
   // thead row 2 — names (조근/VW합/CG합/당일 은 rowspan=2이므로 생략)
   thead+='<tr>';
-  const deptColors={vw:'var(--vw-light)',cg:'var(--cg-light)',project:'var(--project-light)',sports:'var(--sports-light)',xr:'var(--xr-light)'};
+  const deptColors={vw:'var(--vw-light)',cg:'var(--cg-light)',project:'var(--project-light)',sports:'var(--sports-light)',xr:'var(--project-light)'};   // XR 이름 = PROJECT 이름 색(11-09 사용자)
   let nameFoot='';   // 표 맨 아래 이름 줄(머리줄 이름과 같은 색) — 열 순서는 합계 줄과 같음
   vwCols.forEach(s=>{
     thead+=`<th class="name-th" data-sid="${s.id}" style="cursor:pointer;color:${deptColors.vw};">${s.name}</th>`;

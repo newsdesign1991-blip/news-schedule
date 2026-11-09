@@ -55,8 +55,9 @@ async function _reloadRemoteData(targetUa) {
     if (!remote || typeof remote!=='object' || !Object.keys(remote).length) return false;
     if(ndSaving || ndSaveQueue.length || _lrHasPending())return false;
     if (typeof _ndGenBusy!=='undefined' && _ndGenBusy) return false;
-    const _prevDraft = data.draft;
+    const _prevDraft = data.draft, _prevTabs = data.draftTabs;
     data = _migrateRemote(remote);
+    if (typeof _wsAttach==='function') _wsAttach(_prevDraft, _prevTabs);   // 작성소 초안은 공용 네트워크 드라이브 것 그대로(js/workshop.js, 11-09)
     if (ua) _ndUpdatedAt = ua;   // 받은 판의 수정시각 — 받기에 성공했을 때만 맞춤(_checkRemoteUpdate가 미리 넣지 않음)
     if (typeof _wsHistoryOnRemote==='function') _wsHistoryOnRemote(_prevDraft);
     _ndStoreServerCopy(ua, fromShare);   // 기기에 저장(공간이 차도 받은 데이터는 씀) + '서버본 그대로' 표시 + PC는 공유 폴더 사본도
@@ -139,6 +140,8 @@ function _looksEmptyData(d){
     _remoteLoadOk = true; _bootRemoteOk = true;
     if (local) {   // 서버본 그대로 → 받지 않고 기기 저장본
       data = _migrateRemote(JSON.parse(local));
+      if (typeof _wsAttach==='function') _wsAttach(null, null);
+      try { _ndSrvHash = ndTextHash(local); } catch(e) {}
       _ndUpdatedAt = _bk.clean.ua;
       _ndSrvSet(_bk.clean.ua, local, true);
       _localBackup(data);
@@ -147,6 +150,7 @@ function _looksEmptyData(d){
     const remote = rows?.[0]?.payload;
     if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
       data = _migrateRemote(remote);
+      if (typeof _wsAttach==='function') _wsAttach(null, null);   // 아직 안 옮긴 서버 초안은 옮길 원본으로 기억, 옮긴 뒤면 서버에 남은 옛 초안 무시
       _ndStoreServerCopy(_ndUpdatedAt, fromShare);   // 기기에 저장(공간이 차도 로드 성공으로 봄) + '서버본 그대로' 표시 + PC는 공유 폴더 사본도
       _localBackup(data);   // 정상 로드 시 당일 백업 확보
     } else if (Object.keys(data).length > 0 && !_looksEmptyData(data)) {

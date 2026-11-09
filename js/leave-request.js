@@ -99,7 +99,7 @@ function renderLeaveReqView() {
     while(cur<=end){dates.push(new Date(cur));cur.setDate(cur.getDate()+1);}
 
     const DEPT_ORDER=['VW','조근','CG','PROJECT','SPORTS'];   // XR은 CG 원래 자리에(이름만 XR 색, 11-04 — js/core.js cgXrCols)
-    const DEPT_COLOR={VW:'var(--vw)',CG:'var(--cg)',PROJECT:'var(--project)',SPORTS:'var(--sports)',XR:'var(--xr)','조근':'var(--vw)'};
+    const DEPT_COLOR={VW:'var(--vw)',CG:'var(--cg)',PROJECT:'var(--project)',SPORTS:'var(--sports)',XR:'var(--project)','조근':'var(--vw)'};   // XR 이름 = PROJECT 이름 색(11-09 사용자)
     const DEPT_BG={XR:'var(--xr-bg)','조근':'var(--vw-bg)'};
     const cols=[];
     const _mem=dept=>data.staff.filter(s=>deptOn(s,rs)===dept&&s.active!==false&&_freelancerActiveInRange(s,dates));
@@ -318,7 +318,7 @@ function openLrPopup(staffId, noAnim) {
   while (cur <= end) { dates.push(new Date(cur)); cur.setDate(cur.getDate()+1); }
 
   const DOW_KR = ['일','월','화','수','목','금','토'];
-  const DEPT_COLOR = {VW:'var(--vw)',CG:'var(--cg)',PROJECT:'var(--project)',SPORTS:'var(--sports)',XR:'var(--xr)','조근':'var(--vw)'};
+  const DEPT_COLOR = {VW:'var(--vw)',CG:'var(--cg)',PROJECT:'var(--project)',SPORTS:'var(--sports)',XR:'var(--project)','조근':'var(--vw)'};   // XR 이름 = PROJECT 이름 색(11-09 사용자)
   const nameColor = DEPT_COLOR[staff.dept] || 'var(--text)';
   const isOpen = !!lr.isOpen;
   const canEdit = isAdmin || (isOpen && _lrMyId() === staffId);

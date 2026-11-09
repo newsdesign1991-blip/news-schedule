@@ -52,7 +52,7 @@ window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.hre
 <link rel="stylesheet" href="css/notice-poll.css?v=01718f6c">
 <link rel="stylesheet" href="css/toss-common.css?v=25a65ef5">
 <link rel="stylesheet" href="css/calendar.css?v=fb8bf996">
-<link rel="stylesheet" href="css/table.css?v=4a2e8e04">
+<link rel="stylesheet" href="css/table.css?v=4a469ad1">
 <link rel="stylesheet" href="css/modal.css?v=a328feb2">
 <link rel="stylesheet" href="css/admin.css?v=8a56f85e">
 <link rel="stylesheet" href="css/gantt-etc.css?v=359c7443">
@@ -516,7 +516,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div class="modal" id="deploy-log-card" style="max-width:460px;max-height:82vh;display:flex;flex-direction:column;"></div>
 </div>
 
-<script src="data-save.js?v=86c2c36c"></script>
+<script src="data-save.js?v=9180983e"></script>
 <!-- 로그인 모달 -->
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;overflow:hidden;">
   <div class="li-orbs"><span></span><span></span><span></span></div>
@@ -716,6 +716,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 
 <!-- WORKSHOP -->
 <div class="view" id="view-workshop">
+  <div id="ws-gate"></div><!-- 작성소 막힘 안내(휴대폰·브라우저·옛 앱·공용 드라이브 연결 안 됨) — js/workshop.js _wsGate -->
   <div class="table-nav" style="flex-wrap:wrap;gap:8px 12px;">
     <h2 id="ws-title">근무표 작성소</h2>
   </div>
@@ -777,6 +778,8 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div id="ws-gen-result" style="display:none;margin:6px 2px;" class="gen-result success"></div>
   <!-- 브러시+뒤로 sticky 영역 -->
   <div id="ws-sticky-toolbar">
+  <!-- 초안 탭(11-09): 크롬 탭·엑셀 시트처럼 여러 초안, 더블클릭 이름 바꾸기, 임시저장 — js/workshop.js _wsTabsRender -->
+  <div id="ws-tabs" class="ws-tabs" role="tablist" aria-label="초안 탭"></div>
   <!-- 기간/적용/다음달 (브러시 바로 위) -->
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
     <label style="font-size:12px;color:var(--muted);">기간</label>
@@ -1225,7 +1228,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.11.09 16:14';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.11.09 17:41';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1482,18 +1485,18 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div id="cell-pop-opts" style="display:flex;flex-direction:column;gap:4px;"></div>
 </div>
 
-<script src="js/core.js?v=19ef9c83"></script>
+<script src="js/core.js?v=8fb8260c"></script>
 <script src="js/project-gantt.js?v=64b2c52b"></script>
 <script src="js/nav-admin.js?v=4d18ca03"></script>
 <script src="js/home.js?v=92869146"></script>
-<script src="js/table-view.js?v=28cc2f27"></script>
+<script src="js/table-view.js?v=98eda78f"></script>
 <script src="js/calendar.js?v=5231a1d9"></script>
 <script src="js/generation.js?v=4438c90c"></script>
-<script src="js/workshop.js?v=e23747c4"></script>
+<script src="js/workshop.js?v=86564b76"></script>
 <script src="js/excel-import.js?v=b1591181"></script>
 <script src="js/events.js?v=291f1d5a"></script>
 <script src="js/publish.js?v=1b372795"></script>
-<script src="js/leave-request.js?v=1ad41abc"></script>
+<script src="js/leave-request.js?v=270302b9"></script>
 <script src="js/staff.js?v=f01496d9"></script>
 <script src="js/admin.js?v=87a8bb9f"></script>
 <script src="js/cell-edit.js?v=828de8e4"></script>
@@ -1501,7 +1504,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/notice.js?v=126f20c7"></script>
 <script src="js/poll.js?v=d5d86108"></script>
 <script src="js/schedule-finder.js?v=3ae01430"></script>
-<script src="js/sync-init.js?v=20180b3a"></script>
+<script src="js/sync-init.js?v=f8a2d115"></script>
 <script src="js/a2hs.js?v=d9550407"></script>
 <script src="js/staff-modal.js?v=9119107a"></script>
 <script src="js/pull-refresh.js?v=a1b4c3d8"></script>

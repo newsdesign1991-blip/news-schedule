@@ -2,6 +2,8 @@
 // ===== 근무표 작성소 =====
 function renderWorkshop() {
   if (!isAdmin) return;
+  _wsEnter();   // 공용 네트워크 드라이브에서 초안 받기(처음이면 서버 초안 옮김) — 파일 끝
+  if (!_wsGate()) return;   // PC 앱(1.4.2~)·회사 네트워크가 아니면 안내만
   _updateUndoBtn();
   // 날짜 범위 초기화 (기본: 다음 달)
   if (!wsRangeStart || !wsRangeEnd) {
@@ -137,6 +139,8 @@ function _wsColDragSetup(){
   });
 }
 function renderWorkshopTable() {
+  try{ _wsTabsRender(); }catch(e){}   // 초안 탭 줄(파일 끝)
+  if (!_wsGate()) return;   // 작성소는 PC 앱 + 공용 네트워크 드라이브에서만(11-09)
   if (!wsRangeStart||!wsRangeEnd) return;
   const _sched = data.draft.schedule;
   const _newLvs = data.draft.newLeaves;
@@ -170,7 +174,7 @@ function renderWorkshopTable() {
   document.getElementById('ws-colgroup').innerHTML=cg;
 
   // thead
-  const deptColors={vw:'var(--vw-light)',cg:'var(--cg-light)',project:'var(--project-light)',sports:'var(--sports-light)',xr:'var(--xr-light)'};
+  const deptColors={vw:'var(--vw-light)',cg:'var(--cg-light)',project:'var(--project-light)',sports:'var(--sports-light)',xr:'var(--project-light)'};   // XR 이름 = PROJECT 이름 색(11-09 사용자)
   let thead='<tr class="dept-row"><th class="date-th" rowspan="2">날짜</th><th class="dow-th" rowspan="2">요일</th>';
   if(vwCols.length)thead+=`<th class="dept-group vw" colspan="${vwCols.length}">VW (${vwCols.length}명)</th>`;
   if(jogeunCols.length)thead+=`<th class="dept-group" colspan="${jogeunCols.length}" style="background:var(--th-jogeun-bg);color:var(--th-jogeun-fg);border-color:var(--th-jogeun-bd);">조근 (${jogeunCols.length}명)</th>`;
@@ -1249,3 +1253,295 @@ function flSaveOne(btn){
   saveData(data); toast('저장했습니다.','success'); _flLeaveTabRefresh(); wsInfoRefresh();
 }
 function _flLeaveTabRefresh(){ if(document.getElementById('panel-fleave')?.classList.contains('active')) renderFlLeaveTab(); }
+
+// ===== 작성소 초안 = 회사 공용 네트워크 드라이브(11-09 사용자: "컴퓨터에서만 하는 작업은 공용 네트워크 드라이브", "근무표 작성은 휴대폰에서 안 되게 — 그럼 Supabase 에 올릴 필요 없음") =====
+// · 작성소는 PC 앱(1.4.2~, 공유 폴더 이름 'wsdraft'·'wstabs')에서만 — 휴대폰·브라우저·옛 앱은 막음(_wsGate).
+// · 'wsdraft' = { list:[{id,name}], active, draft } — 지금 보는 탭 + 탭 목록. 편집할 때마다(0.6초 모아) 씀. data.draft·data.draftTabs 가 이 내용.
+//   'wstabs' = { drafts:{ <탭id>: 초안 } } — 안 보는 탭들. 탭을 바꿀 때만 읽고 씀.
+// · Supabase main 문서에서는 초안을 뺌: data.settings.draftOnShare 가 켜지면 저장(_ndServerView, js/core.js)에 draft·draftTabs 를 안 넣고,
+//   받은 문서에 남은 옛 초안은 무시(_wsAttach). 처음 한 번 PC 앱이 서버 초안(+ 11-09 시험판이 서버 줄 wsdraft_<id> 에 둔 탭)을 공유 폴더로 옮긴 뒤에 켬(_wsSeed).
+// · 다른 PC에서 같은 관리자가 고친 것: 작성소에 들어올 때마다 공유 폴더 판(ver)을 보고 바뀌었으면 받음. 같은 때 두 PC가 쓰면 나중 것이 이김.
+const WS_DOC='wsdraft', WS_TABS='wstabs';
+const _ws={ready:false,ver:0,err:'',loading:null,hash:'',timer:0,writing:false,again:false,savedAt:'',failToast:0};
+let _wsSrvDraft=null;   // 아직 안 옮겼을 때 서버에서 받은 초안·탭(옮길 원본)
+let _wsTabBusy=false;
+const _wsTabEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function _wsAvail(){ try{ const a=typeof window!=='undefined'&&window.ndApp; return !!(a&&Array.isArray(a.shareNames)&&a.shareNames.includes(WS_DOC)&&a.shareNames.includes(WS_TABS)&&a.shareRead&&a.shareWrite); }catch(e){ return false; } }
+// data 를 서버(또는 기기·공유 폴더 사본) 문서로 바꾼 직후(js/sync-init.js) — prev* = 바꾸기 전 화면의 초안·탭
+function _wsAttach(prevDraft,prevTabs){
+  if(_ws.ready){ if(prevDraft) data.draft=prevDraft; if(prevTabs) data.draftTabs=prevTabs; return; }   // 공유 폴더 초안이 진짜
+  if(data.settings&&data.settings.draftOnShare){ data.draft={schedule:{},newLeaves:{}}; delete data.draftTabs; return; }   // 서버에 남은 옛 초안은 안 씀
+  _wsSrvDraft={draft:data.draft,tabs:data.draftTabs};   // 아직 안 옮김 — 지금은 서버 초안이 진짜
+}
+function _wsTabs(){
+  let t=data.draftTabs;
+  if(!t||typeof t!=='object'||!Array.isArray(t.list)||!t.list.length){ t={list:[{id:'t1',name:'초안 1'}],active:'t1'}; data.draftTabs=t; }
+  if(!t.list.some(x=>x.id===t.active)) t.active=t.list[0].id;
+  return t;
+}
+function _wsTabCur(){ const t=_wsTabs(); return t.list.find(x=>x.id===t.active); }
+function _wsDoc(){ const t=_wsTabs(); return {list:t.list.map(x=>({id:x.id,name:x.name})),active:t.active,draft:data.draft||{schedule:{},newLeaves:{}}}; }
+function _wsTabBlank(){ const d=data.draft||{}; return {schedule:{},newLeaves:{},rangeStart:d.rangeStart||wsRangeStart||undefined,rangeEnd:d.rangeEnd||wsRangeEnd||undefined}; }
+function _wsTime(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return ''; const p=n=>String(n).padStart(2,'0'); return `${p(d.getHours())}:${p(d.getMinutes())}`; }
+// 받은 공유 폴더 문서를 화면에
+function _wsApply(doc,ver){
+  const list=Array.isArray(doc&&doc.list)&&doc.list.length?doc.list.map(x=>({id:String(x.id),name:String(x.name||'초안')})):[{id:'t1',name:'초안 1'}];
+  data.draftTabs={list,active:list.some(x=>x.id===doc.active)?doc.active:list[0].id};
+  _wsTabShow(doc&&doc.draft);
+  _ws.ver=ver; _ws.ready=true; _ws.err='';
+  _ws.hash=ndTextHash(JSON.stringify(_wsDoc()));
+}
+// 고른 탭 내용을 화면에 — 기간도 그 탭 기간으로, 뒤로가기는 탭마다 따로라 비움
+function _wsTabShow(draft){
+  data.draft=draft&&typeof draft==='object'?draft:{schedule:{},newLeaves:{}};
+  data.draft.schedule ||= {}; data.draft.newLeaves ||= {};
+  _wsHistory=[]; _updateUndoBtn();
+  if(data.draft.rangeStart&&data.draft.rangeEnd){
+    wsRangeStart=data.draft.rangeStart; wsRangeEnd=data.draft.rangeEnd;
+    const s=document.getElementById('ws-start'), e=document.getElementById('ws-end');
+    if(s) s.value=wsRangeStart; if(e) e.value=wsRangeEnd;
+  }
+}
+// 공유 폴더에서 받기(처음이면 서버 초안을 옮김) → { ok, changed }
+function _wsLoad(){
+  if(!_wsAvail()) return Promise.resolve({ok:false});
+  if(_ws.loading) return _ws.loading;
+  _ws.loading=(async()=>{
+    try{
+      const r=await window.ndApp.shareRead(WS_DOC);
+      if(!r||!r.ok){ _ws.err=(r&&r.error)||'공유 폴더에 연결이 안 돼요.'; return {ok:false}; }
+      if(!r.data) return await _wsSeed(r.ver);
+      if(_ws.ready&&(r.ver===_ws.ver||_ws.timer||_ws.writing)) { _ws.err=''; return {ok:true,changed:false}; }   // 그대로이거나 이 PC가 쓰는 중(내 것이 최신)
+      _wsApply(r.data,r.ver); return {ok:true,changed:true};
+    }catch(e){ _ws.err=String((e&&e.message)||e); return {ok:false}; }
+    finally{ _ws.loading=null; }
+  })();
+  return _ws.loading;
+}
+// 처음 한 번: 서버에 있던 초안·탭을 공유 폴더로 옮기고, 그다음부터 서버 저장에서 초안을 뺌
+async function _wsSeed(ver){
+  if(typeof _bootRemoteOk!=='undefined'&&!_bootRemoteOk){ _ws.err='근무표를 아직 서버에서 못 받았어요. 잠시 뒤 다시 열어 주세요.'; return {ok:false}; }   // 옛 기기 저장본으로 옮기면 안 됨
+  const flagged=!!(data.settings&&data.settings.draftOnShare);
+  const src=(!flagged&&_wsSrvDraft)||{};
+  const draft=src.draft&&typeof src.draft==='object'?JSON.parse(JSON.stringify(src.draft)):{schedule:{},newLeaves:{}};
+  const tabs=src.tabs&&Array.isArray(src.tabs.list)&&src.tabs.list.length?JSON.parse(JSON.stringify(src.tabs)):{list:[{id:'t1',name:'초안 1'}],active:'t1'};
+  if(!tabs.list.some(x=>x.id===tabs.active)) tabs.active=tabs.list[0].id;
+  const others={};   // 안 보는 탭 — 11-09 시험판이 서버 줄 wsdraft_<id> 에 둠
+  for(const tb of tabs.list){
+    if(tb.id===tabs.active) continue;
+    try{ const r=await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.${encodeURIComponent('wsdraft_'+tb.id)}&select=payload`,{headers:SB_HEADERS,cache:'no-store'});
+      if(r.ok){ const a=await r.json(), p=a&&a[0]&&a[0].payload; if(p&&p.draft&&typeof p.draft==='object') others[tb.id]=p.draft; } }catch(e){}
+  }
+  if(Object.keys(others).length&&!(await _wsTabsEdit(m=>{ Object.keys(others).forEach(k=>{ if(!m[k]) m[k]=others[k]; }); }))){ _ws.err='공유 폴더에 쓰지 못했어요.'; return {ok:false}; }
+  const doc={list:tabs.list.map(x=>({id:x.id,name:x.name})),active:tabs.active,draft};
+  const w=await window.ndApp.shareWrite(WS_DOC,doc,ver);
+  if(!w||!w.ok){
+    if(w&&w.conflict){ const r2=await window.ndApp.shareRead(WS_DOC); if(r2&&r2.ok&&r2.data){ _wsApply(r2.data,r2.ver); return {ok:true,changed:true}; } }   // 그새 다른 PC가 옮김
+    _ws.err=(w&&w.error)||'공유 폴더에 쓰지 못했어요.'; return {ok:false};
+  }
+  _wsApply(doc,w.ver);
+  if(!flagged){ data.settings.draftOnShare=true; saveData(data); }   // 이제부터 서버에는 초안을 안 올림(옮긴 뒤에만 — 못 옮기면 서버 초안 그대로)
+  Object.keys(others).forEach(_wsSrvRowDel);
+  _wsSrvDraft=null;
+  toast('작성소 초안을 회사 공용 네트워크 드라이브로 옮겼어요 — 이제 서버에 안 올라가요','success');
+  return {ok:true,changed:true};
+}
+function _wsSrvRowDel(id){
+  const url=`${SB_URL}/rest/v1/nd_data?id=eq.${encodeURIComponent('wsdraft_'+id)}`;
+  fetch(url,{method:'DELETE',headers:SB_HEADERS}).then(r=>{ if(!r.ok) return fetch(url,{method:'PATCH',headers:SB_HEADERS,body:JSON.stringify({payload:{}})}); }).catch(()=>{});
+}
+// 안 보는 탭 파일 고치기(읽은 판 그대로일 때만 씀, 겹치면 다시 읽고) → 성공 여부
+async function _wsTabsEdit(mutate){
+  for(let i=0;i<4;i++){
+    const r=await window.ndApp.shareRead(WS_TABS);
+    if(!r||!r.ok) return false;
+    const m=(r.data&&r.data.drafts&&typeof r.data.drafts==='object')?r.data.drafts:{};
+    mutate(m);
+    const w=await window.ndApp.shareWrite(WS_TABS,{drafts:m},r.ver);
+    if(w&&w.ok) return true;
+    if(!w||!w.conflict) return false;
+  }
+  return false;
+}
+async function _wsTabsGet(id){
+  const r=await window.ndApp.shareRead(WS_TABS);
+  if(!r||!r.ok) throw Error((r&&r.error)||'read');
+  const d=r.data&&r.data.drafts&&r.data.drafts[id];
+  return d&&typeof d==='object'?d:null;
+}
+// 저장(saveData, js/core.js)마다 — 초안·탭이 바뀌었으면 0.6초 모아 공유 폴더에
+function _wsAfterSave(){
+  if(!_ws.ready||isAdminTest) return;
+  let h=''; try{ h=ndTextHash(JSON.stringify(_wsDoc())); }catch(e){ return; }
+  if(h===_ws.hash) return;
+  clearTimeout(_ws.timer); _ws.timer=setTimeout(_wsFlush,600);
+}
+async function _wsFlush(){
+  _ws.timer=0;
+  if(_ws.writing){ _ws.again=true; return; }
+  _ws.writing=true;
+  try{
+    do{
+      _ws.again=false;
+      const doc=_wsDoc(), h=ndTextHash(JSON.stringify(doc));
+      if(h===_ws.hash) break;
+      let w=await window.ndApp.shareWrite(WS_DOC,doc,_ws.ver);
+      if(w&&!w.ok&&w.conflict) w=await window.ndApp.shareWrite(WS_DOC,doc,w.ver);   // 다른 PC가 썼어도 지금 이 화면(작업하는 관리자) 내용으로
+      if(!w||!w.ok){
+        if(Date.now()-_ws.failToast>60e3){ _ws.failToast=Date.now(); toast('공용 네트워크 드라이브에 저장하지 못했어요 — 연결을 확인해 주세요(다시 시도 중)','error'); }
+        clearTimeout(_ws.timer); _ws.timer=setTimeout(_wsFlush,10e3);
+        break;
+      }
+      _ws.ver=w.ver; _ws.hash=h; _ws.savedAt=new Date().toISOString();
+    }while(_ws.again);
+  }finally{ _ws.writing=false; try{ _wsTabsRender(); }catch(e){} }
+}
+// 지금 바로 쓰고 끝날 때까지 기다림 → 저장됐는지
+async function _wsFlushNow(){
+  clearTimeout(_ws.timer); _ws.timer=0;
+  for(let i=0;i<200&&_ws.writing;i++) await new Promise(r=>setTimeout(r,50));
+  await _wsFlush();
+  for(let i=0;i<200&&_ws.writing;i++) await new Promise(r=>setTimeout(r,50));
+  try{ return ndTextHash(JSON.stringify(_wsDoc()))===_ws.hash; }catch(e){ return false; }
+}
+// 작성소를 쓸 수 있는지 — 아니면 안내만 보이고 표·도구는 숨김
+function _wsGate(){
+  const v=document.getElementById('view-workshop'), g=document.getElementById('ws-gate');
+  if(!v||!g) return true;
+  let title='', body='', retry=false;
+  if(!_wsAvail()){
+    const app=typeof window!=='undefined'&&!!window.ndApp, ver=(typeof _ndAppVer==='function'&&_ndAppVer(navigator.userAgent))||'';
+    title=app?'근무표 앱을 업데이트해 주세요':'근무표 작성은 회사 PC의 근무표 앱에서만 할 수 있어요';
+    body=app?`작성소는 근무표 앱 1.4.2부터 회사 공용 네트워크 드라이브에 저장해요. NDT 런처에서 근무표를 업데이트해 주세요.${ver?` (지금 ${_wsTabEsc(ver)})`:''}`:'작성 중인 초안은 회사 공용 네트워크 드라이브에만 저장돼요(서버에 올리지 않음). 휴대폰과 일반 브라우저에서는 열 수 없어요.';
+  } else if(!_ws.ready){
+    if(_ws.err){ title='회사 공용 네트워크 드라이브에 연결이 안 돼요'; body=_wsTabEsc(_ws.err)+' — 회사 네트워크에서 다시 시도해 주세요.'; retry=true; }
+    else { title='초안을 불러오는 중이에요…'; body='회사 공용 네트워크 드라이브에서 읽고 있어요.'; }
+  }
+  const lock=!!title;
+  v.classList.toggle('ws-locked',lock);
+  g.innerHTML=lock?`<div class="ws-gate-card" role="status"><div class="ws-gate-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div><h3>${title}</h3><p>${body}</p>${retry?'<button type="button" class="ws-tab-save" onclick="_wsRetry()">다시 시도</button>':''}</div>`:'';
+  return !lock;
+}
+function _wsRetry(){ _ws.err=''; _wsGate(); _wsLoad().then(()=>{ if(typeof currentView!=='undefined'&&currentView==='workshop') renderWorkshop(); }); }
+// 작성소에 들어올 때(renderWorkshop) — 아직이면 받고, 받았으면 다른 PC가 고쳤는지 확인
+function _wsEnter(){
+  if(!_wsAvail()) return;
+  _wsLoad().then(res=>{ if(typeof currentView==='undefined'||currentView!=='workshop') return; if(res.changed) renderWorkshop(); else if(!res.ok) _wsGate(); });   // 실패면 안내만(다시 그리면 또 읽어 끝없이 돎)
+}
+function _wsTabsRender(){
+  const el=document.getElementById('ws-tabs'); if(!el) return;
+  if(!isAdmin||!_ws.ready){ el.innerHTML=''; return; }
+  _wsTabBind(el);
+  const t=_wsTabs(), many=t.list.length>1;
+  const X='<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  const pending=!!(_ws.timer||_ws.writing), saved=_wsTime(_ws.savedAt);
+  el.innerHTML=t.list.map(tb=>{ const on=tb.id===t.active, nm=_wsTabEsc(tb.name);
+    return `<div class="ws-tab${on?' on':''}" role="tab" tabindex="0" aria-selected="${on}" data-tab="${_wsTabEsc(tb.id)}" title="${nm} — 더블클릭: 이름 바꾸기 · 오른쪽 클릭: 메뉴"><span class="nm">${nm}</span>${many?`<span class="x" data-x="1" role="button" aria-label="${nm} 탭 닫기" title="탭 닫기">${X}</span>`:''}</div>`; }).join('')
+    +`<button class="ws-tab-add" type="button" data-add="1" aria-label="새 탭" title="새 탭"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>`
+    +`<span class="ws-tab-right"><span class="ws-tab-saved" title="작성소 초안은 회사 공용 네트워크 드라이브에만 저장돼요(서버에 안 올림)">${pending?'저장 중…':saved?`${saved} 공용 드라이브에 저장됨`:'공용 드라이브에 저장'}</span><button class="ws-tab-save" type="button" data-save="1"${_wsTabBusy?' disabled':''}><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>임시저장</button></span>`;
+  el.classList.toggle('busy',_wsTabBusy);
+}
+function _wsTabBind(el){
+  if(el._wsTabBound) return; el._wsTabBound=true;
+  el.addEventListener('click',e=>{
+    if(e.target.closest('input')) return;
+    if(e.target.closest('[data-save]')){ wsTabSave(); return; }
+    if(e.target.closest('[data-add]')){ _wsTabMenu(e.target.closest('[data-add]'),[{t:'빈 탭 새로 만들기',f:()=>wsTabNew(false)},{t:'지금 탭 복사해서 만들기',f:()=>wsTabNew(true)}]); return; }
+    const tab=e.target.closest('.ws-tab'); if(!tab) return;
+    if(e.target.closest('[data-x]')){ wsTabClose(tab.dataset.tab); return; }
+    wsTabSwitch(tab.dataset.tab);
+  });
+  el.addEventListener('dblclick',e=>{ const tab=e.target.closest('.ws-tab'); if(tab&&!e.target.closest('[data-x]')) wsTabRename(tab.dataset.tab); });
+  el.addEventListener('contextmenu',e=>{ const tab=e.target.closest('.ws-tab'); if(!tab||e.target.closest('input')) return; e.preventDefault(); const id=tab.dataset.tab;
+    _wsTabMenu(tab,[{t:'이름 바꾸기',f:()=>wsTabRename(id)},{t:'복사해서 새 탭',f:()=>{ if(id===_wsTabs().active) wsTabNew(true); else wsTabSwitch(id).then(ok=>{ if(ok) wsTabNew(true); }); }},...(_wsTabs().list.length>1?[{t:'탭 닫기',f:()=>wsTabClose(id),danger:true}]:[])]); });
+  el.addEventListener('keydown',e=>{ const tab=e.target.closest('.ws-tab'); if(!tab||e.target.closest('input')) return;
+    if(e.key==='Enter'||e.key===' '){ e.preventDefault(); wsTabSwitch(tab.dataset.tab); } else if(e.key==='F2'){ e.preventDefault(); wsTabRename(tab.dataset.tab); } });
+}
+function _wsTabMenu(anchor,items){
+  document.getElementById('ws-tab-menu')?.remove();
+  const m=document.createElement('div'); m.id='ws-tab-menu'; m.className='ws-tab-menu'; m.setAttribute('role','menu');
+  items.forEach(it=>{ const b=document.createElement('button'); b.type='button'; b.setAttribute('role','menuitem'); b.textContent=it.t; if(it.danger) b.className='danger'; b.onclick=()=>{ close(); it.f(); }; m.appendChild(b); });
+  document.body.appendChild(m);
+  const r=anchor.getBoundingClientRect(), w=m.offsetWidth;
+  m.style.left=Math.max(8,Math.min(r.left,innerWidth-w-8))+'px'; m.style.top=(r.bottom+4)+'px';
+  m.querySelector('button')?.focus();
+  function close(){ m.remove(); document.removeEventListener('pointerdown',off,true); document.removeEventListener('keydown',esc,true); }
+  function off(e){ if(!m.contains(e.target)) close(); }
+  function esc(e){ if(e.key==='Escape') close(); }
+  setTimeout(()=>{ document.addEventListener('pointerdown',off,true); document.addEventListener('keydown',esc,true); },0);
+}
+function _wsTabOk(){
+  if(!isAdmin||_wsTabBusy||!_ws.ready) return false;
+  if(isAdminTest){ toast('관리자 테스트 모드 — 탭은 바꿀 수 없어요(저장 안 됨).','error'); return false; }
+  return true;
+}
+async function wsTabSwitch(id){
+  const t=_wsTabs(); if(id===t.active) return true;
+  if(!_wsTabOk()||!t.list.some(x=>x.id===id)) return false;
+  _wsTabBusy=true; _wsTabsRender();
+  try{
+    const cur=_wsTabCur(), keep=JSON.parse(JSON.stringify(data.draft||{}));
+    if(!(await _wsTabsEdit(m=>{ m[cur.id]=keep; }))) throw Error('tabs');   // 지금 탭 먼저 보관 — 실패하면 안 바꿈
+    const next=await _wsTabsGet(id);
+    t.active=id; _wsTabShow(next||_wsTabBlank());
+    await _wsFlushNow();
+    renderWorkshopTable();
+    return true;
+  }catch(e){ toast('탭을 바꾸지 못했어요. 공용 드라이브 연결을 확인해 주세요.','error'); return false; }
+  finally{ _wsTabBusy=false; _wsTabsRender(); }
+}
+async function wsTabNew(copy){
+  if(!_wsTabOk()) return;
+  const t=_wsTabs(), cur=_wsTabCur();
+  _wsTabBusy=true; _wsTabsRender();
+  try{
+    const keep=JSON.parse(JSON.stringify(data.draft||{}));
+    if(!(await _wsTabsEdit(m=>{ m[cur.id]=keep; }))) throw Error('tabs');
+    const names=new Set(t.list.map(x=>x.name));
+    let name=copy?`${cur.name} 복사`:`초안 ${t.list.length+1}`; for(let i=2;names.has(name);i++) name=copy?`${cur.name} 복사 ${i}`:`초안 ${t.list.length+i}`;
+    const id='t'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+    t.list.push({id,name}); t.active=id;
+    _wsTabShow(copy?keep:_wsTabBlank());
+    await _wsFlushNow();
+    renderWorkshopTable();
+    toast(copy?`'${name}' 탭을 만들었어요(복사본)`:`'${name}' 빈 탭을 만들었어요 — ① 신휴가부터 채우세요`,'success');
+  }catch(e){ toast('새 탭을 만들지 못했어요. 공용 드라이브 연결을 확인해 주세요.','error'); }
+  finally{ _wsTabBusy=false; _wsTabsRender(); }
+}
+async function wsTabSave(){
+  if(!isAdmin||!_ws.ready) return;
+  if(isAdminTest){ toast('관리자 테스트 모드 — 저장되지 않아요.','error'); return; }
+  const ok=await _wsFlushNow();
+  if(ok) toast(`'${_wsTabCur().name}' 임시저장했어요 — 공용 네트워크 드라이브(배포 전까지 그대로)`,'success'); else toast('임시저장하지 못했어요. 공용 드라이브 연결을 확인해 주세요.','error');
+}
+function wsTabRename(id){
+  if(!_wsTabOk()) return;
+  const t=_wsTabs(), tb=t.list.find(x=>x.id===id); if(!tb) return;
+  const el=document.querySelector(`#ws-tabs .ws-tab[data-tab="${CSS.escape(id)}"] .nm`); if(!el) return;
+  const inp=document.createElement('input'); inp.className='ws-tab-input'; inp.value=tb.name; inp.maxLength=30; inp.setAttribute('aria-label','탭 이름');
+  el.replaceWith(inp); inp.focus(); inp.select();
+  let done=false;
+  const fin=ok=>{ if(done) return; done=true; const v=inp.value.trim().slice(0,30);
+    if(ok&&v&&v!==tb.name){ tb.name=v; _wsFlushNow(); }
+    _wsTabsRender(); };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); fin(true); } else if(e.key==='Escape'){ e.preventDefault(); fin(false); } });
+  inp.addEventListener('blur',()=>fin(true));
+  inp.addEventListener('click',e=>e.stopPropagation()); inp.addEventListener('dblclick',e=>e.stopPropagation());
+}
+async function wsTabClose(id){
+  if(!_wsTabOk()) return;
+  const t=_wsTabs(), i=t.list.findIndex(x=>x.id===id); if(i<0||t.list.length<2) return;
+  if(!confirm(`'${t.list[i].name}' 탭을 닫을까요?\n\n이 탭의 초안은 지워지고 되돌릴 수 없어요.`)) return;
+  _wsTabBusy=true; _wsTabsRender();
+  try{
+    if(id===t.active){
+      const nb=t.list[i+1]||t.list[i-1];
+      const next=await _wsTabsGet(nb.id);
+      t.list.splice(i,1); t.active=nb.id; _wsTabShow(next||_wsTabBlank());
+    } else t.list.splice(i,1);
+    await _wsFlushNow();
+    await _wsTabsEdit(m=>{ delete m[id]; });
+    renderWorkshopTable();
+  }catch(e){ toast('탭을 닫지 못했어요. 공용 드라이브 연결을 확인해 주세요.','error'); }
+  finally{ _wsTabBusy=false; _wsTabsRender(); }
+}
