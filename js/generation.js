@@ -98,6 +98,43 @@ function generateDraftSchedule(phase) {
     renderWorkshopTable();
   }, { phase: (typeof phase==='string' ? phase : 'all') });
 }
+// ===== 평일 기본 채우기(11-09 사용자: "1번 데스크는 월~금 데스크, 나머지는 토일 빼고 다 정근, 조근도 다 — 버튼 하나로, 그다음 조금씩 바꿔서 근무를 만듦") =====
+// 평일 틀 날(월~금, 설·추석 같은 주말 편성 공휴일 빼고)마다: 1순위 데스크(deskPriority 1 — VW=VW데, CG=8데스) + 그 밖의 VW·CG·XR·PROJECT·SPORTS 전원 정근.
+// 조근조는 그날 줄만 있으면 표에 '조근'이 자동으로 뜸. 토·일·주말 편성 공휴일은 빈 날. 신휴가·계약 밖·파견·손으로 쓴 칸인 사람은 안 넣음.
+// 기간 안 다른 배정(당직·8진 등)은 지우고 다시 시작 — 손으로 쓴 칸·휴가 이름표·비고만 남김(되돌리기 가능)
+function fillBasicWeekdays() {
+  if (!isAdmin) return;
+  saveWsSettings();
+  const startVal=document.getElementById('ws-start').value, endVal=document.getElementById('ws-end').value;
+  if(!startVal||!endVal){ showResult('ws-gen-result','❌ 시작일과 종료일을 입력하세요.',false); return; }
+  if(startVal>endVal){ showResult('ws-gen-result','❌ 종료일이 시작일보다 앞섭니다.',false); return; }
+  _pushWsHistory();
+  if(!data.draft) data.draft={schedule:{},newLeaves:{}};
+  const sch=(data.draft.schedule ||= {}), lv=data.draft.newLeaves||{};
+  let days=0;
+  for(let ds=startVal; ds<=endVal; ds=addDays(ds,1)){
+    const pv=sch[ds]||{}, cc=pv.customCells||{};
+    const e={vw:{workers:[],desk:null},cg:{workers:[],desk8:null,desk5:null},project:[],sports:[],xr:[],danjik:null,morningDesk:null,notes:pv.notes||''};
+    if(Object.keys(cc).length) e.customCells=JSON.parse(JSON.stringify(cc));
+    if(pv.leaveLabels&&Object.keys(pv.leaveLabels).length) e.leaveLabels=JSON.parse(JSON.stringify(pv.leaveLabels));
+    if(isWeekdayForm(ds)){
+      const off=new Set(lv[ds]||[]);
+      const ok=p=>!off.has(p.id)&&isContractActive(p,ds)&&!isDispatched(p,ds)&&!cc[p.id];
+      const put=(dept,arr)=>getStaff(dept,ds).filter(ok).forEach(p=>arr.push(p.id));
+      put('VW',e.vw.workers); put('CG',e.cg.workers); put('XR',e.xr); put('PROJECT',e.project); put('SPORTS',e.sports);
+      const desk1=dept=>getStaff(dept,ds).find(p=>p.deskPriority===1&&ok(p));
+      e.vw.desk=desk1('VW')?.id||null; e.cg.desk8=desk1('CG')?.id||null;
+      days++;
+    } else if((pv.sports||[]).length) e.sports=[...pv.sports];   // 주말 SPORTS 손배정은 그대로(자동생성과 같게)
+    sch[ds]=e;
+  }
+  data.draft.rangeStart=startVal; data.draft.rangeEnd=endVal;
+  wsRangeStart=startVal; wsRangeEnd=endVal;
+  saveData(data);
+  renderWorkshopTable();
+  showResult('ws-gen-result',`✅ ${startVal} ~ ${endVal} 평일 ${days}일 기본 채우기 완료 — 이제 칸을 고쳐 근무를 만드세요(되돌리기 가능)`,true);
+  toast('평일 기본 근무를 채웠어요','success');
+}
 function generateSchedule() {
   // 어드민 패널의 기존 gen-start/gen-end 사용 (하위 호환)
   const startVal=document.getElementById('gen-start').value;

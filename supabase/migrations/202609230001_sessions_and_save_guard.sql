@@ -11,7 +11,7 @@ language plpgsql set search_path=public as $$
 begin
  if old.id='main' then
   if coalesce((new.payload->>'_dataRevision')::bigint,0) <> coalesce((old.payload->>'_dataRevision')::bigint,0) then
-   raise exception '다른 사용자의 변경이 있습니다. 최신 내용을 확인한 후 다시 저장하세요.' using errcode='40001';
+   raise exception '다른 사용자의 변경이 있습니다. 최신 내용을 확인한 후 다시 저장하세요.' using errcode='PT409';   -- 11-09: 40001 은 PostgREST 무한 재시도(202611090001 참고)
   end if;
   new.payload=jsonb_set(new.payload,'{_dataRevision}',to_jsonb(coalesce((old.payload->>'_dataRevision')::bigint,0)+1));
   new.updated_at=clock_timestamp();

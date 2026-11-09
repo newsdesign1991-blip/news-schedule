@@ -487,7 +487,7 @@ function renderWorkshopTable() {
       const _nesc=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
       const _nt = _notesShown(entry?.notes), _ntHtml = _nt ? `<span style="color:#7c3aed;font-weight:600;">${_nesc(_nt)}</span>` : '';
       const _bg = [..._bigo, _ntHtml].filter(Boolean);
-      tbody+=_bg.length?`<td style="font-size:10px;padding:2px 5px;line-height:1.8;vertical-align:middle;text-align:left;white-space:nowrap;">${_bg.join('<br>')}</td>`:`<td></td>`;
+      tbody+=`<td data-bigo="${dateStr}" title="더블클릭: 비고 입력" style="${_bg.length?'font-size:10px;padding:2px 5px;line-height:1.8;vertical-align:middle;text-align:left;white-space:nowrap;':''}cursor:text;">${_bg.join('<br>')}</td>`;   // 더블클릭 → wsBigoEdit(11-09)
     }
     tbody+='</tr>';
   }
@@ -802,11 +802,44 @@ function wsCellType(td){
   });
   inp.addEventListener('blur', ()=>finish(true));
 }
+// 비고 칸 더블클릭 → 그날 비고(entry.notes) 직접 입력(11-09 — 예전엔 엑셀 가져오기로만 들어감). Enter·칸 밖 클릭=저장, Esc=취소. 자동 비고(타부서 대체)는 그대로 붙어 보임
+function wsBigoEdit(td){
+  if (!isAdmin) return;
+  const ds=td.dataset.bigo;
+  if (!ds || td.querySelector('input.ws-type-input')) return;
+  if (typeof closeCellPop==='function') closeCellPop();
+  const cur=_notesShown(data.draft?.schedule?.[ds]?.notes);
+  const inp=document.createElement('input');
+  inp.className='ws-type-input'; inp.value=cur; inp.placeholder='비고 입력 후 Enter';
+  inp.setAttribute('style','width:100%;min-width:150px;box-sizing:border-box;border:1.5px solid var(--accent);border-radius:4px;font-size:11px;padding:1px 4px;outline:none;');
+  inp.addEventListener('click', e=>e.stopPropagation());
+  inp.addEventListener('dblclick', e=>e.stopPropagation());
+  td.innerHTML=''; td.appendChild(inp);
+  inp.focus(); inp.select();
+  let done=false;
+  const finish=(apply)=>{
+    if(done) return; done=true;
+    const v=inp.value.trim();
+    if(!apply||v===cur){ renderWorkshopTable(); return; }
+    _pushWsHistory();
+    const sch=(data.draft.schedule ||= {});
+    const e=(sch[ds] ||= {vw:{workers:[],desk:null},cg:{workers:[],desk8:null,desk5:null},project:[],sports:[],xr:[],danjik:null,morningDesk:null,notes:''});
+    e.notes=v;
+    saveData(data); renderWorkshopTable();
+  };
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); finish(true); }
+    else if(e.key==='Escape'){ e.preventDefault(); finish(false); }
+  });
+  inp.addEventListener('blur', ()=>finish(true));
+}
 (function(){
   const tb=document.getElementById('ws-tbody');
   if (tb && !tb._wsTypeBound){
     tb._wsTypeBound=true;
     tb.addEventListener('dblclick', function(e){
+      const bigo=e.target.closest('td[data-bigo]');
+      if(bigo){ wsBigoEdit(bigo); return; }
       const td=e.target.closest('td[data-sid][data-ds]');
       if(td) wsCellType(td);
     });
