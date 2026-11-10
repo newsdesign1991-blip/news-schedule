@@ -563,7 +563,9 @@ function _isLearnText(t) { return !!_learnKind(t); }
 // 배우는 중 종류: 'vw'(VW2·정근2) | 'cg'(CG2, 11-10 사용자 — VW2 와 같은 방식: 칸에만 보이고 인원 수엔 안 셈) | ''
 function _learnKind(t) { const k = _normalizeImportedWorkType(t).toUpperCase(); return (k === 'VW2' || k === '정근2') ? 'vw' : k === 'CG2' ? 'cg' : ''; }
 // 손입력 배우는 중 칸의 색(VW2=VW 색, CG2=CG 색) | null
-function _learnStyle(entry,id) { const k = _learnKind(entry?.customCells?.[id]?.text); return k === 'cg' ? {bg:'var(--cg-bg)',color:'var(--cg-light)'} : k === 'vw' ? {bg:'var(--vw-bg)',color:'var(--vw-light)'} : null; }
+function _learnStyle(entry,id) { const k = _normalizeImportedWorkType(entry?.customCells?.[id]?.text).toUpperCase(); return k === 'CG2' ? {bg:'var(--cg-bg)',color:'var(--cg-light)'} : k === 'VW2' ? {bg:'var(--vw-bg)',color:'var(--vw-light)'} : null; }   // 정근2 등은 칸에 저장된 색 그대로
+// 홈 목록 쪽: VW2=VW, CG2=CG, 정근2=그 사람 그날 부서(CG·XR 이면 CG)
+function _learnKindFor(t,id,ds) { const k = _learnKind(t); if (k && _normalizeImportedWorkType(t).toUpperCase() === '정근2') { const d = String((typeof deptOn==='function'&&deptOn(staffById(id),ds))||'').toUpperCase(); return (d === 'CG' || d === 'XR') ? 'cg' : 'vw'; } return k; }
 function _normalizeImportedWorkType(value,keepNum){return String(value||'').replace(/\s+/g,'').replace(/[①-⑨]/g,c=>keepNum?c:String(c.charCodeAt(0)-0x245F)).replace(/^jr[.．]?/i,'Jr.').replace(/^ai교육$/i,'AI 교육');}   // 동그라미 숫자(VW②·뉴.오①·8진②)는 보통 숫자로 읽음(10-27) — keepNum 이면 칸에 보일 글자라 그대로 둠(사용자: 작성소에도 그 번호를 붙여서)
 const WORK_TYPE_MAP = {
   '정근': 'work', '신휴가': 'leave', 'Jr.휴가': 'leave', '출장': 'offsite', 'Jr.캠프': 'offsite', 'AI 교육': 'offsite', '당직': 'danjik',
@@ -582,7 +584,8 @@ const WORK_TYPE_MAP = {
   '교육': 'offsite', '면접관': 'offsite', '대의원': 'offsite', '주.캠': 'offsite', 'NDS': 'offsite',
   '오전8데': 'ojende8', '오전8데스': 'ojende8',
   // 부서명 라벨 = "그 부서에서 근무". 같은 부서면 정근, 타부서 사람이면 대체로 자동 표시(cg.workers/vw.workers).
-  'CG': 'cg-sub', 'VW': 'vw-sub', 'VW1': 'vw-sub', 'VW2': 'vw2', 'vw2': 'vw2', '정근2': 'vw2', 'CG2': 'cg2', 'cg2': 'cg2',   // VW2(VW②) = 배우는 중(깍두기) — 칸에만 보이고 인원 수엔 안 셈
+  'CG': 'cg-sub', 'VW': 'vw-sub', 'VW1': 'vw-sub', 'VW2': 'vw2', 'vw2': 'vw2', '정근2': 'vw2', 'CG2': 'cg2', 'cg2': 'cg2',
+  '당직2': 'dj2', '조근2': 'jo2', '일근2': 'il2',   // 2 붙은 근무(11-10) = 칸에만 보이고 근무 인원엔 안 셈(8진2·뉴.오2 는 진짜 두 번째 근무라 따로)   // VW2(VW②) = 배우는 중(깍두기) — 칸에만 보이고 인원 수엔 안 셈
   // 당직 지정 시 자동 계산되는 항목 → 가져오기에서 무시
   '퇴근': 'skip', '당직퇴근': 'skip', '비번': 'skip', '당직비번': 'skip'
 };
@@ -655,7 +658,7 @@ function _importCellDisplay(entry,id,leaves) {
   if(!cell || cell.signature!==_importCellSignature(entry,id,leaves)) return null;
   const text=cell.text, type=WORK_TYPE_MAP[_normalizeImportedWorkType(text)];
   let bg='',color='var(--muted)',fw='500';
-  const palette={nocount:['var(--surface2)','var(--muted)'],ojende8:['','#436bb5'],danjik:['#d65a52','#fff'],jogeun:['var(--r-jogeun-bg)','var(--r-jogeun-fg)'],ilgeun:['var(--r-ilgeun-bg)','var(--r-ilgeun-fg)'],offsite:['#ffc1df','#000000'],'vw-sub':['var(--vw-bg)','var(--vw-light)'],vw2:['var(--vw-bg)','var(--vw-light)'],cg2:['var(--cg-bg)','var(--cg-light)'],'cg-sub':['var(--cg-bg)','var(--cg-light)'],newsoh:['var(--r-news-bg)','var(--r-news-fg)'],newsoh2:['var(--r-news2-bg)','var(--r-news2-fg)']};
+  const palette={nocount:['var(--surface2)','var(--muted)'],ojende8:['','#436bb5'],danjik:['#d65a52','#fff'],jogeun:['var(--r-jogeun-bg)','var(--r-jogeun-fg)'],ilgeun:['var(--r-ilgeun-bg)','var(--r-ilgeun-fg)'],offsite:['#ffc1df','#000000'],'vw-sub':['var(--vw-bg)','var(--vw-light)'],vw2:['var(--vw-bg)','var(--vw-light)'],cg2:['var(--cg-bg)','var(--cg-light)'],dj2:['#fdf0ef','#d65a52'],jo2:['var(--r-jogeun-bg)','var(--r-jogeun-fg)'],il2:['var(--r-ilgeun-bg)','var(--r-ilgeun-fg)'],'cg-sub':['var(--cg-bg)','var(--cg-light)'],newsoh:['var(--r-news-bg)','var(--r-news-fg)'],newsoh2:['var(--r-news2-bg)','var(--r-news2-fg)']};
   if(palette[type]) [bg,color]=palette[type];
   if(type==='leave')color='#c79a5e';
   if(type==='8jin'||type==='8jin2')color='#d65a52';
@@ -672,8 +675,8 @@ function _importCellDisplay(entry,id,leaves) {
 // 그날 VW에서 배우는 사람 — 인원엔 안 세고 홈 VW 목록에만 나옴. 엑셀 칸(손댄 칸 제외)과 손입력 칸 둘 다 봄(이미 가져온 11/2~13은 엑셀 칸에만 있음)
 function _vwLearnerIds(entry,ds,kind='vw'){   // kind 'cg' = CG2(홈 CG 목록, 11-10)
   const lv=data.newLeaves?.[ds]||[], ids=new Set();
-  Object.keys(entry?.customCells||{}).forEach(id=>{ if(_learnKind(entry.customCells[id]?.text)===kind) ids.add(id); });
-  Object.keys(entry?.importedCells||{}).forEach(id=>{ const c=_importCellDisplay(entry,id,lv); if(c&&_learnKind(c.text)===kind) ids.add(id); });
+  Object.keys(entry?.customCells||{}).forEach(id=>{ if(_learnKindFor(entry.customCells[id]?.text,id,ds)===kind) ids.add(id); });
+  Object.keys(entry?.importedCells||{}).forEach(id=>{ const c=_importCellDisplay(entry,id,lv); if(c&&_learnKindFor(c.text,id,ds)===kind) ids.add(id); });
   return [...ids].filter(id=>!lv.includes(id));
 }
 function _importCellHTML(text){return String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -764,10 +767,14 @@ function _doApplyImageSchedule(skipNames) {
       } else if (wt === 'cg-sub') {
         // CG 대체자(타부서 사람이 CG 자리) → cg.workers에만 추가(데스크 건드리지 않음). 렌더가 자동으로 'CG'/'CG대' 표시
         if (!entry.cg.workers.includes(s.id)) entry.cg.workers.push(s.id);
+      } else if (wt === 'dj2' || wt === 'jo2' || wt === 'il2') {
+        const sd = (typeof SPECIAL_DUTIES!=='undefined'&&SPECIAL_DUTIES.find(d => d.key === wt)) || {};   // 당직2·조근2·일근2 — 인원 X
+        if (!entry.customCells) entry.customCells = {};
+        entry.customCells[s.id] = {text:shown, bg:sd.bg||'var(--surface2)', color:sd.color||'var(--text)'};
       } else if (wt === 'vw2' || wt === 'cg2') {
         // Display this assignment without adding it to staffing headcounts.
         if (!entry.customCells) entry.customCells = {};
-        entry.customCells[s.id] = wt === 'cg2' ? {text:shown, bg:'var(--cg-bg)', color:'var(--cg-light)'} : {text:shown, bg:'var(--vw-bg)', color:'var(--vw-light)'};
+        entry.customCells[s.id] = wt === 'cg2' ? {text:shown, bg:'var(--cg-bg)', color:'var(--cg-light)'} : _normalizeImportedWorkType(shown).toUpperCase() === '정근2' ? {text:shown, bg:'var(--surface2)', color:'var(--text)'} : {text:shown, bg:'var(--vw-bg)', color:'var(--vw-light)'};   // 정근2 = 부서 상관없이 회색 바탕(11-10)
       } else if (wt === 'vw-sub') {
         // VW 대체자(타부서 사람이 VW 자리) → vw.workers에만 추가(메인데스크로 만들지 않음)
         if (!entry.vw.workers.includes(s.id)) entry.vw.workers.push(s.id);

@@ -538,7 +538,7 @@ function setWsBrush(type) {
   });
   const lbl = document.getElementById('ws-brush-label');
   if (lbl) {
-    lbl.textContent = wsBrushType ? ('✏ ' + (WS_BRUSH_LABELS[wsBrushType]||wsBrushType) + ' 브러쉬 — 셀 클릭 시 즉시 적용') : '💡 셀 더블클릭 → 근무명 타이핑 (당직·일근·정근·조근·8진·뉴.오·오전데·VW데스크 등)';
+    lbl.textContent = wsBrushType ? ('✏ ' + (WS_BRUSH_LABELS[wsBrushType]||wsBrushType) + ' 브러쉬 — 셀 클릭 시 즉시 적용') : '💡 더블클릭 = 근무명 타이핑 · 오른쪽 클릭 = 모든 입력 · Ctrl+클릭 = 지우기';
     if(wsBrushType==='select')lbl.textContent='셀 클릭 · Shift+클릭 범위 선택 · Ctrl+C 복사 · Ctrl+V 붙여넣기';
     lbl.style.display = 'inline';
   }
@@ -739,6 +739,7 @@ function wsCellClick(td, event) {
   event.stopPropagation();
   const staffId = td.dataset.sid;
   const dateStr = td.dataset.ds;
+  if(event.ctrlKey||event.metaKey){ _wsClearCells([{sid:staffId,ds:dateStr}]); return; }   // Ctrl+클릭 = 무슨 브러시든 그 칸 바로 지우기(11-10)
   if(wsBrushType==='select'){_wsSelectCell(td,event.shiftKey);return;}
   if (wsBrushType) { _pushWsHistory(); _applyBrush(staffId, dateStr); return; }
   _draftCellMode = true;
@@ -763,6 +764,7 @@ const WS_TYPE_MAP = {
   '신휴가':'leave','휴가':'leave','연차':'leave',
   '휴무':'rest','휴':'rest','쉼':'rest','쉬는날':'rest',   // 휴무(11-10)
   'vw2':'special:vw2','vw②':'special:vw2','cg2':'special:cg2','cg②':'special:cg2',   // 배우는 중(인원 집계 제외)
+  '정근2':'special:jg2','정근②':'special:jg2','당직2':'special:dj2','당직②':'special:dj2','조근2':'special:jo2','조근②':'special:jo2','일근2':'special:il2','일근②':'special:il2',   // 2 붙은 근무(11-10, 인원 X)
   '지우기':'off','삭제':'off','off':'off','x':'off','없음':'off','-':'off'
 };
 function _wsTypeApply(sid, ds, type){
@@ -781,6 +783,8 @@ function _wsTypeSubmit(sid, ds, v){
   const key = raw.toLowerCase().replace(/\s+/g,'');
   const type = WS_TYPE_MAP[key];
   if (type) { _wsTypeApply(sid, ds, type); return; }             // 인식 → 정식 셀(_applyBrush 내부서 저장·렌더)
+  const _duty = typeof _dutyByText==='function' ? _dutyByText(raw) : null;   // 특수 근무 목록(출장·교육·휴가·직접 만든 이름) 그대로 친 것 → 그 색·계산으로(11-10)
+  if (_duty) { _wsTypeApply(sid, ds, 'special:'+_duty.key); return; }
   _pushWsHistory();                                              // 미인식 → 직접입력 텍스트 셀(기존 배정 대체)
   const entry = _ensureDraftEntry(ds);
   _brushClearStaff(entry, sid, ds);
@@ -846,6 +850,11 @@ function wsBigoEdit(td){
   const tb=document.getElementById('ws-tbody');
   if (tb && !tb._wsTypeBound){
     tb._wsTypeBound=true;
+    tb.addEventListener('contextmenu', function(e){   // 오른쪽 클릭 = 넣을 수 있는 모든 것(11-10)
+      const td=e.target.closest('td[data-sid][data-ds]');
+      if(!td||!isAdmin) return;
+      e.preventDefault(); _wsCtxOpen(td,e);
+    });
     tb.addEventListener('dblclick', function(e){
       const bigo=e.target.closest('td[data-bigo]');
       if(bigo){ wsBigoEdit(bigo); return; }
@@ -854,7 +863,7 @@ function wsBigoEdit(td){
     });
   }
   const _lbl=document.getElementById('ws-brush-label');
-  if (_lbl && !wsBrushType){ _lbl.textContent='💡 셀 더블클릭 → 근무명 타이핑 (당직·일근·정근·조근·8진·뉴.오·오전데·VW데스크 등)'; _lbl.style.display='inline'; }
+  if (_lbl && !wsBrushType){ _lbl.textContent='💡 더블클릭 = 근무명 타이핑 · 오른쪽 클릭 = 모든 입력 · Ctrl+클릭 = 지우기'; _lbl.style.display='inline'; }
 })();
 // Rectangular, in-app clipboard: store assignment data, never just cell text.
 let _wsSelection=null, _wsClipboard=null;
@@ -1549,4 +1558,86 @@ async function wsTabClose(id){
     renderWorkshopTable();
   }catch(e){ toast('탭을 닫지 못했어요. 공용 드라이브 연결을 확인해 주세요.','error'); }
   finally{ _wsTabBusy=false; _wsTabsRender(); }
+}
+
+// ===== 작성소 칸 오른쪽 클릭 메뉴(11-10 사용자: "오른쪽 클릭해서 입력할 수 있는 모든 옵션이 잘 정리돼서 나오면", "분류를 골라 색을 칠하고 이름은 키보드로") =====
+// 근무 / 인원 집계 제외(2 붙은 근무 등) / 출장·교육·기타 / 휴가 / 복합 / 이름 직접 입력(분류 → 이름) / 지우기. 마우스 선택으로 여러 칸을 골라 두고 그 안에서 누르면 고른 칸 전체에
+const WS_CTX_WORK=[['work','정근'],['vw-desk','VW데스크'],['desk8','8데스크'],['desk5','5데스크'],['danjik','당직'],['jogeun','조근'],['ojende','오전데'],['8jin','8진'],['8jin2','8진2'],['ilgeun','일근'],['newsoh','뉴.오'],['newsoh2','뉴.오2'],['vw-sub','VW대체'],['cg-sub','CG대체'],['jogeun-edu','조근교육'],['leave','신휴가'],['rest','휴무']];
+let _wsCtxTargets=[];
+function _wsCtxClose(){ document.getElementById('ws-ctx')?.remove(); document.removeEventListener('pointerdown',_wsCtxOff,true); document.removeEventListener('keydown',_wsCtxKey,true); window.removeEventListener('resize',_wsCtxClose); }
+function _wsCtxOff(e){ const m=document.getElementById('ws-ctx'); if(m&&!m.contains(e.target)) _wsCtxClose(); }
+function _wsCtxKey(e){ if(e.key==='Escape'&&!e.target.closest?.('.ws-ctx-type input')){ e.preventDefault(); _wsCtxClose(); } }
+// 계약 밖·파견 칸은 건너뜀 → 넣은 칸 수
+function _wsApplyCells(targets,fn){
+  _pushWsHistory();
+  let n=0;
+  for(const t of targets){ const s=staffById(t.sid); if(!s||!isContractActive(s,t.ds)||isDispatched(s,t.ds)) continue; fn(t.sid,t.ds,_ensureDraftEntry(t.ds)); n++; }
+  saveData(data); renderWorkshopTable();
+  if(!n) toast('계약 외·파견 기간이라 넣지 못했어요.','error');
+  return n;
+}
+function _wsClearCells(targets){ return _wsApplyCells(targets,(sid,ds,e)=>{ if(e.customCells) delete e.customCells[sid]; _brushClearStaff(e,sid,ds); }); }
+function _wsCtxType(type){
+  const T=_wsCtxTargets; _wsCtxClose();
+  if(type==='off'){ _wsClearCells(T); return; }
+  _wsApplyCells(T,(sid,ds,e)=>{ if(e.customCells) delete e.customCells[sid]; _brushClearStaff(e,sid,ds); const prev=wsBrushType; wsBrushType=type; try{ _applyBrush(sid,ds,true); }finally{ wsBrushType=prev; } });
+}
+function _wsCtxDuty(key){
+  const T=_wsCtxTargets; _wsCtxClose();
+  _wsApplyCells(T,(sid,ds,e)=>_assignSpecialDuty(e,sid,ds,key,(data.draft.newLeaves ||= {})));
+}
+function _wsCtxOpen(td,ev){
+  _wsCtxClose(); if(typeof closeCellPop==='function') closeCellPop();
+  const one={sid:td.dataset.sid,ds:td.dataset.ds};
+  let T=[one];
+  if(wsBrushType==='select'&&_wsSelection){   // 골라 둔 범위 안에서 누르면 그 범위 전체
+    const grid=_wsGrid(), b=_wsSelectionBounds(grid);
+    if(b){ const cells=[]; for(let r=b.r;r<b.r+b.rows;r++) for(let c=b.c;c<b.c+b.cols;c++){ const x=grid[r]&&grid[r][c]; if(x) cells.push({sid:x.dataset.sid,ds:x.dataset.ds}); }
+      if(cells.some(x=>x.sid===one.sid&&x.ds===one.ds)) T=cells; }
+  }
+  _wsCtxTargets=T;
+  const s=staffById(one.sid), d=new Date(one.ds+'T00:00:00'), DOW=['일','월','화','수','목','금','토'];
+  const head=T.length>1?`${T.length}칸 선택`:`${_sdEsc(s?.name||'')} · ${d.getMonth()+1}/${d.getDate()} (${DOW[d.getDay()]})`;
+  const brushStyle=k=>{ const b=document.querySelector(`.ws-brush-btn[data-brush="${k}"]`); return b?_sdEsc(b.getAttribute('style')||''):''; };
+  const chip=(attrs,label,style)=>`<button type="button" class="ws-ctx-chip" ${attrs} style="${style}">${_sdEsc(label)}</button>`;
+  const duties=_allDuties(), sec=(title,html,note)=>`<div class="ws-ctx-sec"><h4>${title}${note?`<small>${note}</small>`:''}</h4><div class="ws-ctx-chips">${html}</div></div>`;
+  const byGroup=g=>duties.filter(x=>x.group===g).map(x=>{ const sw=_dutySwatch(x); return chip(`data-duty="${_sdEsc(x.key)}"`,x.label||x.text,`background:${sw.bg};color:${sw.color};`); }).join('');
+  const m=document.createElement('div');
+  m.id='ws-ctx'; m.className='ws-ctx'; m.setAttribute('role','menu'); m.setAttribute('aria-label','칸에 넣기');
+  m.innerHTML=`<div class="ws-ctx-head"><b>${head}</b><span>오른쪽 클릭 메뉴</span></div>
+    <div class="ws-ctx-body">
+      ${sec('근무',WS_CTX_WORK.map(([k,l])=>chip(`data-type="${k}"`,l,brushStyle(k))).join(''))}
+      ${sec('인원 집계 제외',byGroup('인원 집계 제외'),'칸에만 보이고 인원엔 안 셈')}
+      ${sec('출장 · 교육 · 기타',byGroup('출장 · 교육 · 기타'),'인원에서 빠짐')}
+      ${sec('휴가',byGroup('휴가'))}
+      ${sec('복합 근무',byGroup('복합 근무'))}
+      <div class="ws-ctx-sec"><h4>이름 직접 입력<small>묶음을 고르고 이름을 치세요</small></h4>
+        <div class="ws-ctx-chips">${Object.keys(DUTY_CATS).map(k=>{ const c=DUTY_CATS[k], sw=_dutySwatch(c.kind?{kind:c.kind}:c); return chip(`data-cat="${k}"`,c.label,`background:${sw.bg};color:${sw.color};`); }).join('')}</div>
+        <div class="ws-ctx-type" hidden><input type="text" maxlength="12" placeholder="이름 입력 후 Enter" aria-label="이름"><label><input type="checkbox" class="ws-ctx-keep"> 목록에 저장</label></div>
+      </div>
+    </div>
+    <div class="ws-ctx-foot"><button type="button" class="ws-ctx-clear" data-type="off">지우기</button><span>Ctrl+클릭 = 바로 지우기</span></div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click',e=>{
+    const ty=e.target.closest('[data-type]'); if(ty){ _wsCtxType(ty.dataset.type); return; }
+    const du=e.target.closest('[data-duty]'); if(du){ _wsCtxDuty(du.dataset.duty); return; }
+    const ca=e.target.closest('[data-cat]');
+    if(ca){ const box=m.querySelector('.ws-ctx-type'), inp=box.querySelector('input[type=text]'), c=DUTY_CATS[ca.dataset.cat], sw=_dutySwatch(c.kind?{kind:c.kind}:c);
+      m.querySelectorAll('[data-cat]').forEach(b=>b.classList.toggle('on',b===ca));
+      box.hidden=false; box.dataset.cat=ca.dataset.cat; inp.style.background=sw.bg; inp.style.color=sw.color; inp.placeholder=`${c.label} 이름 입력 후 Enter`; inp.focus(); }
+  });
+  const inp=m.querySelector('.ws-ctx-type input[type=text]');
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); _wsCtxClose(); return; }
+    if(e.key!=='Enter') return; e.preventDefault();
+    const v=inp.value.trim(), cat=m.querySelector('.ws-ctx-type').dataset.cat; if(!v||!DUTY_CATS[cat]) return;
+    const key=m.querySelector('.ws-ctx-keep').checked?_customDutyAdd(cat,v):('c:'+cat+':'+v.slice(0,12));
+    _wsCtxDuty(key);
+  });
+  // 자리: 누른 곳 옆, 화면 밖으로 안 나가게(길면 안에서 스크롤)
+  const W=m.offsetWidth, H=Math.min(m.offsetHeight,innerHeight-16);
+  m.style.maxHeight=(innerHeight-16)+'px';
+  m.style.left=Math.max(8,Math.min(ev.clientX+2,innerWidth-W-8))+'px';
+  m.style.top=Math.max(8,Math.min(ev.clientY+2,innerHeight-H-8))+'px';
+  setTimeout(()=>{ document.addEventListener('pointerdown',_wsCtxOff,true); document.addEventListener('keydown',_wsCtxKey,true); window.addEventListener('resize',_wsCtxClose); },0);
 }

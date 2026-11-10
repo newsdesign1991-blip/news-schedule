@@ -52,18 +52,55 @@ function morningCellClick(dateStr, event) {
 function closeCellPop() { document.getElementById('cell-popover').style.display='none'; }
 
 // Excel imports and manual choices use the same assignment fields and palette.
+// '2' 붙은 근무(정근2·VW2·CG2·당직2·조근2·일근2, 11-10 사용자) = 칸에만 보이고 근무 인원엔 안 셈(VW2 와 같은 방식 — 손입력 칸이라 근무자 명단에 안 들어감)
 const SPECIAL_DUTIES = [
   {key:'excluded-work',text:'정근',label:'정근 · 집계 제외',group:'인원 집계 제외',bg:'#d9d9d9',color:'#333333',excl:true},
   {key:'n',text:'N',group:'인원 집계 제외',bg:'var(--surface2)',color:'var(--muted)',excl:true},
+  {key:'jg2',text:'정근2',group:'인원 집계 제외',bg:'var(--surface2)',color:'var(--text)'},
   {key:'vw2',text:'VW2',group:'인원 집계 제외',bg:'var(--vw-bg)',color:'var(--vw-light)'},
   {key:'cg2',text:'CG2',group:'인원 집계 제외',bg:'var(--cg-bg)',color:'var(--cg-light)'},   // CG 배우는 중(11-10) — VW2 와 같은 방식
+  {key:'dj2',text:'당직2',group:'인원 집계 제외',bg:'#fdf0ef',color:'#d65a52'},
+  {key:'jo2',text:'조근2',group:'인원 집계 제외',bg:'var(--r-jogeun-bg)',color:'var(--r-jogeun-fg)'},
+  {key:'il2',text:'일근2',group:'인원 집계 제외',bg:'var(--r-ilgeun-bg)',color:'var(--r-ilgeun-fg)'},
   ...['출장','Jr.캠프','AI 교육','교육','면접관','대의원','주.캠','NDS'].map(text=>({key:text,text,group:'출장 · 교육 · 기타',bg:'#ffc1df',color:'#000000'})),
   ...['Jr.휴가','경조','공가'].map(text=>({key:text,text,group:'휴가',kind:'leave'})),
   {key:'ojende8',text:'오전8데',group:'복합 근무',kind:'ojende8'}
 ];
+// 직접 만든 특수 근무(11-10 사용자: "명칭이 너무 다양 — 똑같이 계산되는데 이름만 내가 원하는 대로"): 분류만 고르면 색·계산은 분류대로, 이름은 마음대로.
+// 저장 = data.settings.customDuties [{cat, text}], 키 = 'c:<분류>:<이름>'(목록에 없어도 키만으로 넣을 수 있음 — 오른쪽 클릭 '이름 직접 입력')
+const DUTY_CATS = {
+  offsite:{group:'출장 · 교육 · 기타',label:'출장·교육·기타',bg:'#ffc1df',color:'#000000'},
+  leave:{group:'휴가',label:'휴가',kind:'leave'},
+  nocount:{group:'인원 집계 제외',label:'집계 제외',bg:'#d9d9d9',color:'#333333',excl:true}
+};
+const _sdEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function _customDuties(){ const a=(data.settings&&Array.isArray(data.settings.customDuties))?data.settings.customDuties:[]; return a.filter(c=>c&&DUTY_CATS[c.cat]&&String(c.text||'').trim()); }
+function _dutyFromKey(key){
+  const b=SPECIAL_DUTIES.find(d=>d.key===key); if(b) return b;
+  const m=/^c:(offsite|leave|nocount):(.+)$/.exec(String(key||'')); if(!m) return null;
+  const c=DUTY_CATS[m[1]], text=m[2].trim().slice(0,12); if(!text) return null;
+  return {key:'c:'+m[1]+':'+text,text,group:c.group,cat:m[1],custom:true,...(c.kind?{kind:c.kind}:{bg:c.bg,color:c.color}),...(c.excl?{excl:true}:{})};
+}
+function _allDuties(){ return [...SPECIAL_DUTIES, ..._customDuties().map(c=>_dutyFromKey('c:'+c.cat+':'+c.text)).filter(Boolean)]; }
+// 칸 글자로 찾기(타이핑) — 기본 목록·직접 만든 목록에서 같은 이름
+function _dutyByText(t){ const k=String(t||'').replace(/\s+/g,'').toLowerCase(); return k?_allDuties().find(d=>String(d.text).replace(/\s+/g,'').toLowerCase()===k&&d.kind!=='ojende8')||null:null; }
+function _dutySwatch(d){ return d.kind==='leave'?{bg:'rgba(199,154,94,.14)',color:'#b07d3c'}:d.kind==='ojende8'?{bg:'rgba(67,107,181,.12)',color:'#436bb5'}:{bg:d.bg||'var(--surface2)',color:d.color||'var(--text)'}; }
+function _customDutyAdd(cat,text){
+  text=String(text||'').trim().slice(0,12); if(!DUTY_CATS[cat]||!text) return null;
+  data.settings ||= {};
+  const list=(data.settings.customDuties=Array.isArray(data.settings.customDuties)?data.settings.customDuties:[]);
+  if(!SPECIAL_DUTIES.some(d=>d.text===text&&(DUTY_CATS[cat].group===d.group))&&!list.some(c=>c.cat===cat&&c.text===text)){ list.push({cat,text}); saveData(data); }
+  return 'c:'+cat+':'+text;
+}
+function _customDutyDel(cat,text){
+  const list=(data.settings&&Array.isArray(data.settings.customDuties))?data.settings.customDuties:[];
+  const i=list.findIndex(c=>c.cat===cat&&c.text===text); if(i<0) return;
+  if(!confirm(`'${text}'를 목록에서 뺄까요?\n(이미 넣은 칸은 그대로예요)`)) return;
+  list.splice(i,1); saveData(data);
+}
 let _specialDutyTarget = null;
 function _assignSpecialDuty(entry, staffId, ds, key, leaves) {
-  const duty=SPECIAL_DUTIES.find(d=>d.key===key);
+  const duty=_dutyFromKey(key);
   if(!duty)return false;
   _brushClearStaff(entry,staffId,ds,leaves);
   if(duty.kind==='leave'){
@@ -82,6 +119,15 @@ function closeSpecialDutyPicker(){
   document.getElementById('special-duty-modal')?.remove();
   _specialDutyTarget=null;
 }
+function _sdBody(){
+  const t=_specialDutyTarget, all=_allDuties(), groups=['인원 집계 제외','출장 · 교육 · 기타','휴가','복합 근무'];
+  const catOf=g=>Object.keys(DUTY_CATS).find(k=>DUTY_CATS[k].group===g);
+  return `<p>${t?'선택한 날짜의 근무를 바꿔요.':'근무를 고른 뒤 표의 칸을 누르면 들어가요.'} 출장·교육은 엑셀처럼 인원 집계에서 빠져요. <b>+ 직접 추가</b>로 이름을 마음대로 만들 수 있어요(색·계산은 그 묶음대로).</p>`
+    +groups.map(g=>{ const cat=catOf(g);
+      return `<h3>${g}</h3><div class="special-duty-grid">`+all.filter(d=>d.group===g).map(d=>{ const sw=_dutySwatch(d);
+        return `<button type="button" data-key="${_sdEsc(d.key)}" style="--sd-bg:${sw.bg};--sd-fg:${sw.color}">${_sdEsc(d.label||d.text)}${d.custom?`<span class="sd-del" data-del-cat="${d.cat}" data-del-text="${_sdEsc(d.text)}" role="button" aria-label="${_sdEsc(d.text)} 목록에서 빼기" title="목록에서 빼기">×</span>`:''}</button>`; }).join('')
+        +(cat?`<button type="button" class="sd-add" data-add-cat="${cat}">+ 직접 추가</button>`:'')+`</div>`; }).join('');
+}
 function openSpecialDutyPicker(staffId,ds){
   if(!isAdmin)return;
   closeCellPop(); closeSpecialDutyPicker();
@@ -90,23 +136,46 @@ function openSpecialDutyPicker(staffId,ds){
   modal.id='special-duty-modal'; modal.className='special-duty-overlay';
   modal.innerHTML=`<section class="special-duty-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="special-duty-title">
     <div class="modal-header"><div class="mh-title" id="special-duty-title">특수 근무 선택</div><button class="modal-close" aria-label="닫기" onclick="closeSpecialDutyPicker()">✕</button></div>
-    <div class="special-duty-body"><p>${staffId?'선택한 날짜의 근무를 바꿔요.':'근무를 고른 뒤 표의 칸을 누르면 들어가요.'} 출장·교육은 엑셀처럼 인원 집계에서 빠져요.</p>
-    ${[...new Set(SPECIAL_DUTIES.map(d=>d.group))].map(group=>`<h3>${group}</h3><div class="special-duty-grid">${SPECIAL_DUTIES.map((d,i)=>d.group===group?`<button type="button" style="--sd-bg:${d.bg||(d.kind==='leave'?'rgba(199,154,94,.14)':d.kind==='ojende8'?'rgba(67,107,181,.12)':'var(--surface2)')};--sd-fg:${d.color||(d.kind==='leave'?'#b07d3c':d.kind==='ojende8'?'#436bb5':'var(--text)')}" onclick="chooseSpecialDuty(${i})">${d.label||d.text}</button>`:'').join('')}</div>`).join('')}</div></section>`;
-  modal.addEventListener('click',e=>{ if(e.target===modal) closeSpecialDutyPicker(); });   // 바깥 누르면 닫기
-  modal.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSpecialDutyPicker(); });
+    <div class="special-duty-body">${_sdBody()}</div></section>`;
+  modal.addEventListener('click',e=>{
+    const del=e.target.closest('[data-del-cat]');
+    if(del){ e.stopPropagation(); _customDutyDel(del.dataset.delCat,del.dataset.delText); const body=modal.querySelector('.special-duty-body'); if(body) body.innerHTML=_sdBody(); return; }
+    const add=e.target.closest('[data-add-cat]');
+    if(add){ _sdAddInput(modal,add); return; }
+    const b=e.target.closest('button[data-key]');
+    if(b){ chooseSpecialDuty(b.dataset.key); return; }
+    if(e.target===modal) closeSpecialDutyPicker();   // 바깥 누르면 닫기
+  });
+  modal.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!e.target.closest('.sd-add-input')) closeSpecialDutyPicker(); });
   document.body.appendChild(modal);
   modal.querySelector('.special-duty-panel').focus();   // 닫기 버튼에 바로 초점 테가 생기지 않게 판 자체에(Esc 는 그대로)
 }
-function chooseSpecialDuty(index){
+// '+ 직접 추가' → 그 자리에 이름 칸. Enter = 목록에 넣고(칸을 골라 연 팝업이면 그 칸에 바로 넣음), Esc = 취소
+function _sdAddInput(modal,btn){
+  const cat=btn.dataset.addCat, c=DUTY_CATS[cat], sw=_dutySwatch(c.kind?{kind:c.kind}:c);
+  const inp=document.createElement('input');
+  inp.className='sd-add-input'; inp.maxLength=12; inp.placeholder='이름 입력 후 Enter'; inp.setAttribute('aria-label',c.label+' 이름');
+  inp.style.cssText=`--sd-bg:${sw.bg};--sd-fg:${sw.color}`;
+  btn.replaceWith(inp); inp.focus();
+  let done=false;
+  const fin=ok=>{ if(done) return; done=true; const v=inp.value.trim();
+    const key=ok&&v?_customDutyAdd(cat,v):null;
+    if(key&&_specialDutyTarget){ chooseSpecialDuty(key); return; }
+    const body=modal.querySelector('.special-duty-body'); if(body) body.innerHTML=_sdBody();
+    if(key) toast(`'${v}' 추가했어요 — 눌러서 넣으세요`,'success'); };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); fin(true); } else if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); fin(false); } });
+  inp.addEventListener('blur',()=>fin(!!inp.value.trim()));
+}
+function chooseSpecialDuty(key){
   if(!isAdmin)return;
-  const duty=SPECIAL_DUTIES[index]; if(!duty)return;
+  const duty=_dutyFromKey(key); if(!duty)return;
   const target=_specialDutyTarget;
   if(!target){
-    const key='special:'+duty.key;
-    WS_BRUSH_LABELS[key]=duty.label||duty.text;
+    const bkey='special:'+duty.key;
+    WS_BRUSH_LABELS[bkey]=duty.label||duty.text;
     const btn=document.getElementById('ws-special-duty');
-    if(btn){btn.dataset.brush=key;btn.textContent='특수 근무 ▾';btn.title='선택: '+(duty.label||duty.text);}
-    setWsBrush(key);closeSpecialDutyPicker();return;
+    if(btn){btn.dataset.brush=bkey;btn.textContent='특수 근무 ▾';btn.title='선택: '+(duty.label||duty.text);}
+    setWsBrush(bkey);closeSpecialDutyPicker();return;
   }
   const {staffId,ds,draft}=target;
   const staff=staffById(staffId);
