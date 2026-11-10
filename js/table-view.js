@@ -381,7 +381,7 @@ function renderTable() {
       }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
+        {const _ls=_learnStyle(entry,s.id);bg=_ls?_ls.bg:(_custom.bg||'');color=_ls?_ls.color:(_custom.color||'var(--text)');}fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
         tbody+=`<td data-sid="${s.id}" ${cl}>${text}</td>`; return;
@@ -431,7 +431,7 @@ function renderTable() {
       }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
+        {const _ls=_learnStyle(entry,s.id);bg=_ls?_ls.bg:(_custom.bg||'');color=_ls?_ls.color:(_custom.color||'var(--text)');}fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
         tbody+=`<td data-sid="${s.id}" ${cl}>${text}</td>`; return;
@@ -473,7 +473,7 @@ function renderTable() {
       }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
+        {const _ls=_learnStyle(entry,s.id);bg=_ls?_ls.bg:(_custom.bg||'');color=_ls?_ls.color:(_custom.color||'var(--text)');}fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};${_gb}`:`color:${color};font-weight:${fw};${_gb}`;
         const cl=isAdmin?`onclick="cellClick('${s.id}','${dateStr}',event)" style="cursor:pointer;${st}"`:`style="${st}"`;
         tbody+=`<td data-sid="${s.id}" ${cl}>${text}</td>`; return;

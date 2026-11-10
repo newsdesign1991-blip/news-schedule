@@ -56,6 +56,7 @@ const SPECIAL_DUTIES = [
   {key:'excluded-work',text:'정근',label:'정근 · 집계 제외',group:'인원 집계 제외',bg:'#d9d9d9',color:'#333333',excl:true},
   {key:'n',text:'N',group:'인원 집계 제외',bg:'var(--surface2)',color:'var(--muted)',excl:true},
   {key:'vw2',text:'VW2',group:'인원 집계 제외',bg:'var(--vw-bg)',color:'var(--vw-light)'},
+  {key:'cg2',text:'CG2',group:'인원 집계 제외',bg:'var(--cg-bg)',color:'var(--cg-light)'},   // CG 배우는 중(11-10) — VW2 와 같은 방식
   ...['출장','Jr.캠프','AI 교육','교육','면접관','대의원','주.캠','NDS'].map(text=>({key:text,text,group:'출장 · 교육 · 기타',bg:'#ffc1df',color:'#000000'})),
   ...['Jr.휴가','경조','공가'].map(text=>({key:text,text,group:'휴가',kind:'leave'})),
   {key:'ojende8',text:'오전8데',group:'복합 근무',kind:'ojende8'}

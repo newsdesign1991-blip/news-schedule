@@ -286,6 +286,7 @@ function renderHome() {
       : '<div class="no-data">근무자 없음</div>';
     const _cgSeen=new Set();
     const _cgAndXr=[
+      ..._vwLearnerIds(entry,hDs,'cg').map(id=>({id,isXr:false,tag:'배우는 중'})),   // CG2(11-10) — 인원엔 안 세고 목록에만
       ...(entry.cg?.workers||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:false,tag:''})),
       ...(entry.xr||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:true,tag:''})),
       ..._h8cgIds.map(id=>({id,isXr:(deptOn(staffById(id),hDs)||'').toLowerCase()==='xr',tag:'8진'})),

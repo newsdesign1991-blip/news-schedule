@@ -819,6 +819,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
     <button class="ws-brush-btn" data-brush="leave"    onclick="setWsBrush('leave')"    style="border-color:#e2d2a8;background:#fdf8ee;color:#c79a5e;">신휴가</button>
     <button class="ws-brush-btn" data-brush="jogeun-edu" onclick="setWsBrush('jogeun-edu')" style="border-color:#a8d5b8;background:#d4edda;color:#276c3e;">조근교육</button>
     <button class="ws-brush-btn" id="ws-special-duty" onclick="openSpecialDutyPicker()" title="집계 제외 정근 · N · VW2 · 출장 · 교육 · 기타 휴가">특수 근무 ▾</button>
+    <button class="ws-brush-btn" data-brush="rest"     onclick="setWsBrush('rest')"     style="border-color:var(--border);background:var(--surface);color:var(--muted);" title="작성소엔 '휴무', 배포한 근무표엔 빈칸(인원에 안 셈)">휴무</button>
     <button class="ws-brush-btn" data-brush="off"      onclick="setWsBrush('off')"      style="border-color:var(--border);background:#f8fafc;color:var(--muted);">지우기</button>
     <span id="ws-brush-label" style="font-size:11px;color:#6366f1;font-weight:600;margin-left:4px;display:none;"></span>
   </div>
@@ -1228,7 +1229,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.11.09 17:41';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.11.10 16:02';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1488,18 +1489,18 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/core.js?v=8fb8260c"></script>
 <script src="js/project-gantt.js?v=64b2c52b"></script>
 <script src="js/nav-admin.js?v=4d18ca03"></script>
-<script src="js/home.js?v=92869146"></script>
-<script src="js/table-view.js?v=98eda78f"></script>
+<script src="js/home.js?v=4386ab7c"></script>
+<script src="js/table-view.js?v=4c698fd3"></script>
 <script src="js/calendar.js?v=5231a1d9"></script>
 <script src="js/generation.js?v=4438c90c"></script>
-<script src="js/workshop.js?v=86564b76"></script>
-<script src="js/excel-import.js?v=b1591181"></script>
+<script src="js/workshop.js?v=8edddfcc"></script>
+<script src="js/excel-import.js?v=ede647e9"></script>
 <script src="js/events.js?v=291f1d5a"></script>
 <script src="js/publish.js?v=1b372795"></script>
 <script src="js/leave-request.js?v=270302b9"></script>
 <script src="js/staff.js?v=f01496d9"></script>
 <script src="js/admin.js?v=87a8bb9f"></script>
-<script src="js/cell-edit.js?v=828de8e4"></script>
+<script src="js/cell-edit.js?v=e2a7fd7b"></script>
 <script src="js/login-ui.js?v=fe172700"></script>
 <script src="js/notice.js?v=126f20c7"></script>
 <script src="js/poll.js?v=d5d86108"></script>
@@ -1518,7 +1519,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/holiday-work.js?v=332135fe"></script>
 <script src="js/onboard.js?v=340381f5"></script>
 <script src="js/home-tiles.js?v=68cfb2c2"></script>
-<script src="js/cg-assign.js?v=2ba35acf"></script>
+<script src="js/cg-assign.js?v=b5f893c3"></script>
 <script src="js/app-mode.js?v=6a8d910b"></script>
 <script src="js/look-chara.js?v=444bac87"></script>
 <script src="js/look.js?v=32e796ab"></script>

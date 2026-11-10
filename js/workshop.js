@@ -300,7 +300,7 @@ function renderWorkshopTable() {
       }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
+        {const _ls=_learnStyle(entry,s.id);bg=_ls?_ls.bg:(_custom.bg||'');color=_ls?_ls.color:(_custom.color||'var(--text)');}fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="cursor:pointer;${st}">${text}</td>`;
         return;
@@ -315,7 +315,7 @@ function renderWorkshopTable() {
       else if(entry?.satMorning===s.id){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(s.id===danjikOffId&&!_hasBrush(entry,s.id,'work',dateStr)){text='';}
       else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
-      else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
+      else if((entry?.restWorkers||[]).includes(s.id)){color='var(--muted)';text='휴무';}   // 작성소만 '휴무'(배포 근무표는 빈칸, 11-10)
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='var(--r-edu-bg)';color='var(--r-edu-fg)';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
@@ -349,7 +349,7 @@ function renderWorkshopTable() {
       }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
+        {const _ls=_learnStyle(entry,s.id);bg=_ls?_ls.bg:(_custom.bg||'');color=_ls?_ls.color:(_custom.color||'var(--text)');}fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="cursor:pointer;${st}">${text}</td>`;
         return;
@@ -361,7 +361,7 @@ function renderWorkshopTable() {
       } else if(!isWeekdayForm(dateStr)){   // 주말·주말 편성 공휴일: 조근조는 쉼(8진만)
         if(entry?.weekend8jin===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진';}
         else if(entry?.weekend8jin2===s.id){workCount[s.id]++;color='#d65a52';fw='700';text='8진2';}
-      } else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
+      } else if((entry?.restWorkers||[]).includes(s.id)){color='var(--muted)';text='휴무';}   // 작성소만 '휴무'
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='var(--r-edu-bg)';color='var(--r-edu-fg)';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
@@ -389,7 +389,7 @@ function renderWorkshopTable() {
       }
       const _custom=entry?.customCells?.[s.id];
       if(_custom?.text){
-        bg=_isVw2(entry,s.id)?'var(--vw-bg)':(_custom.bg||'');color=_isVw2(entry,s.id)?'var(--vw-light)':(_custom.color||'var(--text)');fw='700';text=_custom.text;workCount[s.id]++;
+        {const _ls=_learnStyle(entry,s.id);bg=_ls?_ls.bg:(_custom.bg||'');color=_ls?_ls.color:(_custom.color||'var(--text)');}fw='700';text=_custom.text;workCount[s.id]++;
         const st=bg?`background:${bg};color:${color};font-weight:${fw};`:`color:${color};font-weight:${fw};`;
         tbody+=`<td data-sid="${s.id}" data-ds="${dateStr}" onclick="wsCellClick(this,event)" style="cursor:pointer;${st}${_gb}">${text}</td>`;
         return;
@@ -404,7 +404,7 @@ function renderWorkshopTable() {
       else if(entry?.satMorning===s.id){workCount[s.id]++;bg='var(--r-jogeun-bg)';color='var(--r-jogeun-fg)';fw='700';text='조근';}
       else if(s.id===danjikOffId&&!_hasBrush(entry,s.id,'work',dateStr)){text='';}
       else if(s.id===danjikId&&entry){workCount[s.id]++;bg='#d65a52';color='#fff';fw='700';text='당직';}
-      else if((entry?.restWorkers||[]).includes(s.id)){text=' ';}
+      else if((entry?.restWorkers||[]).includes(s.id)){color='var(--muted)';text='휴무';}   // 작성소만 '휴무'(배포 근무표는 빈칸, 11-10)
       else if((entry?.jogeunEdu||[]).includes(s.id)){workCount[s.id]++;bg='var(--r-edu-bg)';color='var(--r-edu-fg)';fw='700';text='조근';}
       else if(entry?.newsOh===s.id){workCount[s.id]++;bg='var(--r-news-bg)';color='var(--r-news-fg)';fw='700';text='뉴.오';}
       else if(entry?.newsOh2===s.id){workCount[s.id]++;bg='var(--r-news2-bg)';color='var(--r-news2-fg)';fw='700';text='뉴.오2';}
@@ -521,7 +521,7 @@ function renderWorkshopTable() {
 
 let wsBrushType = null;
 const WS_BRUSH_LABELS = {
-  'select':'마우스 선택','special:excluded-work':'정근 · 집계 제외','special:n':'N','special:vw2':'VW2',
+  'select':'마우스 선택','special:excluded-work':'정근 · 집계 제외','special:n':'N','special:vw2':'VW2','special:cg2':'CG2','rest':'휴무',
   'work':'정근','vw-desk':'VW데스크','desk8':'8데스크','desk5':'5데스크',
   'danjik':'당직','jogeun':'조근','ojende':'오전데','8jin':'8진','8jin2':'8진2',
   'ilgeun':'일근','newsoh':'뉴.오','newsoh2':'뉴.오2','leave':'신휴가','off':'지우기'
@@ -611,6 +611,7 @@ function _hasBrush(entry, staffId, bt, ds) {
     case 'vw-sub':  return (entry?.vw?.workers||[]).includes(staffId);
     case 'cg-sub':  return (entry?.cg?.workers||[]).includes(staffId);
     case 'leave':   return (data.draft?.newLeaves?.[ds]||[]).includes(staffId);
+    case 'rest':    return (entry?.restWorkers||[]).includes(staffId);   // 휴무(11-10): 작성소엔 '휴무', 배포 근무표엔 빈칸
     default: return false;
   }
 }
@@ -663,6 +664,8 @@ function _applyBrush(staffId, ds, skipRender) {
 
   if (bt === 'off') {
     // 지우기
+  } else if (bt === 'rest') {
+    (entry.restWorkers ||= []).push(staffId);   // 휴무 — 근무 인원에 안 셈
   } else if (bt === 'work') {
     _brushAddWorker(entry, staffId, dept);
   } else if (bt === 'vw-desk') {
@@ -758,6 +761,8 @@ const WS_TYPE_MAP = {
   '조근교육':'jogeun-edu','조근-교육':'jogeun-edu',
   'vw':'vw-sub','cg':'cg-sub',
   '신휴가':'leave','휴가':'leave','연차':'leave',
+  '휴무':'rest','휴':'rest','쉼':'rest','쉬는날':'rest',   // 휴무(11-10)
+  'vw2':'special:vw2','vw②':'special:vw2','cg2':'special:cg2','cg②':'special:cg2',   // 배우는 중(인원 집계 제외)
   '지우기':'off','삭제':'off','off':'off','x':'off','없음':'off','-':'off'
 };
 function _wsTypeApply(sid, ds, type){

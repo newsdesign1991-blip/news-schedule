@@ -695,7 +695,7 @@ function _cgaRoleTag(name, ds) {
   const r = typeof workCellRole === 'function' ? workCellRole(e, s, ds) : '';
   const k = r && typeof WORK_TYPE_MAP !== 'undefined' ? WORK_TYPE_MAP[_normalizeImportedWorkType(r)] : null;
   const sub = t => t === dp ? t : t + '대체';   // 다른 부서 일을 하면 'VW대체'·'CG대체'(11-03 사용자)
-  if (k === 'vw2') return r;   // VW②(배우는 중)는 칸 글자 그대로
+  if (k === 'vw2' || k === 'cg2') return r;   // VW②·CG2(배우는 중)는 칸 글자 그대로
   if (k === 'vw-sub') return sub('VW');
   if (k === 'cg-sub') return sub('CG');
   if (r === 'XR') return 'XR';
