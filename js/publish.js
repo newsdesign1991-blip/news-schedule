@@ -6,21 +6,22 @@ function wsShowDay(dateStr) {
 
 function publishSchedule() {
   if (!isAdmin) return;
-  const draftSched = data.draft.schedule;
-  if (!Object.keys(draftSched).length) { toast('초안 근무표가 없습니다.','error'); return; }
-  // draft → published: 범위 내 기존 데이터 먼저 제거 후 덮어쓰기
-  if (data.draft.rangeStart && data.draft.rangeEnd) {
-    const _cur = new Date(data.draft.rangeStart + 'T00:00:00');
-    const _end = new Date(data.draft.rangeEnd + 'T00:00:00');
-    while (_cur <= _end) {
-      const _ds = toDateStr(_cur.getFullYear(), _cur.getMonth()+1, _cur.getDate());
-      delete data.schedule[_ds];
-      delete data.newLeaves[_ds];
-      _cur.setDate(_cur.getDate()+1);
-    }
+  // 11-14 사용자: "12월 시안을 짜다가 11월을 고쳐 배포했더니 12월 시안까지 같이 배포됨" — 예전엔 초안 전체(모든 날짜)를 근무표에 붙였음.
+  // 이제 작성소 화면의 기간(시작~끝)만 배포 — 그 밖의 날짜(짜던 다음 달 시안·지난 달 초안)는 근무표에 손대지 않음
+  const rs = wsRangeStart || data.draft.rangeStart, re = wsRangeEnd || data.draft.rangeEnd;
+  if (!rs || !re || rs > re) { toast('배포할 기간(시작~끝)을 먼저 정해 주세요.','error'); return; }
+  const draftSched = data.draft.schedule || {}, draftLv = data.draft.newLeaves || {};
+  const days = []; for (let d = rs; d <= re; d = addDays(d, 1)) days.push(d);
+  if (!days.some(d => draftSched[d])) { toast('이 기간('+rs+' ~ '+re+')에 초안이 없습니다.','error'); return; }
+  if (!confirm('이 기간만 배포해요:\n\n'+rs+' ~ '+re+' ('+days.length+'일)\n\n그 밖의 날짜(짜고 있는 다른 달 시안 등)는 배포하지 않아요.')) return;
+  data.draft.rangeStart = rs; data.draft.rangeEnd = re;
+  // draft → published: 범위 내 기존 데이터 먼저 제거 후 그 기간만 덮어쓰기
+  for (const ds of days) {
+    delete data.schedule[ds];
+    delete data.newLeaves[ds];
+    if (draftSched[ds]) data.schedule[ds] = JSON.parse(JSON.stringify(draftSched[ds]));
+    if (draftLv[ds]) data.newLeaves[ds] = [...draftLv[ds]];
   }
-  Object.assign(data.schedule, draftSched);
-  Object.assign(data.newLeaves, data.draft.newLeaves||{});
   // tableRange를 draft 범위로 맞춤
   if (data.draft.rangeStart) { tableRangeStart=data.draft.rangeStart; tableRangeEnd=data.draft.rangeEnd; }
   // 배포 기록 저장

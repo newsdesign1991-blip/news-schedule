@@ -479,6 +479,7 @@ function confirmDeletePublished(){
   while(cur<=end){
     const ds=toDateStr(cur.getFullYear(),cur.getMonth()+1,cur.getDate());
     if(data.schedule && data.schedule[ds]!==undefined){ delete data.schedule[ds]; cnt++; }
+    if(data.newLeaves && data.newLeaves[ds]!==undefined) delete data.newLeaves[ds];   // 그 기간 휴가 기록도(배포가 같이 올림 — 11-14)
     cur.setDate(cur.getDate()+1);
   }
   saveData(data);
