@@ -15,6 +15,7 @@ function _getPersonRoles(entry, sid, ds) {   // ds 있으면 조근 부서 기�
   if (entry.newsOh2===sid) roles.push({label:'뉴.오2',bg:'#f3ddc0',color:'#b07d4a',border:'#d9b483'});
   if (entry.weekend8jin===sid) roles.push({label:'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
   if (entry.weekday8jin===sid) roles.push({label:'평일 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
+  if (entry.weekend8jin!==sid&&entry.weekday8jin!==sid&&ndNote8jin(entry).j1.includes(sid)) roles.push({label:isWeekdayForm(ds)?'평일 8진':'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});   // 비고 '이름 8진'(11-17)
   if (entry.morningDesk===sid) roles.push({label:'오데',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
   if (entry.satMorning===sid) roles.push({label:'토요 조근',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
   if (entry.ilgeun===sid) roles.push({label:'일근',bg:'#d1fae5',color:'#45847a',border:'#6ee7b7'});
@@ -41,7 +42,7 @@ function _dinnerIsRegular(s, ds) {
   // Known custom labels use the same documented 12:00–21:00 shift; unknown labels are not guessed.
   const custom = e.customCells?.[id]?.text;
   if (custom) return ['정근','8진','8진2','VW','CG','VW대','CG대','VW대체','CG대체','데스크','VW데스크','8데스','5데스','8데스크','5데스크'].includes(custom.replace(/\s/g,''));
-  const regularRoles = [e.vw?.desk,e.cg?.desk,e.cg?.desk8,e.cg?.desk5,e.weekend8jin,e.weekday8jin,e.weekend8jin2,e.weekday8jin2];
+  const regularRoles = [e.vw?.desk,e.cg?.desk,e.cg?.desk8,e.cg?.desk5,e.weekend8jin,e.weekday8jin,e.weekend8jin2,e.weekday8jin2,...ndNote8jin(e).j1,...ndNote8jin(e).j2];   // 비고 '이름 8진'(11-17)
   if (regularRoles.includes(id)) return true;
   // Work location and added duties do not change the regular shift hours.
   return [e.vw?.workers,e.cg?.workers,e.xr,e.project,e.sports].some(workers => (workers || []).includes(id));
@@ -253,6 +254,7 @@ function renderMySchedule() {
     if (entry.newsOh2===sid) roles.push({label:'뉴.오2',bg:'#f3ddc0',color:'#b07d4a',border:'#d9b483'});
     if (entry.weekend8jin===sid) roles.push({label:'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
     if (entry.weekday8jin===sid) roles.push({label:'평일 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});
+    if (entry.weekend8jin!==sid&&entry.weekday8jin!==sid&&ndNote8jin(entry).j1.includes(sid)) roles.push({label:isWeekdayForm(ds)?'평일 8진':'주말 8진',bg:'#ede9fe',color:'#6366f1',border:'#c4b5fd'});   // 비고 '이름 8진'(11-17)
     if (entry.morningDesk===sid) roles.push({label:'오데',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
     if (entry.satMorning===sid) roles.push({label:'토요 조근',bg:'#fef3c7',color:'#c79a5e',border:'#fcd97d'});
     if (entry.ilgeun===sid) roles.push({label:'일근',bg:'#d1fae5',color:'#45847a',border:'#6ee7b7'});

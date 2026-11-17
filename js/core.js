@@ -251,6 +251,24 @@ function getStaff(dept, ds) {
   return dept ? active.filter(s => deptOn(s, ds) === dept) : active;
 }
 function staffById(id) { return data.staff.find(s => s.id === id); }
+// 비고에 '이름 8진'('이름:8진'·'8진 이름', 8진2 도)으로 적은 사람(11-17 사용자: 칸엔 VW 등 다른 근무라 8진을 못 넣고 비고에 쓴 날도 홈·알림 등에서 8진으로) → { j1:[id], j2:[id] }
+// 근무표 칸 글자·인원수는 그대로(엑셀처럼). 알림 서버 supabase/functions/notify note8jinIds 와 같은 규칙
+function ndNote8jin(entry) {
+  const t = String(entry && entry.notes || ''), r = { j1: [], j2: [] };
+  if (!/8\s*진/.test(t)) return r;
+  for (const s of (data.staff || [])) {
+    const n = String(s.name || '').trim(); if (n.length < 2 || !t.includes(n)) continue;
+    const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const m = new RegExp('(?<![가-힣])' + esc + '(?![가-힣])\\s*[:：]?\\s*8\\s*진\\s*(2|②)?').exec(t) || new RegExp('8\\s*진\\s*(2|②)?\\s*[:：]?\\s*' + esc + '(?![가-힣])').exec(t);
+    if (m) (m[1] ? r.j2 : r.j1).push(s.id);
+  }
+  return r;
+}
+// 그날 8진 = 8진 칸 + 비고 (중복 없이) → { j1, j2 }
+function nd8jinIds(entry) {
+  const n = ndNote8jin(entry);
+  return { j1: [...new Set([entry?.weekend8jin, entry?.weekday8jin, ...n.j1].filter(Boolean))], j2: [...new Set([entry?.weekend8jin2, entry?.weekday8jin2, ...n.j2].filter(Boolean))] };
+}
 // 표의 CG 묶음(11-04 사용자): XR을 따로 빼지 않고 CG 줄 안에 섞음 — XR은 _dept 'xr'(칸 계산·이름 색)
 //   CG 사람은 원래 순서(직원 먼저, data.staff 순서) 그대로. XR 사람은 건제 순서(js/staff.js STAFF_ORG_ORDER)에서 바로 앞 사람 중 표에 있는 사람 뒤에
 //   (예: 김한길 = 박천웅 뒤, 전유근 = 김민영 뒤 — data.staff 순서로 넣으면 전유근이 한흥수 뒤로 가서 '이상함', 사용자). 건제에 없으면 data.staff 순서 자리

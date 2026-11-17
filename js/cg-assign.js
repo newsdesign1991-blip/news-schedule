@@ -47,7 +47,7 @@ function _cgaPeople(ds) {
   (entry.xr || []).forEach(id => add(id, 'XR', false));   // XR 근무(10-20)
   // 프로젝트 인원은 부서와 상관없이 늘 넣음(10-20) — 휴가·수습만 뺌
   (entry.project || []).forEach(id => { const s = staffById(id); if (!s || seen.has(id) || lv.has(id) || (typeof isProbation === 'function' && isProbation(s, ds))) return; seen.add(id); out.push({ id, name: s.name, tag: 'PROJECT' }); });
-  [['8진', entry.weekend8jin], ['8진', entry.weekday8jin], ['8진', entry.weekend8jin2], ['8진', entry.weekday8jin2], ['뉴.오', entry.newsOh], ['뉴.오', entry.newsOh2], ['일근', entry.ilgeun]]
+  [['8진', entry.weekend8jin], ['8진', entry.weekday8jin], ['8진', entry.weekend8jin2], ['8진', entry.weekday8jin2], ...(typeof ndNote8jin === 'function' ? (x => [...x.j1, ...x.j2].map(id => ['8진', id]))(ndNote8jin(entry)) : []), ['뉴.오', entry.newsOh], ['뉴.오', entry.newsOh2], ['일근', entry.ilgeun]]
     .forEach(([t, id]) => { if (id && seen.has(id)) { const p = out.find(x => x.id === id); if (p && !p.tag) p.tag = t; } else add(id, t, true); });
   // 표에 보이는 그대로(10-21): 엑셀에서 가져온 칸·손으로 쓴 칸은 그 글자를 따름 — 예) 부서를 VW→CG로 옮겼는데 그날 목록은 예전 VW 그대로이고
   //   표의 CG 줄 칸엔 '정근'이 보이는 경우. 그냥 목록만 있는 칸(VW 대체 등)은 위에서 이미 셈. 회색(특별 작업)·집계 제외 칸은 뺌

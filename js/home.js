@@ -279,16 +279,17 @@ function renderHome() {
     }).join('');
   }
   if (entry) {
+    const _n8s=new Set((()=>{const x=nd8jinIds(entry);return [...x.j1,...x.j2];})());   // 근무자 목록에 '8진' 표시(비고 '이름 8진' 포함, 11-17)
     const _vwSeen=new Set();
-    const _vwAll=[..._vwLearnerIds(entry,hDs).map(id=>({id,tag:'배우는 중'})),...(entry.vw?.workers||[]).map(id=>({id,tag:''})),..._h8vwIds.map(id=>({id,tag:'8진'})),..._hNoVwIds.map(id=>({id,tag:'뉴.오'})),...(_ilVwAdd?[{id:entry.ilgeun,tag:'일근'}]:[])].filter(x=>x.id&&!_vwSeen.has(x.id)&&(_vwSeen.add(x.id),true)).sort((a,b)=>_byStaffOrder(a.id,b.id));
+    const _vwAll=[..._vwLearnerIds(entry,hDs).map(id=>({id,tag:'배우는 중'})),...(entry.vw?.workers||[]).map(id=>({id,tag:_n8s.has(id)?'8진':''})),..._h8vwIds.map(id=>({id,tag:'8진'})),..._hNoVwIds.map(id=>({id,tag:'뉴.오'})),...(_ilVwAdd?[{id:entry.ilgeun,tag:'일근'}]:[])].filter(x=>x.id&&!_vwSeen.has(x.id)&&(_vwSeen.add(x.id),true)).sort((a,b)=>_byStaffOrder(a.id,b.id));
     document.getElementById('vw-today-chips').innerHTML=_vwAll.length
       ? _vwAll.map(({id,tag})=>{const s=staffById(id);if(!s)return '';const isDesk=id===entry.vw?.desk;const _t=tag?` <span style="opacity:.55;font-size:9px;font-weight:700;">${tag}</span>`:'';return `<span class="wchip vw">${isDesk?'<span class="desk-star">★</span>':''}${s.name}${_t}</span>`}).join('')
       : '<div class="no-data">근무자 없음</div>';
     const _cgSeen=new Set();
     const _cgAndXr=[
       ..._vwLearnerIds(entry,hDs,'cg').map(id=>({id,isXr:false,tag:'배우는 중'})),   // CG2(11-10) — 인원엔 안 세고 목록에만
-      ...(entry.cg?.workers||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:false,tag:''})),
-      ...(entry.xr||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:true,tag:''})),
+      ...(entry.cg?.workers||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:false,tag:_n8s.has(id)?'8진':''})),
+      ...(entry.xr||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:true,tag:_n8s.has(id)?'8진':''})),
       ..._h8cgIds.map(id=>({id,isXr:(deptOn(staffById(id),hDs)||'').toLowerCase()==='xr',tag:'8진'})),
       ..._hNoCgIds.map(id=>({id,isXr:(deptOn(staffById(id),hDs)||'').toLowerCase()==='xr',tag:'뉴.오'})),
       ...(_ilCgAdd?[{id:entry.ilgeun,isXr:(deptOn(staffById(entry.ilgeun),hDs)||'').toLowerCase()==='xr',tag:'일근'}]:[])
@@ -318,7 +319,7 @@ function renderHome() {
   }
   // 오늘의 당직자 / 오늘의 8진
   const _dutyName = entry?.danjik ? (staffById(entry.danjik)?.name || '') : '';
-  const _duty8Id = entry?.weekday8jin || entry?.weekend8jin || null;
+  const _duty8Id = entry ? (nd8jinIds(entry).j1[0] || null) : null;   // 8진 칸 + 비고 '이름 8진'(11-17)
   const _duty8Name = _duty8Id ? (staffById(_duty8Id)?.name || '') : '';
   // 오늘의 뉴오(뉴스 진행): 1명이면 1행, 2명이면 각각 1행씩
   const _miss = '<span style="color:var(--muted);font-weight:600;">미정</span>';

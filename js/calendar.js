@@ -349,7 +349,7 @@ function _calRolesShort(entry, sid, ds){   // ds 있으면 조근 부서 기본 
   if(entry.ilgeun===sid) add('일근',C.g);
   if(entry.newsOh===sid) add('뉴오',C.p);
   if(entry.newsOh2===sid) add('뉴오2',C.p);
-  if(entry.weekend8jin===sid||entry.weekday8jin===sid) add('8진',C.p);
+  if(entry.weekend8jin===sid||entry.weekday8jin===sid||ndNote8jin(entry).j1.includes(sid)) add('8진',C.p);   // 비고 '이름 8진'도(11-17)
   if(entry.satMorning===sid) add('조근',C.y);
   if(entry.jogeunSubs&&Object.values(entry.jogeunSubs).includes(sid)) add('조근',C.p);
   else { const me=staffById(sid); if(me?.dept==='조근'&&(!ds||isWeekdayForm(ds))&&!(entry.jogeunSubs&&Object.keys(entry.jogeunSubs).includes(sid))) add('조근',C.p); }

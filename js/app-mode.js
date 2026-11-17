@@ -212,7 +212,7 @@ function _wtRegular(sid, ds){
   if((e.jogeunExtra||[]).includes(sid)) return false;
   const me=staffById(sid); if(me&&String(deptOn(me,ds)||'')==='조근'&&isWeekdayForm(ds)&&!(e.restWorkers||[]).includes(sid)) return false;
   return (e.vw?.workers||[]).includes(sid)||e.vw?.desk===sid||(e.cg?.workers||[]).includes(sid)||e.cg?.desk===sid||e.cg?.desk8===sid||e.cg?.desk5===sid
-    ||[e.weekday8jin,e.weekend8jin,e.weekday8jin2,e.weekend8jin2].includes(sid)||(e.xr||[]).includes(sid)||(e.project||[]).includes(sid)||(e.sports||[]).includes(sid);
+    ||[e.weekday8jin,e.weekend8jin,e.weekday8jin2,e.weekend8jin2].includes(sid)||(()=>{const x=ndNote8jin(e);return x.j1.includes(sid)||x.j2.includes(sid);})()||(e.xr||[]).includes(sid)||(e.project||[]).includes(sid)||(e.sports||[]).includes(sid);
 }
 // 그 칩 날짜의 근무 → { ...WT_REG|WT_DJ, base:근무일자 } | null
 function _wtShift(sid, ds){

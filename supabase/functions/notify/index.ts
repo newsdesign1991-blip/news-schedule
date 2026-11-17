@@ -37,6 +37,18 @@ function cronMaybeDue(lite: any, cueT: any, todayStr: string, curMin: number): b
   return false
 }
 
+// 비고에 '이름 8진'('이름:8진'·'8진 이름'·8진2)으로 적은 사람(11-17 사용자) — 칸엔 다른 근무(VW 등)가 보여도 그날 8진. js/core.js ndNote8jin 과 같은 규칙
+function note8jinIds(e: any, staff: any[]): string[] {
+  const t = String(e?.notes || ''); if (!/8\s*진/.test(t)) return []
+  const out: string[] = []
+  for (const s of (Array.isArray(staff) ? staff : [])) {
+    const n = String(s?.name || '').trim(); if (n.length < 2 || !t.includes(n)) continue
+    const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    if (new RegExp('(?<![가-힣])' + esc + '(?![가-힣])\\s*[:：]?\\s*8\\s*진').test(t) || new RegExp('8\\s*진\\s*(?:2|②)?\\s*[:：]?\\s*' + esc + '(?![가-힣])').test(t)) out.push(String(s.id))
+  }
+  return out
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
@@ -472,7 +484,7 @@ Deno.serve(async (req) => {
       if (c.k === 'news8' && hasMan8) continue
       const toMin = toMinOf(c.to)
       if (toMin < 0 || curMin >= toMin) continue
-      const ids = (c.k === 'news8' ? [e.weekday8jin, e.weekend8jin, e.weekday8jin2, e.weekend8jin2] : [e.newsOh, e.newsOh2]).filter((x: any) => x && !off.has(x)).map(String)
+      const ids = (c.k === 'news8' ? [e.weekday8jin, e.weekend8jin, e.weekday8jin2, e.weekend8jin2, ...note8jinIds(e, nd0?.staff)] : [e.newsOh, e.newsOh2]).filter((x: any) => x && !off.has(x)).map(String)
       const targets = subs.filter((x: any) => ids.includes(String(x.staff_id)) && pref(x, 'news'))
       if (!targets.length) continue
       if (!(await rateOk('cuechg', 6, 3600e3))) break
@@ -677,7 +689,7 @@ Deno.serve(async (req) => {
     if (entry.danjik === staffId) return 'danjik'
     if (entry.satMorning === staffId) return 'jogeun'   // 토요 조근(표 '조근', 알림 제어 '조근 (평일·토요)')
     if (entry.morningDesk === staffId) return 'ojende'
-    if ([entry.weekday8jin, entry.weekend8jin, entry.weekday8jin2, entry.weekend8jin2].includes(staffId)) return '8jin'
+    if ([entry.weekday8jin, entry.weekend8jin, entry.weekday8jin2, entry.weekend8jin2].includes(staffId) || note8jinIds(entry, nd?.staff).includes(staffId)) return '8jin'   // 비고 '이름 8진'도(11-17)
     if (entry.ilgeun === staffId) return 'ilgeun'
     if (entry.newsOh === staffId || entry.newsOh2 === staffId) return 'newsoh'
     if ((entry.restWorkers || []).includes(staffId)) return _offOr()   // 쉬는 사람(표 빈칸)
@@ -740,7 +752,7 @@ Deno.serve(async (req) => {
     // 제목 '근무 알림 — 8진 진행(데스크)' → PC 앱 빨간 강조 알림(1.2.9~ 머리 '8진 진행 시간이에요', 그 전 판은 '8진입니다'로 뜸)
     const desk8 = entry && entry.cg ? (entry.cg.desk8 || entry.cg.desk) : null
     if (desk8 && sub.staff_id === desk8 && wt !== '8jin' && pref(sub, 'news')) {
-      const who = [entry.weekday8jin, entry.weekend8jin, entry.weekday8jin2, entry.weekend8jin2].filter((x: any) => x && !leaves.has(x))
+      const who = [...new Set([entry.weekday8jin, entry.weekend8jin, entry.weekday8jin2, entry.weekend8jin2, ...note8jinIds(entry, nd?.staff)])].filter((x: any) => x && !leaves.has(x))
         .map((id: any) => nd?.staff?.find((st: any) => st.id === id)?.name).filter(Boolean).join('·')
       const go8 = !!(n8Use && dueD8 && (cfg.types || []).find((t: any) => t.key === '8jin')?.enabled)
       for (const [go, what, at, tg] of [[go8, '8뉴스', n8Use, 'desk8'], [dueD15, '15시 뉴스', n15, 'desk15']] as [boolean, string, string, string][]) {
