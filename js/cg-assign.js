@@ -1523,8 +1523,8 @@ function _cgvInfo(d) {
     <div class="cgv-rows">${row('의뢰', d.inputAt)}${row('프로그램', d.program)}${row('상태', d.statusName || ({ '0001': '의뢰', '0002': '배정', '0003': '보완요청', '0004': '완료' })[d.status] || '')}${row('디자이너', d.designer)}${row('배정', d.assignAt)}${row('완료', d.doneAt)}</div>`;
 }
 // NDS PrintTemplate(request-cg, 기본)과 같은 마크업·스타일
-// 인쇄 글자 크기 5단계(10-21 슬라이드) — 본문(그림 포함)을 이만큼 줄임, 마지막 = NDS 그대로
-const CGA_PRINT_ZOOM = [0.7, 0.78, 0.85, 0.92, 1];
+// 인쇄 글자 크기(10-21 슬라이드) — 본문(그림 포함)을 이만큼 줄이거나 키움, 1 = NDS 그대로. 11-19 사용자: 100% 위로 115·130·150% 추가(고른 칸 번호는 그대로 기억)
+const CGA_PRINT_ZOOM = [0.7, 0.78, 0.85, 0.92, 1, 1.15, 1.3, 1.5];
 function _cgaPrintHtml(d, o = {}) {   // o = { gap: 빈 줄 줄이기, lh: 줄 간격 좁게, zoom: 글자 크기(1 = 그대로) } — 종이 아끼기(10-21), 없으면 NDS 그대로
   const L = 'style="width: 150px;"', V = 'style="margin: 0 5px; word-break:break-all;"', SPAN = 'colspan="3"';
   const tr = (k, v) => `<tr><td><div ${L}>${k}</div></td><td ${SPAN}><div ${V}>${_cgaEsc(v || '')}</div></td></tr>`;
@@ -1550,7 +1550,7 @@ function _cgaPrintHtml(d, o = {}) {   // o = { gap: 빈 줄 줄이기, lh: 줄 �
     div.print-content-place p { margin: 0; font-size: 10px; line-height: 1.9; }`
     + `div.print-content-place .pgap { display: block; height: 4px; }`
     + (o.lh ? `div.print-content-place, div.print-content-place p { line-height: 1.4; }` : '')
-    + (o.zoom && o.zoom < 1 ? `div.print-content-place { zoom: ${Number(o.zoom)}; }` : '')
+    + (o.zoom && o.zoom !== 1 ? `div.print-content-place { zoom: ${Number(o.zoom)}; }` : '')   // 1보다 크면 키움(그림은 max-width 100% 라 종이 밖으로 안 나감)
     + (o.tightEnd ? `div.print-content-place { padding-bottom: 0 !important; } div.view-contents > div:first-child { border-bottom: 0; }` : '');
   return `<!doctype html><html><head><meta charset="utf-8"><title>CG의뢰</title><style>${css}</style></head><body><div class="print-box">`
     + `<div class="print-title"><h2>CG의뢰</h2></div><div class="view-box"><div class="view-contents"><div>${table}<div style="padding: 1.25rem;" class="print-content-place">${_cgaPrintBody(d.content, o)}</div></div></div></div></div></body></html>`;
@@ -1615,7 +1615,7 @@ function _cgaLastCol(doc, step) {
 async function _cgaPrintPreview(d) {
   document.getElementById('cga-pv')?.remove();
   let pref = {}; try { pref = JSON.parse(localStorage.getItem('nd_cga_print') || '{}') || {}; } catch (e) { pref = {}; }
-  const zi0 = Number.isInteger(pref.size) && pref.size >= 0 && pref.size < CGA_PRINT_ZOOM.length ? pref.size : (pref.small ? 2 : CGA_PRINT_ZOOM.length - 1);
+  const zi0 = Number.isInteger(pref.size) && pref.size >= 0 && pref.size < CGA_PRINT_ZOOM.length ? pref.size : (pref.small ? 2 : CGA_PRINT_ZOOM.indexOf(1));   // 처음 = 100%
   let opt = { gap: !!pref.gap, lh: !!pref.lh, zoom: CGA_PRINT_ZOOM[zi0] }, html = _cgaPrintHtml(d, opt);   // 종이 아끼기(10-21) — 지난번 고른 대로
   const el = document.createElement('div'); el.id = 'cga-pv'; el.className = 'cpv-pop';
   el.innerHTML = `<div class="cpv-card" role="dialog" aria-modal="true" aria-label="인쇄">
@@ -1631,7 +1631,7 @@ async function _cgaPrintPreview(d) {
         <p class="cpv-sec">종이 아끼기 <small>글자·그림은 그대로, 빈 줄·간격·크기만 줄여요</small></p>
         <div class="cpv-f"><span>빈 줄</span><div class="cpv-seg" id="cpv-gap-seg"><button type="button" data-v="0">그대로</button><button type="button" data-v="1">줄이기</button></div><select id="cpv-gap" hidden><option value="0">그대로</option><option value="1">줄이기</option></select></div>
         <div class="cpv-f"><span>줄 간격</span><div class="cpv-seg" id="cpv-lh-seg"><button type="button" data-v="0">기본</button><button type="button" data-v="1">좁게</button></div><select id="cpv-lh" hidden><option value="0">기본</option><option value="1">좁게</option></select></div>
-        <div class="cpv-f"><span>글자 크기</span><div class="cpv-steps" id="cpv-steps" role="radiogroup" aria-label="글자 크기"><span class="cpv-thumb" aria-hidden="true"></span>${CGA_PRINT_ZOOM.map((z, i) => `<button type="button" role="radio" data-i="${i}">${Math.round(z * 100)}%</button>`).join('')}</div></div>
+        <div class="cpv-f"><span>글자 크기</span><div class="cpv-steps${CGA_PRINT_ZOOM.length > 5 ? ' many' : ''}" id="cpv-steps" role="radiogroup" aria-label="글자 크기" style="--n:${CGA_PRINT_ZOOM.length}"><span class="cpv-thumb" aria-hidden="true"></span>${CGA_PRINT_ZOOM.map((z, i) => `<button type="button" role="radio" data-i="${i}">${Math.round(z * 100)}%</button>`).join('')}</div></div>
         <p class="cpv-note">고른 프린터·설정은 다음에도 그대로예요.</p>
       </div>
       <p class="cpv-st" id="cpv-st" role="status"></p>
