@@ -1229,7 +1229,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.11.19 13:33';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.11.20 16:07';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1534,9 +1534,17 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   d.innerHTML='<div style="width:100%;max-width:340px;border-radius:20px;overflow:hidden;background:'+(dk?'#1c1c1e':'#fff')+';box-shadow:0 20px 50px rgba(0,0,0,.3);">'
    +'<div style="background:#ef4444;color:#fff;padding:16px 20px;font-size:17px;font-weight:700;">앱을 다 불러오지 못했어요</div>'
    +'<div style="padding:18px 20px 20px;color:'+(dk?'#e5e5ea':'#1f2937')+';font-size:14px;line-height:1.6;">일부 파일을 받는 중 연결이 끊겼어요.<br>이 상태로 쓰면 저장이 제대로 안 될 수 있어요. 새로고침해 주세요.'
-   +'<button type="button" onclick="location.reload()" style="display:block;width:100%;margin-top:16px;padding:13px 0;border:0;border-radius:12px;background:#3182f6;color:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer;">새로고침</button></div></div>';
+   +'<div style="margin-top:8px;font-size:11.5px;line-height:1.5;color:'+(dk?'#8e8e93':'#6b7280')+';word-break:break-all;">못 받은 파일: '+f.map(function(u){return String(u).replace(/^.*\/((?:js|css)\/[^?#]+).*$/,'$1');}).slice(0,4).join(', ')+(f.length>4?' 외 '+(f.length-4)+'개':'')+'<br>계속 뜨면 앱을 완전히 끄고(오른쪽 아래 트레이 아이콘도) 다시 켜 주세요.</div>'
+   +'<button type="button" onclick="__ndModRetry(this)" style="display:block;width:100%;margin-top:16px;padding:13px 0;border:0;border-radius:12px;background:#3182f6;color:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer;">새로고침</button></div></div>';
   document.body.appendChild(d);
  }
+ // 11-20: 한 PC(윈도우 업데이트 날)에서 계속 뜸 — 그냥 새로고침은 깨진 채 저장된 파일(앱 캐시)을 또 씀 → 못 받은 파일을 서버에서 새로 받아 캐시를 바꾼 뒤 새로고침
+ window.__ndModRetry=function(b){
+  try{ b.disabled=true; b.textContent='새로 받는 중…'; }catch(e){}
+  var f=window.__ndModFail||[], go=function(){ location.reload(); };
+  setTimeout(go,8000);
+  Promise.all(f.map(function(u){ return fetch(u,{cache:'reload'}).catch(function(){}); })).then(go,go);
+ };
  chk(); window.addEventListener('load', chk);
 })();
 </script>
