@@ -154,7 +154,11 @@
 .newsoh-glow > * { position: relative; z-index: 1; }
 .dept-ic.newsoh { background: linear-gradient(135deg,#8b8ff6,#6366f1); }
 .today-work .dept-ic svg { width: 23px; height: 23px; }   /* 오늘의 근무 아이콘 크게 */
-.today-work .dept-ic.jin8 svg { width: 29px; height: 29px; }   /* 8진 아이콘은 내부 여백 있어 더 크게 */
+.today-work .dept-ic.jin8 svg { width: 29px; height: 29px; }
+/* 내일의 근무(11-21) — 오늘의 근무 밑에 한 장 더, 조근 아이콘(해 뜨는 모양) */
+.dept-ic.jogeun { background: linear-gradient(135deg,#a3abf3,#6d77d8); }
+.today-work + .today-work { margin-top: 12px; }
+#view-home #hm3 .today-work + .today-work { margin-top: 0 !important; background: linear-gradient(var(--border), var(--border)) no-repeat top center / calc(100% - 36px) 1px !important; }   /* 8진 아이콘은 내부 여백 있어 더 크게 */
 .sum-info { flex: 1; min-width: 0; }
 .sum-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
 .sum-val { font-size: 22px; font-weight: 700; line-height: 1.2; }

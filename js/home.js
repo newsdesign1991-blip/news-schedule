@@ -113,6 +113,27 @@ function homeSelectDay(ds) {
     try { el.animate([{ opacity:.35, filter:'blur(6px)' }, { opacity:1, filter:'blur(0)' }], { duration:380, easing:'cubic-bezier(.22,1,.36,1)' }); } catch(e) {}
   });
 }
+// 그날 조근하는 사람(홈 '내일의 근무' 조근 줄, 11-21) — 근무표 조근 칸과 같은 규칙:
+//  평일 틀 = 조근조(휴가·휴무·손입력/엑셀 칸이 다른 글자·그날 다른 근무 빼고) + 대체(jogeunSubs) / 토요일 = 토요 조근(satMorning). 둘 다 + 조근 추가·조근 교육. 휴가인 사람 뺌
+function _homeJogeunIds(e, ds) {
+  if (!e) return [];
+  const lv = new Set(data.newLeaves?.[ds] || []), ids = [];
+  const add = id => { if (id && !lv.has(id) && !ids.includes(id)) ids.push(id); };
+  if (isWeekdayForm(ds)) {
+    getStaff('조근', ds).forEach(s => {
+      if (!isContractActive(s, ds) || isDispatched(s, ds) || lv.has(s.id)) return;
+      if ((e.restWorkers || []).includes(s.id) || e.customCells?.[s.id]?.text) return;
+      const imp = typeof _importCellDisplay === 'function' ? _importCellDisplay(e, s.id, [...lv]) : null;
+      if (imp && imp.text && !/조근/.test(imp.text)) return;
+      if ([e.newsOh, e.newsOh2, e.weekend8jin, e.weekend8jin2].includes(s.id) || (e.vw?.workers || []).includes(s.id) || (e.cg?.workers || []).includes(s.id)) return;
+      add(s.id);
+    });
+    Object.values(e.jogeunSubs || {}).forEach(add);
+  } else if (new Date(ds + 'T00:00:00').getDay() === 6) add(e.satMorning);
+  (e.jogeunExtra || []).forEach(add);
+  (e.jogeunEdu || []).forEach(add);
+  return ids;
+}
 function renderHome() {
   _checkLeaveReqDeadline();
   updateLeaveReqBadge();
@@ -354,7 +375,31 @@ function renderHome() {
       </div>
       ${_nohRowsHtml}
     </div>`;
-  document.getElementById('home-duty-row').innerHTML = _dutyRowHtml;
+  // 내일의 근무(11-21 사용자: '오늘의 근무' 밑에 하나 더 — 월~금·토요 조근을 전날 볼 수 있게): 당직·8진·뉴오·조근. 진입시간은 큐시트에 다음 날 것이 있으면(_cuePaint data-cuet)
+  const tDs = addDays(hDs, 1), tE = data.schedule[tDs], _tD = new Date(tDs+'T00:00:00');
+  const _tWord = tDs===todayStr ? '오늘' : tDs===addDays(todayStr,1) ? '내일' : tDs===addDays(todayStr,-1) ? '어제' : DOW_FULL[_tD.getDay()];
+  const _tNm = id => (id && staffById(id)?.name) || '';
+  const _tNone = '<span style="color:var(--muted);font-weight:600;">없음</span>';
+  const _tJoIds = _homeJogeunIds(tE, tDs), _tJoDay = isWeekdayForm(tDs) || _tD.getDay()===6;   // 조근 = 평일 틀·토요일만(일요일·주말 편성 공휴일은 없음)
+  const _tNoh = [tE?.newsOh, tE?.newsOh2].filter(Boolean).map(_tNm).filter(Boolean);
+  const _tRow = (ic, label, name, tag, mid) => `
+      <div class="tw-row">
+        <div class="dept-ic ${ic}">${ic==='duty'?'<svg viewBox="0 0 24 24" fill="#fff"><path d="M20.5 14.6A8.5 8.5 0 1 1 9.4 3.5a7 7 0 0 0 11.1 11.1z"/></svg>':ic==='jin8'?_tIc8:ic==='newsoh'?_mic:_tIcJo}</div>
+        <div class="dept-nm"><span>${_tWord}의 ${label}</span><b>${name}</b></div>${mid||''}
+        <span class="dept-tag" style="${tag[1]}">${tag[0]}</span>
+      </div>`;
+  const _tIc8 = (_dutyRowHtml.match(/<div class="dept-ic jin8">([\s\S]*?)<\/div>/)||['',''])[1];   // 오늘 카드의 8 아이콘 그대로
+  const _tIcJo = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="3" x2="12" y2="9"/><line x1="4.2" y1="10.2" x2="5.6" y2="11.6"/><line x1="2" y1="18" x2="4" y2="18"/><line x1="20" y1="18" x2="22" y2="18"/><line x1="18.4" y1="11.6" x2="19.8" y2="10.2"/><line x1="22" y1="21.5" x2="2" y2="21.5"/><polyline points="9 6 12 3 15 6"/></svg>';
+  const _tmrHtml = `
+    <div class="today-work tomorrow-work">
+      <div class="card-hd">${_tWord}의 근무<span class="hm-day-tag">${_tD.getMonth()+1}/${_tD.getDate()} (${DOW_KR[_tD.getDay()]})</span></div>`
+    + _tRow('duty', '당직', tE ? (_tNm(tE.danjik)||_miss) : _miss, ['당직','color:#e8890c;background:rgba(255,159,28,.16);'])
+    + _tRow('jin8', '8진', tE ? (_tNm(nd8jinIds(tE).j1[0])||_miss) : _miss, ['8진','color:#e23744;background:rgba(240,68,82,.14);'], '<span class="cue-in n15" data-cuet="news15" hidden></span><span class="cue-in n8" data-cuet="news8" hidden></span>')
+    + _tRow('newsoh', '뉴오', tE ? (_tNoh.join(' · ')||(isWeekdayForm(tDs)&&!(data.holidays&&data.holidays[tDs])?_miss:_tNone)) : _miss, ['뉴오','color:#5b5ef0;background:rgba(99,102,241,.14);'], '<span class="cue-in noh" data-cuet="newsOh" hidden></span>')
+    + _tRow('jogeun', '조근', !_tJoDay ? _tNone : tE ? (_tJoIds.map(_tNm).filter(Boolean).join(' · ')||_miss) : _miss, ['조근','color:#5d6fb0;background:rgba(136,147,220,.2);'])
+    + `
+    </div>`;
+  document.getElementById('home-duty-row').innerHTML = _dutyRowHtml + _tmrHtml;
   if (typeof _cuePaint === 'function') _cuePaint();   // 8뉴스·오뉴스 진입시간(js/news-cue.js — NDS 큐시트)
   _updateDuty8Glow(); _updateNewsOhGlow();
   if (!window._duty8GlowTimer) window._duty8GlowTimer = setInterval(function(){ _updateDuty8Glow(); _updateNewsOhGlow(); }, 30000);
