@@ -157,6 +157,7 @@
 .today-work .dept-ic.jin8 svg { width: 29px; height: 29px; }
 /* 내일의 근무(11-21) — 오늘의 근무 밑에 한 장 더, 조근 아이콘(해 뜨는 모양) */
 .dept-ic.jogeun { background: linear-gradient(135deg,#a3abf3,#6d77d8); }
+.dept-ic.ilgeun { background: linear-gradient(135deg,#f3a3c6,#c2477f); }   /* 내일의 일근(해) */
 .today-work + .today-work { margin-top: 12px; }
 #view-home #hm3 .today-work + .today-work { margin-top: 0 !important; background: linear-gradient(var(--border), var(--border)) no-repeat top center / calc(100% - 36px) 1px !important; }   /* 8진 아이콘은 내부 여백 있어 더 크게 */
 .sum-info { flex: 1; min-width: 0; }

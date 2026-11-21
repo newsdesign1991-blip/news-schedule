@@ -132,6 +132,14 @@ function _homeJogeunIds(e, ds) {
   } else if (new Date(ds + 'T00:00:00').getDay() === 6) add(e.satMorning);
   (e.jogeunExtra || []).forEach(add);
   (e.jogeunEdu || []).forEach(add);
+  _homeRoleIds(e, ds, '조근').forEach(add);   // 표 칸이 '조근'인 사람 전부(11-21 사용자: 휴일엔 아무 요일에나 조근이 생김 — 엑셀·손입력 칸, 휴일 조근 추가 등)
+  return ids;
+}
+// 그날 근무표 칸 글자가 role(조근·일근 …)인 사람 — 통계와 같은 기준(js/table-view.js workCellRole). 휴가·계약 밖 등은 workCellRole 이 알아서 뺌
+function _homeRoleIds(e, ds, role) {
+  if (!e || typeof workCellRole !== 'function') return [];
+  const ids = [];
+  (data.staff || []).forEach(s => { if (s.active === false) return; try { if (workCellRole(e, s, ds) === role) ids.push(s.id); } catch (err) {} });
   return ids;
 }
 function renderHome() {
@@ -375,22 +383,31 @@ function renderHome() {
       </div>
       ${_nohRowsHtml}
     </div>`;
-  // 내일의 근무(11-21 사용자: '오늘의 근무' 밑에 하나 더 — 월~금·토요 조근을 전날 볼 수 있게, 조근만)
+  // 내일의 근무(11-21 사용자: '오늘의 근무' 밑에 하나 더 — 조근·일근을 전날 볼 수 있게). 근무표 칸 그대로라 휴일에 아무 요일에 생긴 조근·일근도 보임.
+  // 둘 다 있으면 조근(04시) → 일근(10시) 순, 하나만 있으면 그것만, 둘 다 없으면 '없음' 한 줄. 아직 배포 안 된 날은 조근 '미정'
   const tDs = addDays(hDs, 1), tE = data.schedule[tDs], _tD = new Date(tDs+'T00:00:00');
   const _tWord = tDs===todayStr ? '오늘' : tDs===addDays(todayStr,1) ? '내일' : tDs===addDays(todayStr,-1) ? '어제' : DOW_FULL[_tD.getDay()];
   const _tNm = id => (id && staffById(id)?.name) || '';
-  const _tNone = '<span style="color:var(--muted);font-weight:600;">없음</span>';
-  const _tJoIds = _homeJogeunIds(tE, tDs), _tJoDay = isWeekdayForm(tDs) || _tD.getDay()===6;   // 조근 = 평일 틀·토요일만(일요일·주말 편성 공휴일은 없음)
+  const _tJoIds = _homeJogeunIds(tE, tDs), _tIlIds = _homeRoleIds(tE, tDs, '일근');
   const _tIcJo = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="3" x2="12" y2="9"/><line x1="4.2" y1="10.2" x2="5.6" y2="11.6"/><line x1="2" y1="18" x2="4" y2="18"/><line x1="20" y1="18" x2="22" y2="18"/><line x1="18.4" y1="11.6" x2="19.8" y2="10.2"/><line x1="22" y1="21.5" x2="2" y2="21.5"/><polyline points="9 6 12 3 15 6"/></svg>';   // 해 뜨는 모양
-  const _tJoName = !_tJoDay ? _tNone : tE ? (_tJoIds.map(_tNm).filter(Boolean).join(' · ')||_miss) : _miss;
+  const _tIcIl = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>';   // 해
+  const _tRow = (cls, ic, label, name, tag, tagSt) => `
+      <div class="tw-row">
+        <div class="dept-ic ${cls}">${ic}</div>
+        <div class="dept-nm"><span>${_tWord}의 ${label}</span><b>${name}</b></div>
+        <span class="dept-tag" style="${tagSt}">${tag}</span>
+      </div>`;
+  const _tJoSt = 'color:#5d6fb0;background:rgba(136,147,220,.2);';
+  let _tRows = '';
+  if (!tE) _tRows = _tRow('jogeun', _tIcJo, '조근', _miss, '조근', _tJoSt);   // 아직 배포 안 된 날
+  else {
+    if (_tJoIds.length) _tRows += _tRow('jogeun', _tIcJo, '조근', _tJoIds.map(_tNm).filter(Boolean).join(' · '), '조근', _tJoSt);
+    if (_tIlIds.length) _tRows += _tRow('ilgeun', _tIcIl, '일근', _tIlIds.map(_tNm).filter(Boolean).join(' · '), '일근', 'color:#a34873;background:rgba(163,72,115,.14);');
+    if (!_tRows) _tRows = _tRow('jogeun', _tIcJo, '조근 · 일근', '<span style="color:var(--muted);font-weight:600;">없음</span>', '조근', _tJoSt);
+  }
   const _tmrHtml = `
     <div class="today-work tomorrow-work">
-      <div class="card-hd">${_tWord}의 근무<span class="hm-day-tag">${_tD.getMonth()+1}/${_tD.getDate()} (${DOW_KR[_tD.getDay()]})</span></div>
-      <div class="tw-row">
-        <div class="dept-ic jogeun">${_tIcJo}</div>
-        <div class="dept-nm"><span>${_tWord}의 조근</span><b>${_tJoName}</b></div>
-        <span class="dept-tag" style="color:#5d6fb0;background:rgba(136,147,220,.2);">조근</span>
-      </div>
+      <div class="card-hd">${_tWord}의 근무<span class="hm-day-tag">${_tD.getMonth()+1}/${_tD.getDate()} (${DOW_KR[_tD.getDay()]})</span></div>${_tRows}
     </div>`;
   document.getElementById('home-duty-row').innerHTML = _dutyRowHtml + _tmrHtml;
   if (typeof _cuePaint === 'function') _cuePaint();   // 8뉴스·오뉴스 진입시간(js/news-cue.js — NDS 큐시트)
