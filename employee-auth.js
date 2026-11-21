@@ -105,5 +105,8 @@ async function employeeReset(id,name){
  if(employeeBusy||!confirm(name+'님의 비밀번호를 000000으로 초기화할까요? 기존 로그인은 해제되고, 다음 로그인 시 새 비밀번호를 설정해야 합니다.'))return;
  employeeBusy=true;try{await employeeApi('reset',{staffId:id,adminPassword:employeeAdminPass,mode:employeeAdminMode});if(id===currentUser?.staffId)employeeLoginScreen('비밀번호가 000000으로 초기화되었습니다.');else{toast('초기화했습니다. 다음 로그인 시 변경해야 합니다.','success');await employeeAccounts()}}catch(e){toast(e.message,'error')}finally{employeeBusy=false}
 }
-setInterval(employeeCheckSession,30000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)employeeCheckSession()});
+// 11-21: 30초 → 30분(서버 함수 호출·전송량 줄이기). 다시 볼 때는 마지막 확인 5분 지났을 때만
+let _empChkAt=Date.now();
+function _empChkDue(){if(Date.now()-_empChkAt<5*60e3)return;_empChkAt=Date.now();employeeCheckSession()}
+setInterval(()=>{_empChkAt=Date.now();employeeCheckSession()},30*60e3);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)_empChkDue()});
