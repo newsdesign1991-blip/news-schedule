@@ -46,11 +46,6 @@ function _cuePaint(){
   const n15=cueNews15(ds);   // 주말·공휴일 오후 뉴스(8진 진행)
   document.querySelectorAll('[data-cue="news15"]').forEach(el=>{ el.textContent=n15?`오후뉴스 ${n15} 진입`:''; el.hidden=!n15; });
   document.querySelectorAll('[data-cue="newsOh"]').forEach(el=>{ const no=cueNoNewsOh(ds); el.textContent=c&&c.newsOh?`${c.newsOh} 진입`:no?(ds===_todayStr()?'오늘 오뉴스 없음':'오뉴스 없음'):''; el.hidden=!(c&&c.newsOh)&&!no; el.classList.toggle('none',!(c&&c.newsOh)&&no); });
-  // 홈 '내일의 근무'(11-21) — 그다음 날 큐시트(전날 받아 둔 것이 있으면)
-  const td=addDays(ds,1), tc=cueDay(td), t8=cueNews8(td), t15=cueNews15(td);
-  document.querySelectorAll('[data-cuet="news8"]').forEach(el=>{ el.textContent=t8?`${t8} 진입`:''; el.hidden=!t8; });
-  document.querySelectorAll('[data-cuet="news15"]').forEach(el=>{ el.textContent=t15?`오후뉴스 ${t15} 진입`:''; el.hidden=!t15; });
-  document.querySelectorAll('[data-cuet="newsOh"]').forEach(el=>{ const v=tc&&tc.newsOh?`${tc.newsOh} 진입`:''; el.textContent=v; el.hidden=!v; });
   try{ _updateDuty8Glow(); _updateNewsOhGlow(); }catch(e){}
 }
 // 그날 큐시트 목록 → { news8, newsOh, progs }
