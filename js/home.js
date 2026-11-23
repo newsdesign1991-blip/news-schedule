@@ -26,6 +26,11 @@ function toggleTheme(){
   else { document.documentElement.setAttribute('data-theme','dark'); try{localStorage.setItem('nd_theme','dark');}catch(e){} }
   _applyThemeUI();
 }
+// 오늘의 조근·일근 줄: 근무 끝난 시각(data-tw-end, ms) 지나면 숨김 — 그리기 때 + 30초 타이머(11-23)
+function _twEndHide(){
+  const now = Date.now();
+  document.querySelectorAll('#home-duty-row [data-tw-end]').forEach(el => { el.style.display = now >= +el.dataset.twEnd ? 'none' : ''; });
+}
 // 오후 7시~9시(19:00~20:59) 동안 "오늘의 8진" 카드를 미달 카드색으로 깜빡이며 강조
 function _updateDuty8Glow(){
   const el = document.getElementById('duty8-card');
@@ -367,9 +372,28 @@ function renderHome() {
   } else {
     _nohRowsHtml = _nohRow(_hWord+'의 뉴오', _nohIds.length ? (staffById(_nohIds[0])?.name || _miss) : _miss);
   }
+  // 조근·일근 줄(오늘 카드·내일 카드 공용). 근무표 칸 그대로(_homeJogeunIds·_homeRoleIds)라 휴일·아무 요일에 생긴 것도 보임
+  const _icJo = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="3" x2="12" y2="9"/><line x1="4.2" y1="10.2" x2="5.6" y2="11.6"/><line x1="2" y1="18" x2="4" y2="18"/><line x1="20" y1="18" x2="22" y2="18"/><line x1="18.4" y1="11.6" x2="19.8" y2="10.2"/><line x1="22" y1="21.5" x2="2" y2="21.5"/><polyline points="9 6 12 3 15 6"/></svg>';   // 해 뜨는 모양
+  const _icIl = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>';   // 해
+  const _joSt = 'color:#5d6fb0;background:rgba(136,147,220,.2);', _ilSt = 'color:#a34873;background:rgba(163,72,115,.14);';
+  const _nmOf = id => (id && staffById(id)?.name) || '';
+  const _jiRow = (word, cls, ic, label, name, tag, tagSt, endMs) => `
+      <div class="tw-row"${endMs ? ` data-tw-end="${endMs}"` : ''}>
+        <div class="dept-ic ${cls}">${ic}</div>
+        <div class="dept-nm"><span>${word}의 ${label}</span><b>${name}</b></div>
+        <span class="dept-tag" style="${tagSt}">${tag}</span>
+      </div>`;
+  // 오늘의 조근·일근(11-23 사용자): 맨 위(시간 순). 오늘이면 근무 끝나면 숨김 — 조근 13시·일근 21시(generation.js _SIVOFF와 같음). 없으면 줄 없음
+  const _hEnd = h => _hOther ? 0 : new Date(hDs+'T'+String(h).padStart(2,'0')+':00:00').getTime();
+  let _hJiHtml = '';
+  if (entry) {
+    const _hJo = _homeJogeunIds(entry, hDs), _hIl = _homeRoleIds(entry, hDs, '일근');
+    if (_hJo.length) _hJiHtml += _jiRow(_hWord, 'jogeun', _icJo, '조근', _hJo.map(_nmOf).filter(Boolean).join(' · '), '조근', _joSt, _hEnd(13));
+    if (_hIl.length) _hJiHtml += _jiRow(_hWord, 'ilgeun', _icIl, '일근', _hIl.map(_nmOf).filter(Boolean).join(' · '), '일근', _ilSt, _hEnd(21));
+  }
   const _dutyRowHtml = `
     <div class="today-work">
-      <div class="card-hd">${_hWord}의 근무${_hTag}</div>
+      <div class="card-hd">${_hWord}의 근무${_hTag}</div>${_hJiHtml}
       <div class="tw-row">
         <div class="dept-ic duty"><svg viewBox="0 0 24 24" fill="#fff"><path d="M20.5 14.6A8.5 8.5 0 1 1 9.4 3.5a7 7 0 0 0 11.1 11.1z"/></svg></div>
         <div class="dept-nm"><span>${_hWord}의 당직</span><b>${_dutyName||_miss}</b></div>
@@ -387,23 +411,14 @@ function renderHome() {
   // 둘 다 있으면 조근(04시) → 일근(10시) 순, 하나만 있으면 그것만, 둘 다 없으면 '없음' 한 줄. 아직 배포 안 된 날은 조근 '미정'
   const tDs = addDays(hDs, 1), tE = data.schedule[tDs], _tD = new Date(tDs+'T00:00:00');
   const _tWord = tDs===todayStr ? '오늘' : tDs===addDays(todayStr,1) ? '내일' : tDs===addDays(todayStr,-1) ? '어제' : DOW_FULL[_tD.getDay()];
-  const _tNm = id => (id && staffById(id)?.name) || '';
   const _tJoIds = _homeJogeunIds(tE, tDs), _tIlIds = _homeRoleIds(tE, tDs, '일근');
-  const _tIcJo = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="3" x2="12" y2="9"/><line x1="4.2" y1="10.2" x2="5.6" y2="11.6"/><line x1="2" y1="18" x2="4" y2="18"/><line x1="20" y1="18" x2="22" y2="18"/><line x1="18.4" y1="11.6" x2="19.8" y2="10.2"/><line x1="22" y1="21.5" x2="2" y2="21.5"/><polyline points="9 6 12 3 15 6"/></svg>';   // 해 뜨는 모양
-  const _tIcIl = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>';   // 해
-  const _tRow = (cls, ic, label, name, tag, tagSt) => `
-      <div class="tw-row">
-        <div class="dept-ic ${cls}">${ic}</div>
-        <div class="dept-nm"><span>${_tWord}의 ${label}</span><b>${name}</b></div>
-        <span class="dept-tag" style="${tagSt}">${tag}</span>
-      </div>`;
-  const _tJoSt = 'color:#5d6fb0;background:rgba(136,147,220,.2);';
+  const _tRow = (cls, ic, label, name, tag, tagSt) => _jiRow(_tWord, cls, ic, label, name, tag, tagSt, 0);
   let _tRows = '';
-  if (!tE) _tRows = _tRow('jogeun', _tIcJo, '조근', _miss, '조근', _tJoSt);   // 아직 배포 안 된 날
+  if (!tE) _tRows = _tRow('jogeun', _icJo, '조근', _miss, '조근', _joSt);   // 아직 배포 안 된 날
   else {
-    if (_tJoIds.length) _tRows += _tRow('jogeun', _tIcJo, '조근', _tJoIds.map(_tNm).filter(Boolean).join(' · '), '조근', _tJoSt);
-    if (_tIlIds.length) _tRows += _tRow('ilgeun', _tIcIl, '일근', _tIlIds.map(_tNm).filter(Boolean).join(' · '), '일근', 'color:#a34873;background:rgba(163,72,115,.14);');
-    if (!_tRows) _tRows = _tRow('jogeun', _tIcJo, '조근 · 일근', '<span style="color:var(--muted);font-weight:600;">없음</span>', '조근', _tJoSt);
+    if (_tJoIds.length) _tRows += _tRow('jogeun', _icJo, '조근', _tJoIds.map(_nmOf).filter(Boolean).join(' · '), '조근', _joSt);
+    if (_tIlIds.length) _tRows += _tRow('ilgeun', _icIl, '일근', _tIlIds.map(_nmOf).filter(Boolean).join(' · '), '일근', _ilSt);
+    if (!_tRows) _tRows = _tRow('jogeun', _icJo, '조근 · 일근', '<span style="color:var(--muted);font-weight:600;">없음</span>', '조근', _joSt);
   }
   const _tmrHtml = `
     <div class="today-work tomorrow-work">
@@ -411,8 +426,8 @@ function renderHome() {
     </div>`;
   document.getElementById('home-duty-row').innerHTML = _dutyRowHtml + _tmrHtml;
   if (typeof _cuePaint === 'function') _cuePaint();   // 8뉴스·오뉴스 진입시간(js/news-cue.js — NDS 큐시트)
-  _updateDuty8Glow(); _updateNewsOhGlow();
-  if (!window._duty8GlowTimer) window._duty8GlowTimer = setInterval(function(){ _updateDuty8Glow(); _updateNewsOhGlow(); }, 30000);
+  _updateDuty8Glow(); _updateNewsOhGlow(); _twEndHide();
+  if (!window._duty8GlowTimer) window._duty8GlowTimer = setInterval(function(){ _updateDuty8Glow(); _updateNewsOhGlow(); _twEndHide(); }, 30000);
   (function(){
     var _pjBody=document.getElementById('home-project-body'); if(!_pjBody) return;
     // 프로젝트 진행 탭의 '홈 화면에 표시' 토글(data.settings.pjHome, 관리자)이 꺼져 있으면 홈에서 패널 숨김
