@@ -213,24 +213,35 @@ function _tblPrintStyles(tableEl) {
   return { css, links };
 }
 const _TBL_PAGE_MM = 8;   // 인쇄 여백(mm, 사방)
-function _tblPrintHtml(o) {   // o = { W(0 = 재기 전, 폭 규칙 없음), K(배율), rh(칸 높이, 0 = 그대로), land, css, links, table(복제본 HTML), title, sub }
+// 종이용 칸 선(11-24 사용자: 인쇄하면 칸 사이 선이 안 보여 구분 안 됨) — 화면 규칙 `border: 0 solid var(--border)` 는 복사(cssText)하면
+// 선 모양·색이 빈 값으로 빠져 선이 아예 없어짐 + 화면 선 색(#e2e8f0)은 종이·흑백에서 안 보임 → 모양·색을 여기서 다시. 부서 머리 색 밑줄만 그대로
+// 굵은 글자(신휴가·VW데 등)는 칸에 꽉 차 보여(사용자) 종이에선 한 단계 가늘게 + 칸 안 좌우 여백(폭 잴 때도 들어가 칸이 그만큼 넓어짐)
+const _TBL_PRINT_LINES = '#excel-table thead th,#excel-table tbody td{border-style:solid!important}'
+  + '#excel-table tbody td{border-color:#8d97a6!important;padding-left:3px!important;padding-right:3px!important}'
+  + '#excel-table tbody td[style*="font-weight:700"],#excel-table tbody td[style*="font-weight:800"],#excel-table tbody td b,#excel-table tbody td strong{font-weight:600!important}'
+  + '#excel-table thead th{border-left-color:#8d97a6!important;border-right-color:#8d97a6!important}'
+  + '#excel-table thead th:not(.dept-group){border-bottom-color:#8d97a6!important}'
+  + '#excel-table tbody tr.sum-row td{border-top-color:#64748b!important}'
+  + '.pr-box .excel-wrap{border-color:#8d97a6!important}';
+function _tblPrintHtml(o) {   // o = { W(0 = 재기 전, 폭 규칙 없음), K(배율), rh(칸 높이, 0 = 그대로), land, paper('A4'|'A3'), css, links, table(복제본 HTML), title, sub }
   const wCss = o.W ? `.pr-box{width:${o.W + 2}px}.pr-box .excel-wrap{width:${o.W + 2}px!important}#excel-table{width:${o.W}px!important;min-width:${o.W}px!important}` : '.pr-box{width:max-content}';
   const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   return `<!doctype html><html data-theme="light"><head><meta charset="utf-8"><title>${esc(o.title)}</title>`
     + o.links.map(h => `<link rel="stylesheet" href="${esc(h)}">`).join('')
     + `<style>${o.css}
-@page{size:A4 ${o.land ? 'landscape' : 'portrait'};margin:${_TBL_PAGE_MM}mm}
+@page{size:${o.paper === 'A3' ? 'A3' : 'A4'} ${o.land ? 'landscape' : 'portrait'};margin:${_TBL_PAGE_MM}mm}
 html,body{margin:0!important;padding:0!important;height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .pr-box{zoom:${o.K}}
 .pr-title{display:flex;align-items:baseline;gap:10px;margin:0 0 10px 2px;color:#1e293b;font-family:"Wanted Sans Variable","Wanted Sans","Malgun Gothic",sans-serif}
 .pr-title b{font-size:20px;font-weight:800}.pr-title span{font-size:11px;color:#94a3b8}
 .pr-box .excel-wrap{width:auto;max-width:none!important;max-height:none!important;overflow:visible!important;box-shadow:none!important;border-color:#cbd5e1!important}
 ${_TBL_FLAT_CSS}#excel-table{max-width:none!important}
+${_TBL_PRINT_LINES}
 ${wCss}
 ${o.rh ? `#excel-table tbody td{height:${o.rh}px!important}` : ''}
 </style></head><body><div class="pr-box"><div class="pr-title"><b>${esc(o.title)}</b><span>${esc(o.sub)}</span></div><div class="excel-wrap">${o.table}</div></div></body></html>`;
 }
-// 인쇄 미리보기(CG배정 인쇄 창과 같은 모양 .cpv-*): 왼쪽 A4 한 장 미리보기 / 오른쪽 프린터·매수·방향·색 + [인쇄].
+// 인쇄 미리보기(CG배정 인쇄 창과 같은 모양 .cpv-*): 왼쪽 종이(A4·A3) 한 장 미리보기 / 오른쪽 프린터·매수·방향·색 + [인쇄].
 // 표를 글자 그대로(그림 아님) 한 장에 맞춰 찍어 선명. 높이가 넘치면 칸 높이를 먼저 줄여(최소 20px) 글자를 덜 줄임. 고른 설정은 이 PC 에 기억
 async function printSchedule() {
   const tableEl = document.getElementById('excel-table');
@@ -252,26 +263,28 @@ async function printSchedule() {
   el.innerHTML = `<div class="cpv-card" role="dialog" aria-modal="true" aria-label="근무표 인쇄">
     <div class="cpv-sheetwrap" id="tpv-wrap"><div class="cpv-pagelist" id="tpv-sheets"></div><iframe id="tpv-measure" class="cpv-hidden" title="인쇄용" sandbox="allow-same-origin" aria-hidden="true" tabindex="-1"></iframe></div>
     <aside class="cpv-side">
-      <div class="cpv-h"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg><b>근무표 인쇄</b><span>A4 1장</span></div>
+      <div class="cpv-h"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg><b>근무표 인쇄</b><span id="tpv-size">A4 1장</span></div>
       <div class="cpv-fields">
         <label class="cpv-f"><span>프린터</span><select id="tpv-dev"><option value="">프린터 찾는 중…</option></select></label>
         <label class="cpv-f"><span>매수</span><input type="number" id="tpv-copies" min="1" max="50" value="${Math.min(Math.max(Number(pref.copies) || 1, 1), 50)}"></label>
+        <div class="cpv-f"><span>용지</span><div class="cpv-seg" id="tpv-paper"><button type="button" data-v="A4">A4</button><button type="button" data-v="A3">A3</button></div></div>
         <div class="cpv-f"><span>방향</span><div class="cpv-seg" id="tpv-orient"><button type="button" data-v="l">가로</button><button type="button" data-v="p">세로</button></div></div>
         <div class="cpv-f"><span>색</span><div class="cpv-seg" id="tpv-color"><button type="button" data-v="c">컬러</button><button type="button" data-v="m">흑백</button></div></div>
-        <p class="cpv-note">표를 글자 그대로 A4 한 장에 맞춰 찍어요(그림으로 저장해 찍는 것보다 선명해요). 고른 프린터·설정은 다음에도 그대로예요.</p>
+        <p class="cpv-note">표를 글자 그대로 고른 용지 한 장에 맞춰 찍어요(그림으로 저장해 찍는 것보다 선명해요). 고른 프린터·설정은 다음에도 그대로예요.</p>
       </div>
       <p class="cpv-st" id="tpv-st" role="status"></p>
       <div class="cpv-foot"><button type="button" class="cpv-cancel">취소</button><button type="button" class="cpv-go" disabled>인쇄</button></div>
     </aside></div>`;
   document.body.appendChild(el);
   const $ = s => el.querySelector(s), measure = $('#tpv-measure');
-  const st = { land: pref.landscape !== false, color: pref.color !== false };
+  const st = { land: pref.landscape !== false, color: pref.color !== false, a3: pref.paper === 'A3' };
+  const paper = () => (st.a3 ? 'A3' : 'A4');
   let html = '', gen = 0, frame = null, sheet = null;
   const close = () => { gen++; el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
   const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
   $('.cpv-cancel').onclick = close; el.addEventListener('click', e => { if (e.target === el) close(); });
-  const dims = () => { const mm = 96 / 25.4, pw = (st.land ? 297 : 210) * mm, ph = (st.land ? 210 : 297) * mm, m = _TBL_PAGE_MM * mm; return { mm, pw, ph, m, aw: pw - 2 * m, ah: ph - 2 * m }; };
+  const dims = () => { const mm = 96 / 25.4, L = st.a3 ? 420 : 297, S = st.a3 ? 297 : 210, pw = (st.land ? L : S) * mm, ph = (st.land ? S : L) * mm, m = _TBL_PAGE_MM * mm; return { mm, pw, ph, m, aw: pw - 2 * m, ah: ph - 2 * m }; };
   function scale() {
     const host = $('#tpv-sheets'), wrap = $('#tpv-wrap'); if (!host || !sheet) return;
     const { pw, ph } = dims(), k = Math.min(1, (wrap.clientWidth - 48) / pw, (wrap.clientHeight - 56) / ph);
@@ -290,20 +303,23 @@ async function printSchedule() {
   const paint = () => {
     $('#tpv-orient').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.v === 'l') === st.land)));
     $('#tpv-color').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.v === 'c') === st.color)));
+    $('#tpv-paper').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === paper())));
+    $('#tpv-size').textContent = paper() + ' 1장';
+    $('#tpv-st').textContent = st.a3 && !a3ok ? 'A3로 바로 인쇄는 근무표 앱 1.5.1부터 돼요. 앱을 업데이트해 주세요.' : '';
     if (frame) frame.classList.toggle('mono', !st.color);
   };
   const build = async () => {
     const my = ++gen, go = $('.cpv-go'); go.disabled = true;
     const { pw, ph, m, aw, ah } = dims();
-    let rh = 0, r = await measureBox(_tblPrintHtml({ ...base, W, K: 1, rh: 0, land: st.land }), aw);
+    let rh = 0, r = await measureBox(_tblPrintHtml({ ...base, W, K: 1, rh: 0, land: st.land, paper: paper() }), aw);
     if (my !== gen) return;
     const kw = aw / (W + 6);
     if (r.h * kw > ah && r.n) {   // 높이가 넘치면 칸 높이(28px)부터 줄임
       rh = Math.max(20, Math.floor(28 - (r.h - ah / kw) / r.n));
-      r = await measureBox(_tblPrintHtml({ ...base, W, K: 1, rh, land: st.land }), aw); if (my !== gen) return;
+      r = await measureBox(_tblPrintHtml({ ...base, W, K: 1, rh, land: st.land, paper: paper() }), aw); if (my !== gen) return;
     }
     const K = Math.floor(Math.min(kw, ah / Math.max(1, r.h + 4)) * 0.985 * 1000) / 1000;
-    html = _tblPrintHtml({ ...base, W, K, rh, land: st.land });
+    html = _tblPrintHtml({ ...base, W, K, rh, land: st.land, paper: paper() });
     const host = $('#tpv-sheets'); host.innerHTML = '';
     sheet = document.createElement('div'); sheet.className = 'cpv-sheet'; sheet.style.width = pw + 'px'; sheet.style.height = ph + 'px';
     frame = document.createElement('iframe'); frame.setAttribute('sandbox', 'allow-same-origin allow-modals'); frame.title = '인쇄 미리보기';
@@ -311,15 +327,19 @@ async function printSchedule() {
     sheet.appendChild(frame); host.appendChild(sheet); frame.srcdoc = html;
     paint(); scale(); go.disabled = false;
   };
-  ['#tpv-orient', '#tpv-color'].forEach(id => $(id).addEventListener('click', e => {
+  ['#tpv-paper', '#tpv-orient', '#tpv-color'].forEach(id => $(id).addEventListener('click', e => {
     const b = e.target.closest('button[data-v]'); if (!b) return;
-    if (id === '#tpv-orient') { const v = b.dataset.v === 'l'; if (v === st.land) return; st.land = v; build(); }
+    if (id === '#tpv-paper') { const v = b.dataset.v === 'A3'; if (v === st.a3) return; st.a3 = v; paint(); build(); }
+    else if (id === '#tpv-orient') { const v = b.dataset.v === 'l'; if (v === st.land) return; st.land = v; build(); }
     else { st.color = b.dataset.v === 'c'; paint(); }
   }));
   addEventListener('resize', scale);
-  paint(); build();
   // 프린터 목록(PC 앱). 앱이 아니면 [인쇄] = 이 브라우저의 인쇄 창
   const sel = $('#tpv-dev'), canApp = !!(window.ndApp && window.ndApp.printers && window.ndApp.printHtml);
+  // A3 바로 인쇄 = 앱 1.5.1~(용지 크기를 프린터에 넘김). 그 전 앱은 프린터 기본 용지(보통 A4)로 나가 A3 모양이 줄거나 잘림 → 막고 안내
+  let a3ok = !canApp;
+  paint(); build();
+  if (canApp && window.ndApp.version) { const v = String(await window.ndApp.version().catch(() => '') || '').split('.').map(Number); a3ok = (v[0] || 0) * 1e6 + (v[1] || 0) * 1e3 + (v[2] || 0) >= 1005001; if (!el.isConnected) return; paint(); }
   if (canApp) {
     const ps = await window.ndApp.printers().catch(() => []) || [];
     const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -328,8 +348,9 @@ async function printSchedule() {
   } else sel.innerHTML = '<option value="">이 PC 기본 프린터</option>';
   $('.cpv-go').onclick = async () => {
     if (!html) return;
-    const o = { deviceName: sel.value, copies: Math.min(Math.max(Number($('#tpv-copies').value) || 1, 1), 50), landscape: st.land, color: st.color, duplex: false };
-    try { localStorage.setItem('nd_tbl_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color })); } catch (e) {}
+    if (st.a3 && !a3ok) { paint(); return; }
+    const o = { deviceName: sel.value, copies: Math.min(Math.max(Number($('#tpv-copies').value) || 1, 1), 50), landscape: st.land, color: st.color, duplex: false, pageSize: paper() };
+    try { localStorage.setItem('nd_tbl_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color, paper: o.pageSize })); } catch (e) {}
     if (!canApp) { try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (e) { toast('인쇄하지 못했어요.', 'error'); } return; }
     const go = $('.cpv-go'); go.disabled = true; go.textContent = '보내는 중…'; $('#tpv-st').textContent = '';
     const r = await window.ndApp.printHtml(Object.assign({ html }, o)).catch(e => ({ ok: false, error: e.message }));
