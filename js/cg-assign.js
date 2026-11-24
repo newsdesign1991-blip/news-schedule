@@ -375,7 +375,7 @@ async function _cgaContentScan(force) {
   } catch (e) { /* 다음에 */ } finally { _cgaContBusy = false; }
 }
 // 결과물이 올라왔나(업로드 폴더 파일 또는 NDS 콘텐츠, 시험 의뢰는 _cgaFakeUp) — [업로드됨] 칸·'작업 업로드함.'
-const _cgaUpN = (id) => (_cgaUp[id] || (window._cgaFakeUp && window._cgaFakeUp[id]) || []).length || (_cgaCont[id] || []).length;
+const _cgaUpN = (id) => (_cgaUp[id] || (window._cgaFakeUp && window._cgaFakeUp[id]) || []).length || (_cgaCont[id] || []).length || (_cgaResOk[id] && Date.now() - _cgaResOk[id] < 30 * 60e3 ? 1 : 0);   // 마지막 = 방금 여기서 올린 결과물(11-24, NDS 콘텐츠가 잡히기 전까지)
 async function _cgaPlay(id, btn) {
   const f = _cgaUp[id] || (window._cgaFakeUp && window._cgaFakeUp[id]) || [];
   if (f.length && f[0].demo) {   // 시험 의뢰: 물결만
@@ -385,7 +385,7 @@ async function _cgaPlay(id, btn) {
   // 틀 것: 업로드 폴더 파일(콘텐츠 제목과 같은 이름 포함) → 없으면 NDS 저화질 영상(콘텐츠 url)
   const paths = f.length ? f.map((x) => x.path) : (_cgaCont[id] || []).map((x) => x.url).filter(Boolean);
   if (!(window.ndApp && window.ndApp.uploadPlay)) return;
-  if (!paths.length) { if ((_cgaCont[id] || []).length) toast('NDS에 올라왔는데 아직 영상을 만드는 중이에요. 잠시 뒤 다시 눌러 주세요.', 'error'); return; }
+  if (!paths.length) { if ((_cgaCont[id] || []).length || _cgaResOk[id]) toast('NDS에 올라왔는데 아직 영상을 만드는 중이에요. 잠시 뒤 다시 눌러 주세요.', 'error'); return; }
   const pr = window.ndApp.uploadPlay(paths).catch((e) => ({ ok: false, error: e.message }));   // NewsPlayer 먼저(10-27 사용자 '더 빨리') — 물결 그림을 뜨는 동안 기다리지 않게
   if (btn) { btn.disabled = true; _cgaDropCard(btn.closest('.cga-card'), btn); }   // 이름 카드에 네임드랍 물결(10-26) — 누른 버튼 자리에서 퍼짐(10-27)
   const r = await pr;
@@ -596,9 +596,11 @@ function renderCgAssign() {
   }
   const g = document.getElementById('cga-grid');
   [g, document.getElementById('cga-dj')].forEach(h => { if (h._ctx) return; h._ctx = true; h.addEventListener('contextmenu', _cgaCtx);   // 당직 칸(10-22)도 같게
-    h.addEventListener('click', e => { const pl = e.target.closest('.cga-play[data-play]'); if (pl) { if (!pl.disabled) _cgaPlay(Number(pl.dataset.play) || 0, pl); return; } if (e.target.closest('.cga-x, .cga-done')) return; const j = e.target.closest('.cga-job[data-rid]'); if (!j) return; const id = Number(j.dataset.rid) || 0; if (id) _cgaReqOpen(id); });   // 배정된 의뢰 칸 → 크게 보기(10-21, 시험 의뢰도)
+    h.addEventListener('click', e => { const ux = e.target.closest('.cga-upl-x[data-upl-x]'); if (ux) { _cgaResStop(Number(ux.dataset.uplX) || 0, ux); return; }   // 결과물 올리기 멈추기(11-24)
+      const pl = e.target.closest('.cga-play[data-play]'); if (pl) { if (!pl.disabled) _cgaPlay(Number(pl.dataset.play) || 0, pl); return; } if (e.target.closest('.cga-x, .cga-done')) return; const j = e.target.closest('.cga-job[data-rid]'); if (!j) return; const id = Number(j.dataset.rid) || 0; if (id) _cgaReqOpen(id); });   // 배정된 의뢰 칸 → 크게 보기(10-21, 시험 의뢰도)
   });
   _cgaWireDnd();   // 의뢰 → 사람 카드 끌어다 놓기 배정(10-21)   // 카드 오른쪽 클릭 → CG·앵커터치·PT 직접 배정/완료
+  _cgaWireFileDrop(); _cgaResListen();   // 내 카드에 영상 끌어다 놓기 → NDS 결과물 올리기(11-24) · 앱이 알려 주는 진행
   [g, document.getElementById('cga-dj')].forEach(h => { if (h._wired) return; h._wired = true;   // 카드 누르면 그 사람 오늘 CG(× 는 빼기, 의뢰 칸은 크게 보기) — 최재영만(_cgaPopOn)
     const open = e => { if (!_cgaPopOn() || e.target.closest('.cga-x, .cga-done, .cga-job[data-rid], .cga-play')) return; const c = e.target.closest('.cga-card[data-name]'); if (c && !c.classList.contains('cga-leaving')) _cgaPersonPop(c.dataset.name); };
     h.addEventListener('click', open);
@@ -917,12 +919,12 @@ function _cgaPaint() {
         <div class="cga-time"><span>배정 <b>${_cgaHM(j.at)}</b></span><span class="cga-ago" data-at="${_cgaEsc(j.at)}"></span></div></div>`).join('');
     let body;
     if (!loaded) body = `<div class="cga-wait">${_cgaErr ? '' : '불러오는 중…'}</div>`;
-    else if (on) body = (allUp ? '<div class="cga-now up">작업 업로드함.</div>' : `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>`) + manHtml + a.slice(0, 2).map(r => { const n8 = _cga8Rank(r), u8 = n8 > 0 && n8 <= CGA_URGENT, kw = u8 ? 'urgent' : _cgaKw(r.title);   // 8뉴스 1~10번째는 배정된 뒤에도 빨강+번호(10-21)
+    else if (on) body = (allUp ? '<div class="cga-now up">작업 업로드함.</div>' : `<div class="cga-now">작업 중<span class="cga-dots"><i>.</i><i>.</i><i>.</i></span></div>`) + manHtml + _cgaResShown(a).map(r => { const n8 = _cga8Rank(r), u8 = n8 > 0 && n8 <= CGA_URGENT, kw = u8 ? 'urgent' : _cgaKw(r.title);   // 8뉴스 1~10번째는 배정된 뒤에도 빨강+번호(10-21)
         const up = _cgaUpN(r.id);   // 결과물(업로드 폴더 파일 또는 NDS 콘텐츠) — 오른쪽 1/4 칸(10-26), 시험 의뢰는 _cgaFakeUp
         return `${up ? '<div class="cga-jrow">' : ''}<div class="cga-job${kw ? ' kw k-' + kw : ''}" data-rid="${Number(r.id) || 0}" title="${u8 ? `8뉴스 큐시트 ${n8}번째 — ` : ''}눌러서 의뢰 크게 보기">${u8 ? `<span class="cga-jno">${n8}</span>` : ''}
         <div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>
         ${r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : ''}
-        <div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span><span class="cga-ago" data-at="${_cgaEsc(r.assignAt)}"></span></div>
+        <div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span><span class="cga-ago" data-at="${_cgaEsc(r.assignAt)}"></span></div>${_cgaRes[r.id] ? _cgaResBar(r.id) : ''}
       </div>${up ? `<button type="button" class="cga-play${kw ? ' k-' + kw : ''}" data-play="${Number(r.id) || 0}" title="업로드된 결과 영상을 NewsPlayer로 보기${up > 1 ? ` (비슷한 이름 ${up - 1}개 더)` : ''}">${CGA_PLAY_IC}<b>업로드됨</b></button></div>` : ''}`; }).join('') + (a.length > 2 ? `<div class="cga-more">+${a.length - 2}건 더</div>` : '');
     else body = '<div class="cga-idle">대기 중</div>';   // 끝난 CG는 안 보여 줌(10-20)
     // 카드 빛 색(10-21 사용자): 손으로 넣은 앵커터치·PT·3D·XR 이나 제목에 PT·터치·앵터가 든 의뢰가 있으면 그 색(그중 최근 것) — 나중에 CG 의뢰가 붙어도
@@ -976,6 +978,7 @@ function _cgaPaint() {
   if (dbar && dbtn) { dbar.hidden = !delN; if (delN) { const h = `${CGA_EYEOFF_IC}숨긴 사람 <b>${delN}</b>`; if (dbtn._h !== h) { dbtn.innerHTML = h; dbtn._h = h; } dbtn.title = '오늘 이 화면에서 뺀 사람 — 눌러서 보기·다시 넣기'; } }
   if (document.getElementById('cga-delpop')) _cgaDelFill();
   _cgaAgoFill();
+  _cgaResFill();   // 결과물 올리는 막대(%) — 칸 내용 비교(_h)에 안 들어가게 따로
   _cgpPaint();   // 사람 팝업이 열려 있으면 같이
 }
 
@@ -1426,6 +1429,207 @@ async function _cgaDropAssign(id, name, slot) {
     toast(res && res.reason === 'login' ? e + ' 위쪽 [WISE × NDS]에서 NDS를 연결해 주세요.' : e, 'error');
     if (res && res.reason === 'state') setTimeout(() => _cgaFetch(false), 300);
   }
+}
+
+// ── 결과물 올리기(11-24 사용자): 만든 영상(mov·mxf)을 내 이름 카드에 끌어다 놓으면 '업로드할까요?' 한 번 → NDS 결과물 등록까지 끝.
+//    NDS 결과물 탭에 끌어다 놓은 것과 같지만 NDS 의 [등록] → 올라가는 창 → 체크 → [확인] 은 없음. 내 카드(근무표 로그인 이름)에만, 내 NDS 로그인으로.
+//    앱 1.5.0~(ndApp.ndsCgResult — desktop/nds-result.js: 업로드 서버 tus → POST /request-graphic/{id}/cg). 진행은 카드 속 그 의뢰 칸 아래 막대,
+//    창을 새로 고쳐도 앱이 이어서 알려 줌(onNdsCgResult). 시험 의뢰(id<0)는 화면에서만 올라가는 척
+const CGA_RES_EXT = /\.(mxf|mov)$/i, CGA_RES_MAX = 20, CGA_RES_SIZE = 10 * 1024 ** 3;   // NDS 와 같음(mov·mxf, 20개, 파일당 10GB)
+const CGA_FILM_IC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>';
+let _cgaRes = {}, _cgaResOk = {}, _cgaResOn = false;   // 의뢰 번호 → 올리는 중 { key, phase, n, i, sent, total, name } / 방금 올린 때
+function _cgaMe() {   // 근무표 로그인 이름(직원 이름이 바뀌었으면 직원 목록 쪽)
+  const u = typeof currentUser !== 'undefined' && currentUser; if (!u) return '';
+  const s = u.staffId && staffById(u.staffId); return String((s && s.name) || u.name || '').trim();
+}
+const _cgaNorm = s => String(s || '').toLowerCase().replace(/[\s_\-.,·'"`~!?@#$%^&*()[\]{}<>:;/\\|+=]/g, '');   // desktop/upload-play.js norm 과 같음
+function _cgaLcs(a, b) {   // 가장 긴 같은 토막 길이
+  let best = 0; const row = new Array(b.length + 1).fill(0);
+  for (let i = 1; i <= a.length; i++) { let prev = 0; for (let j = 1; j <= b.length; j++) { const t = row[j]; row[j] = a[i - 1] === b[j - 1] ? prev + 1 : 0; if (row[j] > best) best = row[j]; prev = t; } }
+  return best;
+}
+// 의뢰가 여럿이면 파일 이름('MMDD 의뢰 제목 작업자')과 제목이 가장 많이 겹치는 의뢰, 애매하면 가장 최근에 배정된 것
+function _cgaResGuess(files, jobs) {
+  let best = 0, id = jobs[0].id;
+  jobs.forEach(r => { const t = _cgaNorm(r.title); if (t.length < 4) return; const s = files.reduce((m, f) => Math.max(m, _cgaLcs(_cgaNorm(String(f.name).replace(/\.[^.]+$/, '')), t)), 0); if (s > best) { best = s; id = r.id; } });
+  return best >= 4 ? id : jobs[0].id;
+}
+const _cgaSize = b => b >= 1024 ** 3 ? (b / 1024 ** 3).toFixed(1) + 'GB' : b >= 1024 ** 2 ? Math.round(b / 1024 ** 2) + 'MB' : Math.max(1, Math.round(b / 1024)) + 'KB';
+// 카드엔 의뢰 2개까지 — 올리는 중인 의뢰는 꼭 보이게
+function _cgaResShown(a) { const s = a.slice(0, 2), u = a.find(r => _cgaRes[r.id] && !s.includes(r)); if (u) s[s.length - 1] = u; return s; }
+const _cgaResBar = id => `<div class="cga-upl" data-upl="${Number(id) || 0}"><span class="cga-upl-bar"><i></i></span><span class="cga-upl-t"></span><button type="button" class="cga-upl-x" data-upl-x="${Number(id) || 0}" title="올리기 멈추기" aria-label="결과물 올리기 멈추기">×</button></div>`;
+function _cgaResFill() {
+  document.querySelectorAll('#cga-root .cga-upl[data-upl]').forEach(el => {
+    const s = _cgaRes[Number(el.dataset.upl)]; if (!s) return;
+    const pct = s.total ? Math.min(100, Math.floor((s.sent || 0) / s.total * 100)) : 0, reg = s.phase === 'reg', wait = s.phase === 'wait';
+    const t = wait ? '올릴 차례 기다리는 중' : reg ? 'NDS에 등록하는 중…' : `결과물 올리는 중 ${pct}%` + (s.n > 1 ? ` · ${Math.min(s.n, (s.i || 0) + 1)}/${s.n}` : '');
+    const tt = el.querySelector('.cga-upl-t'); if (tt && tt.textContent !== t) tt.textContent = t;
+    const bar = el.querySelector('.cga-upl-bar > i'), w = (reg ? 100 : wait ? 0 : pct) + '%'; if (bar && bar.style.width !== w) bar.style.width = w;
+    el.classList.toggle('reg', reg); el.classList.toggle('wait', wait);
+    if (s.name && el.title !== s.name) el.title = s.name;
+  });
+}
+// 앱이 알려 주는 진행·끝(창을 새로 고쳐도 이어 받음 — 모르는 의뢰면 새로 만듦)
+function _cgaResListen() {
+  if (_cgaResOn || !(window.ndApp && window.ndApp.onNdsCgResult)) return;
+  _cgaResOn = true; window.ndApp.onNdsCgResult(_cgaResMsg);
+}
+function _cgaResMsg(m) {
+  const id = Number(m && m.id) || 0; if (!id) return;
+  if (/^(done|fail|cancel)$/.test(m.phase)) {
+    const had = _cgaRes[id]; if (had && m.key && had.key !== m.key) return;   // 다른(옛) 올리기의 끝
+    delete _cgaRes[id];
+    const row = ((_cgaData && _cgaData.rows) || []).find(x => x.id === id), name = (row && row.designer) || _cgaMe();
+    const pc = (title, body) => { if (!document.hasFocus() && window.ndApp && window.ndApp.toast) window.ndApp.toast({ title, body }); };   // 다른 창을 보고 있으면 오른쪽 위 알림 카드도
+    if (m.phase === 'done') {
+      _cgaResOk[id] = Date.now();
+      const msg = `결과물 ${m.n > 1 ? m.n + '개를' : '을'} NDS에 올렸어요.${m.fake ? ' (시험 — NDS엔 안 감)' : ''}`;
+      toast(msg, 'success'); pc('결과물 올리기 끝', (row && row.title ? row.title + ' — ' : '') + msg);
+      _cgaPaint();
+      setTimeout(() => { const c = _cgaCardOf(name); if (c) _cgaDropCard(c, c.querySelector(`.cga-job[data-rid="${id}"]`) || c.querySelector('.cga-play')); }, 250);   // '끝났다' 물결
+      if (id > 0) [4e3, 15e3, 45e3].forEach(t => setTimeout(() => _cgaContentScan(true), t));   // NDS 콘텐츠 탭에 잡히면 [업로드됨] 재생도 되게
+    } else if (m.phase === 'cancel') { toast('결과물 올리기를 멈췄어요.', 'success'); _cgaPaint(); }
+    else {
+      const e = m.error || '결과물을 올리지 못했어요.';
+      toast(m.reason === 'login' ? e + ' 위쪽 [WISE × NDS]에서 NDS를 연결해 주세요.' : e, 'error'); pc('결과물을 못 올렸어요', e);
+      _cgaPaint();
+    }
+    return;
+  }
+  const had = !!_cgaRes[id];
+  _cgaRes[id] = Object.assign(_cgaRes[id] || {}, m);
+  if (!had) _cgaPaint(); else _cgaResFill();
+}
+// × 한 번 = '멈추기'로 바뀜(3초), 한 번 더 = 멈춤(잘못 눌러 긴 업로드를 날리지 않게)
+function _cgaResStop(id, btn) {
+  const s = _cgaRes[id]; if (!s) return;
+  const box = btn && btn.closest('.cga-upl');
+  if (box && !box.classList.contains('ask')) { box.classList.add('ask'); btn.textContent = '멈추기'; clearTimeout(box._ask); box._ask = setTimeout(() => { box.classList.remove('ask'); btn.textContent = '×'; }, 3000); return; }
+  if (s.fake) { _cgaResMsg({ id, key: s.key, phase: 'cancel' }); return; }
+  if (window.ndApp && window.ndApp.ndsCgResultCancel) window.ndApp.ndsCgResultCancel(s.key).then(ok => { if (!ok) toast('지금은 멈출 수 없어요(NDS에 등록하는 중).', 'error'); }).catch(() => {});
+}
+// 시험 의뢰: 4초 동안 올라가는 척 → 등록 → 끝(NDS·업로드 서버엔 안 감)
+function _cgaResFake(id, vids) {
+  const total = vids.reduce((s, f) => s + f.size, 0), n = vids.length, key = 'fake' + id + '-' + Date.now(), t0 = Date.now(), T = 4000;
+  _cgaResMsg({ key, id, phase: 'up', n, total, sent: 0, i: 0, name: vids[0].name }); _cgaRes[id].fake = true;
+  const tick = () => {
+    const s = _cgaRes[id]; if (!s || s.key !== key) return;
+    const p = Math.min(1, (Date.now() - t0) / T);
+    if (p < 1) { _cgaResMsg({ key, id, phase: 'up', sent: Math.round(total * p), i: Math.min(n - 1, Math.floor(p * n)), name: vids[Math.min(n - 1, Math.floor(p * n))].name }); setTimeout(tick, 120); return; }
+    _cgaResMsg({ key, id, phase: 'reg', sent: total });
+    setTimeout(() => { if (_cgaRes[id] && _cgaRes[id].key === key) _cgaResMsg({ key, id, phase: 'done', n, fake: true }); }, 900);
+  };
+  setTimeout(tick, 120);
+}
+// 파일 끌기: 화면 어디에 놓아도 앱이 그 파일로 넘어가지 않게 막고, 내 카드는 점선 → 위에 오면 파랑·'놓으면 결과물 올리기'. 남의 카드엔 못 놓음(금지 표시)
+function _cgaWireFileDrop() {
+  if (window._cgaFileDnd) return; window._cgaFileDnd = true;
+  const on = () => typeof currentView !== 'undefined' && currentView === 'cgassign';
+  const isFiles = e => { const t = e.dataTransfer && e.dataTransfer.types; return !!t && [...t].includes('Files'); };
+  const cardAt = t => { const c = t && t.closest && t.closest('#cga-grid .cga-card[data-name], #cga-dj .cga-card[data-name]'); return c && !c.classList.contains('cga-leaving') ? c : null; };
+  let hot = null, hotJob = null, mine = null, tm = 0;
+  const set = (c, j, m) => {
+    if (mine !== m) { if (mine) mine.classList.remove('file-mine'); if (m) m.classList.add('file-mine'); mine = m; }
+    if (hot !== c) { if (hot) hot.classList.remove('file-hot'); if (c) c.classList.add('file-hot'); hot = c; }
+    if (hotJob !== j) { if (hotJob) hotJob.classList.remove('file-hot'); if (j) j.classList.add('file-hot'); hotJob = j; }
+  };
+  document.addEventListener('dragover', e => {
+    if (!on() || !isFiles(e)) return;
+    e.preventDefault();   // 창에 놓아도 그 파일 주소로 넘어가지 않게
+    const me = _cgaMe(), c = cardAt(e.target), ok = !!c && !!me && c.dataset.name === me;
+    e.dataTransfer.dropEffect = ok ? 'copy' : 'none';
+    set(ok ? c : null, ok ? e.target.closest('.cga-job[data-rid]') : null, me ? _cgaCardOf(me) || null : null);
+    clearTimeout(tm); tm = setTimeout(() => set(null, null, null), 250);   // 창 밖으로 나가거나 그만두면(dragleave 는 칸마다 와서 안 씀)
+  });
+  document.addEventListener('drop', e => {
+    if (!on() || !isFiles(e)) return;
+    e.preventDefault(); clearTimeout(tm);
+    const c = cardAt(e.target), j = c && e.target.closest('.cga-job[data-rid]'); set(null, null, null);
+    if (!c) return;
+    if (c.dataset.name !== _cgaMe()) { toast('결과물은 내 이름 카드에만 올릴 수 있어요.', 'error'); return; }
+    _cgaResAsk([...e.dataTransfer.files], c, j ? Number(j.dataset.rid) || 0 : 0);
+  });
+}
+// '업로드할까요?' — 파일·어느 의뢰(여럿이면 고름, 파일 이름으로 미리 골라 둠)·취재기자(기본 = 의뢰자, NDS 와 같음) → [올리기] 누르면 끝까지
+function _cgaResAsk(files, card, rid) {
+  const name = card.dataset.name, ds = _cgaToday(), rows = (_cgaData && _cgaData.day === ds && _cgaData.rows) || [];
+  const jobs = rows.filter(r => r.status === '0002' && r.designer === name && r.id).sort((a, b) => String(b.assignAt).localeCompare(String(a.assignAt)));
+  if (!jobs.length) { toast('지금 나에게 배정된 NDS 의뢰가 없어요. 배정된 뒤에 올려 주세요.', 'error'); return; }
+  const vids = files.filter(f => CGA_RES_EXT.test(String(f.name || ''))), skip = files.length - vids.length;
+  if (!vids.length) { toast('mov, mxf 영상만 올릴 수 있어요.', 'error'); return; }
+  if (vids.length > CGA_RES_MAX) { toast(`영상은 한 번에 ${CGA_RES_MAX}개까지 올릴 수 있어요.`, 'error'); return; }
+  const bad = vids.find(f => !f.size || f.size > CGA_RES_SIZE); if (bad) { toast(`'${bad.name}' ${bad.size ? '— 10GB를 넘어요.' : '— 빈 파일이에요.'}`, 'error'); return; }
+  let pick = rid && jobs.some(r => r.id === rid) ? rid : jobs.length === 1 ? jobs[0].id : _cgaResGuess(vids, jobs);
+  const hasApp = !!(window.ndApp && window.ndApp.ndsCgResult), total = vids.reduce((s, f) => s + f.size, 0);
+  document.getElementById('cga-ask')?.remove();
+  const jobHtml = r => `<div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>${r.title ? `<div class="cga-ttl">${_cgaEsc(r.title)}</div>` : ''}<div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span></div>`;
+  const el = document.createElement('div'); el.id = 'cga-ask'; el.className = 'wt-pop';
+  el.innerHTML = `<div class="wt-card cga-ask-card cga-res-card" role="dialog" aria-modal="true" aria-labelledby="cga-ask-t">
+    <div class="wt-head" id="cga-ask-t">결과물 올리기</div>
+    <div class="wt-body">
+      <p class="cga-ask-q">${vids.length > 1 ? `영상 <b>${vids.length}개</b>를` : '이 영상을'} NDS 결과물로 올릴까요?</p>
+      <ul class="cga-res-files">${vids.map(f => `<li>${CGA_FILM_IC}<span title="${_cgaEsc(f.name)}">${_cgaEsc(f.name)}</span><small>${_cgaSize(f.size)}</small></li>`).join('')}</ul>
+      ${skip ? `<p class="cga-ask-note">mov·mxf가 아닌 파일 ${skip}개는 빼고 올려요.</p>` : ''}
+      ${jobs.length > 1 ? `<div class="cga-res-lab">어느 의뢰에 올릴까요?</div><div class="cga-res-jobs" role="radiogroup" aria-label="올릴 의뢰">${jobs.map(r => `<button type="button" role="radio" class="cga-ask-req cga-res-job" data-rid="${Number(r.id) || 0}" aria-checked="${r.id === pick}">${jobHtml(r)}</button>`).join('')}</div>`
+        : `<div class="cga-ask-req">${jobHtml(jobs[0])}</div>`}
+      <label class="cga-res-rep"><span>취재기자</span><input type="text" id="cga-res-rep" maxlength="40" autocomplete="off" spellcheck="false"></label>
+      <p class="cga-ask-who" id="cga-ask-who"></p>
+      <p class="wt-status" id="cga-ask-st" role="status"></p>
+    </div>
+    <div class="wt-foot"><button type="button" class="wt-cancel">취소</button><button type="button" class="wt-go">올리기</button></div>
+  </div>`;
+  document.body.appendChild(el);
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); };
+  const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } else if (e.key === 'Enter' && !e.isComposing && !go.disabled) { e.preventDefault(); go.click(); } };
+  document.addEventListener('keydown', onKey, true);
+  el.querySelector('.wt-cancel').onclick = close;
+  el.addEventListener('click', e => { if (e.target === el) close(); });
+  const go = el.querySelector('.wt-go'), st = el.querySelector('#cga-ask-st'), who = el.querySelector('#cga-ask-who'), rep = el.querySelector('#cga-res-rep');
+  let repEdited = false, ndsName = '', nds = 'checking';   // 내 NDS 로그인: checking | ok | off | bad(다른 사람)
+  const job = () => jobs.find(r => r.id === pick) || jobs[0];
+  const whoFill = () => {
+    who.classList.remove('warn');
+    if (pick < 0) who.textContent = '시험 의뢰라 화면에서만 올라가는 척해요(NDS엔 안 가요).';
+    else if (!hasApp) { who.textContent = '근무표 앱을 업데이트(1.5.0)하면 여기서 바로 올릴 수 있어요. NDT 런처에서 업데이트해 주세요.'; who.classList.add('warn'); }
+    else if (nds === 'bad') { who.textContent = `NDS가 ${ndsName}님으로 로그인돼 있어요. 위쪽 [WISE × NDS]에서 내 NDS로 연결한 뒤 올려 주세요.`; who.classList.add('warn'); }
+    else if (nds === 'off') { who.textContent = 'NDS에 로그인돼 있지 않아요. 위쪽 [WISE × NDS]에서 NDS를 연결해 주세요.'; who.classList.add('warn'); }
+    else who.textContent = nds === 'ok' ? `내 NDS 로그인(${ndsName})으로 올려요.` : '내 NDS 로그인 확인 중…';
+    go.disabled = pick > 0 && (!hasApp || nds === 'bad');
+  };
+  rep.value = job().requester || '';
+  rep.addEventListener('input', () => { repEdited = true; });
+  el.querySelectorAll('.cga-res-job').forEach(b => b.addEventListener('click', () => {
+    pick = Number(b.dataset.rid) || pick;
+    el.querySelectorAll('.cga-res-job').forEach(x => x.setAttribute('aria-checked', String(x === b)));
+    if (!repEdited) rep.value = job().requester || '';
+    whoFill();
+  }));
+  whoFill(); go.focus();
+  if (hasApp && window.ndApp.ndsUserInfo) window.ndApp.ndsUserInfo(false).then(n => {
+    if (!who.isConnected) return;
+    if (n && n.loggedIn) { ndsName = n.name || n.id || ''; nds = n.name && _cgaNorm(n.name) !== _cgaNorm(_cgaMe()) ? 'bad' : 'ok'; }   // 다른 사람 NDS 로 올라가지 않게(11-24 사용자: 로그인한 이름 카드에만)
+    else nds = 'off';
+    whoFill();
+  }).catch(() => {});
+  go.onclick = async () => {
+    const reporter = rep.value.trim();
+    if (!reporter) { st.textContent = '취재기자를 써 주세요.'; rep.focus(); return; }
+    if (_cgaRes[pick]) { st.textContent = '이 의뢰에는 이미 올리는 중이에요.'; return; }
+    if (pick < 0) { close(); _cgaResFake(pick, vids); return; }
+    go.disabled = true; go.textContent = '시작하는 중…'; st.textContent = '';
+    const key = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const res = await window.ndApp.ndsCgResult({ id: pick, key, reporter, files: vids }).catch(e => ({ ok: false, error: e.message }));
+    if (res && res.ok) {
+      close();
+      if (!_cgaRes[pick]) _cgaResMsg({ key: res.key || key, id: pick, phase: 'wait', n: vids.length, total, sent: 0, i: 0, name: vids[0].name });
+      if (typeof html2canvas === 'undefined') ndLoadLib('h2c').catch(() => {});   // 끝날 때 물결(_cgaDropCard)에 쓸 그림 도구를 미리
+    } else {
+      go.disabled = false; go.textContent = '다시 올리기';
+      const e = (res && res.error) || '올리지 못했어요.';
+      st.textContent = res && res.reason === 'login' ? e + ' 위쪽 [WISE × NDS]에서 NDS를 연결해 주세요.' : e;
+      if (res && res.reason === 'state') setTimeout(() => _cgaFetch(false), 300);
+    }
+  };
 }
 
 // 디자이너 NDS 번호 기억(10-26 사용자 — NDS 에 같은 이름 계정이 둘(인사에서 자동으로 들어온 '용역' 계정)이라 배정이 '…2명이에요'로 멈추던 것: 이가진·방민주 등).

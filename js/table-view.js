@@ -128,9 +128,19 @@ async function captureSchedule() {
   toast('캡쳐 중...','');
   try {
     if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e){} }
-    const S = 2;   // 출력 해상도 배율(선명하게)
+    // 11-24: 창이 좁아 칸이 찌부돼 있어도 넓은 화면 폭(_tblIdealSize)으로 그림 + 배율 3(인쇄해도 선명). 캔버스 넓이 한도(아이폰 약 1,670만 화소) 안에서
+    const _sz = _tblIdealSize(tableEl), W = _sz.w;
+    const S = Math.max(1.5, Math.min(3, Math.sqrt(16e6 / ((W + 40) * (_sz.h + 90)))));
     // html2canvas: 화면에 보이는 그대로(색·폰트·테두리) 렌더 — dom-to-image의 뿌옇게/두껍게 나오던 문제 해결
-    const canvas = await html2canvas(tableEl, { backgroundColor: '#ffffff', scale: S, useCORS: true, logging: false });
+    const canvas = await html2canvas(tableEl, { backgroundColor: '#ffffff', scale: S, useCORS: true, logging: false,
+      windowWidth: Math.max(window.innerWidth, W + 160), windowHeight: Math.max(window.innerHeight, 900),   // 휴대폰에서도 넓은 화면 모양(좁은 화면 규칙 안 씀)
+      onclone: (doc) => {
+        const t = doc.getElementById('excel-table'); if (!t) return;
+        doc.documentElement.setAttribute('data-theme', 'light');   // 다크 화면에서도 밝은 표로(인쇄용)
+        const st = doc.createElement('style'); st.textContent = _TBL_FLAT_CSS + `#excel-table{width:${W}px!important;min-width:${W}px!important;max-width:none!important}`;
+        doc.head.appendChild(st);
+        for (let p = t.parentElement; p && p !== doc.body; p = p.parentElement) { p.style.overflow = 'visible'; p.style.maxHeight = 'none'; }
+      } });
 
     // 제목 + 테이블 합치기
     const PAD = 20 * S, titleH = 44 * S;
@@ -156,14 +166,176 @@ async function captureSchedule() {
     }
     ctx.drawImage(canvas, PAD, PAD + titleH);
 
+    const blob = await new Promise(res => out.toBlob(res, 'image/png'));
     const link = document.createElement('a');
     link.download = titleText.replace(/\s+/g,'_') + '.png';
-    link.href = out.toDataURL('image/png');
+    link.href = blob ? URL.createObjectURL(blob) : out.toDataURL('image/png');
     link.click();
+    if (blob) setTimeout(() => URL.revokeObjectURL(link.href), 60000);
     toast('이미지 저장 완료','success');
   } catch(e) {
     toast('캡쳐 실패: '+e.message,'');
   }
+}
+// ── 근무표 저장·인쇄 공통(11-24 사용자: 창이 좁으면 찌부된 채 저장됨 / 저장한 그림을 인쇄하면 흐림 / 바로 인쇄·미리보기) ──
+// 넓은 화면에서 보는 폭: 짧은 글자 칸(근무·이름)이 칸을 안 넘는 가장 작은 폭, 지금 폭보다 작으면 지금 폭. 화면 밖 복제본으로 잼 → { w, h }
+function _tblFitWidth(t, lo) {   // t 의 폭(인라인)을 바꿔 가며 찾음, 칸 나눔은 넓은 화면처럼 fixed
+  const cells = [...t.querySelectorAll('thead th, tbody td')].filter(x => { const n = x.textContent.trim().length; return n > 0 && n <= 6; });   // 비고 같은 긴 글은 빼고
+  t.style.tableLayout = 'fixed';
+  const fits = w => { t.style.width = t.style.minWidth = w + 'px'; return !cells.some(x => x.scrollWidth > x.clientWidth + 1); };
+  let hi = 3600, w; lo = Math.max(700, Math.round(lo || 0));
+  if (fits(lo)) w = lo;
+  else if (!fits(hi)) w = hi;
+  else { while (hi - lo > 12) { const m = (lo + hi) >> 1; if (fits(m)) hi = m; else lo = m; } w = hi; }
+  t.style.width = t.style.minWidth = w + 'px';
+  return w;
+}
+function _tblIdealSize(tableEl) {
+  const host = document.createElement('div');
+  host.style.cssText = 'position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none;';
+  const c = tableEl.cloneNode(true); c.removeAttribute('id'); host.appendChild(c); document.body.appendChild(host);
+  try { const w = _tblFitWidth(c, tableEl.offsetWidth); return { w, h: c.offsetHeight }; }
+  finally { host.remove(); }
+}
+// 저장·인쇄에서는 칸 고정(sticky) 없이 — 머리줄·날짜 칸이 화면 스크롤 자리에 붙어 엉뚱하게 그려지지 않게. 칸 나눔은 넓은 화면처럼(fixed)
+const _TBL_FLAT_CSS = '#excel-table{table-layout:fixed!important}#excel-table th,#excel-table td{position:relative!important;top:auto!important;left:auto!important;right:auto!important}';
+// 인쇄 문서에 넣을 스타일: 근무표에 쓰인 클래스·변수(:root) 규칙만(앱 전체 CSS 는 너무 큼), 다크 규칙은 뺌. 다른 곳 글꼴 CSS 는 링크로.
+// @media 묶음(좁은 화면·터치용)은 뺌 — 종이 폭(약 1060px)에서 좁은 화면 규칙이 걸리지 않게, 넓은 화면 모양 그대로
+function _tblPrintStyles(tableEl) {
+  const used = ['excel-table']; tableEl.querySelectorAll('[class]').forEach(e => e.classList.forEach(c => { if (!used.includes(c)) used.push(c); }));
+  const hit = sel => !!sel && !/dark/.test(sel) && (/(^|[\s,(])(:root|html|body)(?![\w-])/.test(sel) || used.some(c => sel.includes('.' + c)));
+  const walk = rules => { let out = ''; for (const r of rules) {
+    if (r.type === 1) { if (hit(r.selectorText)) out += r.cssText + '\n'; }
+    else if (r.type === 5) out += r.cssText + '\n';   // @font-face
+  } return out; };
+  let css = ''; const links = [];
+  for (const sh of document.styleSheets) { try { css += walk(sh.cssRules); } catch (e) { if (sh.href) links.push(sh.href); } }
+  return { css, links };
+}
+const _TBL_PAGE_MM = 8;   // 인쇄 여백(mm, 사방)
+function _tblPrintHtml(o) {   // o = { W(0 = 재기 전, 폭 규칙 없음), K(배율), rh(칸 높이, 0 = 그대로), land, css, links, table(복제본 HTML), title, sub }
+  const wCss = o.W ? `.pr-box{width:${o.W + 2}px}.pr-box .excel-wrap{width:${o.W + 2}px!important}#excel-table{width:${o.W}px!important;min-width:${o.W}px!important}` : '.pr-box{width:max-content}';
+  const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  return `<!doctype html><html data-theme="light"><head><meta charset="utf-8"><title>${esc(o.title)}</title>`
+    + o.links.map(h => `<link rel="stylesheet" href="${esc(h)}">`).join('')
+    + `<style>${o.css}
+@page{size:A4 ${o.land ? 'landscape' : 'portrait'};margin:${_TBL_PAGE_MM}mm}
+html,body{margin:0!important;padding:0!important;height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pr-box{zoom:${o.K}}
+.pr-title{display:flex;align-items:baseline;gap:10px;margin:0 0 10px 2px;color:#1e293b;font-family:"Wanted Sans Variable","Wanted Sans","Malgun Gothic",sans-serif}
+.pr-title b{font-size:20px;font-weight:800}.pr-title span{font-size:11px;color:#94a3b8}
+.pr-box .excel-wrap{width:auto;max-width:none!important;max-height:none!important;overflow:visible!important;box-shadow:none!important;border-color:#cbd5e1!important}
+${_TBL_FLAT_CSS}#excel-table{max-width:none!important}
+${wCss}
+${o.rh ? `#excel-table tbody td{height:${o.rh}px!important}` : ''}
+</style></head><body><div class="pr-box"><div class="pr-title"><b>${esc(o.title)}</b><span>${esc(o.sub)}</span></div><div class="excel-wrap">${o.table}</div></div></body></html>`;
+}
+// 인쇄 미리보기(CG배정 인쇄 창과 같은 모양 .cpv-*): 왼쪽 A4 한 장 미리보기 / 오른쪽 프린터·매수·방향·색 + [인쇄].
+// 표를 글자 그대로(그림 아님) 한 장에 맞춰 찍어 선명. 높이가 넘치면 칸 높이를 먼저 줄여(최소 20px) 글자를 덜 줄임. 고른 설정은 이 PC 에 기억
+async function printSchedule() {
+  const tableEl = document.getElementById('excel-table');
+  if (!tableEl || !tableEl.rows.length) { toast('근무표가 없습니다', ''); return; }
+  document.getElementById('tbl-pv')?.remove();
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+  let pref = {}; try { pref = JSON.parse(localStorage.getItem('nd_tbl_print') || '{}') || {}; } catch (e) { pref = {}; }
+  const titleEl = document.getElementById('table-title');
+  const title = (titleEl?.querySelector('#table-title-text')?.textContent || '근무표').trim();
+  const sub = (titleEl?.querySelector('span[style*="muted"]')?.textContent || '').trim();
+  const { css, links } = _tblPrintStyles(tableEl);
+  const tc = tableEl.cloneNode(true);
+  tc.querySelectorAll('.today-row').forEach(r => r.classList.remove('today-row'));   // 종이엔 '오늘' 표시 빼기
+  tc.querySelectorAll('.col-hl').forEach(r => r.classList.remove('col-hl'));
+  tc.querySelectorAll('*').forEach(e => [...e.attributes].forEach(a => { if (/^on/i.test(a.name)) e.removeAttribute(a.name); }));   // 누르기 동작 빼기(인쇄 문서엔 스크립트 없음)
+  const base = { css, links, table: tc.outerHTML, title, sub };
+  let W = 0;   // 표 폭 — 인쇄 문서 안에서 한 번 잼(_tblFitWidth)
+  const el = document.createElement('div'); el.id = 'tbl-pv'; el.className = 'cpv-pop';
+  el.innerHTML = `<div class="cpv-card" role="dialog" aria-modal="true" aria-label="근무표 인쇄">
+    <div class="cpv-sheetwrap" id="tpv-wrap"><div class="cpv-pagelist" id="tpv-sheets"></div><iframe id="tpv-measure" class="cpv-hidden" title="인쇄용" sandbox="allow-same-origin" aria-hidden="true" tabindex="-1"></iframe></div>
+    <aside class="cpv-side">
+      <div class="cpv-h"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg><b>근무표 인쇄</b><span>A4 1장</span></div>
+      <div class="cpv-fields">
+        <label class="cpv-f"><span>프린터</span><select id="tpv-dev"><option value="">프린터 찾는 중…</option></select></label>
+        <label class="cpv-f"><span>매수</span><input type="number" id="tpv-copies" min="1" max="50" value="${Math.min(Math.max(Number(pref.copies) || 1, 1), 50)}"></label>
+        <div class="cpv-f"><span>방향</span><div class="cpv-seg" id="tpv-orient"><button type="button" data-v="l">가로</button><button type="button" data-v="p">세로</button></div></div>
+        <div class="cpv-f"><span>색</span><div class="cpv-seg" id="tpv-color"><button type="button" data-v="c">컬러</button><button type="button" data-v="m">흑백</button></div></div>
+        <p class="cpv-note">표를 글자 그대로 A4 한 장에 맞춰 찍어요(그림으로 저장해 찍는 것보다 선명해요). 고른 프린터·설정은 다음에도 그대로예요.</p>
+      </div>
+      <p class="cpv-st" id="tpv-st" role="status"></p>
+      <div class="cpv-foot"><button type="button" class="cpv-cancel">취소</button><button type="button" class="cpv-go" disabled>인쇄</button></div>
+    </aside></div>`;
+  document.body.appendChild(el);
+  const $ = s => el.querySelector(s), measure = $('#tpv-measure');
+  const st = { land: pref.landscape !== false, color: pref.color !== false };
+  let html = '', gen = 0, frame = null, sheet = null;
+  const close = () => { gen++; el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
+  const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  document.addEventListener('keydown', onKey, true);
+  $('.cpv-cancel').onclick = close; el.addEventListener('click', e => { if (e.target === el) close(); });
+  const dims = () => { const mm = 96 / 25.4, pw = (st.land ? 297 : 210) * mm, ph = (st.land ? 210 : 297) * mm, m = _TBL_PAGE_MM * mm; return { mm, pw, ph, m, aw: pw - 2 * m, ah: ph - 2 * m }; };
+  function scale() {
+    const host = $('#tpv-sheets'), wrap = $('#tpv-wrap'); if (!host || !sheet) return;
+    const { pw, ph } = dims(), k = Math.min(1, (wrap.clientWidth - 48) / pw, (wrap.clientHeight - 56) / ph);
+    host.style.transform = `scale(${k})`; host.style.marginBottom = (-(1 - k) * host.offsetHeight) + 'px';
+  }
+  // 숨은 칸에 그려 크기 재기(글꼴 다 들어온 뒤). 폭을 아직 모르면 여기서 찾음
+  const measureBox = (h, aw) => new Promise(res => {
+    measure.onload = async () => {
+      const d = measure.contentDocument; try { if (d.fonts && d.fonts.ready) await Promise.race([d.fonts.ready, new Promise(r => setTimeout(r, 3000))]); } catch (e) {}
+      const b = d.querySelector('.pr-box'), t = d.getElementById('excel-table');
+      if (!W && t) W = _tblFitWidth(t, 700);
+      res({ h: b ? b.offsetHeight : 0, n: d.querySelectorAll('#excel-table tbody tr').length });
+    };
+    measure.style.width = aw + 'px'; measure.style.height = '400px'; measure.srcdoc = h;
+  });
+  const paint = () => {
+    $('#tpv-orient').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.v === 'l') === st.land)));
+    $('#tpv-color').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.v === 'c') === st.color)));
+    if (frame) frame.classList.toggle('mono', !st.color);
+  };
+  const build = async () => {
+    const my = ++gen, go = $('.cpv-go'); go.disabled = true;
+    const { pw, ph, m, aw, ah } = dims();
+    let rh = 0, r = await measureBox(_tblPrintHtml({ ...base, W, K: 1, rh: 0, land: st.land }), aw);
+    if (my !== gen) return;
+    const kw = aw / (W + 6);
+    if (r.h * kw > ah && r.n) {   // 높이가 넘치면 칸 높이(28px)부터 줄임
+      rh = Math.max(20, Math.floor(28 - (r.h - ah / kw) / r.n));
+      r = await measureBox(_tblPrintHtml({ ...base, W, K: 1, rh, land: st.land }), aw); if (my !== gen) return;
+    }
+    const K = Math.floor(Math.min(kw, ah / Math.max(1, r.h + 4)) * 0.985 * 1000) / 1000;
+    html = _tblPrintHtml({ ...base, W, K, rh, land: st.land });
+    const host = $('#tpv-sheets'); host.innerHTML = '';
+    sheet = document.createElement('div'); sheet.className = 'cpv-sheet'; sheet.style.width = pw + 'px'; sheet.style.height = ph + 'px';
+    frame = document.createElement('iframe'); frame.setAttribute('sandbox', 'allow-same-origin allow-modals'); frame.title = '인쇄 미리보기';
+    Object.assign(frame.style, { width: aw + 'px', height: ah + 'px', margin: m + 'px' });
+    sheet.appendChild(frame); host.appendChild(sheet); frame.srcdoc = html;
+    paint(); scale(); go.disabled = false;
+  };
+  ['#tpv-orient', '#tpv-color'].forEach(id => $(id).addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]'); if (!b) return;
+    if (id === '#tpv-orient') { const v = b.dataset.v === 'l'; if (v === st.land) return; st.land = v; build(); }
+    else { st.color = b.dataset.v === 'c'; paint(); }
+  }));
+  addEventListener('resize', scale);
+  paint(); build();
+  // 프린터 목록(PC 앱). 앱이 아니면 [인쇄] = 이 브라우저의 인쇄 창
+  const sel = $('#tpv-dev'), canApp = !!(window.ndApp && window.ndApp.printers && window.ndApp.printHtml);
+  if (canApp) {
+    const ps = await window.ndApp.printers().catch(() => []) || [];
+    const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    sel.innerHTML = ps.length ? ps.map(p => `<option value="${esc(p.name)}">${esc(p.displayName)}${p.isDefault ? ' (기본)' : ''}</option>`).join('') : '<option value="">기본 프린터</option>';
+    sel.value = pref.device && ps.some(p => p.name === pref.device) ? pref.device : ((ps.find(p => p.isDefault) || ps[0] || {}).name || '');
+  } else sel.innerHTML = '<option value="">이 PC 기본 프린터</option>';
+  $('.cpv-go').onclick = async () => {
+    if (!html) return;
+    const o = { deviceName: sel.value, copies: Math.min(Math.max(Number($('#tpv-copies').value) || 1, 1), 50), landscape: st.land, color: st.color, duplex: false };
+    try { localStorage.setItem('nd_tbl_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color })); } catch (e) {}
+    if (!canApp) { try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (e) { toast('인쇄하지 못했어요.', 'error'); } return; }
+    const go = $('.cpv-go'); go.disabled = true; go.textContent = '보내는 중…'; $('#tpv-st').textContent = '';
+    const r = await window.ndApp.printHtml(Object.assign({ html }, o)).catch(e => ({ ok: false, error: e.message }));
+    if (r && r.ok) { close(); toast('인쇄를 보냈어요.', 'success'); }
+    else { go.disabled = false; go.textContent = '인쇄'; $('#tpv-st').textContent = (r && r.error) || '인쇄하지 못했어요.'; }
+  };
 }
 function startEditTableTitle() {
   if (!isAdmin) return;   // 제목 고정은 모든 사람 화면·이미지 저장에 반영되므로 관리자만

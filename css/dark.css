@@ -825,6 +825,37 @@ body.cga-dragging .cga-card { outline:2px dashed rgba(49,130,246,.35); outline-o
 .cga-ask-push input:focus-visible + .cga-sw { outline:2px solid #2f77f6; outline-offset:2px; }
 .cga-ask-who { margin:0; font-size:12.5px; color:var(--muted); }
 .cga-ask-who.warn { color:#d65a52; font-weight:700; }
+/* 결과물 올리기(11-24) — 영상 파일을 끄는 동안 내 카드 점선, 위에 오면 파랑+'놓으면 결과물 올리기', 의뢰 칸 위면 그 칸 */
+.cga-card.file-mine { outline:2px dashed rgba(47,119,246,.6); outline-offset:3px; }
+.cga-card.file-hot { outline:2px solid #2f77f6; outline-offset:3px; transform:scale(1.02); transition:transform .15s; }
+.cga-card.file-hot::after { content:'놓으면 결과물 올리기'; position:absolute; left:50%; bottom:-14px; z-index:3; transform:translateX(-50%); padding:5px 12px; border-radius:999px; background:#2f77f6; color:#fff; font-size:12px; font-weight:800; white-space:nowrap; box-shadow:0 8px 18px -8px rgba(47,119,246,.9); pointer-events:none; }
+.cga-job.file-hot { box-shadow:inset 0 0 0 2px #2f77f6; }
+.cga-upl { --u:var(--j, 47,119,246); display:flex; align-items:center; gap:8px; margin-top:8px; font-size:11.5px; font-weight:800; color:rgb(var(--u)); }
+.cga-upl-bar { flex:1; min-width:30px; height:6px; border-radius:99px; background:rgba(var(--u),.16); overflow:hidden; }
+.cga-upl-bar > i { display:block; width:0; height:100%; border-radius:inherit; background:rgb(var(--u)); transition:width .3s ease; }
+.cga-upl-t { flex:none; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.cga-upl-x { flex:none; min-width:20px; height:20px; padding:0; border:0; border-radius:99px; background:rgba(var(--u),.14); color:rgb(var(--u)); font:inherit; font-size:13px; line-height:1; cursor:pointer; transition:background .15s, color .15s; }
+.cga-upl-x:hover { background:rgba(var(--u),.26); }
+.cga-upl.ask .cga-upl-x { padding:0 9px; background:#e5484d; color:#fff; font-size:11px; }
+.cga-upl.wait .cga-upl-bar > i { width:0 !important; }
+.cga-upl.reg .cga-upl-bar > i { background:linear-gradient(90deg, rgba(var(--u),.55), rgb(var(--u)), rgba(var(--u),.55)); background-size:200% 100%; animation:cgaUplShim 1.1s linear infinite; }
+.cga-upl.reg .cga-upl-x { display:none; }
+@keyframes cgaUplShim { from { background-position:200% 0; } to { background-position:0 0; } }
+.cga-res-card { width:min(480px,100%); }
+.cga-res-files { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; max-height:184px; overflow:auto; }
+.cga-res-files li { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; background:var(--surface2); border:1px solid var(--border); font-size:13.5px; font-weight:700; }
+.cga-res-files li svg { flex:none; color:#2f77f6; }
+.cga-res-files li span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cga-res-files li small { flex:none; font-size:12px; font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums; }
+.cga-res-lab { margin-top:2px; font-size:12.5px; font-weight:800; color:var(--muted); }
+.cga-res-jobs { display:flex; flex-direction:column; gap:6px; max-height:236px; overflow:auto; padding:2px; }
+.cga-res-job { display:block; width:100%; text-align:left; font:inherit; color:inherit; cursor:pointer; transition:border-color .15s, background-color .15s, box-shadow .15s; }
+.cga-res-job:hover { border-color:rgba(47,119,246,.5); }
+.cga-res-job[aria-checked="true"] { border-color:#2f77f6; background:rgba(47,119,246,.08); box-shadow:inset 0 0 0 1px #2f77f6; }
+.cga-res-rep { display:flex; align-items:center; gap:10px; padding:3px 4px 3px 12px; border-radius:12px; border:1px solid var(--border); background:var(--surface); transition:border-color .15s, box-shadow .15s; }
+.cga-res-rep > span { flex:none; font-size:12.5px; font-weight:800; color:var(--muted); }
+.cga-res-rep input { flex:1; min-width:0; padding:8px 6px; border:0; background:transparent; font:inherit; font-size:14px; font-weight:700; color:var(--text); outline:none; }
+.cga-res-rep:focus-within { border-color:#2f77f6; box-shadow:0 0 0 3px rgba(47,119,246,.15); }
 /* CG배정 현황 의뢰 크게 보기(js/cg-assign.js _cgaReqOpen) */
 .cga-req[data-k] { cursor: pointer; }
 .cga-req[data-k]:hover b { color: #2f77f6; }

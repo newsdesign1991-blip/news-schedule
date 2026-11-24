@@ -46,7 +46,7 @@
 window.addEventListener('error', function(e){ var t=e.target, u=t&&(t.src||t.href)||''; if(u.indexOf(location.origin)===0 && /\/(js|css)\/[\w.-]+\.(js|css)(\?|$)/.test(u)) (window.__ndModFail=window.__ndModFail||[]).push(u); }, true);
 </script>
 <link rel="stylesheet" href="css/base.css?v=49d694c3">
-<link rel="stylesheet" href="css/dark.css?v=93b8c006">
+<link rel="stylesheet" href="css/dark.css?v=4aa35681">
 <link rel="stylesheet" href="css/nav.css?v=6188edb9">
 <link rel="stylesheet" href="css/home.css?v=5c3f43a7">
 <link rel="stylesheet" href="css/notice-poll.css?v=01718f6c">
@@ -624,6 +624,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
       <div class="tbl-actions">
         <button class="tbl-btn" onclick="tableThisPeriod()">이번 기간</button>
         <button class="tbl-btn" onclick="captureSchedule()" title="현재 근무표를 PNG 이미지로 저장"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px;"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-4.5-4.5L5 21"/></svg>이미지로 저장</button>
+        <button class="tbl-btn" onclick="printSchedule()" title="근무표 인쇄(미리보기)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px;"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>인쇄</button>
         <button class="tbl-btn" id="tbl-del-pub" style="display:none;background:#fdecea;color:#d65a52;border:1px solid #f3c2bd;" onclick="openDeletePublished()">🗑 배포 삭제</button>
       </div>
     </div>
@@ -1229,7 +1230,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.11.23 13:52';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.11.24 20:23';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1490,7 +1491,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/project-gantt.js?v=64b2c52b"></script>
 <script src="js/nav-admin.js?v=4d18ca03"></script>
 <script src="js/home.js?v=fa7e040f"></script>
-<script src="js/table-view.js?v=4c698fd3"></script>
+<script src="js/table-view.js?v=d9edfc31"></script>
 <script src="js/calendar.js?v=01f1db72"></script>
 <script src="js/generation.js?v=4438c90c"></script>
 <script src="js/workshop.js?v=fc107e6c"></script>
@@ -1519,7 +1520,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/holiday-work.js?v=332135fe"></script>
 <script src="js/onboard.js?v=340381f5"></script>
 <script src="js/home-tiles.js?v=68cfb2c2"></script>
-<script src="js/cg-assign.js?v=663840da"></script>
+<script src="js/cg-assign.js?v=60b501c3"></script>
 <script src="js/app-mode.js?v=628d3620"></script>
 <script src="js/look-chara.js?v=444bac87"></script>
 <script src="js/look.js?v=32e796ab"></script>
