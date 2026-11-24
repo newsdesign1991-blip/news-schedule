@@ -1590,7 +1590,7 @@ function _cgaResAsk(files, card, rid) {
   const whoFill = () => {
     who.classList.remove('warn');
     if (pick < 0) who.textContent = '시험 의뢰라 화면에서만 올라가는 척해요(NDS엔 안 가요).';
-    else if (!hasApp) { who.textContent = '근무표 앱을 업데이트(1.5.0)하면 여기서 바로 올릴 수 있어요. NDT 런처에서 업데이트해 주세요.'; who.classList.add('warn'); }
+    else if (!hasApp) { who.textContent = '근무표 앱을 업데이트(1.5.1)하면 여기서 바로 올릴 수 있어요. NDT 런처에서 업데이트해 주세요.'; who.classList.add('warn'); }
     else if (nds === 'bad') { who.textContent = `NDS가 ${ndsName}님으로 로그인돼 있어요. 위쪽 [WISE × NDS]에서 내 NDS로 연결한 뒤 올려 주세요.`; who.classList.add('warn'); }
     else if (nds === 'off') { who.textContent = 'NDS에 로그인돼 있지 않아요. 위쪽 [WISE × NDS]에서 NDS를 연결해 주세요.'; who.classList.add('warn'); }
     else who.textContent = nds === 'ok' ? `내 NDS 로그인(${ndsName})으로 올려요.` : '내 NDS 로그인 확인 중…';

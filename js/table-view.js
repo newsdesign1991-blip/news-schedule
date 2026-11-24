@@ -213,17 +213,51 @@ function _tblPrintStyles(tableEl) {
   return { css, links };
 }
 const _TBL_PAGE_MM = 8;   // 인쇄 여백(mm, 사방)
-// 종이용 칸 선(11-24 사용자: 인쇄하면 칸 사이 선이 안 보여 구분 안 됨) — 화면 규칙 `border: 0 solid var(--border)` 는 복사(cssText)하면
-// 선 모양·색이 빈 값으로 빠져 선이 아예 없어짐 + 화면 선 색(#e2e8f0)은 종이·흑백에서 안 보임 → 모양·색을 여기서 다시. 부서 머리 색 밑줄만 그대로
-// 굵은 글자(신휴가·VW데 등)는 칸에 꽉 차 보여(사용자) 종이에선 한 단계 가늘게 + 칸 안 좌우 여백(폭 잴 때도 들어가 칸이 그만큼 넓어짐)
-const _TBL_PRINT_LINES = '#excel-table thead th,#excel-table tbody td{border-style:solid!important}'
-  + '#excel-table tbody td{border-color:#8d97a6!important;padding-left:3px!important;padding-right:3px!important}'
-  + '#excel-table tbody td[style*="font-weight:700"],#excel-table tbody td[style*="font-weight:800"],#excel-table tbody td b,#excel-table tbody td strong{font-weight:600!important}'
-  + '#excel-table thead th{border-left-color:#8d97a6!important;border-right-color:#8d97a6!important}'
-  + '#excel-table thead th:not(.dept-group){border-bottom-color:#8d97a6!important}'
-  + '#excel-table tbody tr.sum-row td{border-top-color:#64748b!important}'
-  + '.pr-box .excel-wrap{border-color:#8d97a6!important}';
-function _tblPrintHtml(o) {   // o = { W(0 = 재기 전, 폭 규칙 없음), K(배율), rh(칸 높이, 0 = 그대로), land, paper('A4'|'A3'), css, links, table(복제본 HTML), title, sub }
+// 종이 모양 = 회사 엑셀 일정표처럼(11-24 사용자: '선이 지저분·흐리멍텅 — 엑셀처럼 가로선만, 특정 구역만 세로선, 선·글자 잘 보이게').
+// · 화면 규칙 `border: 0 solid var(--border)` 는 복사(cssText)하면 선 모양·색이 빈 값으로 빠짐 → 여기서 모양·색을 다시 줌
+// · 줄마다 얇은 검은 가로선, 칸 사이 세로선 없음, 묶음 경계(_tblPrintBlocks 의 .pr-vl)만 검은 세로선, 머리 아래·합계 위·바깥 테두리 굵게, 둥근 모서리 없음
+// · 글자색·굵기는 _tblPrintInk(회색 글자 → 검정, 연한 색 → 진하게, 색 칸 위 흰 글자만 굵게)
+const _TBL_PRINT_LINES = '#excel-table th,#excel-table td{border-style:solid!important;border-color:#333!important;border-left-width:0!important;border-right-width:0!important;border-top-width:0!important;border-radius:0!important}'
+  + '#excel-table tbody td{border-bottom-width:1px!important;padding-left:3px!important;padding-right:3px!important}'
+  + '#excel-table thead th{border-bottom-width:1px!important}'
+  + '#excel-table thead tr:last-child th,#excel-table thead th[rowspan]{border-bottom-width:2px!important;border-bottom-color:#000!important}'
+  + '#excel-table .pr-vl{border-left-width:2px!important;border-left-color:#000!important}'
+  + '#excel-table tbody tr.sum-row td{border-top-width:2px!important;border-top-color:#000!important}'
+  + '.pr-box .excel-wrap{border:2px solid #000!important;border-radius:0!important}';
+// 묶음 경계(날짜·요일 | VW | 조근 | VW합 | CG | PROJECT | SPORTS | CG합 | 당일 | 비고) — 머리 첫 줄 칸들의 시작 열(날짜·요일은 한 묶음) → 그 열 칸마다 .pr-vl
+function _tblPrintBlocks(t) {
+  const hr = t.tHead && t.tHead.rows; if (!hr || !hr.length) return;
+  const S = new Set(), occ = new Set(); let c = 0;
+  [...hr[0].cells].forEach(th => { const w = th.colSpan || 1; if (c > 0 && !th.classList.contains('dow-th')) S.add(c); if ((th.rowSpan || 1) > 1) for (let k = 0; k < w; k++) occ.add(c + k); c += w; });
+  const walk = (cells, skip) => { let col = 0; cells.forEach(x => { while (skip && skip.has(col)) col++; if (S.has(col)) x.classList.add('pr-vl'); col += x.colSpan || 1; }); };
+  walk([...hr[0].cells]);
+  for (let r = 1; r < hr.length; r++) walk([...hr[r].cells], occ);
+  [...t.tBodies].forEach(tb => [...tb.rows].forEach(tr => walk([...tr.cells])));
+}
+// 글자색·굵기(인쇄 문서 안 밝은 화면에서 잰 색 기준 — 다크 화면에서 눌러도 같게): src = 인쇄 문서 칸들, dst = 같은 순서의 복제본 칸들
+//   글자를 직접 가진 요소만. 흰 글자(색 칸 위 당직·조근) = 굵게 그대로 / 회색·검정 계열 = 검정('-' 만 연회색) / 색 글자 = 같은 색상, 채도↑·밝기↓
+//   굵기: 보통 500(엑셀처럼), 날짜 칸 700, 머리 이름 500, 부서 머리 800
+function _tblPrintInk(win, src, dst) {
+  const hsl = ([r, g, b]) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; let h = 0, s = 0;
+    if (mx !== mn) { const d = mx - mn; s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); h = (mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60; }
+    return [h, s, l]; };
+  src.forEach((e, i) => {
+    if (![...e.childNodes].some(x => x.nodeType === 3 && x.textContent.trim())) return;
+    const v = (String(win.getComputedStyle(e).color).match(/[\d.]+/g) || []).map(Number); if (v.length < 3) return;
+    const [h, sa, l] = hsl(v), cell = e.closest('td,th'), txt = e.textContent.trim(), o = dst[i]; if (!o) return;
+    let col = null, w;
+    if (txt === '-') col = '#c4c9d1';   // '-'(빈 날)는 색과 상관없이 엑셀의 빈칸처럼 흐리게
+    else if (l > 0.85) w = 700;
+    else if (sa < 0.22 || l < 0.2) col = '#111827';
+    else col = 'hsl(' + Math.round(h) + ' ' + Math.round(Math.max(sa, 0.62) * 100) + '% ' + Math.round(Math.min(l, 0.46) * 100) + '%)';
+    if (w === undefined) w = !cell ? 500 : cell.tagName === 'TH' ? (cell.classList.contains('dept-group') ? 800 : cell.classList.contains('name-th') ? 500 : 700) : cell.classList.contains('date-td') ? 700 : 500;
+    if (col) o.style.setProperty('color', col, 'important');
+    o.style.setProperty('font-weight', String(w), 'important');
+  });
+}
+// 한 장 맞춤 = transform scale(11-24 저녁 — zoom 은 선 두께가 '1 화소 이상'으로 굳어 줄일수록 선만 두꺼워 보임(사용자 '좀 더 얇게'), scale 은 선도 같이 가늘어짐).
+// 바깥 .pr-fit 이 줄어든 크기(W·H × K)로 자리를 잡아 종이 한 장 안에.
+function _tblPrintHtml(o) {   // o = { W(0 = 재기 전, 폭 규칙 없음), K(배율), H(K=1 높이 — 줄인 자리 크기), rh(칸 높이, 0 = 그대로), land, paper('A4'|'A3'), css, links, table(복제본 HTML), title, sub }
   const wCss = o.W ? `.pr-box{width:${o.W + 2}px}.pr-box .excel-wrap{width:${o.W + 2}px!important}#excel-table{width:${o.W}px!important;min-width:${o.W}px!important}` : '.pr-box{width:max-content}';
   const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   return `<!doctype html><html data-theme="light"><head><meta charset="utf-8"><title>${esc(o.title)}</title>`
@@ -231,7 +265,7 @@ function _tblPrintHtml(o) {   // o = { W(0 = 재기 전, 폭 규칙 없음), K(�
     + `<style>${o.css}
 @page{size:${o.paper === 'A3' ? 'A3' : 'A4'} ${o.land ? 'landscape' : 'portrait'};margin:${_TBL_PAGE_MM}mm}
 html,body{margin:0!important;padding:0!important;height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.pr-box{zoom:${o.K}}
+${o.K && o.K !== 1 && o.H ? `.pr-fit{width:${Math.ceil((o.W + 2) * o.K) + 1}px;height:${Math.ceil(o.H * o.K) + 1}px;overflow:hidden}.pr-box{transform:scale(${o.K});transform-origin:0 0}` : ''}
 .pr-title{display:flex;align-items:baseline;gap:10px;margin:0 0 10px 2px;color:#1e293b;font-family:"Wanted Sans Variable","Wanted Sans","Malgun Gothic",sans-serif}
 .pr-title b{font-size:20px;font-weight:800}.pr-title span{font-size:11px;color:#94a3b8}
 .pr-box .excel-wrap{width:auto;max-width:none!important;max-height:none!important;overflow:visible!important;box-shadow:none!important;border-color:#cbd5e1!important}
@@ -239,7 +273,7 @@ ${_TBL_FLAT_CSS}#excel-table{max-width:none!important}
 ${_TBL_PRINT_LINES}
 ${wCss}
 ${o.rh ? `#excel-table tbody td{height:${o.rh}px!important}` : ''}
-</style></head><body><div class="pr-box"><div class="pr-title"><b>${esc(o.title)}</b><span>${esc(o.sub)}</span></div><div class="excel-wrap">${o.table}</div></div></body></html>`;
+</style></head><body><div class="pr-fit"><div class="pr-box"><div class="pr-title"><b>${esc(o.title)}</b><span>${esc(o.sub)}</span></div><div class="excel-wrap">${o.table}</div></div></div></body></html>`;
 }
 // 인쇄 미리보기(CG배정 인쇄 창과 같은 모양 .cpv-*): 왼쪽 종이(A4·A3) 한 장 미리보기 / 오른쪽 프린터·매수·방향·색 + [인쇄].
 // 표를 글자 그대로(그림 아님) 한 장에 맞춰 찍어 선명. 높이가 넘치면 칸 높이를 먼저 줄여(최소 20px) 글자를 덜 줄임. 고른 설정은 이 PC 에 기억
@@ -257,6 +291,7 @@ async function printSchedule() {
   tc.querySelectorAll('.today-row').forEach(r => r.classList.remove('today-row'));   // 종이엔 '오늘' 표시 빼기
   tc.querySelectorAll('.col-hl').forEach(r => r.classList.remove('col-hl'));
   tc.querySelectorAll('*').forEach(e => [...e.attributes].forEach(a => { if (/^on/i.test(a.name)) e.removeAttribute(a.name); }));   // 누르기 동작 빼기(인쇄 문서엔 스크립트 없음)
+  _tblPrintBlocks(tc);   // 묶음 경계 세로선 자리
   const base = { css, links, table: tc.outerHTML, title, sub };
   let W = 0;   // 표 폭 — 인쇄 문서 안에서 한 번 잼(_tblFitWidth)
   const el = document.createElement('div'); el.id = 'tbl-pv'; el.className = 'cpv-pop';
@@ -279,7 +314,7 @@ async function printSchedule() {
   const $ = s => el.querySelector(s), measure = $('#tpv-measure');
   const st = { land: pref.landscape !== false, color: pref.color !== false, a3: pref.paper === 'A3' };
   const paper = () => (st.a3 ? 'A3' : 'A4');
-  let html = '', gen = 0, frame = null, sheet = null;
+  let html = '', gen = 0, frame = null, sheet = null, inked = Promise.resolve();
   const close = () => { gen++; el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
   const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
@@ -310,6 +345,7 @@ async function printSchedule() {
   };
   const build = async () => {
     const my = ++gen, go = $('.cpv-go'); go.disabled = true;
+    await inked; if (my !== gen) return;
     const { pw, ph, m, aw, ah } = dims();
     let rh = 0, r = await measureBox(_tblPrintHtml({ ...base, W, K: 1, rh: 0, land: st.land, paper: paper() }), aw);
     if (my !== gen) return;
@@ -319,7 +355,7 @@ async function printSchedule() {
       r = await measureBox(_tblPrintHtml({ ...base, W, K: 1, rh, land: st.land, paper: paper() }), aw); if (my !== gen) return;
     }
     const K = Math.floor(Math.min(kw, ah / Math.max(1, r.h + 4)) * 0.985 * 1000) / 1000;
-    html = _tblPrintHtml({ ...base, W, K, rh, land: st.land, paper: paper() });
+    html = _tblPrintHtml({ ...base, W, K, H: r.h, rh, land: st.land, paper: paper() });
     const host = $('#tpv-sheets'); host.innerHTML = '';
     sheet = document.createElement('div'); sheet.className = 'cpv-sheet'; sheet.style.width = pw + 'px'; sheet.style.height = ph + 'px';
     frame = document.createElement('iframe'); frame.setAttribute('sandbox', 'allow-same-origin allow-modals'); frame.title = '인쇄 미리보기';
@@ -334,11 +370,21 @@ async function printSchedule() {
     else { st.color = b.dataset.v === 'c'; paint(); }
   }));
   addEventListener('resize', scale);
+  // 글자색·굵기 한 번(인쇄 문서에서 밝은 화면 색을 재서 복제본에 박음 → base.table 바꾼 뒤 폭·배율 재기)
+  const ink = () => new Promise(res => {
+    measure.onload = async () => {
+      const d = measure.contentDocument; try { if (d.fonts && d.fonts.ready) await Promise.race([d.fonts.ready, new Promise(r => setTimeout(r, 3000))]); } catch (e) {}
+      try { const src = [...d.querySelectorAll('#excel-table thead *, #excel-table tbody *')], dst = [...tc.querySelectorAll('thead *, tbody *')];
+        if (src.length === dst.length) { _tblPrintInk(measure.contentWindow, src, dst); base.table = tc.outerHTML; } } catch (e) {}
+      res();
+    };
+    measure.style.width = '1200px'; measure.style.height = '400px'; measure.srcdoc = _tblPrintHtml({ ...base, W: 0, K: 1, rh: 0, land: true });
+  });
   // 프린터 목록(PC 앱). 앱이 아니면 [인쇄] = 이 브라우저의 인쇄 창
   const sel = $('#tpv-dev'), canApp = !!(window.ndApp && window.ndApp.printers && window.ndApp.printHtml);
   // A3 바로 인쇄 = 앱 1.5.1~(용지 크기를 프린터에 넘김). 그 전 앱은 프린터 기본 용지(보통 A4)로 나가 A3 모양이 줄거나 잘림 → 막고 안내
   let a3ok = !canApp;
-  paint(); build();
+  inked = ink(); paint(); build();
   if (canApp && window.ndApp.version) { const v = String(await window.ndApp.version().catch(() => '') || '').split('.').map(Number); a3ok = (v[0] || 0) * 1e6 + (v[1] || 0) * 1e3 + (v[2] || 0) >= 1005001; if (!el.isConnected) return; paint(); }
   if (canApp) {
     const ps = await window.ndApp.printers().catch(() => []) || [];
