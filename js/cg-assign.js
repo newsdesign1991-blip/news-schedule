@@ -958,8 +958,10 @@ function _cgaPaint() {
         + (n8 ? `<span class="cga-no" title="8뉴스 큐시트 ${n8}번째 아이템 — 먼저 방송돼요">${n8}</span>` : '')
         + `<div class="cga-who"><b>${_cgaEsc(r.requester)}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}${fix ? '<em class="cga-fix">보완요청</em>' : ''}</div>`
         + (r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : '')
-        + `<div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span>${fix ? '<span class="cga-ago">보완 기다림</span>' : `<span class="cga-ago" data-kind="wait" data-at="${_cgaEsc(r.inputAt)}"></span>`}</div>` };
+        + `<div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span>${fix ? '<span class="cga-ago">보완 기다림</span>' : `<span class="cga-ago" data-kind="wait" data-at="${_cgaEsc(r.inputAt)}"></span>`}</div>`
+        + (qp ? `<button type="button" class="cga-prt" data-prt="${Number(r.id) || 0}" title="바로 인쇄 — 지난번 인쇄 창에서 고른 프린터·설정 그대로" aria-label="이 의뢰 바로 인쇄">${CGA_PRT_IC}<span class="cga-prt-bar" aria-hidden="true"><i></i></span></button>` : '') };
   };
+  const qp = !!(window.ndApp && window.ndApp.printHtml);   // 카드 오른쪽 [인쇄](11-25, _cgaQuickPrint) — 앱에서만
   const list = document.getElementById('cga-reqs');
   const cnt = document.getElementById('cga-reqn'), cntT = loaded ? String(nReq) : '…'; if (cnt.textContent !== cntT) cnt.textContent = cntT;
   if (!_cgaPull) _cgaKeyed(list, wait.map(item), (el, i) => {   // 물방울을 끄는 동안엔 목록을 다시 그리지 않음(끄는 칸이 바뀌지 않게)
@@ -969,6 +971,7 @@ function _cgaPaint() {
     // 10-20 '더 부드럽게 천천히': 1.5초, 하나씩 0.35초 간격, 끝에서 살짝 감속 + 흐릿→선명
     el.animate([{ opacity: 0, transform: `translateY(${dy}px) scale(.98)`, filter: 'blur(3px)' + gf }, { opacity: .85 * o, filter: 'blur(0px)' + gf, offset: .55 }, { opacity: o, transform: 'none', filter: 'blur(0px)' + gf }], { duration: 1500, delay: i * 350, easing: 'cubic-bezier(.22,.9,.24,1)', fill: 'backwards' });
   });
+  _cgaQpPaint();   // 인쇄 중인 의뢰는 다시 그린 뒤에도 막대 그대로
   const none = document.getElementById('cga-none'); none.hidden = !(loaded && !wait.length);
   const un = document.getElementById('cga-unhide'); un.hidden = !nHid;   // 왼쪽 아래 '숨긴 의뢰 n' → 눌러서 모아 보기(10-26 사용자)
   if (nHid) { const h = `${CGA_EYEOFF_IC}숨긴 의뢰 <b>${nHid}</b>`; if (un._h !== h) { un.innerHTML = h; un._h = h; } un.title = '숨긴 의뢰 모아 보기 — 다시 보이게 할 수 있어요'; }
@@ -1196,6 +1199,7 @@ function _cgaWireDnd() {
   // 의뢰를 한 번 누르면 크게 보기(10-21) — × 는 숨기기. 끌다 놓은 뒤 따라오는 클릭은 무시
   list.addEventListener('click', e => {
     if (list._pulledAt && Date.now() - list._pulledAt < 400) { e.stopPropagation(); return; }
+    const pb = e.target.closest('.cga-prt[data-prt]'); if (pb) { _cgaQuickPrint(Number(pb.dataset.prt) || 0); return; }   // 카드 오른쪽 [인쇄] = 바로 인쇄
     if (e.target.closest('.cga-x')) return; const it = e.target.closest('.cga-req[data-k]'); if (!it) return;
     const id = Number(String(it.dataset.k).replace(/^r:/, '')); if (id) _cgaReqOpen(id);
   });
@@ -1203,7 +1207,7 @@ function _cgaWireDnd() {
   list.addEventListener('pointerdown', e => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (_cgaPull) _cgaPullStale();   // 새로 눌렀으면 전에 잡은 건 이미 놓은 것
-    const it = e.target.closest('.cga-req.drag[data-rid]'); if (!it || e.target.closest('.cga-x') || !_cgaCanEdit()) return;
+    const it = e.target.closest('.cga-req.drag[data-rid]'); if (!it || e.target.closest('.cga-x, .cga-prt') || !_cgaCanEdit()) return;
     _cgaPull = { it, id: Number(it.dataset.rid) || 0, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, pid: e.pointerId, phase: 0, vx: 0, vy: 0, t: Date.now() };
   });
   document.addEventListener('pointermove', e => { const p = _cgaPull; if (!p) return; if (e.pointerType === 'mouse' && !(e.buttons & 1)) return _cgaPullStale(); if (e.pointerId !== p.pid) return; p.x = e.clientX; p.y = e.clientY; _cgaPullMove(e); }, { passive: false });
@@ -1225,7 +1229,7 @@ function _cgaPullMove(e) {
     const r = p.it.getBoundingClientRect(), cs = getComputedStyle(p.it), g = document.createElement('div');
     const padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0;
     g.className = 'cga-pullghost' + (p.it.classList.contains('late') ? ' late' : '') + (p.it.classList.contains('urgent') ? ' urgent' : ''); g.setAttribute('aria-hidden', 'true');
-    g.innerHTML = [...p.it.children].filter(c => !c.classList.contains('cga-x')).map(c => c.outerHTML).join('');
+    g.innerHTML = [...p.it.children].filter(c => !c.classList.contains('cga-x') && !c.classList.contains('cga-prt')).map(c => c.outerHTML).join('');
     Object.assign(g.style, { width: (r.width + 20) + 'px', minHeight: r.height + 'px', paddingLeft: (padL + 10) + 'px', paddingRight: (padR + 10) + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom });
     p.bx = r.left - 10; p.by = r.top; p.gw = r.width + 20;
     p.ox = p.sx - p.bx; p.oy = p.sy - p.by;   // 잡은 지점(카드 안 좌표) — 떨어진 뒤에도 이 점을 붙든 채 따라옴
@@ -1818,28 +1822,95 @@ function _cgaLastCol(doc, step) {
 // 인쇄 미리보기(NDS 의 크롬 인쇄 창처럼): 왼쪽 A4 미리보기 / 오른쪽 대상·매수·레이아웃·컬러 + [인쇄](바로 인쇄)·[취소]. 고른 프린터·설정은 이 PC 에 기억
 // [인쇄] 누른 뒤 진행 막대(11-24 사용자: '되고 있는지 몰라 버튼을 한 번 더 눌러 취소하는 일') — 근무표 인쇄(js/table-view.js printSchedule)도 같이 씀.
 // 앱(ndApp.printHtml)은 진행을 알려 주지 않음(설치 파일 안 바꾸려고 사이트만) → 시간으로 차오르다(최대 92%) 끝나면 100%·'보냈어요' 잠깐 뒤 돌려줌.
-// 보내는 동안 pop 에 .cpv-sending: [인쇄]·[취소]·설정 막음, 각 창의 close() 도 이 표시가 있으면 안 닫힘(Esc·바깥 누르기 포함). 실패하면 버튼 되살림
+// 보내는 동안 pop 에 .cpv-sending: [인쇄]·설정만 막음. 창은 언제든 닫힘(11-25 사용자 'CG 의뢰 인쇄 누르고 바로 닫고 다음 의뢰' — 앱은 인쇄마다 숨은 창을 따로 띄워
+// 닫아도 인쇄는 계속됨). 보내는 동안 [취소]는 [닫기]. 닫힌 뒤 끝나면 성공은 조용히, 실패만 부른 쪽이 알림(pop.isConnected 로 앎). 실패하면 버튼 되살림
 async function ndPrintSend(pop, send) {
   const go = pop.querySelector('.cpv-go'), cancel = pop.querySelector('.cpv-cancel'), foot = pop.querySelector('.cpv-foot');
   pop.querySelector('.cpv-prog')?.remove();
   const pg = document.createElement('div'); pg.className = 'cpv-prog'; pg.setAttribute('role', 'progressbar'); pg.setAttribute('aria-valuemin', '0'); pg.setAttribute('aria-valuemax', '100');
-  pg.innerHTML = '<div class="cpv-prog-t"><b>인쇄 준비 중</b><span>0%</span></div><div class="cpv-prog-bar"><i></i></div>';
+  pg.innerHTML = '<div class="cpv-prog-t"><b>인쇄 준비 중</b><span>0%</span></div><div class="cpv-prog-bar"><i></i></div><p class="cpv-prog-n">창을 닫아도 인쇄는 계속돼요</p>';
   foot.before(pg);
-  const lab = pg.querySelector('b'), pct = pg.querySelector('span'), bar = pg.querySelector('i');
-  pop.classList.add('cpv-sending'); go.disabled = true; go.textContent = '보내는 중…'; if (cancel) cancel.disabled = true;
+  const lab = pg.querySelector('b'), pct = pg.querySelector('span'), bar = pg.querySelector('i'), was = cancel ? cancel.textContent : '';
+  pop.classList.add('cpv-sending'); go.disabled = true; go.textContent = '보내는 중…'; if (cancel) cancel.textContent = '닫기';
   const set = (p, t) => { const v = Math.round(p); bar.style.width = p + '%'; pct.textContent = v + '%'; pg.setAttribute('aria-valuenow', String(v)); if (t) lab.textContent = t; };
   const t0 = Date.now(), iv = setInterval(() => { const s = (Date.now() - t0) / 1000; set(92 * (1 - Math.exp(-s / 2.4)), s < 1.2 ? '인쇄 준비 중' : '프린터로 보내는 중'); }, 120);
   let r; try { r = await send(); } catch (e) { r = { ok: false, error: e.message }; }
   clearInterval(iv);
-  if (r && r.ok) { pg.classList.add('ok'); set(100, '프린터로 보냈어요'); await new Promise((res) => setTimeout(res, 700)); }
+  if (r && r.ok) { pg.classList.add('ok'); set(100, '프린터로 보냈어요'); if (pop.isConnected) await new Promise((res) => setTimeout(res, 700)); }
   else { pg.remove(); go.disabled = false; go.textContent = '인쇄'; }
-  if (cancel) cancel.disabled = false; pop.classList.remove('cpv-sending');
+  if (cancel) cancel.textContent = was; pop.classList.remove('cpv-sending');
   return r;
+}
+// 지난번 인쇄 창에서 고른 글자 크기 칸(없으면 100%)
+function _cgaPrintZi(pref) { return Number.isInteger(pref.size) && pref.size >= 0 && pref.size < CGA_PRINT_ZOOM.length ? pref.size : (pref.small ? 2 : CGA_PRINT_ZOOM.indexOf(1)); }
+// 의뢰 목록 카드 맨 오른쪽 [인쇄] = 바로 인쇄(11-25 사용자 — 의뢰마다 창 열고 닫기 번거로움). 미리보기 없이 지난번 인쇄 창에서 고른 그대로(프린터·매수·방향·색·양면·종이 아끼기).
+// 마지막 장에 표 테두리만 남는지는 미리보기와 같은 방식으로 숨은 칸에 장을 나눠 재서 봄(tightEnd). 진행 막대는 그 아이콘 밑 — 상태는 _cgaQp[의뢰 번호]에 두고 그때그때
+// 그 의뢰의 버튼에 그림(20초마다 목록을 다시 그려도 이어짐). 성공은 막대가 초록으로 찼다 사라짐(알림 없음), 실패만 빨강 + 알림
+// 아이콘 셋을 겹쳐 두고 상태로 바꿔 보임: 프린터(평소·보내는 중) → 체크(보냄) / 느낌표(실패)
+const CGA_PRT_IC = '<svg class="cga-prt-ic p" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>'
+  + '<svg class="cga-prt-ic k" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+  + '<svg class="cga-prt-ic e" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 6v8"/><path d="M12 18.5v.01"/></svg>';
+let _cgaQp = {};   // 의뢰 번호 → { t0, st: 'run'|'ok'|'err', p(0~100) }
+function _cgaQpPaint() {
+  document.querySelectorAll('.cga-prt[data-prt]').forEach((b) => {
+    const q = _cgaQp[b.dataset.prt], st = q ? q.st : '';
+    ['busy', 'ok', 'err'].forEach((c) => b.classList.toggle(c, st === (c === 'busy' ? 'run' : c)));
+    b.setAttribute('aria-busy', String(st === 'run'));
+    const i = b.querySelector('.cga-prt-bar i'); if (i) i.style.width = (q ? q.p : 0) + '%';
+  });
+}
+function _cgaPrintTight(html, land) {   // 미리보기 fit()·count() 와 같은 재기 → 마지막 장에 글자·그림이 없으면 true
+  return new Promise((res) => {
+    const mm = 96 / 25.4, W = (land ? 297 : 210) * mm, H = (land ? 210 : 297) * mm, cw = W - 30 * mm, chH = H - 20 * mm, G = 48;
+    const f = document.createElement('iframe'); f.setAttribute('sandbox', 'allow-same-origin'); f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1;
+    Object.assign(f.style, { position: 'fixed', left: '-10000px', top: '0', width: cw + 'px', height: chH + 'px', border: '0', visibility: 'hidden', pointerEvents: 'none' });
+    let done = false; const fin = (v) => { if (done) return; done = true; f.remove(); res(v); };
+    f.onload = async () => {
+      try {
+        const d = f.contentDocument;
+        await Promise.race([Promise.all([...d.images].map((i) => (i.complete ? 1 : new Promise((r) => { i.onload = i.onerror = r; })))), new Promise((r) => setTimeout(r, 8000))]);
+        const n = Math.max(1, Math.round((d.scrollingElement.scrollWidth + G) / (cw + G)));
+        fin(n > 1 && _cgaLastCol(d, cw + G) < n - 1);
+      } catch (e) { fin(false); }
+    };
+    setTimeout(() => fin(false), 12000);
+    document.body.appendChild(f);
+    f.srcdoc = html.replace('</head>', `<style>html{overflow:hidden;height:${chH}px}body{height:${chH}px;column-width:${cw}px;column-gap:${G}px;column-fill:auto}</style></head>`);
+  });
+}
+async function _cgaQuickPrint(id) {
+  if (!id || (_cgaQp[id] && _cgaQp[id].st === 'run')) return;   // 보내는 중엔 다시 눌러도 그대로
+  if (!(window.ndApp && window.ndApp.printHtml)) { toast('근무표 앱에서만 바로 인쇄돼요.', ''); return; }
+  const q = _cgaQp[id] = { t0: Date.now(), st: 'run', p: 0 };
+  const iv = setInterval(() => { const s = (Date.now() - q.t0) / 1000; q.p = 92 * (1 - Math.exp(-s / 3)); _cgaQpPaint(); }, 120);
+  _cgaQpPaint();
+  let r;
+  try {
+    let d;
+    if (id < 0) d = Object.assign({ content: '' }, ((_cgaData && _cgaData.rows) || []).find((x) => x.id === id) || {});   // 시험 의뢰
+    else {
+      const x = window.ndApp.ndsCgDetail ? await window.ndApp.ndsCgDetail(id).catch(() => null) : null;
+      if (!x || !x.ok) throw new Error((x && x.error) || 'NDS에서 의뢰를 못 읽었어요.');
+      d = x.d;
+    }
+    let pref = {}; try { pref = JSON.parse(localStorage.getItem('nd_cga_print') || '{}') || {}; } catch (e) { pref = {}; }
+    const land = !!pref.landscape, opt = { gap: !!pref.gap, lh: !!pref.lh, zoom: CGA_PRINT_ZOOM[_cgaPrintZi(pref)] };
+    let html = _cgaPrintHtml(d, opt);
+    if (await _cgaPrintTight(html, land)) { opt.tightEnd = true; html = _cgaPrintHtml(d, opt); }
+    let dev = String(pref.device || '');
+    if (dev && window.ndApp.printers) { const ps = await window.ndApp.printers().catch(() => []) || []; if (!ps.some((p) => p.name === dev)) dev = ''; }   // 그 프린터가 없어졌으면 기본 프린터
+    r = await window.ndApp.printHtml({ html, deviceName: dev, copies: Math.min(Math.max(Number(pref.copies) || 1, 1), 50), landscape: land, color: pref.color !== false,
+      duplex: !!pref.duplex && !!(window.ndApp.printCaps && window.ndApp.printCaps.duplex) });
+  } catch (e) { r = { ok: false, error: e.message }; }
+  clearInterval(iv);
+  const ok = !!(r && r.ok); q.st = ok ? 'ok' : 'err'; q.p = 100; _cgaQpPaint();
+  if (!ok) toast('인쇄하지 못했어요' + (r && r.error ? ': ' + r.error : '.'), 'error');
+  setTimeout(() => { if (_cgaQp[id] === q) { delete _cgaQp[id]; _cgaQpPaint(); } }, ok ? 1500 : 4000);
 }
 async function _cgaPrintPreview(d) {
   document.getElementById('cga-pv')?.remove();
   let pref = {}; try { pref = JSON.parse(localStorage.getItem('nd_cga_print') || '{}') || {}; } catch (e) { pref = {}; }
-  const zi0 = Number.isInteger(pref.size) && pref.size >= 0 && pref.size < CGA_PRINT_ZOOM.length ? pref.size : (pref.small ? 2 : CGA_PRINT_ZOOM.indexOf(1));   // 처음 = 100%
+  const zi0 = _cgaPrintZi(pref);   // 처음 = 100%
   let opt = { gap: !!pref.gap, lh: !!pref.lh, zoom: CGA_PRINT_ZOOM[zi0] }, html = _cgaPrintHtml(d, opt);   // 종이 아끼기(10-21) — 지난번 고른 대로
   const el = document.createElement('div'); el.id = 'cga-pv'; el.className = 'cpv-pop';
   el.innerHTML = `<div class="cpv-card" role="dialog" aria-modal="true" aria-label="인쇄">
@@ -1902,7 +1973,7 @@ async function _cgaPrintPreview(d) {
     const d = (e.key === 'ArrowRight' || e.key === 'ArrowUp') ? 1 : (e.key === 'ArrowLeft' || e.key === 'ArrowDown') ? -1 : 0; if (!d) return;
     e.preventDefault(); setZ(zi + d); steps.querySelector('button.on')?.focus();
   });
-  const close = () => { if (el.classList.contains('cpv-sending')) return; el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };   // 보내는 중엔 안 닫힘(ndPrintSend)
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };   // 보내는 중에도 닫힘 — 인쇄는 계속(ndPrintSend)
   const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
   $('.cpv-cancel').onclick = close; el.addEventListener('click', (e) => { if (e.target === el) close(); });
@@ -1968,7 +2039,8 @@ async function _cgaPrintPreview(d) {
     if (!canApp) { try { frame.contentWindow.print(); } catch (e) { toast('인쇄하지 못했어요.', 'error'); } return; }
     $('#cpv-st').textContent = '';
     const r = await ndPrintSend(el, () => window.ndApp.printHtml(Object.assign({ html }, o)));
-    if (r && r.ok) { close(); toast('인쇄를 보냈어요.', 'success'); }
+    if (r && r.ok) { if (el.isConnected) { close(); toast('인쇄를 보냈어요.', 'success'); } }   // 먼저 닫았으면 조용히(사용자 '알림 안 보내도 됨')
+    else if (!el.isConnected) toast('인쇄하지 못했어요' + (r && r.error ? ': ' + r.error : '.'), 'error');   // 닫은 뒤 실패만 알림
     else $('#cpv-st').textContent = (r && r.error) || '인쇄하지 못했어요.';
   };
 }

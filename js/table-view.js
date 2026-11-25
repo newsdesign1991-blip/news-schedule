@@ -316,7 +316,7 @@ async function printSchedule() {
   const st = { land: pref.landscape !== false, color: pref.color !== false, a3: pref.paper === 'A3' };
   const paper = () => (st.a3 ? 'A3' : 'A4');
   let html = '', gen = 0, frame = null, sheet = null, inked = Promise.resolve();
-  const close = () => { if (el.classList.contains('cpv-sending')) return; gen++; el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
+  const close = () => { gen++; el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
   const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
   $('.cpv-cancel').onclick = close; el.addEventListener('click', e => { if (e.target === el) close(); });
@@ -408,7 +408,8 @@ async function printSchedule() {
     if (!canApp) { try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (e) { toast('인쇄하지 못했어요.', 'error'); } return; }
     $('#tpv-st').textContent = '';
     const r = await ndPrintSend(el, () => window.ndApp.printHtml(Object.assign({ html }, o)));   // 진행 막대(js/cg-assign.js)
-    if (r && r.ok) { close(); toast('인쇄를 보냈어요.', 'success'); }
+    if (r && r.ok) { if (el.isConnected) { close(); toast('인쇄를 보냈어요.', 'success'); } }   // 보내는 중에 닫았으면 조용히(인쇄는 계속)
+    else if (!el.isConnected) toast('인쇄하지 못했어요' + (r && r.error ? ': ' + r.error : '.'), 'error');
     else $('#tpv-st').textContent = (r && r.error) || '인쇄하지 못했어요.';
   };
 }

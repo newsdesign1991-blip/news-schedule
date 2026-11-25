@@ -656,6 +656,34 @@ html.nd-app .cga-side { height:calc(100vh - 200px); }
 .cga-req { position:relative; }
 .cga-req > .cga-who, .cga-req > .cga-ttl { margin-right:34px; }   /* × 자리는 위 두 줄만 비움 — '~분째 대기'는 오른쪽 끝까지(8뉴스 급한 줄과 같은 선, 10-21) */
 .cga-req .cga-x { top:6px; right:0; }
+/* 의뢰 카드 맨 오른쪽 [인쇄] = 바로 인쇄(11-25, js/cg-assign.js _cgaQuickPrint) — 자리 46px, 진행 막대는 아이콘 밑 */
+.cga-req:has(> .cga-prt) { padding-right:46px; }
+.cga-req:not(.urgent):has(> .cga-prt) .cga-x { right:46px; }
+.cga-req.urgent:has(> .cga-prt) { padding-right:62px; }
+.cga-prt { position:absolute; z-index:3; top:calc(50% - 4px); right:-3px; transform:translateY(-50%); width:36px; height:36px; display:grid; place-items:center; padding:0; border:0; border-radius:12px; background:var(--surface2); color:var(--muted); cursor:pointer; transition:background-color .15s, color .15s, transform .12s; }
+.cga-req.urgent > .cga-prt { right:13px; background:rgba(255,255,255,.55); }   /* 급한 칸은 양옆 16px 더 넓음(margin 0 -16px) → 16−3 = 다른 칸 버튼과 같은 세로줄 */
+/* 가로 = 글자·숫자 끝 ~ 카드(상자) 오른쪽 끝의 한가운데(11-25 사용자): 양쪽 13px 씩 */
+[data-theme="dark"] .cga-req.urgent > .cga-prt { background:rgba(0,0,0,.18); }
+.cga-prt:hover, .cga-prt:focus-visible { background:rgba(47,119,246,.13); color:#2f77f6; }
+.cga-req.urgent > .cga-prt:hover, .cga-req.urgent > .cga-prt.busy { background:#e9f1ff; color:#2f77f6; }   /* 빨간 칸 위에선 반투명 파랑이 보라로 탁해짐 → 맑은 파랑 */
+[data-theme="dark"] .cga-req.urgent > .cga-prt:hover, [data-theme="dark"] .cga-req.urgent > .cga-prt.busy { background:#22324f; color:#6aa8ff; }
+.cga-prt-bar { position:absolute; left:3px; right:3px; top:calc(100% + 6px); height:4px; border-radius:99px; background:rgba(47,119,246,.16); overflow:hidden; opacity:0; transition:opacity .25s; pointer-events:none; }
+.cga-prt-bar i { display:block; width:0; height:100%; border-radius:inherit; background:linear-gradient(90deg,#4a94ff,#2f77f6); transition:width .2s linear; }
+.cga-prt.busy, .cga-prt.ok, .cga-prt.err { background:rgba(47,119,246,.13); color:#2f77f6; }
+.cga-prt.busy { cursor:progress; }
+.cga-prt.busy .cga-prt-bar, .cga-prt.ok .cga-prt-bar, .cga-prt.err .cga-prt-bar { opacity:1; }
+.cga-prt.ok, .cga-req.urgent > .cga-prt.ok { background:rgba(31,164,99,.13); color:#1fa463; }
+.cga-prt.ok .cga-prt-bar { background:rgba(31,164,99,.16); } .cga-prt.ok .cga-prt-bar i { background:#1fa463; }
+.cga-prt.err, .cga-req.urgent > .cga-prt.err { background:rgba(214,90,82,.14); color:#d65a52; }
+.cga-prt.err .cga-prt-bar { background:rgba(214,90,82,.16); } .cga-prt.err .cga-prt-bar i { background:#d65a52; }
+.cga-prt-ic { grid-area:1/1; transition:opacity .2s, transform .25s cubic-bezier(.2,.9,.3,1.4); }
+.cga-prt-ic.k, .cga-prt-ic.e { opacity:0; transform:scale(.5); }
+.cga-prt.ok .cga-prt-ic.p, .cga-prt.err .cga-prt-ic.p { opacity:0; transform:scale(.6); }
+.cga-prt.ok .cga-prt-ic.k, .cga-prt.err .cga-prt-ic.e { opacity:1; transform:none; }
+.cga-prt.busy .cga-prt-ic.p { animation:cgaPrtFeed 1.1s ease-in-out infinite; }   /* 보내는 동안 종이가 나오듯 살짝 */
+@keyframes cgaPrtFeed { 0%,100% { transform:none; opacity:1; } 50% { transform:translateY(1.5px); opacity:.55; } }
+.cga-prt:active:not(.busy) { transform:translateY(-50%) scale(.92); }
+@media (prefers-reduced-motion: reduce) { .cga-prt.busy .cga-prt-ic.p { animation:none; } }
 .cga-req.fix { opacity:.55; filter:grayscale(1); }
 .cga-req.fix:hover { opacity:.85; }
 /* 왼쪽 아래 [숨긴 의뢰 n](10-26) — 누르면 모아 보기 창 */
@@ -943,7 +971,7 @@ body.cga-dragging .cga-card { outline:2px dashed rgba(49,130,246,.35); outline-o
 .cpv-go { border: 0; background: linear-gradient(135deg,#4a94ff,#2f77f6); color: #fff; box-shadow: 0 8px 18px -10px rgba(47,119,246,.9); }
 .cpv-go:disabled { opacity: .6; cursor: progress; }
 .cpv-cancel { border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
-/* [인쇄] 진행 막대(11-24, ndPrintSend) — 버튼 위, 보내는 동안 설정·취소 막음 */
+/* [인쇄] 진행 막대(11-24, ndPrintSend) — 버튼 위, 보내는 동안 설정만 막음(창은 닫힘 — 11-25) */
 .cpv-prog { flex: none; margin: 0 22px 2px; padding: 12px 14px 13px; border-radius: 14px; background: var(--surface2); border: 1px solid var(--border); }
 .cpv-prog-t { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9px; font-size: 13.5px; }
 .cpv-prog-t b { font-weight: 800; color: var(--text); }
@@ -955,7 +983,8 @@ body.cga-dragging .cga-card { outline:2px dashed rgba(49,130,246,.35); outline-o
 .cpv-prog.ok .cpv-prog-bar i { background: linear-gradient(90deg,#34c77b,#1fa463); }
 [data-theme="dark"] .cpv-prog-t span { color: #6aa8ff; }
 .cpv-sending .cpv-fields { pointer-events: none; opacity: .55; }
-.cpv-sending .cpv-cancel:disabled { opacity: .45; cursor: not-allowed; }
+.cpv-prog-n { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.cpv-prog.ok .cpv-prog-n { visibility: hidden; }
 .cga-job[data-rid] { cursor: pointer; transition: background .2s; }
 .cga-job[data-rid]:hover { background: rgba(49,130,246,.14); }
 @media (max-width: 860px) { .cpv-card { grid-template-columns: 1fr; grid-template-rows: minmax(0,1fr) auto; } .cpv-side { border-left: 0; border-top: 1px solid var(--border); } }
