@@ -315,7 +315,7 @@ async function printSchedule() {
   const st = { land: pref.landscape !== false, color: pref.color !== false, a3: pref.paper === 'A3' };
   const paper = () => (st.a3 ? 'A3' : 'A4');
   let html = '', gen = 0, frame = null, sheet = null, inked = Promise.resolve();
-  const close = () => { gen++; el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
+  const close = () => { if (el.classList.contains('cpv-sending')) return; gen++; el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
   const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
   $('.cpv-cancel').onclick = close; el.addEventListener('click', e => { if (e.target === el) close(); });
@@ -340,7 +340,7 @@ async function printSchedule() {
     $('#tpv-color').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.v === 'c') === st.color)));
     $('#tpv-paper').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === paper())));
     $('#tpv-size').textContent = paper() + ' 1장';
-    $('#tpv-st').textContent = st.a3 && !a3ok ? 'A3로 바로 인쇄는 근무표 앱 1.5.1부터 돼요. 앱을 업데이트해 주세요.' : '';
+    $('#tpv-st').textContent = st.a3 && !a3ok ? 'A3로 바로 인쇄는 근무표 앱 1.5.3부터 돼요. 앱을 업데이트해 주세요.' : '';
     if (frame) frame.classList.toggle('mono', !st.color);
   };
   const build = async () => {
@@ -382,10 +382,10 @@ async function printSchedule() {
   });
   // 프린터 목록(PC 앱). 앱이 아니면 [인쇄] = 이 브라우저의 인쇄 창
   const sel = $('#tpv-dev'), canApp = !!(window.ndApp && window.ndApp.printers && window.ndApp.printHtml);
-  // A3 바로 인쇄 = 앱 1.5.1~(용지 크기를 프린터에 넘김). 그 전 앱은 프린터 기본 용지(보통 A4)로 나가 A3 모양이 줄거나 잘림 → 막고 안내
+  // A3 바로 인쇄 = 앱 1.5.3~(용지 번호까지 프린터에 넘김 — 1.5.1·1.5.2 는 크기만 넘겨 회사 프린터가 A4로 찍었음). 그 전 앱은 막고 안내
   let a3ok = !canApp;
   inked = ink(); paint(); build();
-  if (canApp && window.ndApp.version) { const v = String(await window.ndApp.version().catch(() => '') || '').split('.').map(Number); a3ok = (v[0] || 0) * 1e6 + (v[1] || 0) * 1e3 + (v[2] || 0) >= 1005001; if (!el.isConnected) return; paint(); }
+  if (canApp && window.ndApp.version) { const v = String(await window.ndApp.version().catch(() => '') || '').split('.').map(Number); a3ok = (v[0] || 0) * 1e6 + (v[1] || 0) * 1e3 + (v[2] || 0) >= 1005003; if (!el.isConnected) return; paint(); }
   if (canApp) {
     const ps = await window.ndApp.printers().catch(() => []) || [];
     const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -398,10 +398,10 @@ async function printSchedule() {
     const o = { deviceName: sel.value, copies: Math.min(Math.max(Number($('#tpv-copies').value) || 1, 1), 50), landscape: st.land, color: st.color, duplex: false, pageSize: paper() };
     try { localStorage.setItem('nd_tbl_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color, paper: o.pageSize })); } catch (e) {}
     if (!canApp) { try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (e) { toast('인쇄하지 못했어요.', 'error'); } return; }
-    const go = $('.cpv-go'); go.disabled = true; go.textContent = '보내는 중…'; $('#tpv-st').textContent = '';
-    const r = await window.ndApp.printHtml(Object.assign({ html }, o)).catch(e => ({ ok: false, error: e.message }));
+    $('#tpv-st').textContent = '';
+    const r = await ndPrintSend(el, () => window.ndApp.printHtml(Object.assign({ html }, o)));   // 진행 막대(js/cg-assign.js)
     if (r && r.ok) { close(); toast('인쇄를 보냈어요.', 'success'); }
-    else { go.disabled = false; go.textContent = '인쇄'; $('#tpv-st').textContent = (r && r.error) || '인쇄하지 못했어요.'; }
+    else $('#tpv-st').textContent = (r && r.error) || '인쇄하지 못했어요.';
   };
 }
 function startEditTableTitle() {

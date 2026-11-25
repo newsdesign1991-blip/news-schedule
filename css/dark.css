@@ -943,6 +943,19 @@ body.cga-dragging .cga-card { outline:2px dashed rgba(49,130,246,.35); outline-o
 .cpv-go { border: 0; background: linear-gradient(135deg,#4a94ff,#2f77f6); color: #fff; box-shadow: 0 8px 18px -10px rgba(47,119,246,.9); }
 .cpv-go:disabled { opacity: .6; cursor: progress; }
 .cpv-cancel { border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
+/* [인쇄] 진행 막대(11-24, ndPrintSend) — 버튼 위, 보내는 동안 설정·취소 막음 */
+.cpv-prog { flex: none; margin: 0 22px 2px; padding: 12px 14px 13px; border-radius: 14px; background: var(--surface2); border: 1px solid var(--border); }
+.cpv-prog-t { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9px; font-size: 13.5px; }
+.cpv-prog-t b { font-weight: 800; color: var(--text); }
+.cpv-prog-t span { font-weight: 800; color: #2f77f6; font-variant-numeric: tabular-nums; }
+.cpv-prog-bar { height: 8px; border-radius: 99px; background: rgba(47,119,246,.14); overflow: hidden; }
+.cpv-prog-bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#4a94ff,#2f77f6); transition: width .2s linear; }
+.cpv-prog.ok .cpv-prog-t span { color: #1fa463; }
+.cpv-prog.ok .cpv-prog-bar { background: rgba(31,164,99,.14); }
+.cpv-prog.ok .cpv-prog-bar i { background: linear-gradient(90deg,#34c77b,#1fa463); }
+[data-theme="dark"] .cpv-prog-t span { color: #6aa8ff; }
+.cpv-sending .cpv-fields { pointer-events: none; opacity: .55; }
+.cpv-sending .cpv-cancel:disabled { opacity: .45; cursor: not-allowed; }
 .cga-job[data-rid] { cursor: pointer; transition: background .2s; }
 .cga-job[data-rid]:hover { background: rgba(49,130,246,.14); }
 @media (max-width: 860px) { .cpv-card { grid-template-columns: 1fr; grid-template-rows: minmax(0,1fr) auto; } .cpv-side { border-left: 0; border-top: 1px solid var(--border); } }

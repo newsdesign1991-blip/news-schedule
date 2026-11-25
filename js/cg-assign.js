@@ -1816,6 +1816,26 @@ function _cgaLastCol(doc, step) {
   return last;
 }
 // 인쇄 미리보기(NDS 의 크롬 인쇄 창처럼): 왼쪽 A4 미리보기 / 오른쪽 대상·매수·레이아웃·컬러 + [인쇄](바로 인쇄)·[취소]. 고른 프린터·설정은 이 PC 에 기억
+// [인쇄] 누른 뒤 진행 막대(11-24 사용자: '되고 있는지 몰라 버튼을 한 번 더 눌러 취소하는 일') — 근무표 인쇄(js/table-view.js printSchedule)도 같이 씀.
+// 앱(ndApp.printHtml)은 진행을 알려 주지 않음(설치 파일 안 바꾸려고 사이트만) → 시간으로 차오르다(최대 92%) 끝나면 100%·'보냈어요' 잠깐 뒤 돌려줌.
+// 보내는 동안 pop 에 .cpv-sending: [인쇄]·[취소]·설정 막음, 각 창의 close() 도 이 표시가 있으면 안 닫힘(Esc·바깥 누르기 포함). 실패하면 버튼 되살림
+async function ndPrintSend(pop, send) {
+  const go = pop.querySelector('.cpv-go'), cancel = pop.querySelector('.cpv-cancel'), foot = pop.querySelector('.cpv-foot');
+  pop.querySelector('.cpv-prog')?.remove();
+  const pg = document.createElement('div'); pg.className = 'cpv-prog'; pg.setAttribute('role', 'progressbar'); pg.setAttribute('aria-valuemin', '0'); pg.setAttribute('aria-valuemax', '100');
+  pg.innerHTML = '<div class="cpv-prog-t"><b>인쇄 준비 중</b><span>0%</span></div><div class="cpv-prog-bar"><i></i></div>';
+  foot.before(pg);
+  const lab = pg.querySelector('b'), pct = pg.querySelector('span'), bar = pg.querySelector('i');
+  pop.classList.add('cpv-sending'); go.disabled = true; go.textContent = '보내는 중…'; if (cancel) cancel.disabled = true;
+  const set = (p, t) => { const v = Math.round(p); bar.style.width = p + '%'; pct.textContent = v + '%'; pg.setAttribute('aria-valuenow', String(v)); if (t) lab.textContent = t; };
+  const t0 = Date.now(), iv = setInterval(() => { const s = (Date.now() - t0) / 1000; set(92 * (1 - Math.exp(-s / 2.4)), s < 1.2 ? '인쇄 준비 중' : '프린터로 보내는 중'); }, 120);
+  let r; try { r = await send(); } catch (e) { r = { ok: false, error: e.message }; }
+  clearInterval(iv);
+  if (r && r.ok) { pg.classList.add('ok'); set(100, '프린터로 보냈어요'); await new Promise((res) => setTimeout(res, 700)); }
+  else { pg.remove(); go.disabled = false; go.textContent = '인쇄'; }
+  if (cancel) cancel.disabled = false; pop.classList.remove('cpv-sending');
+  return r;
+}
 async function _cgaPrintPreview(d) {
   document.getElementById('cga-pv')?.remove();
   let pref = {}; try { pref = JSON.parse(localStorage.getItem('nd_cga_print') || '{}') || {}; } catch (e) { pref = {}; }
@@ -1882,7 +1902,7 @@ async function _cgaPrintPreview(d) {
     const d = (e.key === 'ArrowRight' || e.key === 'ArrowUp') ? 1 : (e.key === 'ArrowLeft' || e.key === 'ArrowDown') ? -1 : 0; if (!d) return;
     e.preventDefault(); setZ(zi + d); steps.querySelector('button.on')?.focus();
   });
-  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };
+  const close = () => { if (el.classList.contains('cpv-sending')) return; el.remove(); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', scale); };   // 보내는 중엔 안 닫힘(ndPrintSend)
   const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   document.addEventListener('keydown', onKey, true);
   $('.cpv-cancel').onclick = close; el.addEventListener('click', (e) => { if (e.target === el) close(); });
@@ -1946,9 +1966,9 @@ async function _cgaPrintPreview(d) {
     const o = { deviceName: sel.value, copies: Math.min(Math.max(Number($('#cpv-copies').value) || 1, 1), 50), landscape: $('#cpv-orient').value === 'l', color: $('#cpv-color').value !== 'm', duplex: $('#cpv-duplex').value === '1' && !$('#cpv-duplex-f').hidden };
     try { localStorage.setItem('nd_cga_print', JSON.stringify({ device: o.deviceName, copies: o.copies, landscape: o.landscape, color: o.color, duplex: o.duplex, gap: opt.gap, lh: opt.lh, size: CGA_PRINT_ZOOM.indexOf(opt.zoom) })); } catch (e) {}
     if (!canApp) { try { frame.contentWindow.print(); } catch (e) { toast('인쇄하지 못했어요.', 'error'); } return; }
-    const go = $('.cpv-go'); go.disabled = true; go.textContent = '보내는 중…'; $('#cpv-st').textContent = '';
-    const r = await window.ndApp.printHtml(Object.assign({ html }, o)).catch((e) => ({ ok: false, error: e.message }));
+    $('#cpv-st').textContent = '';
+    const r = await ndPrintSend(el, () => window.ndApp.printHtml(Object.assign({ html }, o)));
     if (r && r.ok) { close(); toast('인쇄를 보냈어요.', 'success'); }
-    else { go.disabled = false; go.textContent = '인쇄'; $('#cpv-st').textContent = (r && r.error) || '인쇄하지 못했어요.'; }
+    else $('#cpv-st').textContent = (r && r.error) || '인쇄하지 못했어요.';
   };
 }

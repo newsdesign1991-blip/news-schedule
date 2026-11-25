@@ -99,9 +99,9 @@ html.chara-on body::after, #chara-hole .chw-b, html.nd-app.chara-on #nd-titlebar
   mask-image:linear-gradient(to right, transparent, #000 var(--wall-fl), #000 calc(100% - var(--wall-fr)), transparent),
              linear-gradient(to bottom, transparent, #000 var(--wall-ft), #000 calc(100% - var(--wall-fbx)), transparent),
              linear-gradient(to right, transparent calc(var(--wb-s) - var(--wall-x)), #000 calc(var(--wb-e) - var(--wall-x))); }
-/* 꽃잎·반딧불이 = 배경 그림 바로 위, 화면 내용 아래 */
-#chara-petals, #chara-fireflies { position:fixed; inset:0; z-index:-1; pointer-events:none; }
-html:not(.chara-on) :is(#chara-petals, #chara-fireflies, #chara-hole, #chara-pal) { display:none; }
+/* 꽃잎·반딧불이·불씨 = 배경 그림 바로 위, 화면 내용 아래 */
+#chara-petals, #chara-fireflies, #chara-embers { position:fixed; inset:0; z-index:-1; pointer-events:none; }
+html:not(.chara-on) :is(#chara-petals, #chara-fireflies, #chara-embers, #chara-hole, #chara-pal) { display:none; }
 
 /* 오른쪽 아래 캐릭터 + 그 모양대로 깎은 구멍(바탕색 + 같은 배경 그림 — 내용이 깎인 것처럼). 구멍은 누르기도 막음(가려진 칸이 눌리지 않게) */
 @property --ch-rise { syntax:'<length>'; inherits:true; initial-value:0px; }   /* 나타날 때 아래에서 쑥 — 캐릭터·구멍이 같이 */

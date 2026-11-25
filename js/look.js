@@ -78,7 +78,8 @@ const LookColor = (function () {
 
 // 캐릭터 테마(숫자는 웹하드 renderer/themes/themes.js 와 같음 — 폴더 아이콘 꾸미기만 근무표엔 폴더가 없어 뺌). 그림 = themes/<id>/<file>
 //   wallpaper: 앱 창 왼쪽 위 0 기준 자리·크기 px(창이 바뀌어도 그림 크기 그대로), opacity 진하기, fade 가장자리 부드럽게 px, blurRight 오른쪽으로 갈수록 흐리게(창 가로 0~1)
-//   petals: 떨어지는 꽃잎 · fireflies: 날아다니는 반딧불이(area 'sidebar' = 사이드바 둘레) — 둘 다 배경에만, fps 장씩(손 그림 느낌)
+//   wallpaper.light: 밝게 화면에서만 바꿀 값(어두운 그림을 밝은 바탕용 그림으로 — 탄지로)
+//   petals: 떨어지는 꽃잎 · fireflies: 날아다니는 반딧불이 · embers: 올라가는 불씨(area 'sidebar' = 사이드바 둘레) — 모두 배경에만, fps 장씩(손 그림 느낌)
 //   character: 오른쪽 아래 캐릭터 — 그 모양대로 화면 내용을 깎은 것처럼(gap = 둘레 틈 px, 어둡게는 gapDark)
 const LOOK_CHARAS = [
   {
@@ -94,6 +95,15 @@ const LOOK_CHARAS = [
     wallpaper: { file: 'wallpaper.jpg', x: -918, y: -147, height: 1221, opacity: 0.35, fade: { top: 0, right: 200, bottom: 0, left: 0 }, blurRight: { start: 0.35, end: 0.75, px: 8 } },
     fireflies: { count: 40, area: 'sidebar', fps: 14, size: [2.4, 4.2], speed: [10, 26], color: '#d8ff78', colorLight: '#8fd12e' },
     character: { file: 'doraemon-copter.png', width: 240, right: -32, bottom: -14, gap: 7, gapDark: 3 },
+  },
+  {
+    // 탄지로(11-25, 웹하드 VW Source 와 같은 값·그림) — 배경이 검은 바탕 불꽃이라 밝게 화면은 wallpaper.light(검정을 투명으로 뺀 그림), 사이드바에 올라가는 불씨(embers)
+    id: 'tanjiro', name: '탄지로', thumb: 'tanjiro.png',
+    colors: { accent: '#e0362c', tint: '#e0362c', amount: 65 },   // 붉은 톤
+    wallpaper: { file: 'wallpaper.jpg', x: -819, y: -60, height: 1222, opacity: 0.35, fade: { top: 0, right: 200, bottom: 0, left: 0 }, blurRight: { start: 0.35, end: 0.75, px: 8 },
+      light: { file: 'wallpaper-light.webp', opacity: 0.4 } },
+    embers: { count: 36, area: 'sidebar', fps: 14, size: [2.2, 4.2], rise: [35, 80], sway: [4, 14], life: [3, 7], color: '#ffb347', colorLight: '#e0401c' },
+    character: { file: 'tanjiro.png', width: 310, right: -14, bottom: -12, gap: 7, gapDark: 3 },
   },
 ];
 const lookChara = id => LOOK_CHARAS.find(t => t.id === id) || null;

@@ -1,5 +1,5 @@
-/* [모듈] js/look-chara.js — 캐릭터 테마 그리기(근무표 앱): 맨 뒤 배경 그림 · 오른쪽 아래 캐릭터 · 떨어지는 꽃잎 · 날아다니는 반딧불이
-   웹하드 VW Source renderer/js/chara.js·chara-petals.js·chara-fireflies.js 를 옮김. 테마 고르기·색·숫자는 js/look.js(LOOK_CHARAS, applyLook 이 applyLookChara 를 부름)
+/* [모듈] js/look-chara.js — 캐릭터 테마 그리기(근무표 앱): 맨 뒤 배경 그림 · 오른쪽 아래 캐릭터 · 떨어지는 꽃잎 · 날아다니는 반딧불이 · 올라가는 불씨
+   웹하드 VW Source renderer/js/chara.js·chara-petals.js·chara-fireflies.js·chara-embers.js 를 옮김. 테마 고르기·색·숫자는 js/look.js(LOOK_CHARAS, applyLook 이 applyLookChara 를 부름)
    깎기: 웹하드는 파일 창 카드 하나를 캐릭터 모양으로 깎지만, 근무표는 화면 전체가 스크롤돼서 대신 '구멍'을 오른쪽 아래에 고정(#chara-hole) —
    캐릭터 실루엣(둘레 gap 만큼 부풀림) 모양으로 바탕색 + 같은 배경 그림을 덮어 그 자리 내용이 깎인 것처럼 보이게, 그 위에 캐릭터(#chara-pal)
    배경 그림·꽃잎·반딧불이는 z-index -1(화면 내용 뒤, body 바탕 위 — html 바탕이 투명이라 body 바탕이 캔버스로 감) — css/look.css */
@@ -31,6 +31,10 @@ function _lkEls() {
     const fl = document.createElement('canvas'); fl.id = 'chara-fireflies'; fl.setAttribute('aria-hidden', 'true');
     document.body.append(pe, fl, hole, pal);
   }
+  if (!document.getElementById('chara-embers')) {   // 불씨(11-25) — 따로 확인(이미 테마를 켠 화면에도 생기게)
+    const em = document.createElement('canvas'); em.id = 'chara-embers'; em.setAttribute('aria-hidden', 'true');
+    document.getElementById('chara-fireflies').after(em);
+  }
   return { hole, pal: document.getElementById('chara-pal') };
 }
 let _lkCutKey = '';
@@ -61,13 +65,14 @@ function applyLookChara(t) {
   h.classList.toggle('chara-on', !!t);
   _lkTitleWall(!!t);
   if (!t) {   // 끔 — 그림·캐릭터 변수(실루엣 data URL 포함)도 지움
-    _lkPetals(null); _lkFlies(null); _lkCutKey = ''; h.classList.remove('chara-ready'); _lkWallBlur(null);
+    _lkPetals(null); _lkFlies(null); _lkEmbers(null); _lkCutKey = ''; h.classList.remove('chara-ready'); _lkWallBlur(null);
     [...st].filter(n => /^--(wall|wb-|ch-)/.test(n)).forEach(n => st.removeProperty(n));
     return;
   }
   const { pal } = _lkEls();
   // 배경 그림 — 정한 자리·높이 그대로(폭은 그림 비율대로라 그림을 읽어 잼). 완전한 주소로(변수 안 상대 주소는 css 파일 기준으로 풀림)
-  const wl = t.wallpaper || {}, fade = wl.fade || {};
+  // wallpaper.light = 밝게 화면에서만 바꿀 값(탄지로 — 검은 바탕 그림 대신 밝은 바탕용). 밝게/어둡게를 바꾸면 applyLook 이 다시 부름(js/look.js data-theme 감시)
+  const wl = { ...t.wallpaper, ...(h.getAttribute('data-theme') !== 'dark' && t.wallpaper?.light) }, fade = wl.fade || {};
   const wallSrc = wl.file ? new URL(lookUrl(t, wl.file), location.href).href : '';
   st.setProperty('--wall', wallSrc ? `url("${wallSrc}")` : 'none');
   st.setProperty('--wall-x', (wl.x ?? 0) + 'px');
@@ -82,6 +87,7 @@ function applyLookChara(t) {
   if (wallSrc) { const pic = new Image(); pic.onload = () => { if (_lkChara !== t) return; const H = wl.height ?? innerHeight, W = (H * pic.naturalWidth) / pic.naturalHeight; st.setProperty('--wall-w', W + 'px'); _lkWallBlur(t, pic, W, H, br?.px || 0); }; pic.src = wallSrc; }
   _lkPetals(t.petals);
   _lkFlies(t.fireflies);
+  _lkEmbers(t.embers);
   const c = t.character;
   pal.hidden = !c;
   if (c) {
@@ -224,4 +230,73 @@ function _lkFlies(cfg) {
   _lkFlyList = Array.from({ length: _lkFlyCfg.count }, _lkFlyNew);
   _lkFlyDraw();
   if (!matchMedia('(prefers-reduced-motion: reduce)').matches) _lkFlyTimer = setInterval(_lkFlyStep, 1000 / _lkFlyCfg.fps);
+}
+
+/* 올라가는 불씨(웹하드 chara-embers.js, 11-25 탄지로) — 아래에서 작은 불씨가 흔들리며 올라가고, 깜빡이다 위로 갈수록 사그라짐. area 'sidebar' 면 사이드바(#side-nav) 둘레
+   fps 장씩만(꽃잎·반딧불이와 같음), 창이 숨었거나 '동작 줄이기'면 멈춤 */
+let _lkEmberTimer = null, _lkEmberList = [], _lkEmberCfg = null;
+function _lkEmberArea() {
+  const W = innerWidth, H = innerHeight;
+  if (_lkEmberCfg.area === 'sidebar') {
+    const r = document.getElementById('side-nav')?.getBoundingClientRect();
+    if (r && r.width > 40) return { x0: Math.max(0, r.left - 6), x1: Math.min(W, r.right + 16), y0: Math.max(44, r.top), y1: Math.min(H, r.bottom + 10) };
+  }
+  return { x0: 0, x1: W, y0: 0, y1: H };
+}
+function _lkEmberNew(first) {   // first = 처음엔 이미 올라가던 중(여기저기), 그다음부턴 아래 끝에서 태어남
+  const c = _lkEmberCfg, a = _lkEmberArea(), life = _lkRnd(...c.life);
+  const e = { x: _lkRnd(a.x0, a.x1), y: a.y1 + _lkRnd(0, 20), vy: _lkRnd(...c.rise), vx: _lkRnd(-6, 10), sway: _lkRnd(...c.sway), swayF: _lkRnd(0.8, 2.2),
+    size: _lkRnd(...c.size), phase: _lkRnd(0, Math.PI * 2), flick: _lkRnd(5, 11), seed: _lkRnd(0, 10), t: 0, life };
+  if (first) { e.t = _lkRnd(0, life * 0.9); e.y = a.y1 - e.vy * e.t; }
+  return e;
+}
+function _lkEmberDraw() {
+  const cv = document.getElementById('chara-embers'); if (!cv) return;
+  const g = cv.getContext('2d'), s = devicePixelRatio || 1;
+  if (cv.width !== Math.round(innerWidth * s) || cv.height !== Math.round(innerHeight * s)) { cv.width = Math.round(innerWidth * s); cv.height = Math.round(innerHeight * s); }
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); g.setTransform(s, 0, 0, s, 0, 0);
+  const light = document.documentElement.getAttribute('data-theme') !== 'dark';   // 밝게 = 보통으로 + 진한 색, 어둡게 = 겹치면 더 밝게(불빛처럼)
+  g.globalCompositeOperation = light ? 'source-over' : 'lighter';
+  const rgb = light ? _lkEmberCfg.rgbLight : _lkEmberCfg.rgb;
+  for (const e of _lkEmberList) {
+    const age = e.t / e.life;
+    const fade = Math.min(1, age * 6) * Math.pow(Math.max(0, 1 - age), 1.3);   // 태어나며 확 밝아졌다 올라갈수록 사그라짐 × 빠르게 깜빡임
+    const b = fade * (0.65 + 0.35 * Math.sin(e.t * e.flick + e.phase));
+    if (b < 0.03) continue;
+    const x = e.x + Math.sin(e.t * e.swayF + e.seed) * e.sway, y = e.y, sz = e.size * (0.55 + 0.45 * (1 - age)), r = sz * 4.5;
+    const glow = g.createRadialGradient(x, y, 0, x, y, r);
+    glow.addColorStop(0, `rgba(${rgb},${(light ? 0.8 : 0.7) * b})`);
+    glow.addColorStop(0.3, `rgba(${rgb},${(light ? 0.35 : 0.28) * b})`);
+    glow.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = glow; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    // 뜨거운 심 + 올라온 쪽(아래)으로 짧은 꼬리 — 불티처럼(어둡게 = 노란 흰빛)
+    const core = light ? `rgba(${rgb},${0.95 * b})` : `rgba(255,240,200,${0.95 * b})`, tail = Math.min(14, e.vy * 0.12);
+    const tg = g.createLinearGradient(x, y, x - e.vx * 0.12, y + tail);
+    tg.addColorStop(0, core); tg.addColorStop(1, `rgba(${rgb},0)`);
+    g.strokeStyle = tg; g.lineWidth = sz * 0.9; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x - e.vx * 0.12, y + tail); g.stroke();
+    g.fillStyle = core; g.beginPath(); g.arc(x, y, sz * 0.6, 0, Math.PI * 2); g.fill();
+  }
+  g.globalCompositeOperation = 'source-over';
+}
+function _lkEmberStep() {
+  if (document.hidden) return;
+  const dt = 1 / _lkEmberCfg.fps, a = _lkEmberArea();
+  _lkEmberList = _lkEmberList.map(e => {
+    e.t += dt; e.y -= e.vy * dt; e.x += e.vx * dt;
+    e.vy *= 1 + 0.08 * dt;   // 올라갈수록 조금씩 빨라짐(뜨거운 공기)
+    return e.t > e.life || e.y < a.y0 - 30 || e.x < a.x0 - 40 || e.x > a.x1 + 40 ? _lkEmberNew(false) : e;
+  });
+  _lkEmberDraw();
+}
+function _lkEmbers(cfg) {
+  clearInterval(_lkEmberTimer); _lkEmberTimer = null;
+  _lkEmberCfg = cfg ? { count: 30, area: 'sidebar', fps: 14, size: [1.4, 3], rise: [30, 70], sway: [4, 14], life: [3, 7], color: '#ff9a3c', colorLight: '#e0401c', ...cfg } : null;
+  const cv = document.getElementById('chara-embers');
+  if (!_lkEmberCfg) { _lkEmberList = []; if (cv) { const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); } return; }
+  const rgb = hex => LookColor.rgbOf(hex).join(',');
+  _lkEmberCfg.rgb = rgb(_lkEmberCfg.color); _lkEmberCfg.rgbLight = rgb(_lkEmberCfg.colorLight);
+  _lkEmberList = Array.from({ length: _lkEmberCfg.count }, () => _lkEmberNew(true));
+  _lkEmberDraw();
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) _lkEmberTimer = setInterval(_lkEmberStep, 1000 / _lkEmberCfg.fps);
 }
