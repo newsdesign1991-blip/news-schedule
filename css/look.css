@@ -60,7 +60,7 @@ html.nd-app #nd-titlebar .ndt-mb:focus-visible { outline:2px solid var(--nd-acce
 .lk-dot.on { box-shadow:0 0 0 3px var(--card-fill), 0 0 0 5px var(--c); }
 .lk-tone:has(.on) span { color:var(--text); }
 /* 캐릭터 — 테마 카드(그림 + 이름, 고른 것은 그 테마 색 테두리 + 체크) */
-.lk-charas { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:22px; }
+.lk-charas { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:22px; }   /* minmax 0 = 가로로 넓은 그림(탄지로)이 칸을 넓히지 않게 */
 .lk-chara { position:relative; display:flex; flex-direction:column; align-items:stretch; gap:10px; padding:10px 10px 12px; border:2px solid var(--border); border-radius:18px; background:var(--surface); color:var(--text); font:inherit; font-size:14px; font-weight:800; transition:border-color .15s, transform .15s, box-shadow .15s; }
 button.lk-chara { cursor:pointer; }
 button.lk-chara:hover { transform:translateY(-2px); box-shadow:0 12px 24px -16px rgba(15,23,42,.45); }
@@ -73,8 +73,17 @@ button.lk-chara:hover .lk-chara-pic img { transform:translateY(-6px); }
 .lk-chara-check { position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:var(--c); color:#fff; display:flex; align-items:center; justify-content:center; opacity:0; transform:scale(.5); transition:opacity .15s, transform .2s cubic-bezier(.34,1.56,.64,1); }
 .lk-chara-check svg { width:16px; height:16px; }
 .lk-chara.on .lk-chara-check { opacity:1; transform:none; }
-.lk-chara.soon { border-style:dashed; background:none; color:var(--muted); }
-.lk-chara.soon .lk-chara-pic { align-items:center; background:var(--surface2); font-size:30px; font-weight:400; }
+.lk-chara.soon, .lk-chara.add { border-style:dashed; background:none; color:var(--muted); }
+.lk-chara.soon .lk-chara-pic, .lk-chara.add .lk-chara-pic { align-items:center; background:var(--surface2); font-size:30px; font-weight:400; }
+/* 테마 팩(js/look-pack.js) — [테마 팩 추가] 칸 · 팩 카드 왼쪽 위 '지우기'(글자만, 한 번 더 누르면 지움) · 파일을 끌고 오면 카드 테두리 + 안내 */
+button.lk-chara.add:hover { border-color:var(--nd-accent,#3182f6); color:var(--nd-accent,#3182f6); }
+.lk-chara-del { position:absolute; top:16px; left:18px; padding:2px 0; font-size:11.5px; font-weight:700; color:var(--muted); text-shadow:0 0 6px var(--surface), 0 0 2px var(--surface); opacity:0; transition:opacity .15s, color .15s; }
+.lk-chara:hover .lk-chara-del, .lk-chara-del.ask { opacity:1; }
+.lk-chara-del:hover, .lk-chara-del.ask { color:var(--nd-accent,#3182f6); }
+.lk-card { position:relative; }
+.lk-card.lk-drop { outline:2px dashed var(--nd-accent,#3182f6); outline-offset:-10px; }
+.lk-card.lk-drop::after { content:'여기에 놓으면 테마 팩이 추가돼요'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; border-radius:inherit;
+  background:color-mix(in srgb, var(--card-fill) 82%, transparent); color:var(--nd-accent,#3182f6); font-size:16px; font-weight:800; pointer-events:none; }
 [data-theme="dark"] .lk-chara-pic { background:linear-gradient(160deg,#3a2a33,#26303f); }
 
 /* ── 색 톤·캐릭터 강조색(--nd-accent): 사이드바 고른 메뉴·제목줄 켜진 탭 ── */

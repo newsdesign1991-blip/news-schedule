@@ -258,14 +258,15 @@ function _tblPrintInk(win, src, dst) {
 // 한 장 맞춤 = transform scale(11-24 저녁 — zoom 은 선 두께가 '1 화소 이상'으로 굳어 줄일수록 선만 두꺼워 보임(사용자 '좀 더 얇게'), scale 은 선도 같이 가늘어짐).
 // 바깥 .pr-fit 이 줄어든 크기(W·H × K)로 자리를 잡아 종이 한 장 안에.
 function _tblPrintHtml(o) {   // o = { W(0 = 재기 전, 폭 규칙 없음), K(배율), H(K=1 높이 — 줄인 자리 크기), rh(칸 높이, 0 = 그대로), land, paper('A4'|'A3'), css, links, table(복제본 HTML), title, sub }
-  const wCss = o.W ? `.pr-box{width:${o.W + 2}px}.pr-box .excel-wrap{width:${o.W + 2}px!important}#excel-table{width:${o.W}px!important;min-width:${o.W}px!important}` : '.pr-box{width:max-content}';
+  // 바깥 테두리 2px ×2 = 표 폭 + 4(11-25 — 전엔 +2 라 테두리가 상자 밖으로 3px 나가 오른쪽 테두리가 잘림)
+  const wCss = o.W ? `.pr-box{width:${o.W + 4}px}.pr-box .excel-wrap{box-sizing:border-box!important;width:${o.W + 4}px!important}#excel-table{width:${o.W}px!important;min-width:${o.W}px!important}` : '.pr-box{width:max-content}';
   const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   return `<!doctype html><html data-theme="light"><head><meta charset="utf-8"><title>${esc(o.title)}</title>`
     + o.links.map(h => `<link rel="stylesheet" href="${esc(h)}">`).join('')
     + `<style>${o.css}
 @page{size:${o.paper === 'A3' ? 'A3' : 'A4'} ${o.land ? 'landscape' : 'portrait'};margin:${_TBL_PAGE_MM}mm}
 html,body{margin:0!important;padding:0!important;height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-${o.K && o.K !== 1 && o.H ? `.pr-fit{width:${Math.ceil((o.W + 2) * o.K) + 1}px;height:${Math.ceil(o.H * o.K) + 1}px;overflow:hidden}.pr-box{transform:scale(${o.K});transform-origin:0 0}` : ''}
+${o.K && o.K !== 1 && o.H ? `.pr-fit{width:${Math.ceil((o.W + 4) * o.K) + 4}px;height:${Math.ceil(o.H * o.K) + 4}px;overflow:hidden}.pr-box{transform:scale(${o.K});transform-origin:0 0}` : ''}
 .pr-title{display:flex;align-items:baseline;gap:10px;margin:0 0 10px 2px;color:#1e293b;font-family:"Wanted Sans Variable","Wanted Sans","Malgun Gothic",sans-serif}
 .pr-title b{font-size:20px;font-weight:800}.pr-title span{font-size:11px;color:#94a3b8}
 .pr-box .excel-wrap{width:auto;max-width:none!important;max-height:none!important;overflow:visible!important;box-shadow:none!important;border-color:#cbd5e1!important}
@@ -331,7 +332,14 @@ async function printSchedule() {
       const d = measure.contentDocument; try { if (d.fonts && d.fonts.ready) await Promise.race([d.fonts.ready, new Promise(r => setTimeout(r, 3000))]); } catch (e) {}
       const b = d.querySelector('.pr-box'), t = d.getElementById('excel-table');
       if (!W && t) W = _tblFitWidth(t, 700);
-      res({ h: b ? b.offsetHeight : 0, n: d.querySelectorAll('#excel-table tbody tr').length });
+      // 화면 배율(125% 등)에선 1px 선이 0.8px 로 재짐 → 종이엔 1px 그대로라 표가 그만큼 길어져 아래 테두리가 잘렸음(11-25). 줄마다 모자란 만큼 더함
+      let fix = 0;
+      if (t) {
+        const cw = d.defaultView, ex = v => { const n = parseFloat(v) || 0; return n > 0 ? Math.ceil(n - 0.01) - n : 0; };
+        for (const tr of t.rows) { let mx = 0; for (const c of tr.cells) { const s = cw.getComputedStyle(c); mx = Math.max(mx, ex(s.borderTopWidth) + ex(s.borderBottomWidth)); } fix += mx; }
+        const wr = t.closest('.excel-wrap'); if (wr) { const s = cw.getComputedStyle(wr); fix += ex(s.borderTopWidth) + ex(s.borderBottomWidth); }
+      }
+      res({ h: b ? Math.ceil(b.offsetHeight + fix) : 0, n: d.querySelectorAll('#excel-table tbody tr').length });
     };
     measure.style.width = aw + 'px'; measure.style.height = '400px'; measure.srcdoc = h;
   });

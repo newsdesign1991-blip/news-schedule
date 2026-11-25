@@ -107,7 +107,8 @@ const LOOK_CHARAS = [
   },
 ];
 const lookChara = id => LOOK_CHARAS.find(t => t.id === id) || null;
-const lookUrl = (t, file) => ['themes', t.id, file].map(encodeURIComponent).join('/');
+// 그림 주소 — 테마 팩(js/look-pack.js)은 이 PC에 저장한 그림(blob: 주소 _urls)
+const lookUrl = (t, file) => (t._urls ? t._urls[file] || '' : ['themes', t.id, file].map(encodeURIComponent).join('/'));
 
 function lookGet() { try { const v = JSON.parse(localStorage.getItem('nd_look') || 'null'); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } }
 let _lookVars = [];   // 지금 <html> 에 덮어쓴 색 변수(다시 칠할 때 지움)
@@ -145,9 +146,9 @@ function _lookPaint() {
     const on = !look.chara && (i ? _lkSame(look.accent, c.hex) && _lkSame(look.tint, c.hex) : !look.accent && !look.tint);
     return `<div class="lk-tone"><button type="button" class="lk-dot${on ? ' on' : ''}" style="--c:${c.hex}" data-tone="${i ? c.hex : ''}" title="${i ? c.name + ' 톤' : '기본 (처음 색)'}" aria-pressed="${on}">${_LK_CHECK}</button><span>${i ? c.name : '기본'}</span></div>`;
   }).join('');
-  // 캐릭터 — 테마 카드(그림 + 이름) + 준비 중 칸
-  pop.querySelector('#look-charas').innerHTML = LOOK_CHARAS.map(t => `<button type="button" class="lk-chara${look.chara === t.id ? ' on' : ''}" style="--c:${t.colors.accent}" data-chara="${t.id}" aria-pressed="${look.chara === t.id}"><span class="lk-chara-pic"><img src="${lookUrl(t, t.thumb)}" alt="" draggable="false"></span><span class="lk-chara-nm">${t.name}</span><span class="lk-chara-check">${_LK_CHECK}</span></button>`).join('')
-    + '<div class="lk-chara soon"><span class="lk-chara-pic">＋</span><span class="lk-chara-nm">다른 캐릭터<small>준비 중</small></span></div>';
+  // 캐릭터 — 테마 카드(그림 + 이름, 테마 팩은 '이 PC에만'·지우기) + [테마 팩 추가] 칸(js/look-pack.js — 팩 이름은 글자로만)
+  pop.querySelector('#look-charas').innerHTML = LOOK_CHARAS.map(t => `<button type="button" class="lk-chara${look.chara === t.id ? ' on' : ''}" style="--c:${t.colors.accent}" data-chara="${t.id}" aria-pressed="${look.chara === t.id}"><span class="lk-chara-pic"><img src="${lookUrl(t, t.thumb)}" alt="" draggable="false"></span><span class="lk-chara-nm">${t.pack ? _lkpEsc(t.name) + lookPackMark() : t.name}</span><span class="lk-chara-check">${_LK_CHECK}</span>${t.pack ? lookPackDel() : ''}</button>`).join('')
+    + (typeof lookPackAddCard === 'function' ? lookPackAddCard() : '');
 }
 function openLook() {
   if (!ND_APP) return;
@@ -171,7 +172,9 @@ function openLook() {
     pop.querySelector('.lk-nav').onclick = e => { const p = e.target.closest('button')?.dataset.pane; if (p) { _lookPane = p; _lookPaint(); } };
     pop.querySelector('.lk-x').onclick = closeLook;
     pop.addEventListener('mousedown', e => { if (e.target === pop) closeLook(); });   // 카드 바깥(옅게 어두운 바탕) 누르면 닫힘
+    if (typeof lookPackDrop === 'function') lookPackDrop(pop);   // 테마 팩 끌어 놓기(js/look-pack.js)
     pop.addEventListener('click', e => {
+      if (typeof lookPackClick === 'function' && lookPackClick(e)) return;   // [테마 팩 추가] · 팩 '지우기'
       const d = e.target.closest('.lk-dot'); if (d) { const hex = d.dataset.tone; setLook(hex ? { accent: hex, tint: hex, amount: LookColor.DEFAULT_AMOUNT } : null); return; }
       const c = e.target.closest('button.lk-chara'); if (c) { const t = lookChara(c.dataset.chara); if (t) setLook({ chara: t.id, ...t.colors }); }
     });
