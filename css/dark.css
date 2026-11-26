@@ -895,16 +895,22 @@ body.cga-dragging .cga-card { outline:2px dashed rgba(49,130,246,.35); outline-o
 .cgv-head { display: flex; align-items: center; gap: 8px; flex: none; }
 .cgv-head .cgv-print { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border: 0; border-radius: 10px; background: linear-gradient(135deg,#4a94ff,#2f77f6); color: #fff; font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; }
 .cgv-head .cgv-print:disabled { opacity: .5; cursor: progress; }
-/* 기사 보기(11-25, 앱 1.5.5~ — js/cg-assign.js _cgvArtWire): 머리 [기사 보기]↔[의뢰 보기], 오른쪽을 기사로 바꿔 보여 줌 */
+/* 기사 보기(11-25, 앱 1.5.5~ — js/cg-assign.js _cgvArtWire): 머리 [기사 보기]↔[기사 닫기], 의뢰 옆 세 번째 칸 */
 .cgv-head .cgv-art-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px; border: 0; border-radius: 10px; background: rgba(49,130,246,.12); color: #2f77f6; font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; transition: background-color .15s; }
 .cgv-head .cgv-art-btn:hover { background: rgba(49,130,246,.2); }
 .cgv-head .cgv-art-btn[aria-pressed="true"] { background: #2f77f6; color: #fff; }
 .cgv-head .cgv-art-btn[hidden] { display: none; }
 .cgv-head .cgv-art-btn:not([hidden]) + .cgv-print { margin-left: 0; }
 [data-theme="dark"] .cgv-head .cgv-art-btn:not([aria-pressed="true"]) { color: #6aa8ff; }
+/* 11-26 3분할: 켜면 창이 넓어지고(.art-on) 의뢰 정보와 의뢰 내용 사이에 기사 칸(따로 스크롤) */
+.cgv-card { transition: width .42s cubic-bezier(.16,1,.3,1); }
+.cgv-card.art-on { width: min(1520px, 100%); }
+.cgv-card.art-on .cgv-body { grid-template-columns: 300px 480px minmax(0, 1fr); }   /* 기사 칸은 NDS 기사 보기처럼 좁게(원고 한 줄 ~28자) */
 .cgv-art[hidden] { display: none; }
-.cgv-art { padding: 18px 26px 30px; }
-.cgv-art-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.cgv-art { min-height: 0; overflow-y: auto; padding: 18px 26px 30px; border-right: 1px solid var(--border); animation: cgvArtIn .42s cubic-bezier(.16,1,.3,1) both; }
+@keyframes cgvArtIn { from { opacity: 0; transform: translateX(-18px) scale(.985); filter: blur(6px); } }
+.cgv-art-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.cgv-art-head > b { font-size: 15px; font-weight: 800; color: var(--text); }
 .cgv-art-src { font-size: 12.5px; font-weight: 800; color: #2f77f6; }
 [data-theme="dark"] .cgv-art-src { color: #6aa8ff; }
 .cgv-art-pick { margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface2); }
@@ -962,7 +968,9 @@ body.cga-dragging .cga-card { outline:2px dashed rgba(49,130,246,.35); outline-o
 .cgv-content table { border-collapse: collapse; max-width: 100%; }
 .cgv-content td, .cgv-content th { border: 1px solid var(--border); padding: 4px 8px; }
 .cgv-wait { color: var(--muted); font-size: 14px; }
-@media (max-width: 860px) { .cgv-body { grid-template-columns: 1fr; overflow-y: auto; } .cgv-right { overflow: visible; } .cgv-left { border-right: 0; border-bottom: 1px solid var(--border); } }
+@media (max-width: 1320px) { .cgv-card.art-on .cgv-body { grid-template-columns: 230px 420px minmax(0, 1fr); } .cgv-card.art-on .cgv-left { padding: 18px 14px; } .cgv-card.art-on .cgv-art { padding: 16px 20px 26px; } }
+@media (max-width: 860px) { .cgv-body, .cgv-card.art-on .cgv-body { grid-template-columns: 1fr; overflow-y: auto; } .cgv-right, .cgv-art { overflow: visible; } .cgv-left { border-right: 0; border-bottom: 1px solid var(--border); } .cgv-art { border-right: 0; border-bottom: 1px solid var(--border); } }
+@media (prefers-reduced-motion: reduce) { .cgv-card { transition: none; } .cgv-art { animation: none; } }
 /* 인쇄 미리보기(10-21 '우리 스타일로') — 왼쪽 A4 종이 / 오른쪽 토스 카드: 파란 머리·둥근 칸·세그먼트·아래 [취소][인쇄] */
 .cpv-pop { position: fixed; inset: 0; z-index: 10070; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.42); animation: ndModalFade .2s ease both; }
 .cpv-card { width: min(1180px, 100%); height: min(860px, calc(100vh - 40px)); display: grid; grid-template-columns: minmax(0,1fr) 330px; border-radius: 24px; overflow: hidden; background: var(--surface); box-shadow: 0 30px 70px -22px rgba(15,23,42,.55); animation: ndModalPop .32s cubic-bezier(.16,1,.3,1) both; }

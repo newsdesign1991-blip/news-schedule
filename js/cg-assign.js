@@ -1701,7 +1701,7 @@ async function _cgaReqOpen(id) {
   _cgvArtWire(el, d);
 }
 // ── 기사 보기(11-25 사용자 '의뢰한 기자 이름으로 그날 큐시트 기사를', 앱 1.5.5~ ndApp.ndsArticle) ──
-// 머리 [기사 보기] ↔ [의뢰 보기]로 오른쪽을 바꿔 보여 줌. 찾는 순서: ① 의뢰에 연결된 기사(NDS [기사보기]와 같은 것, d.article)
+// 머리 [기사 보기] ↔ [기사 닫기]로 의뢰 정보·의뢰 내용 사이에 기사 칸을 열고 닫음. 찾는 순서: ① 의뢰에 연결된 기사(NDS [기사보기]와 같은 것, d.article)
 // ② 그날 큐시트 기사 줄(ndsCgArticles)에서 — 제목 속 기자 이름 > 요청자 = 기자 > 제목 글자 겹침(요청자가 '데스크'라도 잡히게, 11-25 사용자). 후보는 위에 칩, 못 찾으면 검색칸
 const CGV_ART_IC = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>';
 const CGA_SEARCH_IC = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>';
@@ -1723,17 +1723,17 @@ function _cgvArtRank(d, list) {
     return { it, s };
   }).filter(x => x.s >= 15).sort((a, b) => b.s - a.s);
 }
+// 11-26 사용자 '바꿔 보지 말고 한 칸 더 — 3분할': 기사 칸(.cgv-art, 따로 스크롤)은 의뢰 정보와 의뢰 내용 사이, 켜면 창이 넓어짐(.art-on)
 function _cgvArtWire(el, d) {
-  const btn = el.querySelector('.cgv-art-btn'), right = el.querySelector('.cgv-right');
-  if (!btn || !right || !(d.article || (window.ndApp && window.ndApp.ndsArticle))) return;   // 옛 앱은 버튼 없음
+  const btn = el.querySelector('.cgv-art-btn'), body = el.querySelector('.cgv-body'), card = el.querySelector('.cgv-card');
+  if (!btn || !body || !(d.article || (window.ndApp && window.ndApp.ndsArticle))) return;   // 옛 앱은 버튼 없음
   btn.hidden = false;
   let box = null, list = null, cur = 0;
   const day = String(d.inputAt || '').slice(0, 10) || _cgaToday();
   const show = on => {
-    btn.setAttribute('aria-pressed', String(on)); btn.querySelector('span').textContent = on ? '의뢰 보기' : '기사 보기';
-    right.querySelectorAll(':scope > :not(.cgv-art)').forEach(x => { x.hidden = on; });
-    if (box) box.hidden = !on;
-    right.scrollTop = 0;
+    btn.setAttribute('aria-pressed', String(on)); btn.querySelector('span').textContent = on ? '기사 닫기' : '기사 보기';
+    card.classList.toggle('art-on', on);
+    if (box) { box.hidden = !on; if (on) box.scrollTop = 0; }
   };
   const paintArt = (a, from) => {
     const art = box.querySelector('.cgv-art-doc');
@@ -1768,9 +1768,9 @@ function _cgvArtWire(el, d) {
     p.addEventListener('click', e => { const b = e.target.closest('[data-aid]'); if (!b) return; open(Number(b.dataset.aid), '큐시트에서 고른 기사'); });
   };
   const build = async () => {
-    box = document.createElement('div'); box.className = 'cgv-art';
-    box.innerHTML = '<div class="cgv-art-head"><span class="cgv-art-src"></span></div><div class="cgv-art-pick"></div><div class="cgv-art-doc"></div>';
-    right.appendChild(box);
+    box = document.createElement('section'); box.className = 'cgv-art'; box.setAttribute('aria-label', '기사');
+    box.innerHTML = '<div class="cgv-art-head"><b>기사</b><span class="cgv-art-src"></span></div><div class="cgv-art-pick"></div><div class="cgv-art-doc"></div>';
+    body.insertBefore(box, body.querySelector('.cgv-right'));   // 11-26 사용자: 첫째(의뢰 정보)·둘째(의뢰 내용) 칸 사이에
     if (d.article) { box.querySelector('.cgv-art-pick').remove(); paintArt(d.article, '의뢰에 연결된 기사'); return; }
     const doc = box.querySelector('.cgv-art-doc'); doc.innerHTML = '<p class="cgv-wait">그날 큐시트에서 기사 찾는 중…</p>';
     const r = window.ndApp.ndsCgArticles ? await window.ndApp.ndsCgArticles(day).catch(() => null) : null;
