@@ -953,9 +953,10 @@ function _cgaPaint() {
   const nHid = all.length - wait.length, nReq = wait.filter(r => r.status === '0001').length;
   const item = r => {
     const fix = r.status === '0003', n8 = urg(r);
+    const xb = `<button type="button" class="cga-x" onclick="_cgaHide(${Number(r.id) || 0}, '${fix ? '0003' : '0001'}')" title="${fix ? '보완이 끝나 다시 의뢰가 되면 또 보여요' : '이 앱에서만 숨기기(NDS엔 그대로)'}" aria-label="의뢰 숨기기">×</button>`;
     return { key: 'r:' + r.id, cls: 'cga-req' + (fix ? ' fix' : can ? ' drag' : '') + (n8 ? ' urgent' : ''), attrs: fix ? { draggable: 'false' } : { draggable: 'false', 'data-rid': String(r.id), title: can ? '누르면 크게 보기 · 끌어서 사람 카드에 놓으면 배정' : '누르면 크게 보기' },
-      html: `<button type="button" class="cga-x" onclick="_cgaHide(${Number(r.id) || 0}, '${fix ? '0003' : '0001'}')" title="${fix ? '보완이 끝나 다시 의뢰가 되면 또 보여요' : '이 앱에서만 숨기기(NDS엔 그대로)'}" aria-label="의뢰 숨기기">×</button>`
-        + (n8 ? `<span class="cga-no" title="8뉴스 큐시트 ${n8}번째 아이템 — 먼저 방송돼요">${n8}</span>` : '')
+      // × — 급한 칸(8뉴스 번호)은 이름 줄 번호 바로 왼쪽에 같이(.cga-nox, 11-25 사용자: 번호와 '방금' 사이에 끼어 이상함), 그 밖은 이름 줄 오른쪽 끝
+      html: (n8 ? `<div class="cga-nox">${xb}<span class="cga-no" title="8뉴스 큐시트 ${n8}번째 아이템 — 먼저 방송돼요">${n8}</span></div>` : xb)
         + `<div class="cga-who"><b>${_cgaEsc(r.requester)}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}${fix ? '<em class="cga-fix">보완요청</em>' : ''}</div>`
         + (r.title ? `<div class="cga-ttl" title="${_cgaEsc(r.title)}">${_cgaEsc(r.title)}</div>` : '')
         + `<div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span>${fix ? '<span class="cga-ago">보완 기다림</span>' : `<span class="cga-ago" data-kind="wait" data-at="${_cgaEsc(r.inputAt)}"></span>`}</div>`
@@ -1675,6 +1676,7 @@ async function _cgaReqOpen(id) {
   const el = document.createElement('div'); el.id = 'cga-view'; el.className = 'wt-pop';
   el.innerHTML = `<div class="wt-card cgv-card" role="dialog" aria-modal="true" aria-labelledby="cgv-t">
     <div class="wt-head cgv-head"><span id="cgv-t">CG 의뢰</span>
+      <button type="button" class="cgv-art-btn" hidden aria-pressed="false">${CGV_ART_IC}<span>기사 보기</span></button>
       <button type="button" class="cgv-print" disabled><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>인쇄</button>
       <button type="button" class="cgv-x" aria-label="닫기"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="cgv-body"><aside class="cgv-left" id="cgv-left">${_cgvInfo(row)}</aside><section class="cgv-right"><div class="cgv-content" id="cgv-content"><p class="cgv-wait">의뢰 내용 불러오는 중…</p></div></section></div>
@@ -1696,6 +1698,95 @@ async function _cgaReqOpen(id) {
   el.querySelectorAll('#cgv-content a[href]').forEach((a) => { a.target = '_blank'; a.rel = 'noopener'; });
   _cgvFiles(el, d.files);
   const pb = el.querySelector('.cgv-print'); pb.disabled = false; pb.onclick = () => _cgaPrintPreview(d);
+  _cgvArtWire(el, d);
+}
+// ── 기사 보기(11-25 사용자 '의뢰한 기자 이름으로 그날 큐시트 기사를', 앱 1.5.5~ ndApp.ndsArticle) ──
+// 머리 [기사 보기] ↔ [의뢰 보기]로 오른쪽을 바꿔 보여 줌. 찾는 순서: ① 의뢰에 연결된 기사(NDS [기사보기]와 같은 것, d.article)
+// ② 그날 큐시트 기사 줄(ndsCgArticles)에서 — 제목 속 기자 이름 > 요청자 = 기자 > 제목 글자 겹침(요청자가 '데스크'라도 잡히게, 11-25 사용자). 후보는 위에 칩, 못 찾으면 검색칸
+const CGV_ART_IC = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>';
+const CGA_SEARCH_IC = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>';
+const CGV_ART_STOP = /(8리|8뉴스|리포트|리포|그래픽|무빙|CG|cg|컷|수정|요청|부탁|시험|자료|화면|제작|추가|데스크)/g;
+function _cgvGrams(t) {   // 글자 두 개씩(띄어쓰기·기호 빼고) — 제목이 조금 달라도 겹치는 만큼 점수
+  const s = String(t || '').replace(/\[[^\]]*\]|\([^)]*\)|<[^>]*>/g, ' ').replace(CGV_ART_STOP, ' ').replace(/[^가-힣A-Za-z0-9]+/g, '');
+  const g = new Set(); for (let i = 0; i + 1 < s.length; i++) g.add(s.slice(i, i + 2)); return g;
+}
+function _cgvArtRank(d, list) {
+  const title = String(d.title || ''), lead = (title.replace(/^\s*(\[[^\]]*\]|\([^)]*\)|<[^>]*>)\s*/, '').match(/^\s*([가-힣]{2,5})/) || [])[1] || '';
+  const req = String(d.requester || '').trim(), G = _cgvGrams(title);
+  return list.map(it => {
+    const n = it.rptr, okName = /^[가-힣]{2,5}$/.test(n) && !CGA_NOT_NAME.has(n);
+    let s = 0;
+    if (okName && n === lead) s += 60; else if (okName && title.includes(n)) s += 45;
+    if (okName && n === req) s += 35;
+    const g = _cgvGrams(it.title); let hit = 0; g.forEach(x => { if (G.has(x)) hit++; });
+    s += Math.round(40 * hit / Math.max(1, Math.min(G.size, g.size)) * Math.min(1, hit / 3));   // 겹친 글자가 1~2개뿐이면 덜 침
+    return { it, s };
+  }).filter(x => x.s >= 15).sort((a, b) => b.s - a.s);
+}
+function _cgvArtWire(el, d) {
+  const btn = el.querySelector('.cgv-art-btn'), right = el.querySelector('.cgv-right');
+  if (!btn || !right || !(d.article || (window.ndApp && window.ndApp.ndsArticle))) return;   // 옛 앱은 버튼 없음
+  btn.hidden = false;
+  let box = null, list = null, cur = 0;
+  const day = String(d.inputAt || '').slice(0, 10) || _cgaToday();
+  const show = on => {
+    btn.setAttribute('aria-pressed', String(on)); btn.querySelector('span').textContent = on ? '의뢰 보기' : '기사 보기';
+    right.querySelectorAll(':scope > :not(.cgv-art)').forEach(x => { x.hidden = on; });
+    if (box) box.hidden = !on;
+    right.scrollTop = 0;
+  };
+  const paintArt = (a, from) => {
+    const art = box.querySelector('.cgv-art-doc');
+    const meta = [a.rptr, a.dept, a.pgm, a.type].filter(Boolean).map(_cgaEsc).join(' · ');
+    art.innerHTML = `<h3 class="cgv-art-t">${_cgaEsc(a.title || '(제목 없음)')}</h3>${meta ? `<div class="cgv-art-meta">${meta}</div>` : ''}`
+      + (String(a.anc || '').replace(/<[^>]+>|&nbsp;|\s/g, '') ? `<section class="cgv-art-sec anc"><b>앵커멘트</b><div class="cgv-content">${_cgaSanitize(a.anc)}</div></section>` : '')
+      + `<section class="cgv-art-sec"><b>기사</b><div class="cgv-content">${_cgaSanitize(a.body) || '<p class="cgv-wait">본문이 없어요.</p>'}</div></section>`;
+    art.querySelectorAll('a[href]').forEach(x => { x.target = '_blank'; x.rel = 'noopener'; });
+    box.querySelector('.cgv-art-src').textContent = from;
+  };
+  const open = async (id, from) => {
+    cur = id; const art = box.querySelector('.cgv-art-doc');
+    box.querySelectorAll('.cgv-art-pick [data-aid]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.aid) === id)));
+    art.innerHTML = '<p class="cgv-wait">기사 불러오는 중…</p>';
+    const r = await window.ndApp.ndsArticle(id).catch(() => null);
+    if (!el.isConnected || cur !== id) return;
+    if (!r || !r.ok) { art.innerHTML = `<p class="cgv-wait">${_cgaEsc((r && r.error) || 'NDS에서 기사를 못 읽었어요.')}</p>`; return; }
+    paintArt(r.a, from);
+  };
+  const chip = x => `<button type="button" data-aid="${x.id}" aria-pressed="false" title="${_cgaEsc((x.pgm ? x.pgm + ' · ' : '') + x.title)}"><b>${_cgaEsc(x.rptr || '기자 없음')}</b><span>${_cgaEsc(x.title)}</span></button>`;
+  const pickArea = (cands) => {
+    const p = box.querySelector('.cgv-art-pick');
+    p.innerHTML = `<div class="cgv-art-chips">${cands.slice(0, 6).map(c => chip(c.it)).join('')}</div>
+      <label class="cgv-art-q">${CGA_SEARCH_IC}<input type="search" placeholder="기자 이름이나 제목 낱말로 그날 큐시트에서 찾기" aria-label="큐시트 기사 찾기"></label><div class="cgv-art-res" hidden></div>`;
+    const q = p.querySelector('input'), res = p.querySelector('.cgv-art-res');
+    q.addEventListener('input', () => {
+      const w = q.value.trim().split(/\s+/).filter(Boolean);
+      if (!w.length) { res.hidden = true; res.innerHTML = ''; return; }
+      const hits = list.filter(x => w.every(k => (x.rptr + ' ' + x.title + ' ' + x.pgm).includes(k))).slice(0, 30);
+      res.hidden = false; res.innerHTML = hits.length ? hits.map(chip).join('') : '<p class="cgv-wait">그날 큐시트에 맞는 기사가 없어요.</p>';
+    });
+    p.addEventListener('click', e => { const b = e.target.closest('[data-aid]'); if (!b) return; open(Number(b.dataset.aid), '큐시트에서 고른 기사'); });
+  };
+  const build = async () => {
+    box = document.createElement('div'); box.className = 'cgv-art';
+    box.innerHTML = '<div class="cgv-art-head"><span class="cgv-art-src"></span></div><div class="cgv-art-pick"></div><div class="cgv-art-doc"></div>';
+    right.appendChild(box);
+    if (d.article) { box.querySelector('.cgv-art-pick').remove(); paintArt(d.article, '의뢰에 연결된 기사'); return; }
+    const doc = box.querySelector('.cgv-art-doc'); doc.innerHTML = '<p class="cgv-wait">그날 큐시트에서 기사 찾는 중…</p>';
+    const r = window.ndApp.ndsCgArticles ? await window.ndApp.ndsCgArticles(day).catch(() => null) : null;
+    if (!el.isConnected) return;
+    if (!r || !r.ok) { doc.innerHTML = `<p class="cgv-wait">${_cgaEsc((r && r.error) || 'NDS에서 큐시트를 못 읽었어요.')}</p>`; box.querySelector('.cgv-art-pick').remove(); return; }
+    list = r.list || [];
+    const cands = _cgvArtRank(d, list);
+    pickArea(cands);
+    if (cands.length) open(cands[0].it.id, cands.length > 1 ? '큐시트에서 찾은 기사 — 아니면 위에서 다른 기사를 골라요' : '큐시트에서 찾은 기사');
+    else { box.querySelector('.cgv-art-src').textContent = '큐시트에서 맞는 기사를 못 찾았어요'; doc.innerHTML = `<p class="cgv-wait">${list.length ? '위 칸에 기자 이름이나 제목 낱말을 넣어 찾아 주세요.' : '그날 큐시트에 기사가 없어요.'}</p>`; }
+  };
+  btn.onclick = async () => {
+    const on = btn.getAttribute('aria-pressed') !== 'true';
+    if (on && !box) { show(true); await build(); if (el.isConnected) show(btn.getAttribute('aria-pressed') === 'true'); return; }
+    show(on);
+  };
 }
 // 의뢰 첨부파일(10-26 사용자 — NDS 의뢰 화면처럼 목록 + [전체 다운로드]): 앱 1.3.3~(d.files · ndApp.ndsFile). 받으면 다운로드 폴더, 그 줄은 [열기]로 바뀜
 const CGV_DL_IC = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>';
