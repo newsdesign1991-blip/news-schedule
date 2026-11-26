@@ -524,7 +524,7 @@ function renderNotifyTab() {
           value="${(t.body||'').replace(/"/g,'&quot;')}" data-nt-body="${t.key}" placeholder="{이름}님, 오늘 ...">
       </td>
     </tr>`).join('');
-  body.innerHTML = `
+  body.innerHTML = `${typeof _nsRelayHTML==='function'?_nsRelayHTML():''}
     <div class="gen-box">
       <h3>🔔 알림 마스터 설정</h3>
       <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
@@ -566,6 +566,7 @@ function renderNotifyTab() {
       <button class="btn btn-primary" style="width:auto;margin-top:14px;" onclick="saveNotifyConfig()">알림 설정 저장</button>
       <div id="nt-save-status" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
     </div>`;
+  if (typeof _nsRelayFill === 'function') _nsRelayFill();   // 대표 PC 상자(PC 앱 관리자) — 지금 대표·스위치 상태
 }
 function saveNotifyConfig() {
   const cfg = getNotifyConfig();
