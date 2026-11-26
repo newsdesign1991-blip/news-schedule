@@ -39,7 +39,8 @@ function _mealLoad(force){
   if(!force && _mealData && _mealAt && Date.now()-_mealAt<10*60e3) return Promise.resolve(_mealData);
   _mealLoading=(async()=>{
     try{
-      const r=await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.meal&select=payload`,{ headers:SB_HEADERS, cache:'no-store' });
+      const rr=await _ndRelayRow('meal', null);   // PC 앱 1.5.7~: 공유 폴더(대표 PC)부터
+      const r=rr ? { ok:true, json:async()=>[{ payload:rr.payload }] } : await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.meal&select=payload`,{ headers:SB_HEADERS, cache:'no-store' });
       if(r.ok){
         const a=await r.json(); const p=(a && a[0] && a[0].payload && typeof a[0].payload==='object')?a[0].payload:{ days:{} };
         if(!p.days || typeof p.days!=='object') p.days={};

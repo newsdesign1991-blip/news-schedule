@@ -90,8 +90,10 @@ async function _loadGcal(force){
   for(const c of cals){
     try{
       // apikey를 쿼리로, Content-Type text/plain → CORS preflight 회피(더 견고). Edge Function은 req.json()으로 본문 파싱.
-      const res=await fetch(GCAL_FN_URL+'?apikey='+encodeURIComponent(SB_KEY),{ method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({url:c.url.trim()}) });
-      const txt=await res.text();
+      // 근무표 PC 앱 1.5.7~: 구글에서 바로(Supabase 함수 안 씀 — 사용자 11-26 'Supabase 는 휴대폰에 필요한 것만'). 못 받으면 예전처럼 함수로
+      const ap=window.ndApp&&window.ndApp.gcal?await window.ndApp.gcal(c.url.trim()).catch(()=>null):null;
+      const res=ap&&ap.ok?{ ok:true }:await fetch(GCAL_FN_URL+'?apikey='+encodeURIComponent(SB_KEY),{ method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({url:c.url.trim()}) });
+      const txt=ap&&ap.ok?ap.text:await res.text();
       if(!res.ok){ failed++; console.warn('gcal load failed', c.url, txt); continue; }
       const evs=_parseICS(txt); const col=c.color||'#4285f4'; evs.forEach(e=>{ e._color=col; e._calName=c.name||''; e._calId=c.id; }); all.push(...evs);
     }catch(e){ failed++; console.warn('gcal', e); }

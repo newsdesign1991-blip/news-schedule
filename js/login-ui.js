@@ -191,9 +191,30 @@ function openNotifySheet(){
     <div id="us-push-status" class="ns-status"></div>
     <button id="us-push-toggle-btn" onclick="togglePush(this.dataset.want)" class="ns-btn"></button>
     <button id="us-push-test-btn" onclick="sendTestPush()" class="ns-btn ns-btn-primary">${BELL} 테스트 알림 보내기</button>
-    ${typeof ndPreviewHTML==='function'?ndPreviewHTML():''}`;   // 근무표 앱: 알림 미리보기(시범용)
+    ${typeof ndPreviewHTML==='function'?ndPreviewHTML():''}${_nsRelayHTML()}`;   // 근무표 앱: 알림 미리보기(시범용) · 대표 PC(관리자)
   openSheet('알림 설정', html);
   _refreshUserSettingsModal();
+  _nsRelayFill();
+}
+// 대표 PC(근무표 PC 앱 1.5.7~, desktop/share-relay.js): 켜진 앱 중 한 대만 Supabase 에 묻고 회사 공유 폴더로 옮김. 이 PC 를 늘 먼저 대표로(사용자 11-26 '대부분 이 PC') —
+// 꺼져 있으면 오늘 근무가 있는 사람 PC, 그다음 아무 PC. PC 앱의 관리자·마스터만 보임
+function _nsRelayHTML(){
+  if(!(typeof ND_APP!=='undefined'&&ND_APP&&window.ndApp&&window.ndApp.relayStatus&&(isAdmin||isMaster))) return '';
+  const PC='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>';
+  return `<div class="ns-group ns-g-relay"><div class="ns-g-title">대표 PC</div><div class="ns-card"><label class="ns-row"><span class="ns-ic">${PC}</span><span class="ns-txt"><span class="ns-label">이 PC를 우선 대표로</span><span class="ns-sub" id="ns-relay-sub">확인 중…</span></span><span class="nd-switch" id="ns-relay-sw" role="switch" tabindex="0" aria-checked="false" aria-label="이 PC를 우선 대표로" onclick="_nsRelayToggle(this,event)" onkeydown="if(event.key===' '||event.key==='Enter'){_nsRelayToggle(this,event)}"><span class="nd-switch-knob"></span></span></label></div></div>`;
+}
+async function _nsRelayFill(st){
+  const sw=document.getElementById('ns-relay-sw'), sub=document.getElementById('ns-relay-sub'); if(!sw||!sub) return;
+  try{ st=st||await window.ndApp.relayStatus(); }catch(e){ st=null; }
+  if(!st){ sub.textContent='상태를 읽지 못했어요.'; return; }
+  sw.classList.toggle('on',!!st.prefer); sw.setAttribute('aria-checked',String(!!st.prefer));
+  const L=st.leader;
+  sub.textContent=!st.fresh||!L ? '대표 PC를 찾는 중이에요(공유 폴더 연결 확인 중).' : L.me ? '지금 대표: 이 PC' : `지금 대표: ${L.who?L.who+' ':''}PC${L.pri>=3?' (우선)':L.pri===2?' (오늘 근무)':''}`;
+}
+async function _nsRelayToggle(el,ev){
+  if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+  const on=!el.classList.contains('on');
+  try{ const st=await window.ndApp.relayPrefer(on); _nsRelayFill(st); toast(on?'이 PC가 먼저 대표를 맡아요. 1분 안에 넘겨받아요.':'우선 대표를 껐어요.','success'); }catch(e){ toast('바꾸지 못했어요.','error'); }
 }
 // 모바일: 아래로 스크롤하면 헤더(로고+메뉴버튼) 숨김, 위로 스크롤하면 표시
 let _lastScrollY = 0;

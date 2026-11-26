@@ -72,12 +72,15 @@ async function _checkRemoteUpdate() {
   if (document.hidden || ndSaving || ndSaveQueue.length || _lrHasPending()) return;   // 저장 중에는 로컬 편집 보존
   if (typeof _ndGenBusy!=='undefined' && _ndGenBusy) return;   // 자동 생성 중이면 끝난 뒤 다음 확인에서
   try {
+    let ua = await _ndRelayUa('main');   // PC 앱 1.5.7~: 대표 PC 가 공유 폴더에 둔 수정시각(내용도 거기 — _reloadRemoteData → _ndShareCopy)
+    if (!ua) {
     const res = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.main&select=updated_at`, {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY }
     });
     if (!res.ok) return;
     const rows = await res.json();
-    const ua = rows?.[0]?.updated_at;
+    ua = rows?.[0]?.updated_at;
+    }
     if (!ua) return;
     // 수정시각은 전체 받기에 성공했을 때 _reloadRemoteData가 맞춤 — 먼저 넣으면 받기 실패 뒤 서버가 또 바뀔 때까지 옛 판에 머묾
     if (_ndUpdatedAt === null) { if (_bootRemoteOk) _ndUpdatedAt = ua; else await _reloadRemoteData(); return; }
@@ -100,6 +103,19 @@ function _startAutoSync() {
   }, _AUTO_SYNC_MS);
   if (!window._deptDueTimer) window._deptDueTimer = setInterval(() => { if (_deptApplyDue(data)) _rerenderActiveView(); }, 60000);   // 켜 둔 채 날이 바뀌어 부서 이동 날짜가 되면(10-27)
   document.addEventListener('visibilitychange', () => { if (!document.hidden) _checkRemoteUpdate(); }); // 탭 복귀 즉시 1회
+}
+
+// 대표 PC(desktop/share-relay.js)에 알려 줌: 서버 주소·공개 키, 이 PC 에 로그인한 사람이 오늘 근무표에 근무가 있는지(있으면 대표 우선순위 2 — 사용자 11-26
+// '우선 대표 PC 가 꺼져 있으면 근무표에서 출근한 사람 PC'), 이름(알림 설정 시트의 '지금 대표' 표시)
+function _ndRelayHello() {
+  if (!_ndRelayOn() || !window.ndApp.relayConfig) return;
+  let onDuty = false;
+  try {
+    const n = new Date(), ds = toDateStr(n.getFullYear(), n.getMonth() + 1, n.getDate()), s = currentUser && currentUser.staffId && staffById(currentUser.staffId);
+    const role = s && typeof workCellRole === 'function' ? workCellRole(data.schedule && data.schedule[ds], s, ds) : '';
+    onDuty = !!role && !/^(휴가|퇴근)$/.test(role);
+  } catch (e) {}
+  window.ndApp.relayConfig({ url: SB_URL, key: SB_KEY, onDuty, who: (currentUser && currentUser.name) || '' }).catch(() => {});
 }
 
 // ===== INIT =====
@@ -182,6 +198,7 @@ function _looksEmptyData(d){
   renderHome();
   if (currentUser) { var _vh0=document.getElementById('view-home'); if(_vh0){ _vh0.classList.remove('home-anim'); void _vh0.offsetWidth; _vh0.classList.add('home-anim'); setTimeout(function(){ _vh0.classList.remove('home-anim'); }, 1200); } }
   _startAutoSync();
+  _ndRelayHello(); setInterval(_ndRelayHello, 10 * 60e3);
   setTimeout(()=>{ if (typeof ndLoadLib==='function') ndLoadLib('h2c').catch(()=>{}); }, 4000);   // 이미지 저장 라이브러리는 앱이 뜬 뒤 미리 받아 둠
 })();
 

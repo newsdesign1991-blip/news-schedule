@@ -408,6 +408,9 @@ function ndAppOldBlock(){
   css.textContent='html.nd-old-blocked body>*:not(#upd-pop):not(#nd-modfail){visibility:hidden!important;pointer-events:none!important}';
   document.head.appendChild(css);
   document.documentElement.classList.add('nd-old-blocked');
+  // 11-26: 막힌 옛 앱도 트레이(앱 본체)는 PC 알림 우편함을 계속 물음 — 1.3.x 는 15초마다 우편함 전체(한 PC 가 하루 5,700번, Supabase 요청의 10%).
+  // 로그아웃과 상관없이 돌아서, 막는 김에 이 PC 알림·윈도 시작 때 켜기를 끔(업데이트한 뒤 알림 설정에서 다시 켬)
+  try{ const A=window.ndApp; if(A&&A.notifyConfig) Promise.resolve(A.notifyConfig({enabled:false})).catch(()=>{}); }catch(e){}
   const el=document.createElement('div'); el.id='upd-pop'; el.className='wt-pop apx-pop upd-pop';
   el.innerHTML=`<div class="wt-card apx-card upd-card" role="alertdialog" aria-modal="true" aria-labelledby="upd-t" aria-describedby="upd-d" tabindex="-1">
     <div class="wt-head apx-head upd-head" id="upd-t"><img src="icon-192.png" alt="">근무표 앱을 업데이트해야 쓸 수 있어요</div>
@@ -418,7 +421,7 @@ function ndAppOldBlock(){
         <div class="apx-step"><i>1</i><div><b>NDT 런처</b>를 열어요</div></div>
         <div class="apx-step"><i>2</i><div><b>근무표</b>를 업데이트해요 — 끝나면 근무표를 다시 켜요</div></div>
       </div>
-      <p class="wt-note">급하면 휴대폰 근무표는 지금처럼 쓸 수 있어요.</p>
+      <p class="wt-note">급하면 휴대폰 근무표는 지금처럼 쓸 수 있어요. 업데이트한 뒤 PC 알림이 필요하면 알림 설정에서 다시 켜 주세요.</p>
     </div>
   </div>`;
   document.body.appendChild(el);

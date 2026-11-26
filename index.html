@@ -38,7 +38,9 @@
   var cl=null; try { var mk=JSON.parse(localStorage.getItem('nd_v3_srv')||'null'), t=mk&&mk.ua&&mk.h&&localStorage.getItem('nd_v3'); if (t && h53(t)===mk.h) cl={ua:mk.ua,h:mk.h}; } catch(e){}
   var A=window.ndApp, pc=false; try { pc=!!(A&&A.shareNames&&A.shareNames.indexOf('main')>=0); } catch(e){}
   var kind=pc?'ua':(cl?'since':'full'); window.__ndBoot={kind:kind,clean:cl};
-  window.__ndBootMain=fetch(U+'/rest/v1/nd_data?id=eq.main&select='+(pc?'updated_at':'payload,updated_at')+(kind==='since'?'&updated_at=neq.'+encodeURIComponent(cl.ua):''),{headers:H}); window.__ndBootMain.catch(function(){});
+  var getB=function(){ return fetch(U+'/rest/v1/nd_data?id=eq.main&select='+(pc?'updated_at':'payload,updated_at')+(kind==='since'?'&updated_at=neq.'+encodeURIComponent(cl.ua):''),{headers:H}); };
+  // PC 앱 1.5.7~: 수정시각도 대표 PC 가 회사 공유 폴더에 둔 것부터(서버 안 씀, desktop/share-relay.js) — 없거나 오래됐으면·3초 넘으면 서버
+  window.__ndBootMain=(pc&&A.relayGet)?Promise.race([A.relayGet('main',''),new Promise(function(ok){setTimeout(function(){ok(null);},3000);})]).then(function(r){ return r&&r.ok&&r.fresh&&r.ua?new Response(JSON.stringify([{updated_at:r.ua}]),{status:200,headers:{'Content-Type':'application/json'}}):getB(); },getB):getB(); window.__ndBootMain.catch(function(){});
   var u=null; try { u=JSON.parse(localStorage.getItem('nd_user')||'null'); } catch(e){}
   if (u && u.authToken) { window.__ndBootSession={token:u.authToken, res:fetch(U+'/functions/v1/employee-auth',{method:'POST',headers:{apikey:K,Authorization:'Bearer '+K,'Content-Type':'application/json'},body:JSON.stringify({action:'session',token:u.authToken})})}; window.__ndBootSession.res.catch(function(){}); }
 } catch(e){} })();
@@ -1230,7 +1232,7 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <div class="app-version-m" id="app-version-m"></div>
 </main>
 <!-- 빌드 버전(한 곳에서 사이드바+모바일 동시 표기): 배포 때마다 이 값만 갱신 -->
-<script>(function(){var v='v2026.11.26 20:21';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
+<script>(function(){var v='v2026.11.26 21:32';['snav-version','app-version-m'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=v;});})();</script>
 
 <!-- 마스터 로그인: 페이지 맨 하단 투명 버튼(보이지 않음) -->
 
@@ -1487,12 +1489,12 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
   <div id="cell-pop-opts" style="display:flex;flex-direction:column;gap:4px;"></div>
 </div>
 
-<script src="js/core.js?v=a749cc8d"></script>
+<script src="js/core.js?v=036b22a9"></script>
 <script src="js/project-gantt.js?v=64b2c52b"></script>
 <script src="js/nav-admin.js?v=4d18ca03"></script>
 <script src="js/home.js?v=fa7e040f"></script>
 <script src="js/table-view.js?v=18dfb7f4"></script>
-<script src="js/calendar.js?v=01f1db72"></script>
+<script src="js/calendar.js?v=bcbdb483"></script>
 <script src="js/generation.js?v=4438c90c"></script>
 <script src="js/workshop.js?v=fc107e6c"></script>
 <script src="js/excel-import.js?v=b7a46c48"></script>
@@ -1502,11 +1504,11 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/staff.js?v=f01496d9"></script>
 <script src="js/admin.js?v=87a8bb9f"></script>
 <script src="js/cell-edit.js?v=d07f5079"></script>
-<script src="js/login-ui.js?v=fe172700"></script>
+<script src="js/login-ui.js?v=d5bf53ea"></script>
 <script src="js/notice.js?v=126f20c7"></script>
 <script src="js/poll.js?v=d5d86108"></script>
 <script src="js/schedule-finder.js?v=55afceb2"></script>
-<script src="js/sync-init.js?v=f8a2d115"></script>
+<script src="js/sync-init.js?v=30e124e2"></script>
 <script src="js/a2hs.js?v=d9550407"></script>
 <script src="js/staff-modal.js?v=9119107a"></script>
 <script src="js/pull-refresh.js?v=a1b4c3d8"></script>
@@ -1514,14 +1516,14 @@ html body #dinner-modal input[type=date] { width:100%; min-width:0; max-width:10
 <script src="js/nd-people.js?v=7bba13fe"></script>
 <script src="js/nd-cal.js?v=e3d3ed58"></script>
 <script src="js/nd-comments.js?v=1008c431"></script>
-<script src="js/meal.js?v=97ff29e2"></script>
+<script src="js/meal.js?v=8b688639"></script>
 <script src="js/alarms.js?v=be8d8230"></script>
 <script src="js/news-cue.js?v=5c8e3d22"></script>
 <script src="js/holiday-work.js?v=332135fe"></script>
 <script src="js/onboard.js?v=340381f5"></script>
 <script src="js/home-tiles.js?v=68cfb2c2"></script>
 <script src="js/cg-assign.js?v=0c130556"></script>
-<script src="js/app-mode.js?v=628d3620"></script>
+<script src="js/app-mode.js?v=0b202195"></script>
 <script src="js/look-chara.js?v=68bd9561"></script>
 <script src="js/look.js?v=c6dae872"></script>
 <script src="js/look-pack.js?v=e0fe3d3a"></script>

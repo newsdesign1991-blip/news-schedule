@@ -89,6 +89,14 @@ GitHub 저장소에는 `index.html`만 있다(내용은 `dashboard.html`과 같�
 - `nd_v3_srv` — `nd_v3`(기기 저장본)이 서버본 그대로일 때의 { 서버 수정시각, 글 해시 } (11-08 전송량 절약, data-save.js `_ndMarkClean`) — 맞으면 앱 시작 때 `dashboard.html` head 가 바뀌었을 때만 받음(`updated_at=neq.`). 서버 사본·PC 공유 폴더 사본(`ndApp.shareRead/shareWrite('main')`)은 data-save.js 끝 `_ndSrv`·`ndPatchMain`·`ndGetMainFresh` — 시험 `swap-backend/test-server-copy.cjs`
 - `nd_look` — 근무표 앱 테마(js/look.js — 색 톤 `{accent,tint,amount}` 또는 캐릭터 `{chara,...}`), `nd_site_rl` — 사이트 새 판 저절로 새로고침 기록(js/app-mode.js `_ndSiteFresh`)
 
+## 대표 PC(근무표 PC 앱 1.5.7~, 11-26 — "Supabase 는 휴대폰에 필요한 것만, PC 는 네트워크 드라이브로")
+
+- 켜진 PC 앱 중 **한 대(대표)만** Supabase 에 묻고(30초, 새벽 2분 — 최근 15분 안에 바뀐 수정시각만, 10분마다 전체) 바뀐 `main`·`alarms`·`cue`·`meal`·`appinbox_*` 를 회사 공유 폴더에 `{ua, payload}` 로, 그다음 `relay` 파일(수정시각 표·대표·우선순위)을 씀 — `desktop/share-relay.js`(공유 폴더 = `share-store.js` 자리, 이름은 대표만 씀).
+- 대표 고르기: 우선순위 3 = 알림 설정 시트 '이 PC를 우선 대표로'(PC 앱 관리자·마스터, `js/login-ui.js _nsRelay*`) · 2 = 오늘 근무표에 근무 있는 사람 PC(`js/sync-init.js _ndRelayHello`, 10분마다 알려 줌) · 1 = 그 밖. 높은 PC 가 켜지면 넘겨받고, 끊기면(every×3+10초) 3→2→1 순서로 이어받음.
+- 읽는 쪽: 앱 우편함(`desktop/app-notify.js`), 화면 `sbRowChanged`(alarms·cue)·`_mealLoad`·`_checkRemoteUpdate`·`dashboard.html` head 모두 `js/core.js _ndRelayRow/_ndRelayUa`(ndApp.relayGet) 먼저 → 대표 소식이 없거나 오래되면(회사 밖 등) 예전처럼 서버. **쓰기(저장)는 그대로 Supabase 원본**(휴대폰이 읽음, 원본이 하나여야 덮어쓰기 사고 없음).
+- PC 앱 구글 달력은 `ndApp.gcal`(구글에서 바로), 웹·휴대폰은 그대로 Supabase `gcal` 함수. 막힌 옛 앱(`ND_APP_MIN` 미만)은 막는 화면이 뜰 때 PC 알림을 끔(`js/app-mode.js ndAppOldBlock` — 옛 트레이가 15초마다 우편함 전체를 받던 것).
+- 시험: `swap-backend/test-share-relay.cjs`(PC 3대·우선순위·이어받기·서버 질문 수).
+
 ## CSS 모듈 (로드 순서 = 덮어쓰기 우선순위)
 
 `base` → `dark` → `nav` → `home` → `notice-poll` → `toss-common` → `calendar` → `table` → `modal` → `admin` → `gantt-etc` → `sheet-login` → `nd-select`(드롭다운·사람 고르기 목록) → `nd-cal`(팝업 달력·시간 입력) → `popup-wide`(넓은 화면 입력 팝업 2분할: 왼쪽 430px 달력/선택, 오른쪽 내용, 폭 min(1080px, 화면-48px)) → `meal`(오늘의 식사 카드·식단 가져오기 창) → `look`(근무표 앱 [도구] 메뉴·테마 창·캐릭터 테마 — js/look.js·look-chara.js)

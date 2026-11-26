@@ -121,9 +121,29 @@ function ndLoadLib(k){
 }
 const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
 
+// 대표 PC(근무표 PC 앱 1.5.7~, 11-26 사용자 "Supabase 는 휴대폰에 필요한 것만, PC 는 네트워크 드라이브로"): 켜진 앱 중 한 대만 Supabase 에 묻고
+// main·alarms·cue·meal·PC 우편함을 회사 공유 폴더에 옮겨 둠(desktop/share-relay.js). 화면은 여기서 먼저 — 대표 소식이 없거나 오래됐으면 null → 예전처럼 서버.
+// 4초 안에 답이 없으면(공유 폴더가 느림) 서버. 쓰기(저장)는 그대로 Supabase 원본에
+const _ndRelayOn = () => { try { return !!(window.ndApp && window.ndApp.relayGet); } catch (e) { return false; } };
+async function _ndRelayAsk(id, ua) {
+  if (!_ndRelayOn()) return null;
+  try { const r = await Promise.race([window.ndApp.relayGet(id, ua || ''), new Promise(ok => setTimeout(() => ok(null), 4000))]); return r && r.ok && r.fresh ? r : null; } catch (e) { return null; }
+}
+// → sbRowChanged 와 같은 꼴 | null(서버에 물어야 함)
+async function _ndRelayRow(id, ua) {
+  if (!['alarms', 'cue', 'meal'].includes(id)) return null;
+  const r = await _ndRelayAsk(id, ua); if (!r) return null;
+  if (!r.ua) return ua ? null : { changed: true, payload: null, ua: null };   // 그 문서가 서버에 없음(처음) — 가진 게 있으면 서버에 확인
+  if (ua && (r.ua === ua || Date.parse(ua) > Date.parse(r.ua))) return { changed: false };   // 같거나 내가 더 새 판(방금 내가 저장)
+  return r.payload === undefined ? null : { changed: true, payload: r.payload, ua: r.ua };
+}
+// main 문서 서버 수정시각(내용은 공유 폴더 'main' 사본 — data-save.js _ndShareCopy) | null
+async function _ndRelayUa(id) { const r = await _ndRelayAsk(id, ''); return r && r.ua ? r.ua : null; }
+
 // 바뀌었을 때만 받기(11-08 — Supabase 무료 전송량 초과로 막힌 뒤): nd_data 한 줄을 updated_at 이 ua 와 다를 때만 내용까지 받음(같으면 빈 목록 = 머리글만).
 // → { changed:false } | { changed:true, payload, ua } | null(못 읽음). ua 가 없으면 그냥 받음. 행이 없으면 payload null
 async function sbRowChanged(id, ua) {
+  const rr = await _ndRelayRow(id, ua); if (rr) return rr;   // PC 앱 1.5.7~: 대표 PC 가 공유 폴더에 옮겨 둔 것(서버 안 씀)
   const since = ua ? `&updated_at=neq.${encodeURIComponent(ua)}` : '';
   const r = await fetch(`${SB_URL}/rest/v1/nd_data?id=eq.${encodeURIComponent(id)}&select=payload,updated_at${since}`, { headers: SB_HEADERS, cache: 'no-store' });
   if (!r.ok) return null;
