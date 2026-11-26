@@ -1462,16 +1462,47 @@ function _cgaResGuess(files, jobs) {
 const _cgaSize = b => b >= 1024 ** 3 ? (b / 1024 ** 3).toFixed(1) + 'GB' : b >= 1024 ** 2 ? Math.round(b / 1024 ** 2) + 'MB' : Math.max(1, Math.round(b / 1024)) + 'KB';
 // 카드엔 의뢰 2개까지 — 올리는 중인 의뢰는 꼭 보이게
 function _cgaResShown(a) { const s = a.slice(0, 2), u = a.find(r => _cgaRes[r.id] && !s.includes(r)); if (u) s[s.length - 1] = u; return s; }
-const _cgaResBar = id => `<div class="cga-upl" data-upl="${Number(id) || 0}"><span class="cga-upl-bar"><i></i></span><span class="cga-upl-t"></span><button type="button" class="cga-upl-x" data-upl-x="${Number(id) || 0}" title="올리기 멈추기" aria-label="결과물 올리기 멈추기">×</button></div>`;
+// 11-26 사용자 '여러 개면 파일마다 막대 따로': 2개 이상이면 위에 전체(%·몇 번째·×), 아래 파일마다 이름·막대·%(끝난 것 '완료', 차례 기다리는 것 '대기').
+// 파일 목록은 앱이 진행마다 같이 보냄(s.files — 하나씩 따로 놓아 줄이 늘면 다시 그림). 옛 앱은 놓을 때 화면이 아는 목록
+const _cgaResSig = s => ((s && s.files) || []).map(f => f.name + '\n' + f.size).join('\n');
+const _cgaResBar = id => {
+  const n = Number(id) || 0, s = _cgaRes[id] || {}, fs = Array.isArray(s.files) && s.files.length > 1 ? s.files : null;
+  const x = `<button type="button" class="cga-upl-x" data-upl-x="${n}" title="올리기 멈추기" aria-label="결과물 올리기 멈추기">×</button>`;
+  if (!fs) return `<div class="cga-upl" data-upl="${n}"><span class="cga-upl-bar"><i></i></span><span class="cga-upl-t"></span>${x}</div>`;
+  // 이름은 가운데를 줄임(앞은 '…', 끝 10자는 늘 보이게) — 같은 의뢰 파일은 앞이 같고 끝(_2·_자막없음.mov)이 달라서
+  const nm = s => { s = String(s || ''); const k = s.length > 16 ? s.length - 10 : s.length; return `<span>${_cgaEsc(s.slice(0, k))}</span>${k < s.length ? `<span>${_cgaEsc(s.slice(k))}</span>` : ''}`; };
+  return `<div class="cga-upl multi" data-upl="${n}"><div class="cga-upl-h"><span class="cga-upl-t"></span>${x}</div><ol class="cga-upl-fs">${fs.map((f, k) => `<li class="cga-upl-f" data-k="${k}"><span class="cga-upl-fn" title="${_cgaEsc(f.name)}">${nm(f.name)}</span><span class="cga-upl-bar"><i></i></span><span class="cga-upl-p"></span></li>`).join('')}</ol></div>`;
+};
 function _cgaResFill() {
   document.querySelectorAll('#cga-root .cga-upl[data-upl]').forEach(el => {
     const s = _cgaRes[Number(el.dataset.upl)]; if (!s) return;
     const pct = s.total ? Math.min(100, Math.floor((s.sent || 0) / s.total * 100)) : 0, reg = s.phase === 'reg', wait = s.phase === 'wait';
-    const t = wait ? '올릴 차례 기다리는 중' : reg ? 'NDS에 등록하는 중…' : `결과물 올리는 중 ${pct}%` + (s.n > 1 ? ` · ${Math.min(s.n, (s.i || 0) + 1)}/${s.n}` : '');
+    const n = (s.files && s.files.length) || s.n || 1, cur = Math.min(n - 1, s.i || 0), multi = el.classList.contains('multi');
+    const t = wait ? '올릴 차례 기다리는 중' : reg ? 'NDS에 등록하는 중…' + (multi ? ` ${cur + 1}/${n}` : '') : `결과물 올리는 중 ${pct}%` + (n > 1 ? ` · ${cur + 1}/${n}` : '');
     const tt = el.querySelector('.cga-upl-t'); if (tt && tt.textContent !== t) tt.textContent = t;
-    const bar = el.querySelector('.cga-upl-bar > i'), w = (reg ? 100 : wait ? 0 : pct) + '%'; if (bar && bar.style.width !== w) bar.style.width = w;
     el.classList.toggle('reg', reg); el.classList.toggle('wait', wait);
-    if (s.name && el.title !== s.name) el.title = s.name;
+    if (!multi) {
+      const bar = el.querySelector('.cga-upl-bar > i'), w = (reg ? 100 : wait ? 0 : pct) + '%'; if (bar && bar.style.width !== w) bar.style.width = w;
+      if (s.name && el.title !== s.name) el.title = s.name;
+      return;
+    }
+    let off = 0, on = null;
+    el.querySelectorAll('.cga-upl-f').forEach((li, k) => {
+      const f = s.files[k] || { size: 0 }; let p, lab, st;
+      if (wait) { p = 0; lab = '대기'; st = 'q'; }
+      else if (reg) { p = 100; st = k < cur ? 'ok' : k === cur ? 'reg' : 'up'; lab = st === 'ok' ? '완료' : st === 'reg' ? '등록 중' : '100%'; }
+      else if (k < (s.regd || 0)) { p = 100; lab = '완료'; st = 'ok'; }   // 앞에서 이미 등록(이어 올리는 중)
+      else if (k < cur) { p = 100; lab = '100%'; st = 'up'; }
+      else if (k === cur) { p = f.size ? Math.max(0, Math.min(100, Math.floor(((s.sent || 0) - off) / f.size * 100))) : 0; lab = p + '%'; st = 'on'; }
+      else { p = 0; lab = '대기'; st = 'q'; }
+      off += f.size;
+      if (li.dataset.st !== st) { li.dataset.st = st; li.className = 'cga-upl-f ' + st; }
+      const bar = li.querySelector('.cga-upl-bar > i'), w = p + '%'; if (bar && bar.style.width !== w) bar.style.width = w;
+      const pl = li.querySelector('.cga-upl-p'); if (pl && pl.textContent !== lab) pl.textContent = lab;
+      if (k === cur) on = li;
+    });
+    const ol = el.querySelector('.cga-upl-fs');   // 줄이 길면(5개 넘게) 지금 올리는 것이 보이게 목록만 굴림
+    if (ol && on && ol.scrollHeight > ol.clientHeight + 1) { const top = on.offsetTop, h = on.offsetHeight; if (top < ol.scrollTop || top + h > ol.scrollTop + ol.clientHeight) ol.scrollTop = Math.max(0, top - (ol.clientHeight - h) / 2); }
   });
 }
 // 앱이 알려 주는 진행·끝(창을 새로 고쳐도 이어 받음 — 모르는 의뢰면 새로 만듦)
@@ -1493,7 +1524,7 @@ function _cgaResMsg(m) {
       _cgaPaint();
       setTimeout(() => { const c = _cgaCardOf(name); if (c) _cgaDropCard(c, c.querySelector(`.cga-job[data-rid="${id}"]`) || c.querySelector('.cga-play')); }, 250);   // '끝났다' 물결
       if (id > 0) [4e3, 15e3, 45e3].forEach(t => setTimeout(() => _cgaContentScan(true), t));   // NDS 콘텐츠 탭에 잡히면 [업로드됨] 재생도 되게
-    } else if (m.phase === 'cancel') { toast('결과물 올리기를 멈췄어요.', 'success'); _cgaPaint(); }
+    } else if (m.phase === 'cancel') { toast(m.regd > 0 ? `결과물 올리기를 멈췄어요. 앞의 ${m.regd}개는 이미 NDS에 올라갔어요.` : '결과물 올리기를 멈췄어요.', 'success'); if (m.regd > 0) _cgaResOk[id] = Date.now(); _cgaPaint(); }
     else {
       const e = m.error || '결과물을 올리지 못했어요.';
       toast(m.reason === 'login' ? e + ' 위쪽 [WISE × NDS]에서 NDS를 연결해 주세요.' : e, 'error'); pc('결과물을 못 올렸어요', e);
@@ -1501,9 +1532,29 @@ function _cgaResMsg(m) {
     }
     return;
   }
-  const had = !!_cgaRes[id];
-  _cgaRes[id] = Object.assign(_cgaRes[id] || {}, m);
-  if (!had) _cgaPaint(); else _cgaResFill();
+  const had = _cgaRes[id], sig = had ? _cgaResSig(had) : null;
+  if (had && m.key && had.key !== m.key) { delete had.regd; delete had.fake; }   // 새 줄(앞 줄이 막 끝난 뒤 놓은 것)
+  _cgaRes[id] = Object.assign(had || {}, m);
+  if (!had || _cgaResSig(_cgaRes[id]) !== sig) _cgaPaint(); else _cgaResFill();   // 줄이 늘면 막대를 다시 그림
+}
+// 올리는 중인 의뢰에 또 놓음(11-26 사용자 '하나씩 따로따로 놓아도 바로 줄에') → 창 없이 그 줄 뒤에 붙임. 취재기자는 처음 것 그대로
+async function _cgaResAdd(id, vids, skip) {
+  const s = _cgaRes[id]; if (!s) return false;
+  const nm = vids.length > 1 ? `영상 ${vids.length}개` : vids[0].name, sk = skip ? ` (mov·mxf 아닌 ${skip}개는 뺌)` : '';
+  if (s.fake) {
+    const add = vids.filter(f => !(s.files || []).some(x => x.name === f.name && x.size === f.size));
+    if (!add.length) { toast('이미 올리는 줄에 있는 영상이에요.', 'error'); return true; }
+    if ((s.files || []).length + add.length > CGA_RES_MAX) { toast(`한 의뢰에 ${CGA_RES_MAX}개까지 이어 올릴 수 있어요.`, 'error'); return true; }
+    const files = (s.files || []).concat(add.map(f => ({ name: f.name, size: f.size })));
+    _cgaResMsg({ key: s.key, id, files, n: files.length, total: files.reduce((t, f) => t + f.size, 0) });
+    toast(`올리는 줄 뒤에 붙였어요 · ${nm}${sk}`, 'success'); return true;
+  }
+  const key = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const r = await window.ndApp.ndsCgResult({ id, key, reporter: '', files: vids }).catch(e => ({ ok: false, error: e.message }));
+  if (r && r.ok) toast(r.added ? `올리는 줄 뒤에 붙였어요 · ${nm}${sk}` : `결과물 올리기를 시작했어요 · ${nm}${sk}`, 'success');
+  else if (r && r.reason === 'busy') toast('이 의뢰는 지금 올리는 중이에요. 근무표 앱을 업데이트(1.5.6)하면 뒤에 이어서 올릴 수 있어요.', 'error');
+  else toast((r && r.error) || '올리지 못했어요.', 'error');
+  return true;
 }
 // × 한 번 = '멈추기'로 바뀜(3초), 한 번 더 = 멈춤(잘못 눌러 긴 업로드를 날리지 않게)
 function _cgaResStop(id, btn) {
@@ -1513,16 +1564,23 @@ function _cgaResStop(id, btn) {
   if (s.fake) { _cgaResMsg({ id, key: s.key, phase: 'cancel' }); return; }
   if (window.ndApp && window.ndApp.ndsCgResultCancel) window.ndApp.ndsCgResultCancel(s.key).then(ok => { if (!ok) toast('지금은 멈출 수 없어요(NDS에 등록하는 중).', 'error'); }).catch(() => {});
 }
-// 시험 의뢰: 4초 동안 올라가는 척 → 등록 → 끝(NDS·업로드 서버엔 안 감)
+// 시험 의뢰: 처음 놓은 것 기준 4초 빠르기로 올라가는 척 → 등록 → 끝(NDS·업로드 서버엔 안 감). 올리는 중·등록 중에 또 놓으면(_cgaResAdd) 이어서
 function _cgaResFake(id, vids) {
-  const total = vids.reduce((s, f) => s + f.size, 0), n = vids.length, key = 'fake' + id + '-' + Date.now(), t0 = Date.now(), T = 4000;
-  _cgaResMsg({ key, id, phase: 'up', n, total, sent: 0, i: 0, name: vids[0].name }); _cgaRes[id].fake = true;
+  const files = vids.map(f => ({ name: f.name, size: f.size })), total = files.reduce((s, f) => s + f.size, 0), key = 'fake' + id + '-' + Date.now(), rate = total / 4000;
+  _cgaResMsg({ key, id, phase: 'up', n: files.length, total, files, sent: 0, i: 0, regd: 0, name: files[0].name }); _cgaRes[id].fake = true;
+  let lt = Date.now();
+  const at = (s, sent) => { let i = 0, off = 0; while (i < s.files.length - 1 && off + s.files[i].size <= sent) off += s.files[i++].size; return i; };
   const tick = () => {
     const s = _cgaRes[id]; if (!s || s.key !== key) return;
-    const p = Math.min(1, (Date.now() - t0) / T);
-    if (p < 1) { _cgaResMsg({ key, id, phase: 'up', sent: Math.round(total * p), i: Math.min(n - 1, Math.floor(p * n)), name: vids[Math.min(n - 1, Math.floor(p * n))].name }); setTimeout(tick, 120); return; }
-    _cgaResMsg({ key, id, phase: 'reg', sent: total });
-    setTimeout(() => { if (_cgaRes[id] && _cgaRes[id].key === key) _cgaResMsg({ key, id, phase: 'done', n, fake: true }); }, 900);
+    const now = Date.now(), sent = Math.min(s.total, (s.sent || 0) + rate * (now - lt)); lt = now;
+    if (sent < s.total) { const i = at(s, sent); _cgaResMsg({ key, id, phase: 'up', sent, i, name: s.files[i].name }); setTimeout(tick, 120); return; }
+    const reg = (k) => {   // 파일마다 0.3초씩 등록, 그 사이 더 놓았으면 다시 올리기로
+      const t = _cgaRes[id]; if (!t || t.key !== key) return;
+      if (k >= t.files.length) { _cgaResMsg({ key, id, phase: 'done', n: t.files.length, fake: true }); return; }
+      if (t.sent < t.total && k >= at(t, t.sent)) { lt = Date.now(); _cgaResMsg({ key, id, phase: 'up', regd: k }); tick(); return; }
+      _cgaResMsg({ key, id, phase: 'reg', sent: t.sent, i: k, regd: k, name: t.files[k].name }); setTimeout(() => reg(k + 1), 300);
+    };
+    _cgaResMsg({ key, id, sent }); reg(s.regd || 0);
   };
   setTimeout(tick, 120);
 }
@@ -1565,6 +1623,7 @@ function _cgaResAsk(files, card, rid) {
   if (vids.length > CGA_RES_MAX) { toast(`영상은 한 번에 ${CGA_RES_MAX}개까지 올릴 수 있어요.`, 'error'); return; }
   const bad = vids.find(f => !f.size || f.size > CGA_RES_SIZE); if (bad) { toast(`'${bad.name}' ${bad.size ? '— 10GB를 넘어요.' : '— 빈 파일이에요.'}`, 'error'); return; }
   let pick = rid && jobs.some(r => r.id === rid) ? rid : jobs.length === 1 ? jobs[0].id : _cgaResGuess(vids, jobs);
+  if (_cgaRes[pick] && (pick === rid || jobs.length === 1)) { _cgaResAdd(pick, vids, skip); return; }   // 올리는 중인 의뢰에 놓음 → 묻지 않고 그 줄 뒤에(11-26)
   const hasApp = !!(window.ndApp && window.ndApp.ndsCgResult), total = vids.reduce((s, f) => s + f.size, 0);
   document.getElementById('cga-ask')?.remove();
   const jobHtml = r => `<div class="cga-who"><b>${_cgaEsc(r.requester || '요청자 없음')}</b>${r.requesterDept ? `<small>${_cgaEsc(r.requesterDept)}</small>` : ''}${r.reqCnt > 1 ? `<em>${r.reqCnt}건</em>` : ''}</div>${r.title ? `<div class="cga-ttl">${_cgaEsc(r.title)}</div>` : ''}<div class="cga-time"><span>의뢰 <b>${_cgaHM(r.inputAt)}</b></span><span>배정 <b>${_cgaHM(r.assignAt)}</b></span></div>`;
@@ -1599,7 +1658,9 @@ function _cgaResAsk(files, card, rid) {
     else if (nds === 'bad') { who.textContent = `NDS가 ${ndsName}님으로 로그인돼 있어요. 위쪽 [WISE × NDS]에서 내 NDS로 연결한 뒤 올려 주세요.`; who.classList.add('warn'); }
     else if (nds === 'off') { who.textContent = 'NDS에 로그인돼 있지 않아요. 위쪽 [WISE × NDS]에서 NDS를 연결해 주세요.'; who.classList.add('warn'); }
     else who.textContent = nds === 'ok' ? `내 NDS 로그인(${ndsName})으로 올려요.` : '내 NDS 로그인 확인 중…';
-    go.disabled = pick > 0 && (!hasApp || nds === 'bad');
+    if (_cgaRes[pick]) { who.classList.remove('warn'); who.textContent = '이 의뢰는 올리는 중이라 그 줄 뒤에 이어서 올려요(취재기자는 처음 것 그대로).'; }
+    go.textContent = _cgaRes[pick] ? '뒤에 이어 올리기' : '올리기'; rep.disabled = !!_cgaRes[pick];
+    go.disabled = pick > 0 && (!hasApp || (nds === 'bad' && !_cgaRes[pick]));
   };
   rep.value = job().requester || '';
   rep.addEventListener('input', () => { repEdited = true; });
@@ -1617,16 +1678,18 @@ function _cgaResAsk(files, card, rid) {
     whoFill();
   }).catch(() => {});
   go.onclick = async () => {
+    if (_cgaRes[pick]) { close(); _cgaResAdd(pick, vids, skip); return; }   // 그 사이 올리기가 시작됐거나 올리는 중인 의뢰를 고름
     const reporter = rep.value.trim();
     if (!reporter) { st.textContent = '취재기자를 써 주세요.'; rep.focus(); return; }
-    if (_cgaRes[pick]) { st.textContent = '이 의뢰에는 이미 올리는 중이에요.'; return; }
     if (pick < 0) { close(); _cgaResFake(pick, vids); return; }
     go.disabled = true; go.textContent = '시작하는 중…'; st.textContent = '';
     const key = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const res = await window.ndApp.ndsCgResult({ id: pick, key, reporter, files: vids }).catch(e => ({ ok: false, error: e.message }));
     if (res && res.ok) {
       close();
-      if (!_cgaRes[pick]) _cgaResMsg({ key: res.key || key, id: pick, phase: 'wait', n: vids.length, total, sent: 0, i: 0, name: vids[0].name });
+      const fl = vids.map(f => ({ name: f.name, size: f.size }));   // 옛 앱(1.5.5)은 파일 목록을 안 보냄 — 파일마다 막대를 그리게 여기서
+      if (!_cgaRes[pick]) _cgaResMsg({ key: res.key || key, id: pick, phase: 'wait', n: vids.length, total, files: fl, sent: 0, i: 0, name: vids[0].name });
+      else if (!_cgaRes[pick].files) _cgaResMsg({ key: _cgaRes[pick].key, id: pick, files: fl });
       if (typeof html2canvas === 'undefined') ndLoadLib('h2c').catch(() => {});   // 끝날 때 물결(_cgaDropCard)에 쓸 그림 도구를 미리
     } else {
       go.disabled = false; go.textContent = '다시 올리기';
@@ -1683,7 +1746,7 @@ async function _cgaReqOpen(id) {
   </div>`;
   document.body.appendChild(el);
   const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); };
-  const onKey = (e) => { if (e.key === 'Escape' && !document.getElementById('cga-pv')) { e.stopPropagation(); close(); } };
+  const onKey = (e) => { if (e.key === 'Escape' && !document.getElementById('cga-pv') && !document.getElementById('cgv-lb')) { e.stopPropagation(); close(); } };   // 첨부 그림 크게 보기가 떠 있으면 그것만 닫힘
   document.addEventListener('keydown', onKey, true);
   el.querySelector('.cgv-x').onclick = close; el.addEventListener('click', (e) => { if (e.target === el) close(); });
   el.querySelector('.cgv-x').focus();
@@ -1790,30 +1853,123 @@ function _cgvArtWire(el, d) {
 }
 // 의뢰 첨부파일(10-26 사용자 — NDS 의뢰 화면처럼 목록 + [전체 다운로드]): 앱 1.3.3~(d.files · ndApp.ndsFile). 받으면 다운로드 폴더, 그 줄은 [열기]로 바뀜
 const CGV_DL_IC = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>';
+// 11-26 사용자 'VW Source 처럼 그림 첨부는 로컬에 임시로 받아서 보여 줘'(앱 1.5.6~ ndApp.ndsFileLocal): 그림은 열자마자 앱 임시 폴더에 받아(두 개씩) 작은 그림 칸으로,
+// 누르면 크게 보기(←/→·Esc, _cgvLb), 끌면 진짜 파일로 포토샵·탐색기에(ndApp.dragFile). 다운로드 폴더 받기는 칸 아래 버튼·[전체 다운로드] 그대로. 옛 앱은 목록만
+const CGV_IMG = /\.(png|jpe?g|gif|bmp|webp)$/i;
+let _cgvBlobs = [];   // 크게 보기 원본(blob:) — 다음 의뢰 창을 열 때 버림
 function _cgvFiles(el, files) {
   if (!Array.isArray(files) || !files.length || !(window.ndApp && window.ndApp.ndsFile)) return;
-  const kb = (n) => n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB';
+  const A = window.ndApp, kb = (n) => n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB';
+  _cgvBlobs.forEach((u) => { try { URL.revokeObjectURL(u); } catch (e) { /* 이미 버림 */ } }); _cgvBlobs = [];
+  const pv = !!(A.ndsFileLocal && A.cgFileBytes), isImg = (f) => pv && CGV_IMG.test(String(f.name || ''));
+  const imgs = [], rest = []; files.forEach((f, i) => (isImg(f) ? imgs : rest).push(i));
+  const dlBtn = (i) => `<button type="button" class="cgv-dl" data-dl="${i}" title="다운로드 폴더에 받기" aria-label="${_cgaEsc(files[i].name)} 받기">${CGV_DL_IC}</button>`;
   const box = document.createElement('div'); box.className = 'cgv-files';
-  box.innerHTML = `<div class="cgv-files-h"><b>첨부파일</b><span>${files.length}개</span><button type="button" class="cgv-dl-all">${CGV_DL_IC}전체 다운로드</button></div>
-    <ol class="cgv-flist">${files.map((f, i) => `<li data-i="${i}"><span class="cgv-fn" title="${_cgaEsc(f.name)}">${_cgaEsc(f.name)}</span><small>${f.size ? kb(f.size) : ''}</small><button type="button" class="cgv-dl" title="다운로드 폴더에 받기" aria-label="${_cgaEsc(f.name)} 받기">${CGV_DL_IC}</button></li>`).join('')}</ol>`;
+  box.innerHTML = `<div class="cgv-files-h"><b>첨부파일</b><span>${files.length}개</span><button type="button" class="cgv-dl-all">${CGV_DL_IC}전체 다운로드</button></div>`
+    + (imgs.length ? `<div class="cgv-thumbs">${imgs.map((i) => `<div class="cgv-th" data-i="${i}"><button type="button" class="cgv-th-v" data-v="${i}" title="크게 보기 · 끌어서 포토샵 등에 바로 놓을 수 있어요" aria-label="${_cgaEsc(files[i].name)} 크게 보기"><span class="cgv-th-img"><span class="cgv-th-wait">불러오는 중</span></span></button>`
+      + `<div class="cgv-th-f"><span class="cgv-fn" title="${_cgaEsc(files[i].name)}">${_cgaEsc(files[i].name)}</span><small>${files[i].size ? kb(files[i].size) : ''}</small>${dlBtn(i)}</div></div>`).join('')}</div>` : '')
+    + (rest.length ? `<ol class="cgv-flist">${rest.map((i) => `<li data-i="${i}"><span class="cgv-fn" title="${_cgaEsc(files[i].name)}">${_cgaEsc(files[i].name)}</span><small>${files[i].size ? kb(files[i].size) : ''}</small>${dlBtn(i)}</li>`).join('')}</ol>` : '');
   el.querySelector('#cgv-content').insertAdjacentElement('beforebegin', box);
+  // 다운로드 폴더에 받기(예전 그대로) — 받은 뒤엔 그 버튼이 [열기]
+  const saved = {};
   const get = async (i) => {
-    const li = box.querySelector(`li[data-i="${i}"]`), btn = li.querySelector('button');
-    if (li.dataset.path) { window.ndApp.showDownload(li.dataset.path, true); return null; }   // 이미 받았으면 열기
+    const btn = box.querySelector(`[data-dl="${i}"]`);
+    if (saved[i]) { A.showDownload(saved[i], true); return null; }   // 이미 받았으면 열기
     btn.disabled = true; btn.classList.add('busy');
-    const r = await window.ndApp.ndsFile({ url: files[i].url, name: files[i].name }).catch((e) => ({ ok: false, error: e.message }));
+    const r = await A.ndsFile({ url: files[i].url, name: files[i].name }).catch((e) => ({ ok: false, error: e.message }));
     btn.disabled = false; btn.classList.remove('busy');
     if (!r || !r.ok) { toast((r && r.error) || '받지 못했어요.', 'error'); return null; }
-    li.dataset.path = r.path; li.classList.add('done'); btn.className = 'cgv-open'; btn.textContent = '열기'; btn.title = '받은 파일 열기'; btn.setAttribute('aria-label', files[i].name + ' 열기');
+    saved[i] = r.path; btn.closest('[data-i]').classList.add('done'); btn.className = 'cgv-open'; btn.textContent = '열기'; btn.title = '받은 파일 열기'; btn.setAttribute('aria-label', files[i].name + ' 열기');
     return r;
   };
-  box.querySelector('.cgv-flist').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || b.disabled) return; get(Number(b.closest('li').dataset.i)).then((r) => { if (r) toast(`다운로드 폴더에 저장했어요 · ${r.name}`, 'success'); }); });
+  // 그림 미리 받기(앱 임시 폴더) → 작은 그림, 크게 보기 원본은 누를 때 한 번만
+  const loc = {}, big = {};
+  const bigUrl = async (i) => {
+    if (big[i]) return big[i];
+    const r = loc[i] ? await A.cgFileBytes(loc[i].path).catch(() => null) : null;
+    if (!r || !r.ok || !r.data) return '';
+    const u = URL.createObjectURL(new Blob([r.data], { type: r.mime || 'image/png' })); _cgvBlobs.push(u); return (big[i] = u);
+  };
+  const load = async (i) => {
+    const t = box.querySelector(`.cgv-th[data-i="${i}"]`), im = t && t.querySelector('.cgv-th-img'); if (!im) return;
+    const fail = (m) => { im.innerHTML = `<span class="cgv-th-wait">${_cgaEsc(m)}</span>`; t.classList.add('err'); };
+    if (files[i].size > 60 * 1048576) { fail('너무 커서 미리 보기 안 해요'); return; }
+    const r = await A.ndsFileLocal({ url: files[i].url, name: files[i].name }).catch((e) => ({ ok: false, error: e.message }));
+    if (!box.isConnected) return;
+    if (!r || !r.ok) { fail((r && r.error) || '못 불러왔어요'); return; }
+    loc[i] = r;
+    const src = r.thumb || await bigUrl(i);   // 앱이 작게 못 만든 꼴(webp 등)은 원본으로
+    if (!box.isConnected) return;
+    if (!src) { fail('미리 볼 수 없는 그림이에요'); return; }
+    const img = new Image(); img.alt = ''; img.draggable = true; img.decoding = 'async';
+    img.onload = () => { im.replaceChildren(img); t.classList.add('ok'); };
+    img.onerror = () => fail('미리 볼 수 없는 그림이에요');
+    img.src = src;
+  };
+  if (imgs.length) { const q = imgs.slice(), run = async () => { while (q.length && box.isConnected) await load(q.shift()); }; run(); run(); }   // 두 개씩
+  const view = (i) => {
+    const ok = imgs.filter((k) => loc[k]); if (!ok.length || !loc[i]) return;
+    _cgvLb(ok.map((k) => ({ name: files[k].name, path: loc[k].path, url: () => bigUrl(k) })), Math.max(0, ok.indexOf(i)));
+  };
+  box.addEventListener('click', (e) => {
+    const v = e.target.closest('[data-v]'); if (v) { view(Number(v.dataset.v)); return; }
+    const b = e.target.closest('[data-dl], .cgv-open'); if (!b || b.disabled) return;
+    const i = Number(b.closest('[data-i]').dataset.i);
+    get(i).then((r) => { if (r) toast(`다운로드 폴더에 저장했어요 · ${r.name}`, 'success'); });
+  });
+  box.addEventListener('dragstart', (e) => {   // 작은 그림 → 진짜 파일로 다른 앱에(앱이 끌어 줌)
+    const t = e.target.closest && e.target.closest('.cgv-th[data-i]'); if (!t) return;
+    const i = Number(t.dataset.i); e.preventDefault();
+    if (loc[i] && A.dragFile) A.dragFile(loc[i].path);
+  });
   box.querySelector('.cgv-dl-all').onclick = async (e) => {
     const b = e.currentTarget; b.disabled = true; let n = 0, last = null;
-    for (let i = 0; i < files.length; i++) { if (box.querySelector(`li[data-i="${i}"]`).dataset.path) { n++; continue; } const r = await get(i); if (r) { n++; last = r; } }
+    for (let i = 0; i < files.length; i++) { if (saved[i]) { n++; continue; } const r = await get(i); if (r) { n++; last = r; } }
     b.disabled = false;
-    if (last) { toast(`다운로드 폴더에 ${n}개 저장했어요`, 'success'); window.ndApp.showDownload(last.path, false); }   // 폴더 열어 보여 줌
+    if (last) { toast(`다운로드 폴더에 ${n}개 저장했어요`, 'success'); A.showDownload(last.path, false); }   // 폴더 열어 보여 줌
   };
+}
+// 첨부 그림 크게 보기(VW Source 크게 보기처럼): 어두운 바탕, ←/→ 넘기기, Esc·바깥 누르면 닫힘, 그림을 끌면 진짜 파일로 다른 앱에, [기본 앱으로 열기]
+const CGV_LB_PREV = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+const CGV_LB_NEXT = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
+function _cgvLb(items, at) {
+  document.getElementById('cgv-lb')?.remove();
+  const n = items.length, A = window.ndApp || {};
+  const lb = document.createElement('div'); lb.id = 'cgv-lb'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-modal', 'true'); lb.setAttribute('aria-label', '첨부 그림 크게 보기');
+  lb.innerHTML = `<button type="button" class="cgv-lb-x" aria-label="닫기 (Esc)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`
+    + (n > 1 ? `<button type="button" class="cgv-lb-nav prev" aria-label="이전 그림 (←)">${CGV_LB_PREV}</button><button type="button" class="cgv-lb-nav next" aria-label="다음 그림 (→)">${CGV_LB_NEXT}</button>` : '')
+    + `<figure class="cgv-lb-fig"><img class="cgv-lb-img" alt="" draggable="true" hidden><p class="cgv-lb-wait">불러오는 중…</p></figure>
+    <div class="cgv-lb-bar"><b class="cgv-lb-n"></b>${n > 1 ? '<span class="cgv-lb-k"></span>' : ''}<span class="cgv-lb-tip">끌어서 포토샵에 바로 놓을 수 있어요</span><button type="button" class="cgv-lb-open">기본 앱으로 열기</button></div>`;
+  document.body.appendChild(lb);
+  const img = lb.querySelector('.cgv-lb-img'), wait = lb.querySelector('.cgv-lb-wait');
+  let cur = -1;
+  const show = async (k) => {
+    k = ((k % n) + n) % n; if (k === cur) return; cur = k;
+    const it = items[k];
+    lb.querySelector('.cgv-lb-n').textContent = it.name; const kk = lb.querySelector('.cgv-lb-k'); if (kk) kk.textContent = `${k + 1} / ${n}`;
+    img.classList.remove('in'); wait.hidden = false; wait.textContent = '불러오는 중…';
+    const u = await it.url();
+    if (cur !== k || !lb.isConnected) return;
+    if (!u) { img.hidden = true; wait.textContent = '그림을 못 불러왔어요.'; return; }
+    img.onload = () => { if (cur !== k) return; wait.hidden = true; img.hidden = false; void img.offsetWidth; img.classList.add('in'); };
+    img.src = u;
+  };
+  const close = () => { lb.remove(); document.removeEventListener('keydown', onKey, true); };
+  const onKey = (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); close(); }
+    else if (e.key === 'ArrowLeft' && n > 1) { e.preventDefault(); show(cur - 1); }
+    else if (e.key === 'ArrowRight' && n > 1) { e.preventDefault(); show(cur + 1); }
+  };
+  document.addEventListener('keydown', onKey, true);
+  lb.addEventListener('click', (e) => {
+    if (e.target.closest('.cgv-lb-x') || e.target === lb || e.target.classList.contains('cgv-lb-fig')) close();
+    else if (e.target.closest('.cgv-lb-nav.prev')) show(cur - 1);
+    else if (e.target.closest('.cgv-lb-nav.next')) show(cur + 1);
+    else if (e.target.closest('.cgv-lb-open') && A.showDownload) A.showDownload(items[cur].path, true);
+  });
+  img.addEventListener('dragstart', (e) => { e.preventDefault(); if (A.dragFile) A.dragFile(items[cur].path); });
+  lb.querySelector('.cgv-lb-x').focus();
+  show(at || 0);
 }
 function _cgvInfo(d) {
   const row = (k, v) => v ? `<div class="cgv-row"><span>${k}</span><b>${_cgaEsc(v)}</b></div>` : '';
