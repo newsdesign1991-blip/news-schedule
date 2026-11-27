@@ -95,7 +95,7 @@ async function _hwRun(submit){
       }
       toast((r.submitted?`${_hwMD(ds)} ${r.matched.length}명을 결재까지 마쳤어요.`:`${_hwMD(ds)} ${r.matched.length}명을 채웠어요. WISE 창에서 확인해 주세요.`)+miss,'success');
       renderHworkTab();
-    } else { st.textContent=((r&&r.error)||'WISE에 올리지 못했어요.')+miss; if(r&&r.reason==='login'&&typeof _ndWiseState==='function') _ndWiseState(false); }
+    } else { const f=typeof _ndWiseLost==='function'?await _ndWiseLost(r,st,'WISE에 올리지 못했어요.'):{ msg:(r&&r.error)||'WISE에 올리지 못했어요.', login:r&&r.reason==='login' }; st.textContent=f.msg+miss; if(f.login&&typeof _ndWiseState==='function') _ndWiseState(false); }
   }catch(e){ st.textContent='WISE에 올리지 못했어요: '+e.message; }
   finally{ try{ off&&off(); }catch(e){} btns.forEach(b=>{ if(document.contains(b)) b.disabled=false; }); }
 }

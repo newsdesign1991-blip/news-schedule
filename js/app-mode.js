@@ -112,6 +112,16 @@ function _ndWiseCheckOnce(){
   _ndWiseChecked=true;
   window.ndApp.wiseCheck().then(r=>{ if(r&&r.loggedIn!==null&&r.loggedIn!==undefined) _ndWiseState(!!r.loggedIn); }).catch(()=>{});
 }
+// 앱 1.5.8 이하: WISE 서버 확인은 '로그인됨'인데 WISE 화면(근무시간 입력·휴일 사전근무)이 로그인으로 튕기면 '칸을 찾지 못했습니다'·'화면이 열리지 않았어요'로 옴(11-19·11-26).
+// 그때 숨은 창으로 WISE 화면 로그인을 다시 확인(wiseCheck) → 풀렸으면 '로그인이 풀렸어요' + 제목줄 [WISE 로그인](누르면 로그인 창). 새 판 앱은 스스로 reason 'login'
+async function _ndWiseLost(r,st,fb){
+  const msg=(r&&r.error)||fb;
+  if(r&&r.reason==='login') return { msg, login:true };
+  if(!/칸을 찾지 못했습니다|화면이 열리지 않았어요/.test(msg)||!window.ndApp?.wiseCheck) return { msg, login:false };
+  if(st) st.textContent='WISE 로그인 확인 중…';
+  const c=await window.ndApp.wiseCheck().catch(()=>null);
+  return c&&c.loggedIn===false ? { msg:'WISE 로그인이 풀렸어요. 위쪽 [WISE 로그인]으로 다시 로그인한 뒤 눌러 주세요. (떠 있는 WISE 창은 닫아도 돼요)', login:true } : { msg, login:false };
+}
 async function ndWiseLogin(){
   const b=document.getElementById('ndt-wise'); if(!b||b.disabled) return;
   if(_ndWiseOn&&window.ndApp?.wiseInfo){ _ndWisePop(b); return; }   // 연결됨 → 누구로·언제 로그인했는지 + 로그아웃(10-20)
@@ -161,13 +171,14 @@ async function _ndWisePop(btn){
   let pop=document.getElementById('ndt-pop');
   if(pop){ const same=pop.dataset.kind==='wise'; pop.remove(); if(same) return; }
   pop=document.createElement('div'); pop.id='ndt-pop'; pop.dataset.kind='wise'; pop.setAttribute('role','dialog'); pop.setAttribute('aria-label','WISE 로그인 정보');
-  pop.innerHTML='<div class="ndp-status">WISE 정보 읽는 중…</div>';
+  pop.innerHTML='<div class="ndp-status">WISE 로그인 확인 중…</div>';
   document.body.appendChild(pop);
   const r=btn.getBoundingClientRect(); pop.style.top=(r.bottom+6)+'px'; pop.style.right=Math.max(8,innerWidth-r.right-60)+'px';
   setTimeout(()=>document.addEventListener('mousedown',function off(e){ if(!pop.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',off); } }),0);
-  const [i,n]=await Promise.all([window.ndApp.wiseInfo().catch(()=>null), window.ndApp.ndsUserInfo?window.ndApp.ndsUserInfo(false).catch(()=>null):Promise.resolve(null)]);
+  // 11-27: '연결됨'은 서버 조회(쿠키)만 보고 정해서, WISE 화면은 로그인이 풀렸는데도 연결됨으로 보였음 → 누를 때 숨은 창으로 실제 WISE 화면을 한 번 열어 확인(누를 때만 — 주기적으로 열면 회사 자동 로그아웃을 막게 됨)
+  const [i,n,c]=await Promise.all([window.ndApp.wiseInfo().catch(()=>null), window.ndApp.ndsUserInfo?window.ndApp.ndsUserInfo(false).catch(()=>null):Promise.resolve(null), window.ndApp.wiseCheck?window.ndApp.wiseCheck().catch(()=>null):Promise.resolve(null)]);
+  if(!i||!i.loggedIn||(c&&c.loggedIn===false)){ pop.remove(); _ndWiseState(false); toast('WISE 로그인이 풀렸어요. [WISE × NDS 로그인]을 눌러 다시 로그인해 주세요.',''); return; }
   if(!pop.isConnected) return;
-  if(!i||!i.loggedIn){ pop.remove(); _ndWiseState(false); toast('WISE 로그인이 끊겼어요. [WISE × NDS 로그인]을 눌러 다시 로그인해 주세요.',''); return; }
   if(n) _ndNdsState(!!n.loggedIn);
   pop.innerHTML=ndWiseInfoHTML(i,true,n);
 }
@@ -299,7 +310,7 @@ function ndWorkTimeOpen(ds){
     try{
       const r=await window.ndApp.wiseWorkTime({ date:base, start, end, next:end<start, rest, place, content, daehyu:dh.same, daehyuNext:dh.next, submit });
       if(r&&r.ok){ close(); toast(r.submitted?'WISE 근무시간 입력을 결재까지 마쳤어요.':'WISE 근무시간을 채웠어요. WISE 창에서 확인하고 결재해 주세요.','success'); }
-      else { pg.hidden=true; st.textContent=(r&&r.error)||'WISE 근무시간을 넣지 못했어요.'; el.querySelectorAll('.wt-foot button').forEach(b=>b.disabled=false); if(r&&r.reason==='login') _ndWiseState(false); }
+      else { const f=await _ndWiseLost(r,st,'WISE 근무시간을 넣지 못했어요.'); pg.hidden=true; st.textContent=f.msg; el.querySelectorAll('.wt-foot button').forEach(b=>b.disabled=false); if(f.login) _ndWiseState(false); }
     }catch(e){ st.textContent='WISE 근무시간을 넣지 못했어요: '+e.message; el.querySelectorAll('.wt-foot button').forEach(b=>b.disabled=false); }
     finally{ try{ off&&off(); }catch(e){} }
   };
