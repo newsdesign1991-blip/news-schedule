@@ -224,11 +224,12 @@ function renderWorkshopTable() {
     const _vwSet=new Set((entry?.vw?.workers||[]).filter(id=>!_excl(id)&&!(_cgWorkersSet.has(id)&&(deptOn(staffById(id),dateStr)||'').toLowerCase()==='vw')));
     const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin,entry?.weekend8jin2,entry?.weekday8jin2].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _8jinVwAdd=_8jinIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(deptOn(staffById(id),dateStr)||'').toLowerCase()==='vw').length;
-    const _8jinCgAdd=_8jinIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(deptOn(staffById(id),dateStr)||'').toLowerCase();return d==='cg'||d==='xr';}).length;
+    const _pjOff=id=>(isWeekend||isHoliday)&&(deptOn(staffById(id),dateStr)||'').toLowerCase()==='project'&&!(entry?.project||[]).includes(id);   // 토·일·공휴일 PJ 의 8진·뉴.오도 CG 인원(11-28, PJ 명단에 있으면 _pjAdd 가 셈) — table-view.js 와 같게
+    const _8jinCgAdd=_8jinIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(deptOn(staffById(id),dateStr)||'').toLowerCase();return d==='cg'||d==='xr'||_pjOff(id);}).length;
     // 뉴.오/뉴.오2도 부서별로 일일 총계에 포함 (CG부서→CG총계, VW부서→VW총계). 이미 workers에 있으면 중복 제외
     const _newsOhIds=[entry?.newsOh,entry?.newsOh2].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _newsOhVwAdd=_newsOhIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(deptOn(staffById(id),dateStr)||'').toLowerCase()==='vw').length;
-    const _newsOhCgAdd=_newsOhIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(deptOn(staffById(id),dateStr)||'').toLowerCase();return d==='cg'||d==='xr';}).length;
+    const _newsOhCgAdd=_newsOhIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(deptOn(staffById(id),dateStr)||'').toLowerCase();return d==='cg'||d==='xr'||_pjOff(id);}).length;
     const _ilgeunOk=entry?.ilgeun&&!_leaveSet.has(entry.ilgeun)&&!_specialExclude.has(entry?.ilgeun)&&!(isHoliday&&!isWeekend&&isWeekdayForm(dateStr));   // 평일 틀 공휴일 일근은 인원 밖(엑셀 10월 최종 10/5·10/9 합계 수식에 일근 없음, 생성기 인원도 같은 기준)
     // 토·일·공휴일에 PJ가 근무 칸에 있으면(정근으로 일반 근무) CG 인원 — 엑셀 합계 수식이 그날만 PJ 열까지 정근을 셈(10/5·10/9·10/17). 평일 PJ는 프로젝트 근무라 인원 밖
     const _pjAdd=(isWeekend||isHoliday)?(entry?.project||[]).filter(id=>!_excl(id)&&!_vwSet.has(id)&&!_cgWorkersSet.has(id)).length:0;
@@ -468,7 +469,7 @@ function renderWorkshopTable() {
       const _cgW=entry?.cg?.workers||[];
       const _vwDesk=entry?.vw?.desk;
       const _cgDepts=new Set(['cg','xr','project','sports']);
-      const _addBigo=(id,text)=>{const p=staffById(id);if(p&&isContractActive(p,dateStr))_bigo.push(`<span style="color:#7c3aed;font-weight:700;">${p.name}</span>:${text}`);};
+      const _addBigo=(id,text)=>{const p=staffById(id);if(p&&isContractActive(p,dateStr)&&!(typeof _comboCellOf==='function'&&_comboCellOf(entry,id,_newLvs?.[dateStr])))_bigo.push(`<span style="color:#7c3aed;font-weight:700;">${p.name}</span>:${text}`);};   // 칸이 이미 '일/CG' 같은 복합 근무면 비고에 또 안 씀(11-28)
       const _isVwSub=(id)=>{const d=(deptOn(staffById(id),dateStr)||'').toLowerCase();return _vwW.includes(id)&&d!=='vw';};
       const _isCgSub=(id)=>{const d=(deptOn(staffById(id),dateStr)||'').toLowerCase();return _cgW.includes(id)&&d==='vw';};
       // newsOh + 타부서 대체자 중복
@@ -1610,8 +1611,8 @@ function _wsCtxOpen(td,ev){
       ${sec('인원 집계 제외',byGroup('인원 집계 제외'),'칸에만 보이고 인원엔 안 셈')}
       ${sec('출장 · 교육 · 기타',byGroup('출장 · 교육 · 기타'),'인원에서 빠짐')}
       ${sec('휴가',byGroup('휴가'))}
-      ${sec('복합 근무',byGroup('복합 근무'))}
-      <div class="ws-ctx-sec"><h4>이름 직접 입력<small>묶음을 고르고 이름을 치세요</small></h4>
+      ${sec('복합 근무',byGroup('복합 근무'),'근무 인원에 셈')}
+      <div class="ws-ctx-sec"><h4>이름 직접 입력<small>묶음을 고르고 이름을 치세요 · 복합 근무는 '일/CG'처럼</small></h4>
         <div class="ws-ctx-chips">${Object.keys(DUTY_CATS).map(k=>{ const c=DUTY_CATS[k], sw=_dutySwatch(c.kind?{kind:c.kind}:c); return chip(`data-cat="${k}"`,c.label,`background:${sw.bg};color:${sw.color};`); }).join('')}</div>
         <div class="ws-ctx-type" hidden><input type="text" maxlength="12" placeholder="이름 입력 후 Enter" aria-label="이름"><label><input type="checkbox" class="ws-ctx-keep"> 목록에 저장</label></div>
       </div>
@@ -1631,6 +1632,7 @@ function _wsCtxOpen(td,ev){
     if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); _wsCtxClose(); return; }
     if(e.key!=='Enter') return; e.preventDefault();
     const v=inp.value.trim(), cat=m.querySelector('.ws-ctx-type').dataset.cat; if(!v||!DUTY_CATS[cat]) return;
+    if(cat==='combo'&&!_comboParse(v)){ toast("복합 근무는 '일/데'·'일/CG'·'8진/VW'처럼 역할/어디서로 써 주세요",'error'); return; }   // 11-28
     const key=m.querySelector('.ws-ctx-keep').checked?_customDutyAdd(cat,v):('c:'+cat+':'+v.slice(0,12));
     _wsCtxDuty(key);
   });

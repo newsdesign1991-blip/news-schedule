@@ -175,7 +175,9 @@ function renderHome() {
   const _hIlOk=entry?.ilgeun&&!_hLv.has(entry.ilgeun)&&!_hSpEx.has(entry.ilgeun);
   const _h8=[entry?.weekend8jin,entry?.weekday8jin,entry?.weekend8jin2,entry?.weekday8jin2].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
   const _isVwDept=id=>(deptOn(staffById(id),hDs)||'').toLowerCase()==='vw';
-  const _isCgDept=id=>{const d=(deptOn(staffById(id),hDs)||'').toLowerCase();return d==='cg'||d==='xr';};
+  // 토·일·공휴일엔 PROJECT 근무도 CG 인원(11-28 사용자 — 근무표 탭 _pjAdd 와 같게, 엑셀 합계도 그날만 PJ 열까지 셈). 평일 PJ 는 프로젝트 근무라 인원 밖
+  const _hOffDay=_hD.getDay()===0||_hD.getDay()===6||!!(data.holidays&&data.holidays[hDs]);
+  const _isCgDept=id=>{const d=(deptOn(staffById(id),hDs)||'').toLowerCase();return d==='cg'||d==='xr'||(_hOffDay&&d==='project');};
   const _h8vwIds=_h8.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isVwDept(id));
   const _h8cgIds=_h8.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isCgDept(id));
   const _hNo=[entry?.newsOh,entry?.newsOh2].filter(id=>id&&!_hSpEx.has(id)&&!_hLv.has(id));
@@ -183,8 +185,9 @@ function renderHome() {
   const _hNoCgIds=_hNo.filter(id=>!_hVwS.has(id)&&!_hCgW.has(id)&&_isCgDept(id));
   const _ilVwAdd=(_hIlVw&&!_hCgW.has(entry?.ilgeun)&&_hIlOk);
   const _ilCgAdd=(!_hIlVw&&_hIlOk&&!_hVwS.has(entry?.ilgeun));
+  const _hPjIds=_hOffDay?(entry?.project||[]).filter(id=>!_hEx(id)&&!_hVwS.has(id)&&!_hCgW.has(id)&&!(entry?.xr||[]).includes(id)&&id!==entry?.ilgeun&&!_h8cgIds.includes(id)&&!_hNoCgIds.includes(id)):[];   // 주말·공휴일 PJ 근무(목록 'PJ')
   const vwCnt=_hVwS.size+(_ilVwAdd?1:0)+_h8vwIds.length+_hNoVwIds.length;
-  const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_hEx(id)&&!_hVwS.has(id)).length+(entry?.xr||[]).filter(id=>!_hEx(id)).length+(_ilCgAdd?1:0)+_h8cgIds.length+_hNoCgIds.length;
+  const cgCnt=(entry?.cg?.workers||[]).filter(id=>!_hEx(id)&&!_hVwS.has(id)).length+(entry?.xr||[]).filter(id=>!_hEx(id)).length+(_ilCgAdd?1:0)+_h8cgIds.length+_hNoCgIds.length+_hPjIds.length;
   const prjCnt = (entry?.project||[]).length;
   const sptCnt = (entry?.sports||[]).length;
   // 오늘 요일/공휴일에 맞는 목표 인원 (작성소 설정 반영)
@@ -326,22 +329,23 @@ function renderHome() {
       ...(entry.xr||[]).filter(id=>id!==entry.morningDesk).map(id=>({id,isXr:true,tag:_n8s.has(id)?'8진':''})),
       ..._h8cgIds.map(id=>({id,isXr:(deptOn(staffById(id),hDs)||'').toLowerCase()==='xr',tag:'8진'})),
       ..._hNoCgIds.map(id=>({id,isXr:(deptOn(staffById(id),hDs)||'').toLowerCase()==='xr',tag:'뉴.오'})),
-      ...(_ilCgAdd?[{id:entry.ilgeun,isXr:(deptOn(staffById(entry.ilgeun),hDs)||'').toLowerCase()==='xr',tag:'일근'}]:[])
+      ...(_ilCgAdd?[{id:entry.ilgeun,isXr:(deptOn(staffById(entry.ilgeun),hDs)||'').toLowerCase()==='xr',tag:'일근'}]:[]),
+      ..._hPjIds.map(id=>({id,isPj:true,tag:'PJ'}))   // 주말·공휴일 PJ 근무 — 인원에 세는 사람은 목록에도(11-28), XR 뒤에 PJ 색
     ].filter(x=>x.id&&!_cgSeen.has(x.id)&&(_cgSeen.add(x.id),true))
      .sort((a,b)=>{
-       // 근무표 실제 컬럼 순서와 동일하게: CG 부서 그룹 전체 먼저 → XR 부서 그룹(각 그룹 내에선 직원 먼저+배열순서)
-       const da=a.isXr?1:0, db=b.isXr?1:0;
+       // 근무표 실제 컬럼 순서와 동일하게: CG 부서 그룹 전체 먼저 → XR 부서 그룹 → PJ(각 그룹 내에선 직원 먼저+배열순서)
+       const da=a.isPj?2:a.isXr?1:0, db=b.isPj?2:b.isXr?1:0;
        if(da!==db) return da-db;
        return _byStaffOrder(a.id,b.id);
      });
     document.getElementById('cg-today-chips').innerHTML=_cgAndXr.length
-      ? _cgAndXr.map(({id,isXr,tag})=>{
+      ? _cgAndXr.map(({id,isXr,isPj,tag})=>{
           const s=staffById(id);if(!s)return '';
           const isDesk8=id===(entry.cg?.desk8||entry.cg?.desk);
           const isDesk5=id===entry.cg?.desk5;
           const _t=tag?` <span style="opacity:.55;font-size:9px;font-weight:700;">${tag}</span>`:'';
           const _mark=isDesk8?'<span class="desk-star">★</span>':isDesk5?'<span class="desk-star">☆</span>':'';
-          return `<span class="wchip" style="${isXr?'background:var(--xr-chip-bg);color:var(--xr-light);':'background:var(--cg-chip-bg);color:var(--cg-chip-text);'}">${_mark}${s.name}${_t}</span>`;
+          return `<span class="wchip" style="${isPj?'background:var(--project-bg);color:var(--project-light);':isXr?'background:var(--xr-chip-bg);color:var(--xr-light);':'background:var(--cg-chip-bg);color:var(--cg-chip-text);'}">${_mark}${s.name}${_t}</span>`;
         }).join('')
       : '<div class="no-data">근무자 없음</div>';
     document.getElementById('project-today-chips').innerHTML=makeChips(entry.project||[],'project',null);
@@ -490,14 +494,17 @@ function renderHome() {
       const _wVwSet=new Set((e2.vw?.workers||[]).filter(id=>!_wExcl(id)&&!(_wCgWorkers.has(id)&&(deptOn(staffById(id),ds)||'').toLowerCase()==='vw')));
       const _w8Ids=[e2.weekend8jin,e2.weekday8jin,e2.weekend8jin2,e2.weekday8jin2].filter(id=>id&&!_wSpExcl.has(id)&&!_wLv.has(id));
       const _w8VwAdd=_w8Ids.filter(id=>!_wVwSet.has(id)&&!_wCgWorkers.has(id)&&(deptOn(staffById(id),ds)||'').toLowerCase()==='vw').length;
-      const _w8CgAdd=_w8Ids.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(deptOn(staffById(id),ds)||'').toLowerCase();return dd==='cg'||dd==='xr';}).length;
+      const _wOff=dow===0||dow===6||!!(data.holidays&&data.holidays[ds]);   // 토·일·공휴일엔 PJ 근무도 CG 인원(11-28, 근무표 탭과 같게)
+      const _wPjOff=id=>_wOff&&(deptOn(staffById(id),ds)||'').toLowerCase()==='project'&&!(e2.project||[]).includes(id);
+      const _w8CgAdd=_w8Ids.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(deptOn(staffById(id),ds)||'').toLowerCase();return dd==='cg'||dd==='xr'||_wPjOff(id);}).length;
       const _wNoIds=[e2.newsOh,e2.newsOh2].filter(id=>id&&!_wSpExcl.has(id)&&!_wLv.has(id));
       const _wNoVwAdd=_wNoIds.filter(id=>!_wVwSet.has(id)&&!_wCgWorkers.has(id)&&(deptOn(staffById(id),ds)||'').toLowerCase()==='vw').length;
-      const _wNoCgAdd=_wNoIds.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(deptOn(staffById(id),ds)||'').toLowerCase();return dd==='cg'||dd==='xr';}).length;
+      const _wNoCgAdd=_wNoIds.filter(id=>{if(_wVwSet.has(id)||_wCgWorkers.has(id))return false;const dd=(deptOn(staffById(id),ds)||'').toLowerCase();return dd==='cg'||dd==='xr'||_wPjOff(id);}).length;
+      const _wPjAdd=_wOff?(e2.project||[]).filter(id=>!_wExcl(id)&&!_wVwSet.has(id)&&!_wCgWorkers.has(id)).length:0;
       const _wIlVw=(e2.ilgeun?(deptOn(staffById(e2.ilgeun),ds)||'').toUpperCase():'')==='VW';
       const _wIlOk=e2.ilgeun&&!_wLv.has(e2.ilgeun)&&!_wSpExcl.has(e2.ilgeun);
       wVw=_wVwSet.size+(_wIlVw&&!_wCgWorkers.has(e2.ilgeun)&&_wIlOk?1:0)+_w8VwAdd+_wNoVwAdd;
-      wCg=(e2.cg?.workers||[]).filter(id=>!_wExcl(id)&&!_wVwSet.has(id)).length+(e2.xr||[]).filter(id=>!_wExcl(id)).length+(!_wIlVw&&_wIlOk&&!_wVwSet.has(e2.ilgeun)?1:0)+_w8CgAdd+_wNoCgAdd;
+      wCg=(e2.cg?.workers||[]).filter(id=>!_wExcl(id)&&!_wVwSet.has(id)).length+(e2.xr||[]).filter(id=>!_wExcl(id)).length+(!_wIlVw&&_wIlOk&&!_wVwSet.has(e2.ilgeun)?1:0)+_w8CgAdd+_wNoCgAdd+_wPjAdd;
     }
     wsHtml+=`<tr><td style="padding:9px 10px;font-weight:${isToday2?800:500};color:${_dcol};${_hi}${isToday2?'border-radius:10px 0 0 10px;':''}">${d.getMonth()+1}/${d.getDate()} ${DOW_KR[dow]}</td>
       <td style="padding:9px 8px;text-align:center;font-weight:${isToday2?800:600};color:var(--vw-light);${_hi}">${wVw}</td>

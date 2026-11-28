@@ -252,6 +252,15 @@ function parseExcelSchedule() {
       const r=parseInt(hex.slice(0,2),16), g=parseInt(hex.slice(2,4),16), b=parseInt(hex.slice(4,6),16);
       return r>=0xE6 && b>=0x99 && b-g>=12 && r-g>=30;
     };
+    // 연보라 바탕 칸(CCCCFF) = 근무는 하지만 근무자로 안 셈(11-28 사용자 — 12월 초판 최하늘 ' 정근 ', 11월 개편수정 황세연. 엑셀은 글자를 띄어 써서 합계에서 뺌).
+    //  이름 칸 색은 안 봄(날짜 줄의 근무 칸만)
+    const _isLavCell = cell => {
+      const st = cell && cell.s; if (!st || st.patternType !== 'solid') return false;
+      const hex = String((st.fgColor || {}).rgb || '').replace(/^FF(?=[0-9A-F]{6}$)/i, '');
+      if (!/^[0-9A-F]{6}$/i.test(hex)) return false;
+      const r=parseInt(hex.slice(0,2),16), g=parseInt(hex.slice(2,4),16), b=parseInt(hex.slice(4,6),16);
+      return Math.abs(r-g)<=8 && r>=0xB0 && b>=0xF0 && b-r>=0x20;
+    };
     const schedule = [];
     let _prevDay = 0, _curMon = month, _curYear = year;
     for (let r=bodyStart; r<bodyEnd; r++) {
@@ -300,7 +309,7 @@ function parseExcelSchedule() {
         const _nv=_xlSplitN(val); if(_nv){ val=_nv; _nNotes.push(name+' N'); }   // 'N/8진' 등 → 칸엔 8진, N은 비고
         if(val&&val!=='-'&&val!=='0'){
           const _cell = (XLSX.utils.encode_cell && ws) ? ws[XLSX.utils.encode_cell({r:r+sheetStart.r, c:colIdx+sheetStart.c})] : null;   // 칸 주소로 바탕색 읽기
-          entries.push(_isGrayCell(_cell) ? {name,workType:val,gray:true} : _isPinkCell(_cell) ? {name,workType:val,pink:true} : {name,workType:val});
+          entries.push(_isGrayCell(_cell) ? {name,workType:val,gray:true} : _isPinkCell(_cell) ? {name,workType:val,pink:true} : _isLavCell(_cell) ? {name,workType:val,lav:true} : {name,workType:val});
         }
       });
       // 비고 열 값 수집(8뉴스 진입 시간·편성 길이 등) → 날짜별 note
@@ -591,7 +600,7 @@ const WORK_TYPE_MAP = {
 };
 
 // 예전 가져오기가 남긴 '이름:글자(수동입력 필요)' 중 지금은 아는 글자는 안 보이게(저장 값은 그대로)
-function _notesShown(n){ return String(n||'').replace(/(?:^|,\s*)[^,:]+:([^,()]+)\(수동입력 필요\)/g,(m,t)=>WORK_TYPE_MAP[t]?'':m).replace(/^,\s*/,''); }
+function _notesShown(n){ return String(n||'').replace(/(?:^|,\s*)[^,:]+:([^,()]+)\(수동입력 필요\)/g,(m,t)=>(WORK_TYPE_MAP[t]||(typeof _dutyCombo==='function'&&_dutyCombo(t)))?'':m).replace(/^,\s*/,''); }
 
 function applyImageSchedule() {
   if (!_imgParsedData) return;
@@ -660,6 +669,7 @@ function _importCellDisplay(entry,id,leaves) {
   let bg='',color='var(--muted)',fw='500';
   const palette={nocount:['var(--surface2)','var(--muted)'],ojende8:['','#436bb5'],danjik:['#d65a52','#fff'],jogeun:['var(--r-jogeun-bg)','var(--r-jogeun-fg)'],ilgeun:['var(--r-ilgeun-bg)','var(--r-ilgeun-fg)'],offsite:['#ffc1df','#000000'],'vw-sub':['var(--vw-bg)','var(--vw-light)'],vw2:['var(--vw-bg)','var(--vw-light)'],cg2:['var(--cg-bg)','var(--cg-light)'],dj2:['#fdf0ef','#d65a52'],jo2:['var(--r-jogeun-bg)','var(--r-jogeun-fg)'],il2:['var(--r-ilgeun-bg)','var(--r-ilgeun-fg)'],'cg-sub':['var(--cg-bg)','var(--cg-light)'],newsoh:['var(--r-news-bg)','var(--r-news-fg)'],newsoh2:['var(--r-news2-bg)','var(--r-news2-fg)']};
   if(palette[type]) [bg,color]=palette[type];
+  else if(!type&&typeof _dutyCombo==='function'){ const cp=_dutyCombo(text); if(cp&&COMBO_BASE[cp[0]]){ bg=COMBO_BASE[cp[0]].bg; color=COMBO_BASE[cp[0]].color; } }   // 복합 근무(일/데 등) = 역할(일근) 색
   if(type==='leave')color='#c79a5e';
   if(type==='8jin'||type==='8jin2')color='#d65a52';
   if(['desk8','vw-desk','desk-auto'].includes(type))color='#6366f1';
@@ -668,6 +678,7 @@ function _importCellDisplay(entry,id,leaves) {
   if(/^(퇴근|당직퇴근)$/.test(text)){bg='var(--r-exit-bg)';color='var(--r-exit-fg)';}
   if(cell.gray){bg='#d9d9d9';color='#333333';}   // 회색 바탕 = 특별 작업(총인원 제외)
   if(cell.pink){bg='#ffc1df';color='#000000';}   // 분홍 바탕 = 출장·교육·기타(총인원 제외, 글자는 엑셀 그대로)
+  if(cell.lav){bg='#ccccff';color='#333333';fw='700';}   // 연보라 바탕 = 근무자로 안 셈(11-28, 글자는 엑셀 그대로)
   if(text && (type!=='work'||cell.pink))fw='700';
   const count=!!text && text!=='-' && text!=='0' && type!=='leave' && !/^(비번|당직비번)$/.test(text);
   return {text,bg,color,fw,count};
@@ -699,7 +710,7 @@ function _doApplyImageSchedule(skipNames) {
     delete data.draft.newLeaves[ds];
     const entry = data.draft.schedule[ds];
     if (day.note) entry.notes = day.note;   // 엑셀 비고(8뉴스 진입·편성 길이)
-    day.entries.forEach(({name, workType, gray, pink}) => {
+    day.entries.forEach(({name, workType, gray, pink, lav}) => {
       if (skipSet.has(name)) return;
       const s = (data.staff||[]).find(x=>x.name===name);
       if (!s) return;
@@ -714,6 +725,15 @@ function _doApplyImageSchedule(skipNames) {
         entry.customCells[s.id] = {text:shown, bg:'#ffc1df', color:'#000000'};
         applied++; return;
       }
+      if (lav && wt !== 'leave' && wt !== 'skip') {
+        // 연보라 바탕(11-28 사용자): 무슨 근무든 칸엔 엑셀 글자 그대로(연보라), 근무 목록엔 안 넣음 = 근무자로 안 셈(특수 근무 '정근 · 집계 제외'와 같은 계산)
+        if (!entry.customCells) entry.customCells = {};
+        entry.customCells[s.id] = {text:shown, bg:'#ccccff', color:'#333333', excl:true};
+        applied++; return;
+      }
+      // 복합 근무(11-28) '일/데'·'일/CG'·'일/VW' 등 — 한 칸에 두 근무, 근무 인원에 셈(엑셀 합계 수식과 같게). 칸 글자는 아래 importedCells 가 엑셀 그대로
+      const _combo = (wt === undefined && typeof _dutyCombo === 'function') ? _dutyCombo(workType) : null;
+      if (_combo) { _dutyComboApply(entry, s.id, ds, _combo); applied++; return; }
       if (wt === undefined) {      // 매핑 안 된 표기(면접관 등) → 자동 배정 않고 메모에 '수동입력 필요' 기록
         entry.notes = (entry.notes ? entry.notes + ', ' : '') + `${name}:${workType}(수동입력 필요)`;
         applied++; return;
@@ -832,6 +852,7 @@ function _doApplyImageSchedule(skipNames) {
         entry.importedCells[person.id]={text,signature:_importCellSignature(entry,person.id,data.draft.newLeaves[ds])};
         if(_e&&_e.gray) entry.importedCells[person.id].gray=true;   // 회색 바탕(특별 작업) — 표시 색
         else if(_e&&_e.pink&&WORK_TYPE_MAP[_normalizeImportedWorkType(text)]!=='leave') entry.importedCells[person.id].pink=true;   // 분홍 바탕(출장·교육·기타)
+        else if(_e&&_e.lav&&!['leave','skip'].includes(WORK_TYPE_MAP[_normalizeImportedWorkType(text)])) entry.importedCells[person.id].lav=true;   // 연보라 바탕(근무자로 안 셈, 11-28)
       });
     }
   });

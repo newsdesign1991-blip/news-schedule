@@ -6,6 +6,8 @@
 function workCellRole(entry, s, ds) {
   const leaves = data.newLeaves?.[ds] || [];
   const byText = t => { const k = (typeof WORK_TYPE_MAP !== 'undefined') ? WORK_TYPE_MAP[_normalizeImportedWorkType(t)] : null;
+    const cp = (!k && typeof _dutyCombo === 'function') ? _dutyCombo(t) : null;   // 복합 근무(일/데·일/CG …) = 앞 역할(일근)로 셈(11-28)
+    if (cp && typeof COMBO_BASE !== 'undefined' && COMBO_BASE[cp[0]]) return COMBO_BASE[cp[0]].label;
     return k==='danjik' ? '당직' : k==='jogeun' ? '조근' : k==='ilgeun' ? '일근' : k==='leave' ? '휴가' : /^(퇴근|당직퇴근)$/.test(t) ? '퇴근' : String(t||'').trim(); };
   const imported = (typeof _importCellDisplay === 'function') ? _importCellDisplay(entry, s.id, leaves) : null;
   if (imported) return byText(imported.text);
@@ -597,11 +599,12 @@ function renderTable() {
     const _vwSet=new Set((entry?.vw?.workers||[]).filter(id=>!_excl(id)&&!(_cgWorkersSet.has(id)&&(deptOn(staffById(id),dateStr)||'').toLowerCase()==='vw')));
     const _8jinIds=[entry?.weekend8jin,entry?.weekday8jin,entry?.weekend8jin2,entry?.weekday8jin2].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _8jinVwAdd=_8jinIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(deptOn(staffById(id),dateStr)||'').toLowerCase()==='vw').length;
-    const _8jinCgAdd=_8jinIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(deptOn(staffById(id),dateStr)||'').toLowerCase();return d==='cg'||d==='xr';}).length;
+    const _pjOff=id=>(isWeekend||isHoliday)&&(deptOn(staffById(id),dateStr)||'').toLowerCase()==='project'&&!(entry?.project||[]).includes(id);   // 토·일·공휴일 PJ 의 8진·뉴.오도 CG 인원(11-28, PJ 명단에 있으면 _pjAdd 가 셈)
+    const _8jinCgAdd=_8jinIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(deptOn(staffById(id),dateStr)||'').toLowerCase();return d==='cg'||d==='xr'||_pjOff(id);}).length;
     // 뉴.오/뉴.오2도 부서별로 일일 총계에 포함 (CG부서→CG총계, VW부서→VW총계). 이미 workers에 있으면 중복 제외
     const _newsOhIds=[entry?.newsOh,entry?.newsOh2].filter(id=>id&&!_specialExclude.has(id)&&!_leaveSet.has(id));
     const _newsOhVwAdd=_newsOhIds.filter(id=>!_vwSet.has(id)&&!_cgWorkersSet.has(id)&&(deptOn(staffById(id),dateStr)||'').toLowerCase()==='vw').length;
-    const _newsOhCgAdd=_newsOhIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(deptOn(staffById(id),dateStr)||'').toLowerCase();return d==='cg'||d==='xr';}).length;
+    const _newsOhCgAdd=_newsOhIds.filter(id=>{if(_vwSet.has(id)||_cgWorkersSet.has(id))return false;const d=(deptOn(staffById(id),dateStr)||'').toLowerCase();return d==='cg'||d==='xr'||_pjOff(id);}).length;
     const _ilgeunOk=entry?.ilgeun&&!_leaveSet.has(entry.ilgeun)&&!_specialExclude.has(entry?.ilgeun)&&!(isHoliday&&!isWeekend&&isWeekdayForm(dateStr));   // 평일 틀 공휴일 일근은 인원 밖(엑셀 10월 최종 10/5·10/9 합계 수식에 일근 없음, 생성기 인원도 같은 기준)
     // 토·일·공휴일에 PJ가 근무 칸에 있으면(정근으로 일반 근무) CG 인원 — 엑셀 합계 수식이 그날만 PJ 열까지 정근을 셈(10/5·10/9·10/17). 평일 PJ는 프로젝트 근무라 인원 밖
     const _pjAdd=(isWeekend||isHoliday)?(entry?.project||[]).filter(id=>!_excl(id)&&!_vwSet.has(id)&&!_cgWorkersSet.has(id)).length:0;
@@ -803,6 +806,7 @@ function renderTable() {
     const bigoItems=[];
     Object.entries(_personRoles).forEach(([id,roles])=>{
       if(roles.length<2)return; // 1개뿐이면 비고 불필요
+      if(typeof _comboCellOf==='function'&&_comboCellOf(entry,id,data.newLeaves?.[dateStr]))return;   // 칸이 이미 '일/CG' 같은 복합 근무(11-28)
       const sx=staffById(id); if(!sx)return;
       const sorted=roles.slice().sort((a,b)=>_roleOrder.indexOf(a.note)-_roleOrder.indexOf(b.note));
       // 첫번째(primary)는 이미 셀에 표시됨 — 나머지만 비고에

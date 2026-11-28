@@ -70,7 +70,7 @@ function _genVC(e, ds, pe){
   const cgW=new Set(e.cg?.workers||[]);
   const vw=new Set((e.vw?.workers||[]).filter(id=>!ex(id)&&!(cgW.has(id)&&dep(id)==='vw')));
   let v=vw.size, c=[...cgW].filter(id=>!ex(id)&&!vw.has(id)).length+(e.xr||[]).filter(id=>!ex(id)).length;
-  [e.weekend8jin,e.weekday8jin,e.weekend8jin2,e.weekday8jin2,e.newsOh,e.newsOh2].filter(id=>id&&!sp.has(id)&&!lv.has(id)&&!vw.has(id)&&!cgW.has(id)).forEach(id=>{ const d=dep(id); if(d==='vw') v++; else if(d==='cg'||d==='xr') c++; });
+  [e.weekend8jin,e.weekday8jin,e.weekend8jin2,e.weekday8jin2,e.newsOh,e.newsOh2].filter(id=>id&&!sp.has(id)&&!lv.has(id)&&!vw.has(id)&&!cgW.has(id)).forEach(id=>{ const d=dep(id); if(d==='vw') v++; else if(d==='cg'||d==='xr'||((we||hol)&&d==='project'&&!(e.project||[]).includes(id))) c++; });   // 토·일·공휴일 PJ 8진·뉴.오도 CG(11-28)
   const il=e.ilgeun; if(il&&!lv.has(il)&&!sp.has(il)&&!(hol&&!we&&isWeekdayForm(ds))){ if(dep(il)==='vw'){ if(!cgW.has(il)) v++; } else if(!vw.has(il)) c++; }
   if(we||hol) c+=(e.project||[]).filter(id=>!ex(id)&&!vw.has(id)&&!cgW.has(id)).length;
   return {vw:v, cg:c};
@@ -126,6 +126,7 @@ function fillBasicWeekdays() {
       e.vw.desk=desk1('VW')?.id||null; e.cg.desk8=desk1('CG')?.id||null;
       days++;
     } else if((pv.sports||[]).length) e.sports=[...pv.sports];   // 주말 SPORTS 손배정은 그대로(자동생성과 같게)
+    if(typeof _dutyComboReapply==='function') _dutyComboReapply(e, ds);   // 손입력 복합 근무(일/데 등, 11-28)는 진짜 근무(일근·데스크·지원)도 그대로 — 데스크는 1순위보다 먼저
     sch[ds]=e;
   }
   data.draft.rangeStart=startVal; data.draft.rangeEnd=endVal;
@@ -173,6 +174,8 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       const _pv=_prevSnap[ds];
       _prevSnap[ds] = { customCells:_pv.customCells, jogeunEdu:_pv.jogeunEdu, jogeunExtra:_pv.jogeunExtra, newsOh2:_pv.newsOh2, weekend8jin2:_pv.weekend8jin2, weekday8jin2:_pv.weekday8jin2, notes:_pv.notes };
     }
+    // 손으로 넣은 복합 근무 '일/데'·'일/CG' 등(11-28)은 그 사람이 그날 일근 — 생성기가 다른 사람을 일근으로 뽑지 않게
+    { const _cc=_prevSnap[ds]?.customCells||{}; Object.keys(_cc).forEach(id=>{ const c=_cc[id]; if(c&&typeof _comboOk==='function'&&_comboOk(c.parts)&&c.parts[0]==='ilgeun') _prevSnap[ds].ilgeun=id; }); }
     const draftSports = targetSchedule[ds]?.sports||[];
     const publishedSports = isDraftTarget ? (data.schedule[ds]?.sports||[]) : [];
     const savedSports = draftSports.length ? draftSports : publishedSports;
@@ -1163,6 +1166,7 @@ function _generateScheduleCore(startVal, endVal, targetSchedule, resultElId, opt
       jogeunExtra:_prevSnap[dateStr]?.jogeunExtra||undefined,
       notes:_prevSnap[dateStr]?.notes||targetSchedule[dateStr]?.notes||''
     };
+    if (typeof _dutyComboReapply==='function') _dutyComboReapply(_full, dateStr);   // 손입력 복합 근무 칸의 진짜 근무(일근·데스크·지원)를 다시 — 글자만 남고 인원에서 빠지지 않게(11-28)
     const _phase = opts.phase || 'all';
     if (_phase==='desk') {
       // 고정 역할 전부(데스크·오전데·당직·8진·뉴오·일근·조근) + 그 인원만. 일반 근무자·XR·PROJECT·SPORTS는 '나머지 채우기'에서.
